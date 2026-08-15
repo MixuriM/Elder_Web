@@ -1,0 +1,26 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "eamodio.gitlens",
+    "bradlc.vscode-tailwindcss",
+    "steoates.autoimport",
+    "formulahendry.auto-rename-tag",
+    "dsznajder.es7-react-js-snippets",
+    "christian-kohler.npm-intellisense",
+    "usernamehw.errorlens",
+    "prisma.prisma",
+    "ms-azuretools.vscode-docker",
+    "mikestead.dotenv",
+    "anthropic.claude-code"
+  ],
+  "unwantedRecommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "msjsdiag.vscode-react-native",
+    "ritwickdey.liveserver",
+    "formulahendry.code-runner"
+  ]
+}

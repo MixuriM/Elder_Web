@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+
+.env
+.env.local
+*.local
+
+npm-debug.log*
+
+.vscode/*
+!.vscode/extensions.json
+
+.claude/settings.local.json
+
+*.tsbuildinfo

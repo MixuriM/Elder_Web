@@ -1,0 +1,12 @@
+// Schema ainda sem models — ver CLAUDE.md, lacunas em aberto sobre o
+// modelo de dados (ex: tabela Instituicao) precisam ser decididas pelo grupo
+// antes de definir as tabelas.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
