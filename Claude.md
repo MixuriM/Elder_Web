@@ -45,8 +45,7 @@ login para os 3 perfis, interface dedicada de cuidador.
 - **Frontend:** React + TypeScript + Vite + Tailwind CSS + React Router
   (obrigatório — é multi-página web, não SPA de tela única)
 - **Backend:** Node.js + Express + TypeScript + Prisma (ORM)
-- **Banco de dados:** SQL Server (usuários, saúde, medicação — ver lacuna
-  sobre a tabela de instituição)
+- **Banco de dados:** SQL Server (usuários, saúde, medicação)
 - **Autenticação:** Firebase Auth (Firebase Web SDK) — só login/autenticação,
   não armazena dados de domínio
 - **Testes:** Jest + React Testing Library; Playwright (e2e) se der tempo
@@ -71,6 +70,10 @@ Decisão travada — não reabrir sem discutir com o grupo.
   `Authorization`; um middleware Express valida o token e resolve o `id`
   interno a partir do `firebase_uid`.
 - Vínculo cuidador↔idoso é uma tabela própria, não uma coluna em `Usuario`:
+
+_(Modelo simplificado/ilustrativo. O modelo real e validado — com tipo_vinculo,
+origem, aprovador_id, e cobrindo também vínculo familiar-idoso, não só
+cuidador-idoso — está no PDF do TCC, seção 2.5.2.)_
 
 ```
 Vinculo
@@ -119,16 +122,14 @@ de rodar o scaffold real.)
 - Não reaproveitar nenhum código do protótipo antigo — só olhar como referência
 
 ## Lacunas em aberto — NÃO decidir sozinho, perguntar ao grupo
-- **A tabela `Instituicao` ainda faz sentido?** Ela vem da stack original,
-  que pressupunha um sistema ILPI ligado a uma instituição real. Sem uma
-  instituição-cliente definida, decidir: (a) remover o conceito de
-  instituição do modelo, (b) manter como campo opcional/genérico pra uso
-  futuro, ou (c) outra coisa. Isso muda o schema do Prisma.
-- **Quem aprova o vínculo cuidador↔idoso na tabela `Vinculo`?** Sem uma
-  instituição real como stakeholder, os candidatos ficam entre: o próprio
-  idoso, o familiar, ou uma aprovação automática/sem gatekeeper. Decisão de
-  produto do grupo, não técnica.
-- Função do microfone: manter, remover ou redefinir o propósito?
 - Estrutura de pastas acima (`frontend/` + `backend/` monorepo) foi assumida
   por mim — não foi validada pelo grupo. Se vocês preferirem repositórios
   separados, isso muda o `docker-compose.yml` e o CI.
+
+**Decisões fechadas (não reabrir):** não existe tabela `Instituicao` no modelo
+de dados — removida do escopo. A funcionalidade de microfone foi excluída
+definitivamente do produto. A aprovação de vínculo cuidador↔idoso é manual
+(idoso ou familiar aprovam). O modelo de dados completo e validado (7
+entidades: Usuario, Vinculo, Evento, Medicamento, RegistroDose, RegistroSaude,
+RegistroAlimentar) está descrito no PDF do TCC, seção 2.5.2 — trate esse PDF
+como fonte de verdade do ER, não este arquivo.
