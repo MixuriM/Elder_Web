@@ -16,6 +16,12 @@ atualizado, não o PDF do TCC.** O PDF ainda descreve um app mobile com Alexa,
 mensagens e loja — tudo isso foi removido. Se houver conflito entre o PDF e o
 que está descrito abaixo, o que está abaixo vence.
 
+**Fonte de verdade do modelo de dados (ER): `elder-web-modelagem-ER.md`, não a
+seção 2.5.2 do PDF do TCC.** O ER.md está mais atualizado que o PDF neste
+momento — é uma inversão temporária, o PDF será sincronizado com esse modelo
+em breve. Até lá, trate o ER.md como a referência canônica de trabalho para
+entidades, atributos e relacionamentos.
+
 Existe um protótipo antigo em https://github.com/MixuriM/Prototipo-Elder-App
 (mobile, hospedado via GitHub Pages). Ele é **apenas referência visual** — não
 reaproveitar código dele. Este é um repositório novo, do zero.
@@ -69,20 +75,40 @@ Decisão travada — não reabrir sem discutir com o grupo.
 - Toda requisição autenticada subsequente manda o ID Token no header
   `Authorization`; um middleware Express valida o token e resolve o `id`
   interno a partir do `firebase_uid`.
-- Vínculo cuidador↔idoso é uma tabela própria, não uma coluna em `Usuario`:
+- `Vinculo` é uma tabela genérica que cobre tanto cuidador↔idoso quanto
+  familiar↔idoso (não são tabelas separadas):
 
-_(Modelo simplificado/ilustrativo. O modelo real e validado — com tipo_vinculo,
-origem, aprovador_id, e cobrindo também vínculo familiar-idoso, não só
-cuidador-idoso — está no PDF do TCC, seção 2.5.2.)_
+_(Modelo simplificado/ilustrativo — ver `elder-web-modelagem-ER.md` seções 1–2
+para a estrutura completa, incluindo campos de auditoria e do fluxo de
+confirmação por e-mail.)_
 
 ```
 Vinculo
   id
-  cuidador_id   (FK -> Usuario.id)
-  idoso_id      (FK -> Usuario.id)
-  status        (enum: 'pendente' | 'aprovado' | 'recusado')
+  idoso_id       (FK -> Usuario.id)
+  vinculado_id   (FK -> Usuario.id)   -- o cuidador ou o familiar
+  tipo_vinculo   (enum: 'cuidador' | 'familiar')
+  origem         (enum: 'solicitacao_cuidador' | 'convite_idoso' |
+                        'solicitacao_familiar' | 'cadastro_familiar')
+  status         (enum: 'pendente' | 'aprovado' | 'recusado')
+  aprovador_id   (FK -> Usuario.id, nullable)
   criado_em
+  -- + 3 flags de permissão do cuidador (ver abaixo)
 ```
+
+- **Aprovação de vínculo não é sempre manual.** Para **cuidador**, é sempre
+  aprovação manual (`aprovador_id` humano). Para **familiar**, depende de quem
+  iniciou o vínculo: se veio de convite do idoso (`convite_idoso`) ou de
+  cadastro feito pelo familiar (`cadastro_familiar`), a aprovação é automática
+  por confirmação de posse do e-mail; se veio de solicitação do familiar
+  (`solicitacao_familiar`), é aprovação manual como no caso do cuidador.
+- **Permissões granulares do cuidador.** Cada vínculo de cuidador tem 3 flags
+  (`permite_registrar_saude`, `permite_marcar_dose`,
+  `permite_criar_evento_cuidado`), todas nascendo `false`. Quem tem autoridade
+  para ligá-las é `Usuario.modo_decisao` do idoso (`'idoso'` ou `'familiar'`),
+  com transferência de autoridade sujeita a salvaguardas (janela de carência,
+  possível segunda confirmação). Mecanismo completo em
+  `elder-web-modelagem-ER.md` seção 3.
 
 ## Estrutura de pastas (proposta — ver lacuna abaixo)
 
@@ -125,11 +151,29 @@ de rodar o scaffold real.)
 - Estrutura de pastas acima (`frontend/` + `backend/` monorepo) foi assumida
   por mim — não foi validada pelo grupo. Se vocês preferirem repositórios
   separados, isso muda o `docker-compose.yml` e o CI.
+- Risco de colisão de e-mail entre contas: sem registro de mitigação
+  encontrado no `elder-web-modelagem-ER.md` até a REV.9. (O que existe lá é
+  outra coisa: `email` opcional + índice único filtrado, para permitir idoso
+  sem e-mail próprio cadastrado pelo familiar — não trata colisão.) Não
+  presumir resolvido nem tratar como bloqueante sem confirmar com o grupo.
+
+**Riscos aceitos conscientemente (não é pendência técnica):** consentimento
+do idoso quando a conta é criada por um familiar, e perda progressiva de
+capacidade do idoso após autocadastro. O grupo decidiu não mitigar
+tecnicamente além de certo ponto — ver `elder-web-modelagem-ER.md` seção 5.2
+para o raciocínio completo.
+
+**Fechado conforme `elder-web-modelagem-ER.md` REV.9 — pendente de
+confirmação do grupo (Laureane e Jennifer):**
+- Permissão granular do cuidador por vínculo (RF-032), em vez de uma
+  variante global de acesso.
+- `RegistroSaude.editado_por_id` obrigatório (RNF-006).
 
 **Decisões fechadas (não reabrir):** não existe tabela `Instituicao` no modelo
 de dados — removida do escopo. A funcionalidade de microfone foi excluída
-definitivamente do produto. A aprovação de vínculo cuidador↔idoso é manual
-(idoso ou familiar aprovam). O modelo de dados completo e validado (7
-entidades: Usuario, Vinculo, Evento, Medicamento, RegistroDose, RegistroSaude,
-RegistroAlimentar) está descrito no PDF do TCC, seção 2.5.2 — trate esse PDF
-como fonte de verdade do ER, não este arquivo.
+definitivamente do produto. `tipo_perfil` é fixo e único por conta, sem
+hibridismo de papéis. A cardinalidade idoso↔cuidador/familiar é N:N. O modelo
+de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
+Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
+descrito em `elder-web-modelagem-ER.md` — ver nota no início deste arquivo
+sobre a relação temporária desse documento com o PDF do TCC.
