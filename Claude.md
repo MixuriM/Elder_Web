@@ -163,16 +163,13 @@ capacidade do idoso após autocadastro. O grupo decidiu não mitigar
 tecnicamente além de certo ponto — ver `elder-web-modelagem-ER.md` seção 5.2
 para o raciocínio completo.
 
-**Fechado conforme `elder-web-modelagem-ER.md` REV.9 — pendente de
-confirmação do grupo (Laureane e Jennifer):**
-- Permissão granular do cuidador por vínculo (RF-032), em vez de uma
-  variante global de acesso.
-- `RegistroSaude.editado_por_id` obrigatório (RNF-006).
-
 **Decisões fechadas (não reabrir):** não existe tabela `Instituicao` no modelo
 de dados — removida do escopo. A funcionalidade de microfone foi excluída
 definitivamente do produto. `tipo_perfil` é fixo e único por conta, sem
-hibridismo de papéis. A cardinalidade idoso↔cuidador/familiar é N:N. O modelo
+hibridismo de papéis. A cardinalidade idoso↔cuidador/familiar é N:N. Permissão
+granular do cuidador por vínculo (RF-032, os 3 flags `permite_*` de `Vinculo`),
+em vez de uma variante global de acesso, e `RegistroSaude.editado_por_id`
+obrigatório (RNF-006) — confirmados pelo grupo (Laureane e Jennifer). O modelo
 de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
 Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
 descrito em `elder-web-modelagem-ER.md` — ver nota no início deste arquivo

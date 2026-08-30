@@ -1,6 +1,17 @@
-// Schema ainda sem models — ver CLAUDE.md, lacunas em aberto sobre o
-// modelo de dados (ex: tabela Instituicao) precisam ser decididas pelo grupo
-// antes de definir as tabelas.
+// Elder Web — schema Prisma (SQL Server)
+// Fonte de verdade: elder-web-modelagem-ER.md REV.9 (não o PDF do TCC, seção 2.5.2 desatualizada).
+//
+// Decisão: TODA FK que aponta para Usuario usa onDelete: NoAction, onUpdate: NoAction
+// explicitamente. O conector sqlserver do Prisma rejeita a migration com "may cause cycles
+// or multiple cascade paths" quando mais de um caminho de cascata converge na mesma tabela —
+// e este modelo tem várias FKs de tabelas diferentes (e várias dentro da mesma tabela)
+// apontando pra Usuario, o que dispara esse erro quase certamente com o default
+// (Cascade/SetNull) do Prisma. Não há avaliação caso a caso: todas as FKs para Usuario
+// recebem NoAction por padrão.
+//
+// O conector sqlserver não suporta o tipo `enum` do Prisma Schema. Todo campo que no ER.md é
+// um enum de negócio é modelado como String @db.NVarChar(n), com um comentário `//` acima
+// listando os valores permitidos exatamente como estão na REV.9.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,4 +20,197 @@ generator client {
 datasource db {
   provider = "sqlserver"
   url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id                                  Int       @id @default(autoincrement())
+  firebase_uid                        String    @unique @db.NVarChar(128)
+  nome                                String    @db.NVarChar(150)
+  // TODO (manual na migration): índice único de email precisa ser FILTRADO
+  // (UNIQUE WHERE email IS NOT NULL) — @@unique do Prisma não aceita WHERE.
+  // Necessário porque idoso cadastrado por familiar pode não ter email (ver (1) no ER.md).
+  email                               String?   @db.NVarChar(255)
+  telefone                            String?   @db.NVarChar(20)
+  // 'idoso' / 'cuidador' / 'familiar'
+  tipo_perfil                         String    @db.NVarChar(20)
+  email_convite_familiar              String?   @db.NVarChar(255)
+  cadastrado_por_id                   Int?
+  termo_responsabilidade_aceito_em    DateTime? @db.DateTime2
+  // 'idoso' / 'familiar'
+  modo_decisao                        String?   @db.NVarChar(10)
+  ultimo_login_em                     DateTime? @db.DateTime2
+  // 'familiar' (valor pendente durante a janela de carência) / NULL
+  modo_decisao_solicitado             String?   @db.NVarChar(10)
+  modo_decisao_solicitado_por_id      Int?
+  modo_decisao_solicitado_em          DateTime? @db.DateTime2
+  modo_decisao_expira_em              DateTime? @db.DateTime2
+  modo_decisao_segunda_confirmacao_id Int?
+  modo_decisao_alterado_por_id        Int?
+  modo_decisao_alterado_em            DateTime? @db.DateTime2
+  modo_decisao_motivo                 String?   @db.NVarChar(300)
+  created_at                          DateTime  @default(now()) @db.DateTime2
+  updated_at                          DateTime  @updatedAt @db.DateTime2
+
+  // TODO (manual na migration): CHECK (email IS NOT NULL OR telefone IS NOT NULL).
+  // TODO (manual na migration): CHECK (tipo_perfil IN ('idoso','cuidador','familiar')) — RNF-009,
+  // constraint de banco exigida além da validação de tela.
+
+  // Auto-relacionamentos de Usuario (4) — nomes distintos pra não colidir.
+  cadastrado_por       Usuario?  @relation("UsuarioCadastradoPor", fields: [cadastrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_cadastrados Usuario[] @relation("UsuarioCadastradoPor")
+
+  modo_decisao_solicitado_por Usuario?  @relation("UsuarioModoDecisaoSolicitadoPor", fields: [modo_decisao_solicitado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  solicitacoes_modo_decisao   Usuario[] @relation("UsuarioModoDecisaoSolicitadoPor")
+
+  modo_decisao_segunda_confirmacao   Usuario?  @relation("UsuarioModoDecisaoSegundaConfirmacao", fields: [modo_decisao_segunda_confirmacao_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  segundas_confirmacoes_modo_decisao Usuario[] @relation("UsuarioModoDecisaoSegundaConfirmacao")
+
+  modo_decisao_alterado_por Usuario?  @relation("UsuarioModoDecisaoAlteradoPor", fields: [modo_decisao_alterado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  alteracoes_modo_decisao   Usuario[] @relation("UsuarioModoDecisaoAlteradoPor")
+
+  // Reversos das FKs de outras tabelas para Usuario.
+  vinculos_como_idoso     Vinculo[] @relation("VinculoIdoso")
+  vinculos_como_vinculado Vinculo[] @relation("VinculoVinculado")
+  vinculos_aprovados      Vinculo[] @relation("VinculoAprovador")
+  vinculos_definidos      Vinculo[] @relation("VinculoDefinidoPor")
+
+  eventos_como_idoso Evento[] @relation("EventoIdoso")
+  eventos_criados    Evento[] @relation("EventoCriadoPor")
+  eventos_editados   Evento[] @relation("EventoEditadoPor")
+
+  medicamentos_como_idoso Medicamento[] @relation("MedicamentoIdoso")
+  medicamentos_criados    Medicamento[] @relation("MedicamentoCriadoPor")
+  medicamentos_editados   Medicamento[] @relation("MedicamentoEditadoPor")
+
+  doses_registradas RegistroDoseMedicamento[] @relation("RegistroDoseMedicamentoRegistradoPor")
+
+  registros_saude_como_idoso  RegistroSaude[] @relation("RegistroSaudeIdoso")
+  registros_saude_registrados RegistroSaude[] @relation("RegistroSaudeRegistradoPor")
+  registros_saude_editados    RegistroSaude[] @relation("RegistroSaudeEditadoPor")
+
+  registros_alimentares_como_idoso  RegistroAlimentar[] @relation("RegistroAlimentarIdoso")
+  registros_alimentares_registrados RegistroAlimentar[] @relation("RegistroAlimentarRegistradoPor")
+  registros_alimentares_editados    RegistroAlimentar[] @relation("RegistroAlimentarEditadoPor")
+}
+
+// A granularidade de permissão do cuidador abaixo (permite_registrar_saude,
+// permite_marcar_dose, permite_criar_evento_cuidado — RF-032) e a obrigatoriedade de
+// RegistroSaude.editado_por_id (RNF-006) estão modeladas conforme elder-web-modelagem-ER.md
+// REV.9 e já foram confirmadas pelo grupo (Laureane e Jennifer) — ver CLAUDE.md,
+// "Decisões fechadas".
+model Vinculo {
+  id                           Int       @id @default(autoincrement())
+  idoso_id                     Int
+  vinculado_id                 Int
+  // 'cuidador' / 'familiar'
+  tipo_vinculo                 String    @db.NVarChar(20)
+  // 'solicitacao_cuidador' / 'convite_idoso' / 'solicitacao_familiar' / 'cadastro_familiar'
+  origem                       String    @db.NVarChar(30)
+  // 'pendente' / 'aprovado' / 'recusado'
+  status                       String    @db.NVarChar(20)
+  aprovador_id                 Int?
+  data_solicitacao             DateTime  @db.DateTime2
+  data_resposta                DateTime? @db.DateTime2
+  confirmado_em                DateTime? @db.DateTime2
+  notificado_em                DateTime? @db.DateTime2
+  permite_registrar_saude      Boolean?  @default(false)
+  permite_marcar_dose          Boolean?  @default(false)
+  permite_criar_evento_cuidado Boolean?  @default(false)
+  definido_por_id              Int?
+  definido_em                  DateTime? @db.DateTime2
+
+  idoso        Usuario  @relation("VinculoIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vinculado    Usuario  @relation("VinculoVinculado", fields: [vinculado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  aprovador    Usuario? @relation("VinculoAprovador", fields: [aprovador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  definido_por Usuario? @relation("VinculoDefinidoPor", fields: [definido_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Evento {
+  id               Int       @id @default(autoincrement())
+  idoso_id         Int
+  criado_por_id    Int
+  // CHECK (tipo_evento IN ('cuidado','medico','pessoal'))
+  tipo_evento      String    @db.NVarChar(30)
+  titulo           String    @db.NVarChar(150)
+  descricao        String?   @db.NVarChar(500)
+  data_hora_inicio DateTime  @db.DateTime2
+  data_hora_fim    DateTime? @db.DateTime2
+  editado_por_id   Int?
+  created_at       DateTime  @default(now()) @db.DateTime2
+  updated_at       DateTime  @updatedAt @db.DateTime2
+
+  idoso       Usuario  @relation("EventoIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  criado_por  Usuario  @relation("EventoCriadoPor", fields: [criado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  editado_por Usuario? @relation("EventoEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Medicamento {
+  id             Int       @id @default(autoincrement())
+  idoso_id       Int
+  criado_por_id  Int
+  nome           String    @db.NVarChar(150)
+  dosagem        String    @db.NVarChar(50)
+  frequencia     String    @db.NVarChar(100)
+  data_inicio    DateTime  @db.Date
+  data_fim       DateTime? @db.Date
+  observacoes    String?   @db.NVarChar(500)
+  ativo          Boolean
+  editado_por_id Int?
+  created_at     DateTime  @default(now()) @db.DateTime2
+  updated_at     DateTime  @updatedAt @db.DateTime2
+
+  idoso       Usuario                   @relation("MedicamentoIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  criado_por  Usuario                   @relation("MedicamentoCriadoPor", fields: [criado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  editado_por Usuario?                  @relation("MedicamentoEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  doses       RegistroDoseMedicamento[]
+}
+
+model RegistroDoseMedicamento {
+  id                      Int      @id @default(autoincrement())
+  medicamento_id          Int
+  registrado_por_id       Int
+  data_hora_administracao DateTime @db.DateTime2
+  // 'administrado' / 'pulado' / 'atrasado'
+  status_administracao    String   @db.NVarChar(20)
+  observacoes             String?  @db.NVarChar(300)
+  created_at              DateTime @default(now()) @db.DateTime2
+
+  medicamento    Medicamento @relation(fields: [medicamento_id], references: [id])
+  registrado_por Usuario     @relation("RegistroDoseMedicamentoRegistradoPor", fields: [registrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model RegistroSaude {
+  id                Int      @id @default(autoincrement())
+  idoso_id          Int
+  registrado_por_id Int
+  tipo_medicao      String   @db.NVarChar(50)
+  valor_1           Decimal  @db.Decimal(6, 2)
+  valor_2           Decimal? @db.Decimal(6, 2)
+  unidade           String   @db.NVarChar(20)
+  data_hora         DateTime @db.DateTime2
+  observacoes       String?  @db.NVarChar(300)
+  // Obrigatório (RNF-006) — diferente de Evento/Medicamento/RegistroAlimentar, onde é opcional.
+  editado_por_id    Int
+  created_at        DateTime @default(now()) @db.DateTime2
+  updated_at        DateTime @updatedAt @db.DateTime2
+
+  idoso          Usuario @relation("RegistroSaudeIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  registrado_por Usuario @relation("RegistroSaudeRegistradoPor", fields: [registrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  editado_por    Usuario @relation("RegistroSaudeEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model RegistroAlimentar {
+  id                Int      @id @default(autoincrement())
+  idoso_id          Int
+  registrado_por_id Int
+  refeicao          String   @db.NVarChar(50)
+  descricao         String   @db.NVarChar(500)
+  data_hora         DateTime @db.DateTime2
+  editado_por_id    Int?
+  created_at        DateTime @default(now()) @db.DateTime2
+  updated_at        DateTime @updatedAt @db.DateTime2
+
+  idoso          Usuario  @relation("RegistroAlimentarIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  registrado_por Usuario  @relation("RegistroAlimentarRegistradoPor", fields: [registrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  editado_por    Usuario? @relation("RegistroAlimentarEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
