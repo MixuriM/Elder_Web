@@ -22,10 +22,14 @@ function isConstraintViolation(e: unknown): boolean {
   // wrapping the driver's "The INSERT statement conflicted with the CHECK constraint"
   // or "Cannot insert duplicate key row" messages. Match on that text rather than a
   // fixed Prisma error code, since both typed and raw paths land here differently.
-  if (e instanceof Prisma.PrismaClientKnownRequestError) return true;
-  if (e instanceof Prisma.PrismaClientUnknownRequestError) return true;
+  // Prisma's mssql connector also mislabels typed-Client CHECK violations as P2003
+  // ("Foreign key constraint violated: `<constraint name> (index)`"), naming the actual
+  // CHECK constraint — this script never triggers a real FK violation (all rejection
+  // cases use valid FK references), so matching that message here is safe.
   if (e instanceof Error) {
-    return /CHECK constraint|UNIQUE constraint|duplicate key|Violation of/i.test(e.message);
+    return /CHECK constraint|UNIQUE constraint|duplicate key|Violation of|Foreign key constraint violated/i.test(
+      e.message,
+    );
   }
   return false;
 }

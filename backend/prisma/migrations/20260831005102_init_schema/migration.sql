@@ -42,9 +42,9 @@ CREATE TABLE [dbo].[Vinculo] (
     [data_resposta] DATETIME2,
     [confirmado_em] DATETIME2,
     [notificado_em] DATETIME2,
-    [permite_registrar_saude] BIT CONSTRAINT [Vinculo_permite_registrar_saude_df] DEFAULT 0,
-    [permite_marcar_dose] BIT CONSTRAINT [Vinculo_permite_marcar_dose_df] DEFAULT 0,
-    [permite_criar_evento_cuidado] BIT CONSTRAINT [Vinculo_permite_criar_evento_cuidado_df] DEFAULT 0,
+    [permite_registrar_saude] BIT NOT NULL CONSTRAINT [Vinculo_permite_registrar_saude_df] DEFAULT 0,
+    [permite_marcar_dose] BIT NOT NULL CONSTRAINT [Vinculo_permite_marcar_dose_df] DEFAULT 0,
+    [permite_criar_evento_cuidado] BIT NOT NULL CONSTRAINT [Vinculo_permite_criar_evento_cuidado_df] DEFAULT 0,
     [definido_por_id] INT,
     [definido_em] DATETIME2,
     CONSTRAINT [Vinculo_pkey] PRIMARY KEY CLUSTERED ([id])

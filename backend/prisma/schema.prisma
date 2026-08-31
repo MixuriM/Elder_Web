@@ -118,9 +118,9 @@ model Vinculo {
   data_resposta                DateTime? @db.DateTime2
   confirmado_em                DateTime? @db.DateTime2
   notificado_em                DateTime? @db.DateTime2
-  permite_registrar_saude      Boolean?  @default(false)
-  permite_marcar_dose          Boolean?  @default(false)
-  permite_criar_evento_cuidado Boolean?  @default(false)
+  permite_registrar_saude      Boolean   @default(false)
+  permite_marcar_dose          Boolean   @default(false)
+  permite_criar_evento_cuidado Boolean   @default(false)
   definido_por_id              Int?
   definido_em                  DateTime? @db.DateTime2
 
