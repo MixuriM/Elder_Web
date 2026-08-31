@@ -16,7 +16,7 @@ atualizado, não o PDF do TCC.** O PDF ainda descreve um app mobile com Alexa,
 mensagens e loja — tudo isso foi removido. Se houver conflito entre o PDF e o
 que está descrito abaixo, o que está abaixo vence.
 
-**Fonte de verdade do modelo de dados (ER): `elder-web-modelagem-ER.md`, não a
+**Fonte de verdade do modelo de dados (ER): `Elder Web - Modelagem ER.md`, não a
 seção 2.5.2 do PDF do TCC.** O ER.md está mais atualizado que o PDF neste
 momento — é uma inversão temporária, o PDF será sincronizado com esse modelo
 em breve. Até lá, trate o ER.md como a referência canônica de trabalho para
@@ -51,7 +51,7 @@ login para os 3 perfis, interface dedicada de cuidador.
 - **Frontend:** React + TypeScript + Vite + Tailwind CSS + React Router
   (obrigatório — é multi-página web, não SPA de tela única)
 - **Backend:** Node.js + Express + TypeScript + Prisma (ORM)
-- **Banco de dados:** SQL Server (usuários, saúde, medicação)
+- **Banco de dados:** SQL Server 2025 (usuários, saúde, medicação)
 - **Autenticação:** Firebase Auth (Firebase Web SDK) — só login/autenticação,
   não armazena dados de domínio
 - **Testes:** Jest + React Testing Library; Playwright (e2e) se der tempo
@@ -78,7 +78,7 @@ Decisão travada — não reabrir sem discutir com o grupo.
 - `Vinculo` é uma tabela genérica que cobre tanto cuidador↔idoso quanto
   familiar↔idoso (não são tabelas separadas):
 
-_(Modelo simplificado/ilustrativo — ver `elder-web-modelagem-ER.md` seções 1–2
+_(Modelo simplificado/ilustrativo — ver `Elder Web - Modelagem ER.md` seções 1–2
 para a estrutura completa, incluindo campos de auditoria e do fluxo de
 confirmação por e-mail.)_
 
@@ -108,7 +108,7 @@ Vinculo
   para ligá-las é `Usuario.modo_decisao` do idoso (`'idoso'` ou `'familiar'`),
   com transferência de autoridade sujeita a salvaguardas (janela de carência,
   possível segunda confirmação). Mecanismo completo em
-  `elder-web-modelagem-ER.md` seção 3.
+  `Elder Web - Modelagem ER.md` seção 3.
 
 ## Estrutura de pastas (proposta — ver lacuna abaixo)
 
@@ -157,7 +157,7 @@ de rodar o scaffold real.)
   por mim — não foi validada pelo grupo. Se vocês preferirem repositórios
   separados, isso muda o `docker-compose.yml` e o CI.
 - Risco de colisão de e-mail entre contas: sem registro de mitigação
-  encontrado no `elder-web-modelagem-ER.md` até a REV.9. (O que existe lá é
+  encontrado no `Elder Web - Modelagem ER.md` até a REV.9. (O que existe lá é
   outra coisa: `email` opcional + índice único filtrado, para permitir idoso
   sem e-mail próprio cadastrado pelo familiar — não trata colisão.) Não
   presumir resolvido nem tratar como bloqueante sem confirmar com o grupo.
@@ -165,7 +165,7 @@ de rodar o scaffold real.)
 **Riscos aceitos conscientemente (não é pendência técnica):** consentimento
 do idoso quando a conta é criada por um familiar, e perda progressiva de
 capacidade do idoso após autocadastro. O grupo decidiu não mitigar
-tecnicamente além de certo ponto — ver `elder-web-modelagem-ER.md` seção 5.2
+tecnicamente além de certo ponto — ver `Elder Web - Modelagem ER.md` seção 5.2
 para o raciocínio completo.
 
 **Decisões fechadas (não reabrir):** não existe tabela `Instituicao` no modelo
@@ -177,10 +177,17 @@ em vez de uma variante global de acesso, e `RegistroSaude.editado_por_id`
 obrigatório (RNF-006) — confirmados pelo grupo (Laureane e Jennifer). O modelo
 de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
 Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
-descrito em `elder-web-modelagem-ER.md` — ver nota no início deste arquivo
+descrito em `Elder Web - Modelagem ER.md` — ver nota no início deste arquivo
 sobre a relação temporária desse documento com o PDF do TCC. A supressão do
 link `Claude-Session:` via `attribution.sessionUrl` (ver seção Workflow) também
-é decisão fechada — não é pendência técnica em aberto.
+é decisão fechada — não é pendência técnica em aberto. `backend/prisma/migrations/migration_lock.toml`
+deve permanecer com `provider = "mssql"`, mesmo o datasource em `schema.prisma` usando
+`provider = "sqlserver"` — não é erro nem legado esquecido. Na versão do Prisma instalada
+(5.22.0), o migration engine espera literalmente "mssql" como identificador do connector SQL
+Server nesse arquivo; trocar para "sqlserver" quebra `prisma migrate status` com erro P3019
+(testado e revertido). Referência: prisma/prisma#12087 (o próprio Prisma reconhece essa
+inconsistência e pretende unificar em versão futura — não decidir isso sozinho antes de
+discutir upgrade de dependência com o grupo).
 
 Os 6 campos de enum de negócio abaixo também têm o conjunto de valores
 permitidos travado por CHECK constraint ativa no banco (não só validação de
