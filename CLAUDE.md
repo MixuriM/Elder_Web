@@ -144,6 +144,11 @@ de rodar o scaffold real.)
 - Pode criar pastas e arquivos livremente durante o scaffold inicial
 - **Sempre pedir confirmação antes de**: `git init`, `git remote add`,
   `git push`, e qualquer instalação de dependência (`npm install` etc.)
+- Este projeto desativa o link de sessão (`Claude-Session:`) em mensagens de
+  commit via `attribution.sessionUrl: false` em `.claude/settings.json`
+  (escopo de projeto, já commitado). Não reverter essa configuração nem
+  substituí-la por uma versão só pessoal (`~/.claude/settings.json`) — o
+  objetivo é valer pra todo o grupo e para sessões cloud/web também.
 - Nunca inserir dados fake sem sinalizar claramente que são fake
 - Não reaproveitar nenhum código do protótipo antigo — só olhar como referência
 
@@ -173,7 +178,9 @@ obrigatório (RNF-006) — confirmados pelo grupo (Laureane e Jennifer). O model
 de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
 Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
 descrito em `elder-web-modelagem-ER.md` — ver nota no início deste arquivo
-sobre a relação temporária desse documento com o PDF do TCC.
+sobre a relação temporária desse documento com o PDF do TCC. A supressão do
+link `Claude-Session:` via `attribution.sessionUrl` (ver seção Workflow) também
+é decisão fechada — não é pendência técnica em aberto.
 
 Os 6 campos de enum de negócio abaixo também têm o conjunto de valores
 permitidos travado por CHECK constraint ativa no banco (não só validação de
