@@ -174,3 +174,19 @@ de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
 Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
 descrito em `elder-web-modelagem-ER.md` — ver nota no início deste arquivo
 sobre a relação temporária desse documento com o PDF do TCC.
+
+Os 6 campos de enum de negócio abaixo também têm o conjunto de valores
+permitidos travado por CHECK constraint ativa no banco (não só validação de
+aplicação) — valores documentados nos comentários de campo do próprio
+`schema.prisma`: `Vinculo.tipo_vinculo`, `Vinculo.origem`, `Vinculo.status`,
+`Usuario.modo_decisao`, `Usuario.modo_decisao_solicitado`,
+`RegistroDoseMedicamento.status_administracao`.
+
+**Migration inicial aplicada:** `20260831005102_init_schema` já rodou no
+banco local via `npx prisma migrate dev`. As 10 constraints manuais (1
+índice único filtrado + 9 CHECKs, incluindo as 6 acima) foram confirmadas
+ativas de verdade no banco — não só aceitas na aplicação da migration — pelo
+script `backend/scripts/verify-constraints.ts`, que tenta um insert inválido
+por constraint dentro de uma transação sempre revertida. Rodar de novo:
+`npx tsx scripts/verify-constraints.ts` (dentro de `backend/`). Mantido no
+repo como smoke test futuro.
