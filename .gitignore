@@ -14,3 +14,5 @@ npm-debug.log*
 .claude/settings.local.json
 
 *.tsbuildinfo
+
+/package-lock.json
