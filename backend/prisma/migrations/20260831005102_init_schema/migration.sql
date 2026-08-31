@@ -193,6 +193,36 @@ ALTER TABLE [dbo].[RegistroAlimentar] ADD CONSTRAINT [RegistroAlimentar_registra
 -- AddForeignKey
 ALTER TABLE [dbo].[RegistroAlimentar] ADD CONSTRAINT [RegistroAlimentar_editado_por_id_fkey] FOREIGN KEY ([editado_por_id]) REFERENCES [dbo].[Usuario]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
+-- CreateIndex (filtrado — Usuario.email pode ser NULL quando idoso é cadastrado por familiar)
+CREATE UNIQUE NONCLUSTERED INDEX [Usuario_email_key] ON [dbo].[Usuario]([email]) WHERE [email] IS NOT NULL;
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Usuario] ADD CONSTRAINT [CK_Usuario_email_telefone] CHECK (email IS NOT NULL OR telefone IS NOT NULL);
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Usuario] ADD CONSTRAINT [CK_Usuario_tipo_perfil] CHECK (tipo_perfil IN ('idoso','cuidador','familiar'));
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Evento] ADD CONSTRAINT [CK_Evento_tipo_evento] CHECK (tipo_evento IN ('cuidado','medico','pessoal'));
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Vinculo] ADD CONSTRAINT [CK_Vinculo_tipo_vinculo] CHECK (tipo_vinculo IN ('cuidador','familiar'));
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Vinculo] ADD CONSTRAINT [CK_Vinculo_origem] CHECK (origem IN ('solicitacao_cuidador','convite_idoso','solicitacao_familiar','cadastro_familiar'));
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Vinculo] ADD CONSTRAINT [CK_Vinculo_status] CHECK (status IN ('pendente','aprovado','recusado'));
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Usuario] ADD CONSTRAINT [CK_Usuario_modo_decisao] CHECK (modo_decisao IS NULL OR modo_decisao IN ('idoso','familiar'));
+
+-- CheckConstraint
+ALTER TABLE [dbo].[Usuario] ADD CONSTRAINT [CK_Usuario_modo_decisao_solicitado] CHECK (modo_decisao_solicitado IS NULL OR modo_decisao_solicitado = 'familiar');
+
+-- CheckConstraint
+ALTER TABLE [dbo].[RegistroDoseMedicamento] ADD CONSTRAINT [CK_RegistroDoseMedicamento_status_administracao] CHECK (status_administracao IN ('administrado','pulado','atrasado'));
+
 COMMIT TRAN;
 
 END TRY

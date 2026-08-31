@@ -37,9 +37,11 @@ model Usuario {
   cadastrado_por_id                   Int?
   termo_responsabilidade_aceito_em    DateTime? @db.DateTime2
   // 'idoso' / 'familiar'
+  // TODO (manual na migration): CHECK (modo_decisao IS NULL OR modo_decisao IN ('idoso','familiar'))
   modo_decisao                        String?   @db.NVarChar(10)
   ultimo_login_em                     DateTime? @db.DateTime2
   // 'familiar' (valor pendente durante a janela de carência) / NULL
+  // TODO (manual na migration): CHECK (modo_decisao_solicitado IS NULL OR modo_decisao_solicitado = 'familiar')
   modo_decisao_solicitado             String?   @db.NVarChar(10)
   modo_decisao_solicitado_por_id      Int?
   modo_decisao_solicitado_em          DateTime? @db.DateTime2
@@ -103,10 +105,13 @@ model Vinculo {
   idoso_id                     Int
   vinculado_id                 Int
   // 'cuidador' / 'familiar'
+  // TODO (manual na migration): CHECK (tipo_vinculo IN ('cuidador','familiar'))
   tipo_vinculo                 String    @db.NVarChar(20)
   // 'solicitacao_cuidador' / 'convite_idoso' / 'solicitacao_familiar' / 'cadastro_familiar'
+  // TODO (manual na migration): CHECK (origem IN ('solicitacao_cuidador','convite_idoso','solicitacao_familiar','cadastro_familiar'))
   origem                       String    @db.NVarChar(30)
   // 'pendente' / 'aprovado' / 'recusado'
+  // TODO (manual na migration): CHECK (status IN ('pendente','aprovado','recusado'))
   status                       String    @db.NVarChar(20)
   aprovador_id                 Int?
   data_solicitacao             DateTime  @db.DateTime2
@@ -129,7 +134,7 @@ model Evento {
   id               Int       @id @default(autoincrement())
   idoso_id         Int
   criado_por_id    Int
-  // CHECK (tipo_evento IN ('cuidado','medico','pessoal'))
+  // TODO (manual na migration): CHECK (tipo_evento IN ('cuidado','medico','pessoal'))
   tipo_evento      String    @db.NVarChar(30)
   titulo           String    @db.NVarChar(150)
   descricao        String?   @db.NVarChar(500)
@@ -171,6 +176,7 @@ model RegistroDoseMedicamento {
   registrado_por_id       Int
   data_hora_administracao DateTime @db.DateTime2
   // 'administrado' / 'pulado' / 'atrasado'
+  // TODO (manual na migration): CHECK (status_administracao IN ('administrado','pulado','atrasado'))
   status_administracao    String   @db.NVarChar(20)
   observacoes             String?  @db.NVarChar(300)
   created_at              DateTime @default(now()) @db.DateTime2
