@@ -1,17 +1,20 @@
-// Skeleton — chama auth.ts, sem integração com /auth/sync ainda (backend não existe).
 import { useState, type FormEvent } from 'react'
-import { loginUser, loginWithGoogle } from '../lib/auth'
+import { useNavigate } from 'react-router-dom'
+import { loginUser, loginWithGoogle, syncUser } from '../lib/auth'
 
 function Login() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setErro(null)
     try {
       await loginUser(email, senha)
+      await syncUser()
+      navigate('/')
     } catch {
       setErro('Não foi possível entrar. Confira seu e-mail e senha.')
     }
@@ -21,6 +24,8 @@ function Login() {
     setErro(null)
     try {
       await loginWithGoogle()
+      await syncUser()
+      navigate('/')
     } catch {
       setErro('Não foi possível entrar com o Google.')
     }
