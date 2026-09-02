@@ -24,7 +24,12 @@ datasource db {
 
 model Usuario {
   id                                  Int       @id @default(autoincrement())
-  firebase_uid                        String    @unique @db.NVarChar(128)
+  // TODO (manual na migration): índice único de firebase_uid precisa ser FILTRADO
+  // (UNIQUE WHERE firebase_uid IS NOT NULL) — @@unique do Prisma não aceita WHERE.
+  // Nullable porque idoso cadastrado por familiar (RF-030) pode não ter login Firebase
+  // próprio ainda — mesmo padrão já usado para email abaixo. Decisão pendente de
+  // confirmação do grupo (reabre "firebase_uid NOT NULL" do CLAUDE.md).
+  firebase_uid                        String?   @db.NVarChar(128)
   nome                                String    @db.NVarChar(150)
   // TODO (manual na migration): índice único de email precisa ser FILTRADO
   // (UNIQUE WHERE email IS NOT NULL) — @@unique do Prisma não aceita WHERE.
@@ -56,6 +61,9 @@ model Usuario {
   // TODO (manual na migration): CHECK (email IS NOT NULL OR telefone IS NOT NULL).
   // TODO (manual na migration): CHECK (tipo_perfil IN ('idoso','cuidador','familiar')) — RNF-009,
   // constraint de banco exigida além da validação de tela.
+  // TODO (manual na migration): CHECK (firebase_uid IS NOT NULL OR cadastrado_por_id IS NOT NULL)
+  // — firebase_uid só pode faltar em conta criada por familiar (RF-030); autocadastro
+  // sempre passa por /auth/sync com token Firebase, então sempre tem firebase_uid.
 
   // Auto-relacionamentos de Usuario (4) — nomes distintos pra não colidir.
   cadastrado_por       Usuario?  @relation("UsuarioCadastradoPor", fields: [cadastrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)

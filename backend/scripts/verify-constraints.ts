@@ -108,6 +108,44 @@ async function main() {
     await tx.usuario.create({ data: baseUsuario({ email: null, telefone: "11999990002" }) });
   });
 
+  // 1c. Usuario_firebase_uid_key — duplicata de firebase_uid não-nulo deve ser rejeitada.
+  await runExpectingRejection("Usuario_firebase_uid_key (duplicata de firebase_uid)", async (tx) => {
+    const firebase_uid = randomUUID();
+    await tx.usuario.create({ data: baseUsuario({ firebase_uid }) });
+    await tx.usuario.create({
+      data: baseUsuario({ firebase_uid, email: `${randomUUID()}@teste.local` }),
+    });
+  });
+
+  // 1d. Usuario_firebase_uid_key — dois firebase_uid NULL lado a lado devem ser permitidos
+  // (índice filtrado), desde que cadastrado_por_id esteja preenchido (RF-030).
+  await runExpectingSuccess(
+    "Usuario_firebase_uid_key (dois NULLs permitidos, cadastrado por familiar)",
+    async (tx) => {
+      const familiar = await tx.usuario.create({ data: baseUsuario({ tipo_perfil: "familiar" }) });
+      await tx.usuario.create({
+        data: baseUsuario({
+          firebase_uid: null,
+          email: `${randomUUID()}@teste.local`,
+          cadastrado_por_id: familiar.id,
+        }),
+      });
+      await tx.usuario.create({
+        data: baseUsuario({
+          firebase_uid: null,
+          email: `${randomUUID()}@teste.local`,
+          cadastrado_por_id: familiar.id,
+        }),
+      });
+    },
+  );
+
+  // 1e. CK_Usuario_firebase_uid_cadastrado_por — firebase_uid NULL sem cadastrado_por_id deve
+  // ser rejeitado (autocadastro sempre passa por /auth/sync com token Firebase).
+  await runExpectingRejection("CK_Usuario_firebase_uid_cadastrado_por", async (tx) => {
+    await tx.usuario.create({ data: baseUsuario({ firebase_uid: null }) });
+  });
+
   // 2. CK_Usuario_email_telefone
   await runExpectingRejection("CK_Usuario_email_telefone", async (tx) => {
     await tx.usuario.create({ data: baseUsuario({ email: null, telefone: null }) });

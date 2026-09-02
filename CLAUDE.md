@@ -64,9 +64,15 @@ login para os 3 perfis, interface dedicada de cuidador.
 Decisão travada — não reabrir sem discutir com o grupo.
 
 - `firebase_uid` **não** é chave primária em nenhuma tabela. É uma coluna
-  `UNIQUE, NOT NULL` na tabela `Usuario`, que tem seu próprio `id` interno
+  `UNIQUE` na tabela `Usuario` (índice único **filtrado**, `WHERE firebase_uid
+  IS NOT NULL` — mesmo padrão de `email`), que tem seu próprio `id` interno
   (PK). Todo o resto do banco referencia `Usuario.id`, nunca `firebase_uid`
   diretamente — isola a dependência do Firebase numa única coluna.
+  `firebase_uid` é **nullable**: só pode ser `NULL` quando `cadastrado_por_id`
+  está preenchido (idoso cadastrado por familiar via RF-030, sem login
+  Firebase próprio ainda) — `CK_Usuario_firebase_uid_cadastrado_por` garante
+  isso a nível de banco. Autocadastro sempre passa por `/auth/sync` com token
+  Firebase, então sempre tem `firebase_uid` preenchido.
 - Fluxo: frontend loga via Firebase Web SDK → obtém ID Token (JWT) → manda
   pro backend em `POST /auth/sync` → backend valida o token com o
   **Firebase Admin SDK** (biblioteca server-side, diferente do SDK do
@@ -204,3 +210,18 @@ script `backend/scripts/verify-constraints.ts`, que tenta um insert inválido
 por constraint dentro de uma transação sempre revertida. Rodar de novo:
 `npx tsx scripts/verify-constraints.ts` (dentro de `backend/`). Mantido no
 repo como smoke test futuro.
+
+**`firebase_uid` nullable (decisão fechada em 2026-09-01):** resolve o
+conflito entre `firebase_uid NOT NULL` e RF-030 (idoso cadastrado por
+familiar, sem login Firebase próprio no momento do cadastro). Reabre e
+substitui a redação original de `firebase_uid UNIQUE, NOT NULL` — o que
+continua valendo da decisão original é só "não é PK, tudo referencia
+`Usuario.id`". Resolução: `firebase_uid` nullable + índice único filtrado
+(mesmo padrão de `email`) + `CK_Usuario_firebase_uid_cadastrado_por`
+(`firebase_uid IS NOT NULL OR cadastrado_por_id IS NOT NULL`) impedindo
+autocadastro sem `firebase_uid`. Migration
+`20260902014014_firebase_uid_nullable` aplicada no banco local via
+`npx prisma migrate deploy`; as 3 constraints novas/alteradas
+(`Usuario_firebase_uid_key` filtrado + a CHECK acima) confirmadas ativas
+por `verify-constraints.ts` (14/14 PASS). Ver `docs/Elder Web - Modelagem
+ER.md` para o mesmo ajuste no atributo `firebase_uid`.
