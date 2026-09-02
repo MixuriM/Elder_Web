@@ -5,6 +5,7 @@ build/
 .env
 .env.local
 *.local
+.env.azure
 
 npm-debug.log*
 
