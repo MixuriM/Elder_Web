@@ -1,23 +1,26 @@
-// Skeleton — chama auth.ts, sem integração com /auth/sync ainda (backend não existe).
 // tipo_perfil vai no mesmo formulário do cadastro (não em etapa separada) porque
-// /auth/sync vai precisar dele já no primeiro sync pós-registerUser/loginWithGoogle.
+// /auth/sync precisa dele já no primeiro sync pós-registerUser/loginWithGoogle.
 import { useState, type FormEvent } from 'react'
-import { registerUser, loginWithGoogle } from '../lib/auth'
+import { useNavigate } from 'react-router-dom'
+import { registerUser, loginWithGoogle, syncUser } from '../lib/auth'
 
 type TipoPerfil = 'idoso' | 'cuidador' | 'familiar'
 
 function Cadastro() {
+  const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [tipoPerfil, setTipoPerfil] = useState<TipoPerfil>('idoso')
   const [erro, setErro] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setErro(null)
     try {
       await registerUser(email, senha)
-      // TODO: chamar POST /auth/sync com tipoPerfil assim que a rota existir.
+      await syncUser({ nome, tipoPerfil })
+      navigate('/')
     } catch {
       setErro('Não foi possível criar a conta. Confira os dados e tente novamente.')
     }
@@ -27,7 +30,8 @@ function Cadastro() {
     setErro(null)
     try {
       await loginWithGoogle()
-      // TODO: chamar POST /auth/sync com tipoPerfil assim que a rota existir.
+      await syncUser({ nome, tipoPerfil })
+      navigate('/')
     } catch {
       setErro('Não foi possível criar a conta com o Google.')
     }
@@ -55,6 +59,20 @@ function Cadastro() {
             ))}
           </div>
         </fieldset>
+
+        <div>
+          <label htmlFor="nome" className="block text-lg font-medium text-gray-900">
+            Nome
+          </label>
+          <input
+            id="nome"
+            type="text"
+            required
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+          />
+        </div>
 
         <div>
           <label htmlFor="email" className="block text-lg font-medium text-gray-900">

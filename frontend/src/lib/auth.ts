@@ -45,3 +45,30 @@ export async function getCurrentUserToken(): Promise<string | null> {
   if (!user) return null;
   return user.getIdToken();
 }
+
+type TipoPerfil = "idoso" | "cuidador" | "familiar";
+
+// Sincroniza o usuário logado no Firebase com o backend (cria o Usuario no
+// primeiro acesso). nome/tipoPerfil só são obrigatórios no fluxo de cadastro —
+// o backend rejeita com 400 se faltar e o Usuario ainda não existir.
+export async function syncUser(params?: { nome?: string; tipoPerfil?: TipoPerfil }) {
+  const token = await getCurrentUserToken();
+  if (!token) throw new Error("Nenhum usuário logado.");
+
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/sync`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    // nome só entra se preenchido — em branco, o backend usa o nome do provedor
+    // (ex.: conta Google já tem displayName no token).
+    body: JSON.stringify({ nome: params?.nome || undefined, tipo_perfil: params?.tipoPerfil }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error ?? "Falha ao sincronizar usuário.");
+  }
+  return data as { criado: boolean; usuario: { id: number; tipo_perfil: string; nome: string } };
+}
