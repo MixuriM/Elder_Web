@@ -1,4 +1,3 @@
-// Skeleton — chama auth.ts, sem integração com /auth/sync ainda (backend não existe).
 import { useState, type FormEvent } from 'react'
 import { loginUser, loginWithGoogle } from '../lib/auth'
 

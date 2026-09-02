@@ -1,4 +1,3 @@
-// Skeleton — chama auth.ts, sem integração com /auth/sync ainda (backend não existe).
 // tipo_perfil vai no mesmo formulário do cadastro (não em etapa separada) porque
 // /auth/sync vai precisar dele já no primeiro sync pós-registerUser/loginWithGoogle.
 import { useState, type FormEvent } from 'react'

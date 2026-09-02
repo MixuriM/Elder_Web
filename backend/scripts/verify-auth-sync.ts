@@ -1,11 +1,10 @@
-// Smoke test das funções puras de POST /auth/sync (backend/src/routes/auth.ts).
+// Smoke test das funções puras de POST /auth/sync (backend/src/lib/authHelpers.ts).
 // Não toca no Firebase nem no banco — só valida os branches de decisão da rota.
 //
 // Uso: npx tsx scripts/verify-auth-sync.ts
 
-import "dotenv/config";
 import assert from "node:assert/strict";
-import { isTipoPerfil, isDuplicateFirebaseUid } from "../src/routes/auth";
+import { isTipoPerfil, isDuplicateFirebaseUid } from "../src/lib/authHelpers";
 
 assert.equal(isTipoPerfil("idoso"), true);
 assert.equal(isTipoPerfil("cuidador"), true);
