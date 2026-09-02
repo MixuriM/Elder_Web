@@ -5,8 +5,10 @@ services:
     plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: npm start
-    preDeployCommand: npx prisma migrate deploy
+    # preDeployCommand é recurso pago no Render — no plano free, migrate deploy
+    # entra encadeado aqui mesmo, com sh -c explícito pra garantir que o && seja
+    # interpretado como shell (sem isso o Render não encadeia os comandos certo).
+    dockerCommand: sh -c "npx prisma migrate deploy && npm start"
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
