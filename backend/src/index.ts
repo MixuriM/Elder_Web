@@ -13,8 +13,11 @@ app.get('/health', (_req, res) => {
 
 app.use('/auth', authRouter)
 
-const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
   console.error(err)
+  if (res.headersSent) {
+    return next(err)
+  }
   res.status(500).json({ error: 'Erro interno.' })
 }
 app.use(errorHandler)
