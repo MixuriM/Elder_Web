@@ -14,7 +14,8 @@
 // listando os valores permitidos exatamente como estão na REV.9.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
