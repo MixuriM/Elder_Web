@@ -5,10 +5,12 @@ services:
     plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    # preDeployCommand é recurso pago no Render — no plano free, migrate deploy
-    # entra encadeado aqui mesmo, com sh -c explícito pra garantir que o && seja
-    # interpretado como shell (sem isso o Render não encadeia os comandos certo).
-    dockerCommand: sh -c "npx prisma migrate deploy && npm start"
+    # migrate deploy NÃO entra aqui: o plano free do Render mata o container se
+    # ele não abrir a porta em ~30s, e migrate deploy sozinho já consome quase
+    # esse tempo todo conectando no Azure. Migrations são aplicadas manualmente
+    # de uma máquina local (DATABASE_URL apontando pro Azure + `npx prisma
+    # migrate deploy`) antes de cada deploy que tenha migration nova.
+    dockerCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
