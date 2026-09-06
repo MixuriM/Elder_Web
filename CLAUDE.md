@@ -60,6 +60,20 @@ login para os 3 perfis, interface dedicada de cuidador.
 - **Infra:** Docker (containeriza backend + SQL Server), Git + GitHub,
   GitHub Actions
 
+## Infraestrutura de produção
+Decisão fechada pelo grupo (Marcos, Laureane, Jennifer): onde cada parte da
+aplicação roda em produção.
+
+- **Banco de dados:** Azure. O serviço exato ainda não foi especificado
+  (Azure SQL Database, Azure SQL Managed Instance ou SQL Server em VM) —
+  confirmar com o grupo antes de configurar a `DATABASE_URL` de produção.
+- **Backend:** Render.
+- **Frontend:** Vercel.
+
+Isso é só o registro de *onde* — a configuração real de deploy (Dockerfile
+para o Render, variáveis de ambiente de produção, configuração do Vercel)
+ainda não foi feita.
+
 ## Arquitetura de autenticação (Firebase Auth + SQL Server)
 Decisão travada — não reabrir sem discutir com o grupo.
 
