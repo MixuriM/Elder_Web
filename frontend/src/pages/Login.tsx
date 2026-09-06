@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { loginUser, loginWithGoogle } from '../lib/auth'
+import { loginUser, loginWithGoogle, syncUser } from '../lib/auth'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -11,6 +11,7 @@ function Login() {
     setErro(null)
     try {
       await loginUser(email, senha)
+      await syncUser()
     } catch {
       setErro('Não foi possível entrar. Confira seu e-mail e senha.')
     }
@@ -20,6 +21,7 @@ function Login() {
     setErro(null)
     try {
       await loginWithGoogle()
+      await syncUser()
     } catch {
       setErro('Não foi possível entrar com o Google.')
     }

@@ -209,6 +209,35 @@ Server nesse arquivo; trocar para "sqlserver" quebra `prisma migrate status` com
 inconsistência e pretende unificar em versão futura — não decidir isso sozinho antes de
 discutir upgrade de dependência com o grupo).
 
+**Fluxo `POST /auth/sync` implementado e validado end-to-end (2026-09-06):**
+`frontend/src/lib/auth.ts` expõe `syncUser()`, chamada logo após
+`registerUser`/`loginUser`/`loginWithGoogle` em `Login.tsx` e `Cadastro.tsx`
+(os TODOs antigos de "chamar POST /auth/sync assim que a rota existir" foram
+removidos). `Cadastro.tsx` ganhou o campo "Nome completo" — obrigatório
+porque `/auth/sync` exige `nome` no body quando cria conta (login por
+e-mail/senha não popula `displayName` no Firebase; login por Google já traz
+via `decoded.name`, então o campo é ignorado nesse fluxo). Testado
+manualmente pelos 5 casos: cadastro e-mail/senha (201, criado:true), login
+e-mail/senha (200, criado:false, sem duplicar), senha errada (nenhum sync
+disparado), cadastro Google (201, nome automático) e login Google (200,
+criado:false) — todos confirmados no SQL Server local via SSMS.
+
+Isso exigiu adicionar CORS no backend, que não tinha nenhum: pacote `cors`
+(+ `@types/cors`) instalado em `backend/`, com
+`app.use(cors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:5173' }))`
+em `backend/src/index.ts` — libera só a origem do frontend, não `*`.
+`FRONTEND_URL` documentada em `backend/.env.example`. `VITE_API_URL`
+(consumida por `syncUser()`) documentada em `frontend/.env.example` — já
+existia no `.env` real, só faltava no example.
+
+**Ainda ausentes (não fazem parte da decisão acima, mapeados em auditoria
+2026-09-06, não implementar sem alinhar escopo):** estado global de usuário
+logado (`AuthContext`/`useCurrentUser` — `onAuthChange` em `auth.ts` está
+exportado mas não é consumido em lugar nenhum), wrapper de requisição HTTP
+que anexe o token automaticamente em chamadas futuras além de `/auth/sync`
+(`getCurrentUserToken()` também existe mas só é usado dentro de `syncUser`),
+e proteção de rota/redirecionamento (`App.tsx` só tem rotas públicas).
+
 Os 6 campos de enum de negócio abaixo também têm o conjunto de valores
 permitidos travado por CHECK constraint ativa no banco (não só validação de
 aplicação) — valores documentados nos comentários de campo do próprio
