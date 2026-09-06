@@ -45,3 +45,25 @@ export async function getCurrentUserToken(): Promise<string | null> {
   if (!user) return null;
   return user.getIdToken();
 }
+
+export type TipoPerfil = "idoso" | "cuidador" | "familiar";
+
+// Sincroniza com o backend logo após login/cadastro (POST /auth/sync).
+// tipo_perfil e nome só são obrigatórios no backend quando a conta ainda não existe.
+export async function syncUser(dados?: { tipoPerfil?: TipoPerfil; nome?: string }) {
+  const token = await getCurrentUserToken();
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/sync`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ tipo_perfil: dados?.tipoPerfil, nome: dados?.nome }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Não foi possível sincronizar a conta com o servidor.");
+  }
+
+  return res.json();
+}
