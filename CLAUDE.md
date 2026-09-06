@@ -145,11 +145,17 @@ elder-web/
 ```
 
 ## Build and Test
-(Preencher assim que os `package.json` existirem — não invente comandos antes
-de rodar o scaffold real.)
 - Frontend dev: `npm run dev` (dentro de `frontend/`)
 - Backend dev: `npm run dev` (dentro de `backend/`)
-- Testes: `npm test` em cada pacote
+- Frontend test: `npm test` (dentro de `frontend/`)
+- Backend test: `npm test` (dentro de `backend/`)
+
+`backend/src/index.ts` foi dividido em `app.ts` (monta e exporta o Express app)
+e `index.ts` (só chama `app.listen`) especificamente para viabilizar Supertest
+— qualquer teste de rota deve importar de `./app`, nunca de `./index`.
+O frontend usa Babel (`babel.config.cjs`) só no transform de teste do Jest,
+não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
+`import.meta.env` nativamente.
 
 ## Code Style
 - TypeScript em modo estrito (frontend e backend)
