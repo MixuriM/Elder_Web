@@ -1,11 +1,10 @@
 // tipo_perfil vai no mesmo formulário do cadastro (não em etapa separada) porque
-// /auth/sync vai precisar dele já no primeiro sync pós-registerUser/loginWithGoogle.
+// /auth/sync precisa dele já no primeiro sync pós-registerUser/loginWithGoogle.
 import { useState, type FormEvent } from 'react'
-import { registerUser, loginWithGoogle } from '../lib/auth'
-
-type TipoPerfil = 'idoso' | 'cuidador' | 'familiar'
+import { registerUser, loginWithGoogle, syncUser, type TipoPerfil } from '../lib/auth'
 
 function Cadastro() {
+  const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [tipoPerfil, setTipoPerfil] = useState<TipoPerfil>('idoso')
@@ -16,7 +15,7 @@ function Cadastro() {
     setErro(null)
     try {
       await registerUser(email, senha)
-      // TODO: chamar POST /auth/sync com tipoPerfil assim que a rota existir.
+      await syncUser({ tipoPerfil, nome })
     } catch {
       setErro('Não foi possível criar a conta. Confira os dados e tente novamente.')
     }
@@ -26,7 +25,7 @@ function Cadastro() {
     setErro(null)
     try {
       await loginWithGoogle()
-      // TODO: chamar POST /auth/sync com tipoPerfil assim que a rota existir.
+      await syncUser({ tipoPerfil })
     } catch {
       setErro('Não foi possível criar a conta com o Google.')
     }
@@ -36,6 +35,20 @@ function Cadastro() {
     <main className="flex min-h-screen items-center justify-center bg-white p-8">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <h1 className="text-3xl font-bold text-gray-900">Criar conta</h1>
+
+        <div>
+          <label htmlFor="nome" className="block text-lg font-medium text-gray-900">
+            Nome completo
+          </label>
+          <input
+            id="nome"
+            type="text"
+            required
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+          />
+        </div>
 
         <fieldset>
           <legend className="text-lg font-medium text-gray-900">Eu sou</legend>

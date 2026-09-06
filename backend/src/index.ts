@@ -1,10 +1,12 @@
 import "dotenv/config";
 import express, { type ErrorRequestHandler } from 'express'
+import cors from 'cors'
 import authRouter from './routes/auth'
 
 const app = express()
 const port = process.env.PORT ?? 3000
 
+app.use(cors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:5173' }))
 app.use(express.json())
 
 app.get('/health', (_req, res) => {
