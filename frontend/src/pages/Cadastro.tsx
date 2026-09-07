@@ -1,7 +1,15 @@
-// tipo_perfil vai no mesmo formulário do cadastro (não em etapa separada) porque
-// /auth/sync precisa dele já no primeiro sync pós-registerUser/loginWithGoogle.
 import { useState, type FormEvent } from 'react'
-import { registerUser, loginWithGoogle, syncUser, type TipoPerfil } from '../lib/auth'
+
+import {
+  registerUser,
+  loginWithGoogle,
+  syncUser,
+  type TipoPerfil
+} from '../lib/auth'
+
+import CampoTexto from '../components/cadastro/CampoTexto'
+import TipoPerfilCampo from '../components/cadastro/TipoPerfil'
+import BotaoGoogle from '../components/cadastro/BotaoGoogle'
 
 function Cadastro() {
   const [nome, setNome] = useState('')
@@ -12,92 +20,83 @@ function Cadastro() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+
     setErro(null)
+
     try {
       await registerUser(email, senha)
-      await syncUser({ tipoPerfil, nome })
+
+      await syncUser({
+        tipoPerfil,
+        nome
+      })
     } catch {
-      setErro('Não foi possível criar a conta. Confira os dados e tente novamente.')
+      setErro(
+        'Não foi possível criar a conta. Confira os dados e tente novamente.'
+      )
     }
   }
 
   async function handleGoogleCadastro() {
     setErro(null)
+
     try {
       await loginWithGoogle()
-      await syncUser({ tipoPerfil })
+
+      await syncUser({
+        tipoPerfil
+      })
     } catch {
-      setErro('Não foi possível criar a conta com o Google.')
+      setErro(
+        'Não foi possível criar a conta com o Google.'
+      )
     }
   }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-white p-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-3xl font-bold text-gray-900">Criar conta</h1>
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-sm space-y-4"
+      >
+        <h1 className="text-3xl font-bold text-gray-900">
+          Criar conta
+        </h1>
 
-        <div>
-          <label htmlFor="nome" className="block text-lg font-medium text-gray-900">
-            Nome completo
-          </label>
-          <input
-            id="nome"
-            type="text"
-            required
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
+        <CampoTexto
+          id="nome"
+          label="Nome completo"
+          type="text"
+          value={nome}
+          onChange={setNome}
+        />
 
-        <fieldset>
-          <legend className="text-lg font-medium text-gray-900">Eu sou</legend>
-          <div className="mt-1 space-y-2">
-            {(['idoso', 'cuidador', 'familiar'] as const).map((opcao) => (
-              <label key={opcao} className="flex items-center gap-2 text-lg text-gray-900">
-                <input
-                  type="radio"
-                  name="tipo_perfil"
-                  value={opcao}
-                  checked={tipoPerfil === opcao}
-                  onChange={() => setTipoPerfil(opcao)}
-                />
-                {opcao === 'idoso' ? 'Idoso' : opcao === 'cuidador' ? 'Cuidador' : 'Familiar'}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <TipoPerfilCampo
+          tipoPerfil={tipoPerfil}
+          setTipoPerfil={setTipoPerfil}
+        />
 
-        <div>
-          <label htmlFor="email" className="block text-lg font-medium text-gray-900">
-            E-mail
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
+        <CampoTexto
+          id="email"
+          label="E-mail"
+          type="email"
+          value={email}
+          onChange={setEmail}
+        />
 
-        <div>
-          <label htmlFor="senha" className="block text-lg font-medium text-gray-900">
-            Senha
-          </label>
-          <input
-            id="senha"
-            type="password"
-            required
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
+        <CampoTexto
+          id="senha"
+          label="Senha"
+          type="password"
+          value={senha}
+          onChange={setSenha}
+        />
 
         {erro && (
-          <p role="alert" className="text-lg text-red-700">
+          <p
+            role="alert"
+            className="text-lg text-red-700"
+          >
             {erro}
           </p>
         )}
@@ -109,13 +108,9 @@ function Cadastro() {
           Criar conta
         </button>
 
-        <button
-          type="button"
+        <BotaoGoogle
           onClick={handleGoogleCadastro}
-          className="w-full rounded border border-gray-400 p-3 text-lg font-semibold text-gray-900"
-        >
-          Criar conta com Google
-        </button>
+        />
       </form>
     </main>
   )
