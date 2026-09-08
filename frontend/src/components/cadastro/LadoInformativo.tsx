@@ -34,7 +34,11 @@ function LadoInformativo() {
           <div className="flex items-start gap-4">
             {/* Ícone */}
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#E9E6FF] text-2xl">
-              💜
+              <img
+               src="./src/img/cuidados-de-saude.svg"
+              alt="Ícone de saúde" 
+              className="w-8 h-8" 
+              />
             </div>
 
             <div>
@@ -52,7 +56,11 @@ function LadoInformativo() {
           <div className="flex items-start gap-4">
             {/* Ícone */}
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#E9E6FF] text-2xl">
-              👥
+              <img
+               src="./src/img/grande-familia.png"
+              alt="Ícone de conexão" 
+              className="w-8 h-8" 
+              />
             </div>
 
             <div>
