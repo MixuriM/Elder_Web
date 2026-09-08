@@ -1,124 +1,138 @@
-import { useState, type FormEvent } from 'react'
-//importa as funções de autenticação e sincronização de usuário
+// Importa o useState para criar os estados da página
+// e FormEvent para definir o tipo do evento do formulário
+import { useState, type FormEvent } from "react";
+
+// Importa as funções relacionadas à autenticação
 import {
-  registerUser, //função para registrar um novo usuário com e-mail e senha
-  loginWithGoogle, //função para autenticar o usuário com a conta do Google
-  syncUser, //função para sincronizar os dados do usuário com o banco de dados
-  type TipoPerfil //tipo de perfil do usuário (idoso, cuidador ou familiar)
-} from '../lib/auth' //importa os tipos de perfil do usuário
+  registerUser,     // Registra o usuário no Firebase Authentication
+  loginWithGoogle,  // Realiza a autenticação utilizando Google
+  syncUser,         // Sincroniza os dados do usuário com o Firestore
+  type TipoPerfil,  // Define os tipos de perfil permitidos
+} from "../lib/auth";
 
-//importa os componentes que serão utilizados na página de cadastro
-import CampoTexto from '../components/cadastro/CampoTexto'
-import TipoPerfilCampo from '../components/cadastro/TipoPerfil'
-import BotaoGoogle from '../components/cadastro/BotaoGoogle'
+// Importa os componentes principais da página
+import LadoInformativo from "../components/cadastro/LadoInformativo";
+import FormularioCadastro from "../components/cadastro/FormularioCadastro";
 
-
-//define a função principal do componente de cadastro
+// Componente principal da página de cadastro
 function Cadastro() {
-  const [nome, setNome] = useState('') //estado para armazenar o nome do usuário
-  const [email, setEmail] = useState('') //estado para armazenar o e-mail do usuário
-  const [senha, setSenha] = useState('') //estado para armazenar a senha do usuário
-  const [tipoPerfil, setTipoPerfil] = useState<TipoPerfil>('idoso') //estado para armazenar o tipo de perfil do usuário
-  const [erro, setErro] = useState<string | null>(null) //estado para armazenar mensagens de erro
 
-//define a função que será chamada quando o formulário for enviado
+  // Estado responsável por armazenar o nome digitado
+  const [nome, setNome] = useState("");
+
+  // Estado responsável por armazenar o e-mail digitado
+  const [email, setEmail] = useState("");
+
+  // Estado responsável por armazenar a senha digitada
+  const [senha, setSenha] = useState("");
+
+  // Estado responsável por armazenar o tipo de perfil selecionado
+  // O perfil "idoso" é selecionado inicialmente
+  const [tipoPerfil, setTipoPerfil] =
+    useState<TipoPerfil>("idoso");
+
+  // Estado utilizado para armazenar possíveis mensagens de erro
+  // null significa que não existe erro no momento
+  const [erro, setErro] =
+    useState<string | null>(null);
+
+
+  // Função executada quando o usuário envia
+  // o formulário de cadastro com e-mail e senha
   async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
 
-    setErro(null)
+    // Impede que o navegador recarregue a página
+    // ao enviar o formulário
+    e.preventDefault();
 
-    try {
-      await registerUser(email, senha) //chama a função para registrar o usuário com e-mail e senha
-
-      await syncUser({ //chama a função para sincronizar os dados do usuário com o banco de dados
-        tipoPerfil,
-        nome
-      })
-    } catch {
-      setErro(
-        'Não foi possível criar a conta. Confira os dados e tente novamente.'
-      )
-    }
-  }
-
-  async function handleGoogleCadastro() { //define a função que será chamada quando o botão de cadastro com Google for clicado
-    setErro(null)
+    // Remove possíveis mensagens de erro anteriores
+    setErro(null);
 
     try {
-      await loginWithGoogle()
 
+      // Registra o usuário utilizando o e-mail e a senha
+      await registerUser(email, senha);
+
+      // Sincroniza as informações adicionais
+      // do usuário com o banco de dados
       await syncUser({
-        tipoPerfil
-      })
+        tipoPerfil,
+        nome,
+      });
+
     } catch {
+
+      // Caso alguma etapa apresente erro,
+      // uma mensagem é armazenada no estado erro
       setErro(
-        'Não foi possível criar a conta com o Google.'
-      )
+        "Não foi possível criar a conta. Confira os dados e tente novamente."
+      );
+
     }
   }
 
+
+  // Função executada quando o usuário escolhe
+  // realizar o cadastro utilizando Google
+  async function handleGoogleCadastro() {
+
+    // Remove possíveis mensagens de erro anteriores
+    setErro(null);
+
+    try {
+
+      // Realiza a autenticação através da conta Google
+      await loginWithGoogle();
+
+      // Sincroniza o perfil escolhido com o banco de dados
+      await syncUser({
+        tipoPerfil,
+      });
+
+    } catch {
+
+      // Exibe uma mensagem caso o cadastro com Google falhe
+      setErro(
+        "Não foi possível criar a conta com o Google."
+      );
+
+    }
+  }
+
+
+  // Renderiza a página de cadastro
   return (
-    //define a estrutura da página de cadastro
-    <main className="flex min-h-screen items-center justify-center bg-white p-8"> 
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4"
-      >
-        <h1 className=" items-end text-3xl font-bold text-[#1f2937]">
-          Criar conta
-        </h1>
+    <main className="min-h-screen bg-white">
 
-        <CampoTexto
-          id="nome"
-          label="Nome completo"
-          type="text"
-          value={nome}
-          onChange={setNome}
-        />
+      {/* Divide a página em duas colunas em telas maiores */}
+      <div className="grid min-h-screen lg:grid-cols-2">
 
-        <TipoPerfilCampo
+        {/* Exibe as informações sobre o Elder Web */}
+        <LadoInformativo />
+
+        {/* 
+          Envia os estados e funções para o formulário
+          através das props
+        */}
+        <FormularioCadastro
+          nome={nome}
+          email={email}
+          senha={senha}
           tipoPerfil={tipoPerfil}
+          erro={erro}
+          setNome={setNome}
+          setEmail={setEmail}
+          setSenha={setSenha}
           setTipoPerfil={setTipoPerfil}
+          onSubmit={handleSubmit}
+          onGoogleCadastro={handleGoogleCadastro}
         />
 
-        <CampoTexto
-          id="email"
-          label="E-mail"
-          type="email"
-          value={email}
-          onChange={setEmail}
-        />
+      </div>
 
-        <CampoTexto
-          id="senha"
-          label="Senha"
-          type="password"
-          value={senha}
-          onChange={setSenha}
-        />
-
-        {erro && (
-          <p
-            role="alert"
-            className="text-lg text-red-700"
-          >
-            {erro}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white"
-        >
-          Criar conta
-        </button>
-
-        <BotaoGoogle
-          onClick={handleGoogleCadastro}
-        />
-      </form>
     </main>
-  )
+  );
 }
 
-export default Cadastro
+// Exporta a página Cadastro
+export default Cadastro;
