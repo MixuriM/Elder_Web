@@ -1,32 +1,36 @@
 import { useState, type FormEvent } from 'react'
-
+//importa as funções de autenticação e sincronização de usuário
 import {
-  registerUser,
-  loginWithGoogle,
-  syncUser,
-  type TipoPerfil
-} from '../lib/auth'
+  registerUser, //função para registrar um novo usuário com e-mail e senha
+  loginWithGoogle, //função para autenticar o usuário com a conta do Google
+  syncUser, //função para sincronizar os dados do usuário com o banco de dados
+  type TipoPerfil //tipo de perfil do usuário (idoso, cuidador ou familiar)
+} from '../lib/auth' //importa os tipos de perfil do usuário
 
+//importa os componentes que serão utilizados na página de cadastro
 import CampoTexto from '../components/cadastro/CampoTexto'
 import TipoPerfilCampo from '../components/cadastro/TipoPerfil'
 import BotaoGoogle from '../components/cadastro/BotaoGoogle'
 
-function Cadastro() {
-  const [nome, setNome] = useState('')
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
-  const [tipoPerfil, setTipoPerfil] = useState<TipoPerfil>('idoso')
-  const [erro, setErro] = useState<string | null>(null)
 
+//define a função principal do componente de cadastro
+function Cadastro() {
+  const [nome, setNome] = useState('') //estado para armazenar o nome do usuário
+  const [email, setEmail] = useState('') //estado para armazenar o e-mail do usuário
+  const [senha, setSenha] = useState('') //estado para armazenar a senha do usuário
+  const [tipoPerfil, setTipoPerfil] = useState<TipoPerfil>('idoso') //estado para armazenar o tipo de perfil do usuário
+  const [erro, setErro] = useState<string | null>(null) //estado para armazenar mensagens de erro
+
+//define a função que será chamada quando o formulário for enviado
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
 
     setErro(null)
 
     try {
-      await registerUser(email, senha)
+      await registerUser(email, senha) //chama a função para registrar o usuário com e-mail e senha
 
-      await syncUser({
+      await syncUser({ //chama a função para sincronizar os dados do usuário com o banco de dados
         tipoPerfil,
         nome
       })
@@ -37,7 +41,7 @@ function Cadastro() {
     }
   }
 
-  async function handleGoogleCadastro() {
+  async function handleGoogleCadastro() { //define a função que será chamada quando o botão de cadastro com Google for clicado
     setErro(null)
 
     try {
@@ -54,12 +58,13 @@ function Cadastro() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white p-8">
+    //define a estrutura da página de cadastro
+    <main className="flex min-h-screen items-center justify-center bg-white p-8"> 
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-4"
       >
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className=" items-end text-3xl font-bold text-[#1f2937]">
           Criar conta
         </h1>
 
