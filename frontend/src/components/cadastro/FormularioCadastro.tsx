@@ -50,21 +50,53 @@ function FormularioCadastro({
   onGoogleCadastro,
 }: FormularioCadastroProps) {
   return (
-    <section className="flex items-center justify-center px-6 py-10">
-
+    <section
+      className="
+        flex
+        min-h-screen
+        items-center
+        justify-center
+        bg-white
+        px-6
+        py-10
+      "
+    >
       {/* Formulário principal */}
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-8 shadow-sm"
+        className="
+          w-full
+          max-w-lg
+          rounded-3xl
+          border
+          border-gray-200
+          bg-white
+          px-9
+          py-8
+          shadow-sm
+        "
       >
-
         {/* Título */}
-        <h1 className="text-center text-4xl font-bold text-[#111827]">
+        <h1
+          className="
+            text-center
+            text-4xl
+            font-bold
+            text-[#111827]
+          "
+        >
           Criar conta
         </h1>
 
         {/* Descrição */}
-        <p className="mt-3 text-center text-lg text-[#4B5563]">
+        <p
+          className="
+            mt-3
+            text-center
+            text-2xl
+            text-[#4B5563]
+          "
+        >
           Cadastre-se de forma rápida e simples.
         </p>
 
@@ -106,17 +138,24 @@ function FormularioCadastro({
 
         </div>
 
-        {/* Exibe uma mensagem caso ocorra algum erro */}
+        {/* Mensagem de erro */}
         {erro && (
           <p
             role="alert"
-            className="mt-5 rounded-xl bg-red-50 p-4 text-lg text-red-700"
+            className="
+              mt-5
+              rounded-xl
+              bg-red-50
+              p-3
+              text-base
+              text-red-700
+            "
           >
             {erro}
           </p>
         )}
 
-        {/* Botão para cadastrar com e-mail e senha */}
+        {/* Botão principal */}
         <button
           type="submit"
           className="
@@ -126,7 +165,7 @@ function FormularioCadastro({
             bg-[#6C63FF]
             px-6
             py-4
-            text-xl
+            text-lg
             font-bold
             text-white
             transition
@@ -139,13 +178,13 @@ function FormularioCadastro({
           Criar minha conta
         </button>
 
-        {/* Divisória entre o cadastro tradicional e o Google */}
-        <div className="my-7 flex items-center gap-4">
+        {/* Divisor */}
+        <div className="my-6 flex items-center gap-4">
 
           {/* Linha esquerda */}
           <div className="h-px flex-1 bg-gray-200" />
 
-          <span className="text-lg text-gray-500">
+          <span className="text-base text-gray-500">
             ou
           </span>
 
@@ -154,23 +193,31 @@ function FormularioCadastro({
 
         </div>
 
-        {/* Botão para cadastro utilizando Google */}
-        <BotaoGoogle
-          onClick={onGoogleCadastro}
-        />
+        {/* Cadastro utilizando Google */}
+        <BotaoGoogle onClick={onGoogleCadastro} />
 
-        {/* Link para quem já possui uma conta */}
-        <p className="mt-7 text-center text-lg text-[#4B5563]">
+        {/* Link para login */}
+        <p
+          className="
+            mt-6
+            text-center
+            text-base
+            text-[#4B5563]
+          "
+        >
           Já tem uma conta?{" "}
 
           <a
             href="/login"
-            className="font-bold text-[#6C63FF] underline"
+            className="
+              font-bold
+              text-[#6C63FF]
+              hover:underline
+            "
           >
             Entrar
           </a>
         </p>
-
       </form>
     </section>
   );

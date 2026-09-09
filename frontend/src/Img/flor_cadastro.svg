@@ -1,0 +1,98 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F3F0FF"/>
+      <stop offset="55%" stop-color="#D9D2FF"/>
+      <stop offset="100%" stop-color="#A99CFF"/>
+    </linearGradient>
+    <linearGradient id="leafGrad2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EEE9FF"/>
+      <stop offset="100%" stop-color="#C1B8FF"/>
+    </linearGradient>
+    <linearGradient id="stemGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5E4BFF"/>
+      <stop offset="100%" stop-color="#7C6CFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Galho principal -->
+  <path d="M1090 1200C1030 1090 940 1015 855 950C750 870 685 815 655 730"
+        stroke="url(#stemGrad)" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- Galho para folha esquerda -->
+  <path d="M865 955C760 890 665 845 560 810"
+        stroke="url(#stemGrad)" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- Galho para folha pequena -->
+  <path d="M845 945C850 845 870 760 905 690"
+        stroke="url(#stemGrad)" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- Folha grande superior -->
+  <path d="M660 725
+           C560 610 525 455 580 320
+           C640 175 785 80 1080 10
+           C1015 120 1010 260 1012 340
+           C1016 495 930 610 820 680
+           C750 725 695 755 660 725Z"
+        fill="url(#leafGrad)" stroke="#6652FF" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- Nervura principal folha grande -->
+  <path d="M663 720C700 610 790 440 975 125"
+        stroke="#6652FF" stroke-width="11" stroke-linecap="round"/>
+
+  <!-- Nervuras secundárias folha grande -->
+  <path d="M720 610C690 525 680 450 700 370"
+        stroke="#6652FF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M760 535C815 470 870 425 930 385"
+        stroke="#6652FF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M800 455C790 380 805 310 835 245"
+        stroke="#6652FF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M820 650C885 605 925 565 955 520"
+        stroke="#6652FF" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Folha esquerda -->
+  <path d="M560 810
+           C465 865 340 875 250 820
+           C175 775 120 700 20 675
+           C145 595 290 575 400 615
+           C505 655 555 735 560 810Z"
+        fill="url(#leafGrad2)" stroke="#6652FF" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- Nervura principal folha esquerda -->
+  <path d="M555 808C455 735 350 690 130 680"
+        stroke="#6652FF" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Nervuras secundárias esquerda -->
+  <path d="M425 735C385 690 350 655 310 630"
+        stroke="#6652FF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M470 765C400 765 350 760 300 745"
+        stroke="#6652FF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M325 700C285 670 250 650 210 645"
+        stroke="#6652FF" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Folha pequena direita -->
+  <path d="M905 690
+           C860 620 860 550 895 495
+           C935 435 1000 395 1180 390
+           C1115 455 1110 530 1080 585
+           C1040 650 970 690 905 690Z"
+        fill="url(#leafGrad2)" stroke="#6652FF" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- Nervura principal folha pequena -->
+  <path d="M907 688C950 610 1015 530 1110 440"
+        stroke="#6652FF" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Nervuras secundárias folha pequena -->
+  <path d="M950 610C950 565 955 530 975 500"
+        stroke="#6652FF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M980 575C1030 555 1060 535 1085 510"
+        stroke="#6652FF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M1015 535C1025 505 1045 480 1070 460"
+        stroke="#6652FF" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Sombras internas suaves -->
+  <path d="M610 675C640 570 705 420 860 205C760 340 690 470 660 610C645 665 635 700 610 675Z"
+        fill="#FFFFFF" fill-opacity="0.20"/>
+  <path d="M75 680C210 620 350 620 470 685C345 645 220 650 75 680Z"
+        fill="#FFFFFF" fill-opacity="0.18"/>
+</svg>
