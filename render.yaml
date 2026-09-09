@@ -21,3 +21,7 @@ services:
         sync: false
       - key: FIREBASE_PRIVATE_KEY
         sync: false
+      # Origem liberada no CORS (backend/src/app.ts). Sem essa var o CORS cai
+      # no fallback localhost:5173 e bloqueia o frontend de produção.
+      - key: FRONTEND_URL
+        sync: false
