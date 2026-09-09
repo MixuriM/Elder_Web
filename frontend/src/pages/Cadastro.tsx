@@ -58,10 +58,12 @@ function Cadastro() {
         nome,
       });
 
-    } catch {
+    } catch (err) {
 
       // Caso alguma etapa apresente erro,
-      // uma mensagem é armazenada no estado erro
+      // registra o erro real e armazena
+      // uma mensagem no estado erro
+      console.error("Falha no cadastro (e-mail/senha):", err);
       setErro(
         "Não foi possível criar a conta. Confira os dados e tente novamente."
       );
@@ -86,9 +88,11 @@ function Cadastro() {
         tipoPerfil,
       });
 
-    } catch {
+    } catch (err) {
 
-      // Exibe uma mensagem caso o cadastro com Google falhe
+      // Registra o erro real e exibe uma mensagem
+      // caso o cadastro com Google falhe
+      console.error("Falha no cadastro (Google):", err);
       setErro(
         "Não foi possível criar a conta com o Google."
       );
