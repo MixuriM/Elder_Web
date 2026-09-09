@@ -12,7 +12,8 @@ function Login() {
     try {
       await loginUser(email, senha)
       await syncUser()
-    } catch {
+    } catch (err) {
+      console.error('Falha no login (e-mail/senha):', err)
       setErro('Não foi possível entrar. Confira seu e-mail e senha.')
     }
   }
@@ -22,7 +23,8 @@ function Login() {
     try {
       await loginWithGoogle()
       await syncUser()
-    } catch {
+    } catch (err) {
+      console.error('Falha no login (Google):', err)
       setErro('Não foi possível entrar com o Google.')
     }
   }
