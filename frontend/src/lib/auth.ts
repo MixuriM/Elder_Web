@@ -62,7 +62,10 @@ export async function syncUser(dados?: { tipoPerfil?: TipoPerfil; nome?: string 
   });
 
   if (!res.ok) {
-    throw new Error("Não foi possível sincronizar a conta com o servidor.");
+    const corpo = await res.text().catch(() => "");
+    throw new Error(
+      `Falha em /auth/sync: status ${res.status}${corpo ? ` — ${corpo}` : ""}`
+    );
   }
 
   return res.json();

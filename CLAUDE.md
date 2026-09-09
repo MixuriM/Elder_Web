@@ -274,3 +274,46 @@ autocadastro sem `firebase_uid`. Migration
 (`Usuario_firebase_uid_key` filtrado + a CHECK acima) confirmadas ativas
 por `verify-constraints.ts` (14/14 PASS). Ver `docs/Elder Web - Modelagem
 ER.md` para o mesmo ajuste no atributo `firebase_uid`.
+
+**Bug de produção corrigido — cadastro criava conta Firebase sem linha em
+`Usuario` (causa raiz confirmada em 2026-09-09):** `backend/src/app.ts`
+configura CORS com `origin: process.env.FRONTEND_URL ?? 'http://localhost:5173'`.
+A variável `FRONTEND_URL` nunca tinha sido configurada no serviço backend no
+Render (nem no dashboard, nem em `render.yaml`) — o CORS caía no fallback
+`localhost:5173`, o browser bloqueava o fetch de `syncUser()` feito a partir
+de `https://elder-web.vercel.app`, e o catch vazio em `Cadastro.tsx`/`Login.tsx`
+escondia o erro. Resultado: conta criada no Firebase Authentication, mas sem
+linha correspondente em `Usuario` — pelo menos 2 contas ficaram órfãs assim
+(`mangabinhamp@gmail.com`, e uma anterior) antes do diagnóstico.
+
+Correção: `FRONTEND_URL` adicionada como Environment Variable (tipo padrão,
+não Secret) no dashboard do Render, valor `https://elder-web.vercel.app`
+(sem barra final) — também adicionada em `render.yaml` (`sync: false`) pra
+não depender de configuração manual esquecida numa próxima vez. Confirmado
+também que `VITE_API_URL` no Vercel precisa ser tipo Config (não Secret) e
+escopo Production — Secret não permitia adicionar essa var pro caso de uso;
+como o Vite embute em build time, mudar essa var exige redeploy.
+
+Além disso, os catches vazios de `handleSubmit`/`handleGoogleCadastro` em
+`Cadastro.tsx` e `handleSubmit`/`handleGoogleLogin` em `Login.tsx` passaram a
+logar o erro real via `console.error` antes de mostrar a mensagem genérica
+pro usuário — esse tipo de falha não pode mais ficar invisível. `syncUser()`
+em `frontend/src/lib/auth.ts` passou a lançar erro incluindo status HTTP e
+corpo da resposta quando `/auth/sync` retorna não-ok (não cobre bloqueio de
+CORS em si, que nem chega a virar `Response` — mas o `console.error` agora
+captura esse `TypeError` também).
+
+Validado end-to-end em PRODUÇÃO em 2026-09-09 (não só local): Network tab
+mostrou `sync` 201 + preflight 204; Firebase Authentication e SQL Server
+(via SSMS) confirmaram usuário e linha em `Usuario` criados juntos, tanto
+pra e-mail novo (`teste123@gmail.com`) quanto pra `mangabinhamp@gmail.com`
+recriado depois de excluído do Firebase. Ressalva: a validação anterior do
+fluxo `/auth/sync` (entrada acima, 2026-09-06) cobriu só ambiente local —
+CORS só bloqueia entre origens diferentes, então local→local não pegava
+esse cenário.
+
+**Nota operacional:** conta Firebase órfã (existe no Authentication mas sem
+linha em `Usuario`) bloqueia recadastro com o mesmo e-mail — Firebase recusa
+com `auth/email-already-in-use` antes de chegar no backend. Precisa excluir
+a conta manualmente no Firebase Console (Authentication → usuário → excluir)
+antes de recadastrar.

@@ -30,7 +30,8 @@ function Cadastro() {
         tipoPerfil,
         nome
       })
-    } catch {
+    } catch (err) {
+      console.error('Falha no cadastro (e-mail/senha):', err)
       setErro(
         'Não foi possível criar a conta. Confira os dados e tente novamente.'
       )
@@ -46,7 +47,8 @@ function Cadastro() {
       await syncUser({
         tipoPerfil
       })
-    } catch {
+    } catch (err) {
+      console.error('Falha no cadastro (Google):', err)
       setErro(
         'Não foi possível criar a conta com o Google.'
       )
