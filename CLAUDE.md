@@ -188,9 +188,8 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
 - Não reaproveitar nenhum código do protótipo antigo — só olhar como referência
 
 ## Lacunas em aberto — NÃO decidir sozinho, perguntar ao grupo
-- Estrutura de pastas acima (`frontend/` + `backend/` monorepo) foi assumida
-  por mim — não foi validada pelo grupo. Se vocês preferirem repositórios
-  separados, isso muda o `docker-compose.yml` e o CI.
+- Estrutura de pastas (`frontend/` + `backend/` monorepo) confirmada pelo
+  grupo (Marcos, Laureane, Jennifer) — não reabrir.
 - Risco de colisão de e-mail entre contas: sem registro de mitigação
   encontrado no `Elder Web - Modelagem ER.md` até a REV.9. (O que existe lá é
   outra coisa: `email` opcional + índice único filtrado, para permitir idoso
