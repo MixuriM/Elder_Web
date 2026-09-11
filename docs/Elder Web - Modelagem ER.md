@@ -217,6 +217,24 @@ Transferência de modo_decisao para 'familiar' (RF-033) não é instantânea:
 4. Se a janela expirar sem login do idoso (e com a segunda confirmação, quando
    exigida) -> modo_decisao é atualizado, idoso é notificado.
 
+### Autoridade de aprovação, recusa e contestação de vínculo (RF-021, RF-022, RF-027)
+
+Segue a mesma regra do sistema de permissões acima: quem tem autoridade pra
+aprovar/recusar uma solicitação de vínculo pendente, e pra contestar um vínculo
+automático já 'aprovado' (RF-022, Fluxo A, via notificado_em), é
+Usuario.modo_decisao do idoso, não os dois lados em paralelo sempre.
+
+* modo_decisao='idoso': o próprio idoso aprova/recusa/contesta.
+* modo_decisao='familiar': só o(s) Familiar(es) com vínculo aprovado
+  aprovam/recusam/contestam. Tentativa do idoso retorna 403.
+
+Vale igualmente para aprovação de vínculo de Cuidador (RF-021/RF-022) e de
+Familiar via Fluxo B (RF-027), aprovador_id só pode ser preenchido por quem tem
+a autoridade correspondente no momento da ação. Sem mecanismo novo: é o mesmo
+campo que já existe para as flags de permissão, sem dupla confirmação
+adicional (isso ficaria reservado a um RF novo, se o grupo decidir que é
+necessário).
+
 ### Vínculo automático Familiar<->Idoso (Fluxo A e cadastro pelo Familiar)
 
 Dois fluxos usam aprovação por confirmação de e-mail, não aprovação manual:
@@ -246,6 +264,8 @@ permitir contestação (RF-022) mesmo depois de já 'aprovado'.
 | REV.8   | Fecha os 4 pontos em aberto até então — 2 como risco residual aceito, 2 como decisão técnica direta (ver seção 5).                                                                                        |
 | REV.9   | RegistroSaude.editado_por_id obrigatório (RNF-006); CHECK (email IS NOT NULL OR telefone IS NOT NULL).                                                                                                    |
 | REV.10  | firebase_uid passa a nullable (mesmo padrão de índice filtrado do email) para suportar RF-030 — idoso cadastrado por familiar não tem login Firebase próprio de imediato. Ver nota (3) em Usuario.        |
+| REV.11 | Autoridade de aprovação/recusa/contestação de vínculo (RF-021/RF-022/RF-027) passa a seguir Usuario.modo_decisao, mesma regra das flags de permissão do Cuidador (RF-032), sem mecanismo novo. |
+| REV.12 | Documentado como 3º risco residual aceito (seção 5.2): janela sem autoridade formal entre o cadastro de um idoso via RF-030 e a confirmação de e-mail do Familiar cadastrante. Sem mecanismo novo — decisão de escopo. |
 
 ---
 
@@ -272,10 +292,18 @@ Separado em dois tipos — a diferença importa se a banca perguntar:
 - RegistroSaude.editado_por_id obrigatório. Exigido pela RNF-006 do TCC
   original, que nunca tinha sido de fato aplicada ao schema — corrigido, não é
   decisão nova, é alinhamento a requisito já existente.
+- Autoridade de aprovação/recusa/contestação de vínculo (RF-021/RF-022/RF-027)
+  segue Usuario.modo_decisao, igual às flags de permissão do Cuidador (RF-032).
+  Sem essa trava, um idoso já em modo_decisao='familiar', ou seja, já
+  sinalizado como sem condição de decidir sozinho sobre as permissões do
+  Cuidador, continuaria podendo aprovar sozinho um vínculo novo de Cuidador,
+  ou contestar um vínculo de Familiar já aprovado. Seria uma porta destrancada
+  maior do que a que motivou a criação do próprio modo_decisao. Reaproveita o
+  campo existente, sem mecanismo de dupla confirmação adicional.
 
 ### 5.2 Riscos residuais aceitos (decisão de escopo, não solução técnica)
 
-Estes dois pontos não têm solução de engenharia possível dentro do escopo de um
+Estes três pontos não têm solução de engenharia possível dentro do escopo de um
 TCC — a decisão do grupo foi parar de mitigar além de um certo ponto e documentar
 isso, em vez de inventar um mecanismo que parecesse resolver sem resolver de fato.
 
@@ -298,7 +326,22 @@ curatela/interdição judicial, fora do escopo técnico. Deliberadamente não fo
 adicionado nenhum mecanismo de "avaliação de capacidade" dentro do app — isso daria
 falsa impressão de rigor que não se sustenta numa arguição.
 
-Recomendação para o TCC: estes dois pontos devem constar explicitamente na
+Janela de autoridade vazia entre cadastro (RF-030) e confirmação de e-mail do
+Familiar. Quando um Familiar cadastra um idoso, modo_decisao já nasce sugerido
+como 'familiar' (cadastrado_por_id), mas o vínculo desse Familiar
+(origem='cadastro_familiar') só vira 'aprovado' depois de confirmado_em. Nessa
+janela, se surgir uma solicitação de vínculo de Cuidador (RF-021) ou de outro
+Familiar via Fluxo B (RF-027), nenhum lado tem autoridade formal pra aprovar:
+o idoso não, porque modo_decisao já não é mais 'idoso'; o Familiar cadastrante
+também não, porque o vínculo dele ainda está pendente. Mitigação final: nenhuma
+— o grupo decide aceitar essa janela como residual, por ser curta (dura só até
+o próprio Familiar confirmar o e-mail) e o cenário de colisão (outra
+solicitação chegando exatamente nesse intervalo) ser raro. Autoridade interina
+explícita (cadastrado_por_id agindo antes da aprovação) ou bloqueio de novas
+solicitações nessa janela foram avaliados e descartados, por adicionarem
+complexidade desproporcional ao risco real.
+
+Recomendação para o TCC: estes três pontos devem constar explicitamente na
 seção de "Limitações" ou "Trabalhos Futuros", com a redação acima. É diferente de
 "não resolvemos" — é "decidimos onde parar, e por quê", que é uma resposta muito
 mais defensável numa banca.
