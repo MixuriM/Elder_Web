@@ -122,6 +122,15 @@ Vinculo
   cadastro feito pelo familiar (`cadastro_familiar`), a aprovação é automática
   por confirmação de posse do e-mail; se veio de solicitação do familiar
   (`solicitacao_familiar`), é aprovação manual como no caso do cuidador.
+- **Autoridade de aprovação/recusa/contestação de vínculo segue
+  `Usuario.modo_decisao`.** Em toda ação manual sobre `Vinculo` (RF-021,
+  RF-022, RF-027), incluindo contestar um vínculo automático já `aprovado`
+  (RF-022, Fluxo A, via `notificado_em`), quem tem autoridade pra agir é o
+  mesmo campo que já controla as 3 flags de permissão do Cuidador:
+  `modo_decisao='idoso'` → só o idoso; `modo_decisao='familiar'` → só
+  familiar(es) com vínculo aprovado, idoso recebe 403. Não é o Idoso e o
+  Familiar decidindo em paralelo sempre, é sempre um dos dois com a caneta.
+  Mecanismo completo em `Elder Web - Modelagem ER.md` seção 3.
 - **Permissões granulares do cuidador.** Cada vínculo de cuidador tem 3 flags
   (`permite_registrar_saude`, `permite_marcar_dose`,
   `permite_criar_evento_cuidado`), todas nascendo `false`. Quem tem autoridade
@@ -189,10 +198,13 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
   presumir resolvido nem tratar como bloqueante sem confirmar com o grupo.
 
 **Riscos aceitos conscientemente (não é pendência técnica):** consentimento
-do idoso quando a conta é criada por um familiar, e perda progressiva de
-capacidade do idoso após autocadastro. O grupo decidiu não mitigar
-tecnicamente além de certo ponto — ver `Elder Web - Modelagem ER.md` seção 5.2
-para o raciocínio completo.
+do idoso quando a conta é criada por um familiar, perda progressiva de
+capacidade do idoso após autocadastro, e a janela de autoridade vazia entre o
+cadastro de um idoso via RF-030 e a confirmação de e-mail do Familiar
+cadastrante (nessa janela, nenhum vínculo novo de Cuidador ou de outro
+Familiar pode ser aprovado). O grupo decidiu não mitigar tecnicamente além de
+certo ponto — ver `Elder Web - Modelagem ER.md` seção 5.2 para o raciocínio
+completo.
 
 **Decisões fechadas (não reabrir):** não existe tabela `Instituicao` no modelo
 de dados — removida do escopo. A funcionalidade de microfone foi excluída
