@@ -1,8 +1,6 @@
 import { Router } from "express";
-import type { DecodedIdToken } from "firebase-admin/auth";
-import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { prisma } from "../lib/prisma";
-import { isTipoPerfil, isDuplicateFirebaseUid } from "../lib/authHelpers";
+import { isTipoPerfil, isDuplicateFirebaseUid, verifyFirebaseToken } from "../lib/authHelpers";
 
 const router = Router();
 
@@ -18,22 +16,11 @@ router.post("/sync", async (req, res, next) => {
       return res.status(401).json({ error: "Token ausente." });
     }
 
-    let decoded: DecodedIdToken;
-    try {
-      decoded = await firebaseAuth.verifyIdToken(idToken);
-    } catch (e) {
-      const code = (e as { code?: string }).code;
-      if (code?.startsWith("auth/")) {
-        // Erro reconhecido do Firebase Auth sobre o token em si (expirado, revogado,
-        // malformado) — problema do cliente, não do serviço.
-        return res.status(401).json({ error: "Token inválido ou expirado." });
-      }
-      // Sem código auth/* = falha ao contatar o Firebase (rede, serviço fora do ar),
-      // não o token — RNF-005.
-      return res
-        .status(503)
-        .json({ error: "Firebase Auth indisponível no momento. Tente novamente em instantes." });
+    const resultado = await verifyFirebaseToken(idToken);
+    if (!resultado.ok) {
+      return res.status(resultado.status).json({ error: resultado.error });
     }
+    const decoded = resultado.decoded;
 
     // findFirst, não findUnique: firebase_uid não é @unique no Prisma (o índice único
     // é filtrado e manual, ver schema.prisma) — o client não conhece essa constraint.
