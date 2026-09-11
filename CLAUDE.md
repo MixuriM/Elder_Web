@@ -186,6 +186,7 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
   objetivo é valer pra todo o grupo e para sessões cloud/web também.
 - Nunca inserir dados fake sem sinalizar claramente que são fake
 - Não reaproveitar nenhum código do protótipo antigo — só olhar como referência
+- Não usar a extensão Claude in Chrome neste projeto
 
 ## Lacunas em aberto — NÃO decidir sozinho, perguntar ao grupo
 - Estrutura de pastas (`frontend/` + `backend/` monorepo) confirmada pelo
