@@ -1,95 +1,156 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { loginUser, loginWithGoogle, syncUser } from '../lib/auth'
+// Importa o useState para criar os estados da página
+// e FormEvent para definir o tipo do evento do formulário
+import { useState, type FormEvent } from "react";
 
+// Importa as funções relacionadas à autenticação
+import {
+  loginUser,
+  loginWithGoogle,
+  syncUser,
+} from "../lib/auth";
+
+// Importa os componentes principais da página
+import LadoInformativo from "../components/Informativo/LadoInformativo";
+import FormularioLogin from "../components/login/FormularioLogin";
+import ControleTema from "../components/layout/ControleTema";
+
+// Componente principal da página de login
 function Login() {
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
+  // Estado responsável por armazenar o e-mail digitado
+  const [email, setEmail] = useState("");
 
+  // Estado responsável por armazenar a senha digitada
+  const [senha, setSenha] = useState("");
+
+  // Estado responsável por armazenar possíveis mensagens de erro
+  const [erro, setErro] = useState<string | null>(null);
+
+  // Função executada quando o usuário entra
+  // utilizando e-mail e senha
   async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
+    // Impede o recarregamento da página
+    e.preventDefault();
+
+    // Remove possíveis mensagens de erro anteriores
+    setErro(null);
+
     try {
-      await loginUser(email, senha)
-      await syncUser()
+      // Realiza o login
+      await loginUser(email, senha);
+
+      // Sincroniza os dados do usuário
+      await syncUser();
     } catch (err) {
-      console.error('Falha no login (e-mail/senha):', err)
-      setErro('Não foi possível entrar. Confira seu e-mail e senha.')
+      console.error(
+        "Falha no login com e-mail e senha:",
+        err
+      );
+
+      setErro(
+        "Não foi possível entrar. Confira seu e-mail e senha."
+      );
     }
   }
 
+  // Função executada quando o usuário
+  // entra utilizando Google
   async function handleGoogleLogin() {
-    setErro(null)
+    // Remove possíveis mensagens de erro anteriores
+    setErro(null);
+
     try {
-      await loginWithGoogle()
-      await syncUser()
+      // Realiza o login com Google
+      await loginWithGoogle();
+
+      // Sincroniza os dados do usuário
+      await syncUser();
     } catch (err) {
-      console.error('Falha no login (Google):', err)
-      setErro('Não foi possível entrar com o Google.')
+      console.error(
+        "Falha no login com Google:",
+        err
+      );
+
+      setErro(
+        "Não foi possível entrar com o Google."
+      );
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white p-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-3xl font-bold text-gray-900">Entrar</h1>
+    <main
+      className="
+        min-h-screen
+        bg-white
+        font-['Atkinson_Hyperlegible']
 
-        <div>
-          <label htmlFor="email" className="block text-lg font-medium text-gray-900">
-            E-mail
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
+        transition-colors
+        duration-300
+
+        dark:bg-[#101018]
+      "
+    >
+      {/* Estrutura principal da página */}
+      <div
+        className="
+          grid
+          min-h-screen
+          items-stretch
+
+          lg:grid-cols-2
+        "
+      >
+        {/* Lado esquerdo informativo */}
+        <div className="h-full">
+          <LadoInformativo tipo="login" />
         </div>
 
-        <div>
-          <label htmlFor="senha" className="block text-lg font-medium text-gray-900">
-            Senha
-          </label>
-          <input
-            id="senha"
-            type="password"
-            required
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
+        {/* Lado direito */}
+        <section
+          className="
+            flex
+            min-h-screen
+            flex-col
 
-        {erro && (
-          <p role="alert" className="text-lg text-red-700">
-            {erro}
-          </p>
-        )}
+            gap-8
 
-        <button
-          type="submit"
-          className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white"
+            bg-white
+
+            transition-colors
+            duration-300
+
+            dark:bg-[#101018]
+          "
         >
-          Entrar
-        </button>
+          {/* Controle de tema */}
+          <ControleTema />
 
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          className="w-full rounded border border-gray-400 p-3 text-lg font-semibold text-gray-900"
-        >
-          Entrar com Google
-        </button>
+          {/* Área do formulário */}
+          <div
+            className="
+              flex
+              flex-1
+              items-center
+              justify-center
 
-        <Link to="/esqueci-senha" className="block text-lg text-blue-700 underline">
-          Esqueci minha senha
-        </Link>
-      </form>
+              px-6
+              pb-10
+            "
+          >
+            <FormularioLogin
+              email={email}
+              senha={senha}
+              erro={erro}
+              setEmail={setEmail}
+              setSenha={setSenha}
+              onSubmit={handleSubmit}
+              onGoogleLogin={handleGoogleLogin}
+            />
+          </div>
+        </section>
+      </div>
     </main>
-  )
+  );
 }
 
-export default Login
+// Exporta a página Login
+export default Login;
