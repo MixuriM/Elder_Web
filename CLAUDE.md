@@ -178,7 +178,8 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
 - Planejar a estrutura antes de criar múltiplos arquivos/componentes de uma vez
 - Pode criar pastas e arquivos livremente durante o scaffold inicial
 - **Sempre pedir confirmação antes de**: `git init`, `git remote add`,
-  `git push`, e qualquer instalação de dependência (`npm install` etc.)
+  `git push`, criação de branch nova (`git checkout -b`, `git branch`), e
+  qualquer instalação de dependência (`npm install` etc.)
 - Este projeto desativa o link de sessão (`Claude-Session:`) em mensagens de
   commit via `attribution.sessionUrl: false` em `.claude/settings.json`
   (escopo de projeto, já commitado). Não reverter essa configuração nem
