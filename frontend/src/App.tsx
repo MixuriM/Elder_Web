@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Cadastro from './pages/Cadastro'
@@ -10,7 +11,8 @@ import RotaProtegida from './components/RotaProtegida'
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home/>} />
+      <Route path="/" element={<LandingPage/>} />
+      <Route path="/Home" element={<Home/>} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
