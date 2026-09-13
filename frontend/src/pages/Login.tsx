@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { loginUser, loginWithGoogle, syncUser } from '../lib/auth'
 
 function Login() {
@@ -82,6 +83,10 @@ function Login() {
         >
           Entrar com Google
         </button>
+
+        <Link to="/esqueci-senha" className="block text-lg text-blue-700 underline">
+          Esqueci minha senha
+        </Link>
       </form>
     </main>
   )

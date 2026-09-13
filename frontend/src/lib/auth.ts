@@ -6,6 +6,7 @@ import {
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   type User,
 } from "firebase/auth";
 import { app } from "./firebase";
@@ -32,6 +33,11 @@ export async function loginWithGoogle() {
 // Logout
 export async function logoutUser() {
   return signOut(auth);
+}
+
+// Recuperação de senha — dispara o e-mail de reset do Firebase Auth
+export async function resetPassword(email: string) {
+  return sendPasswordResetEmail(auth, email);
 }
 
 // Observa mudanças de estado (usuário logou/deslogou)
