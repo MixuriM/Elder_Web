@@ -2,7 +2,7 @@ import LadoInformativo from "../components/Informativo/LadoInformativo";
 import LandingWelcome from "../components/Welcome/LandingWelcome";
 import BotaoTema from "../components/layout/BotaoTema";
 
-function LandingPage() {
+function Welcome() {
   return (
     <main
       className="
@@ -42,4 +42,4 @@ function LandingPage() {
   );
 }
 
-export default LandingPage;
+export default Welcome;
