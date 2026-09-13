@@ -121,10 +121,7 @@ function Home() {
         [data-theme="light"] main .bg-[#071832] { background: #ffffff !important; }
         [data-theme="light"] main .bg-[#0b2044] { background: #f1f5f9 !important; color: #0f172a !important; }
         [data-theme="light"] main .bg-[#0b1d40] { background: #ffffff !important; }
-        [data-theme="light"] main .bg-gradient-to-r.from-\\[#101e59].to-\\[#151d58]\\ { background: linear-gradient(to right, #e0e7ff, #eef2ff) !important; }
-        [data-theme="light"] main .text-white { color: #0f172a !important; }
-        [data-theme="light"] main .text-white\\80 { color: #475569 !important; }
-        [data-theme="light"] main .text-white\\90 { color: #334155 !important; }
+        [data-theme="light"] main .theme-preserve-dark { background: #0b1d40 !important; color: #ffffff !important; border-color: rgba(255,255,255,0.05) !important; }
         [data-theme="light"] main .text-slate-300 { color: #334155 !important; }
         [data-theme="light"] main .text-slate-400 { color: #64748b !important; }
         [data-theme="light"] main .text-slate-500 { color: #64748b !important; }
@@ -282,7 +279,7 @@ function Home() {
 
               {/* interface do perfil */}
               <button className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white">
                   iniciais do nome
                 </div>
 
@@ -358,7 +355,7 @@ function Home() {
             <div className="mt-4 grid gap-4 lg:grid-cols-[1.7fr_0.9fr]">
 
               {/* banner */}
-              <section className="relative min-h-[150px] overflow-hidden rounded-xl border border-indigo-400/10 bg-gradient-to-r from-[#101e59] to-[#151d58] p-6">
+              <section className="theme-preserve-dark relative min-h-[150px] overflow-hidden rounded-xl border border-indigo-400/10 bg-gradient-to-r from-[#101e59] to-[#151d58] p-6">
 
                 {/* pra decoração */}
                 <div className="absolute -right-4 bottom-[-45px] h-36 w-36 rotate-12 border-l-[25px] border-indigo-400/40" />
@@ -369,7 +366,7 @@ function Home() {
                   </div>
 
                   <div>
-                    <p className="text-lg font-bold">
+                    <p className="text-lg font-bold text-white">
                       Pequenas ações hoje,
                       <br />
                       grandes resultados amanhã!
@@ -383,7 +380,7 @@ function Home() {
               </section>
 
               {/* ajuda */}
-              <section className="rounded-xl border border-white/5 bg-[#0b1d40] p-5">
+              <section className="theme-preserve-dark rounded-xl border border-white/5 bg-[#0b1d40] p-5">
 
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600">
@@ -391,7 +388,7 @@ function Home() {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-bold">
+                    <h3 className="text-sm font-bold text-white">
                       Precisa de ajuda?
                     </h3>
 
@@ -403,7 +400,7 @@ function Home() {
                   </div>
                 </div>
 
-                <button className="mt-4 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-600 text-xs font-semibold transition hover:brightness-110">
+                <button className="mt-4 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-600 text-xs font-semibold text-white transition hover:brightness-110">
                   Ver orientações
                   <ChevronRight size={15} />
                 </button>
