@@ -330,3 +330,61 @@ linha em `Usuario`) bloqueia recadastro com o mesmo e-mail — Firebase recusa
 com `auth/email-already-in-use` antes de chegar no backend. Precisa excluir
 a conta manualmente no Firebase Console (Authentication → usuário → excluir)
 antes de recadastrar.
+
+**Item 1.6 da Fase 1 (RF-004) implementado — editar perfil (2026-09-13):**
+Antes de começar, foi conferido que o middleware `requireAuth` (item 1.3) já
+existia em `backend/src/middleware/requireAuth.ts`, com teste próprio — a
+tabela do plano de desenvolvimento estava certa, o item não tinha sido
+achado numa checagem anterior. Nenhuma reimplementação foi feita, só reuso.
+
+Backend: `backend/src/routes/usuario.ts` — `GET /usuario/me` (retorna id,
+nome, email, telefone, tipo_perfil do usuário autenticado) e
+`PATCH /usuario/me` (atualiza nome/email/telefone), ambas atrás de
+`requireAuth`. Decisões:
+- A CHECK `email IS NOT NULL OR telefone IS NOT NULL` é validada em
+  aplicação *antes* do update (comparando com os valores atuais do usuário
+  para o campo que não está sendo alterado nesta requisição), retornando 400
+  com mensagem clara — não deixa o erro cru do SQL Server vazar.
+- Colisão de e-mail (índice único filtrado `Usuario_email_key`) é detectada
+  pelo mesmo padrão de `isDuplicateFirebaseUid` (detecção genérica de
+  violação de índice único do driver, já que o índice é manual, não
+  `@unique` do Prisma) — nova função `isDuplicateEmail` em
+  `backend/src/lib/authHelpers.ts`, retorna 409 com mensagem tratada.
+- Alterar o e-mail sincroniza com Firebase Auth via Admin SDK
+  (`auth.updateUser(firebase_uid, { email })`) antes do update no banco.
+- Caso do idoso sem `firebase_uid` (cadastrado por familiar, RF-030) editando
+  e-mail: **não precisou de tratamento especial.** `requireAuth` só resolve
+  `req.usuarioId` buscando `Usuario` por `firebase_uid` a partir do token
+  decodificado — logo todo usuário autenticado que chega em `/usuario/me`
+  já tem `firebase_uid` preenchido por construção. Esse cenário é
+  estruturalmente inalcançável neste fluxo, documentado em comentário no
+  código; não é uma lacuna nova.
+
+Frontend:
+- `frontend/src/hooks/useAuthUser.ts` — hook novo (reutilizável em toda a
+  Fase 1+), baseado em `onAuthChange` de `lib/auth.ts`, retorna
+  `{ usuario, carregando }`.
+- `frontend/src/components/RotaProtegida.tsx` — versão mínima: só resolve
+  "existe alguém logado" (loading → redireciona pra `/login` se `usuario`
+  for `null` → senão renderiza `children`). Sem lógica de `tipo_perfil` ou
+  vínculo — isso fica para a Fase 2 (RF-032).
+- `frontend/src/pages/Perfil.tsx` — formulário nome/email/telefone, mesmo
+  padrão de acessibilidade de `Login.tsx`/`Cadastro.tsx`/`EsqueciSenha.tsx`
+  (label associado, erro com `role="alert"`, fontes grandes, feedback de
+  sucesso após salvar). Busca `GET /usuario/me` ao montar, salva via
+  `PATCH /usuario/me`, propaga a mensagem específica do backend (400/409)
+  em vez de um erro genérico.
+- Rota `/perfil` adicionada em `App.tsx`, envolvida por `RotaProtegida`.
+
+**Gap de infra de teste descoberto e corrigido:** `RotaProtegida.test.tsx`
+foi o primeiro teste do projeto a importar `react-router-dom` — expôs que
+`jest-environment-jsdom@30` não expõe `TextEncoder`/`TextDecoder` no global
+do ambiente jsdom (o Node tem nativamente, mas o ambiente de teste não
+herda). Corrigido com `frontend/jest.polyfills.cjs` (copia os dois do
+`node:util` pro `globalThis`) referenciado em `setupFiles` de
+`jest.config.cjs` — roda antes do ambiente de teste subir, não é específico
+desta feature, vale para qualquer teste futuro que toque `react-router-dom`.
+
+Fora de escopo deste item (não implementado, por instrução explícita):
+logout (item 1.7), card de notificações/avisos, e qualquer lógica de
+permissão por `tipo_perfil` ou vínculo (Fase 2).

@@ -52,3 +52,10 @@ export function isTipoPerfil(value: unknown): value is TipoPerfil {
 export function isDuplicateFirebaseUid(e: unknown): boolean {
   return e instanceof Error && /UNIQUE constraint|duplicate key|Violation of/i.test(e.message);
 }
+
+// Mesma detecção genérica de violação de índice único do driver (índice filtrado de
+// email não é @unique nativo do Prisma, então também não chega como P2002) — usada em
+// PATCH /usuario/me ao trocar email.
+export function isDuplicateEmail(e: unknown): boolean {
+  return e instanceof Error && /UNIQUE constraint|duplicate key|Violation of/i.test(e.message);
+}
