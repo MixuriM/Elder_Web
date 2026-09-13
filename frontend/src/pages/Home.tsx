@@ -21,7 +21,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type MenuItem = {
   label: string;
@@ -103,9 +103,36 @@ function ActionCard({
 function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Início");
+  const [theme, setThemeState] = useState<Theme>(getStoredTheme());
+
+  useEffect(() => {
+    setTheme(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setThemeState(theme === "dark" ? "light" : "dark");
+  };
 
   return (
     <main className="min-h-screen bg-[#06142d] text-white">
+      <style>{`
+        [data-theme="light"] main { background: #f8fafc !important; color: #0f172a !important; }
+        [data-theme="light"] main .bg-[#081a3a] { background: #ffffff !important; }
+        [data-theme="light"] main .bg-[#071832] { background: #ffffff !important; }
+        [data-theme="light"] main .bg-[#0b2044] { background: #f1f5f9 !important; color: #0f172a !important; }
+        [data-theme="light"] main .bg-[#0b1d40] { background: #ffffff !important; }
+        [data-theme="light"] main .bg-gradient-to-r.from-\\[#101e59].to-\\[#151d58]\\ { background: linear-gradient(to right, #e0e7ff, #eef2ff) !important; }
+        [data-theme="light"] main .text-white { color: #0f172a !important; }
+        [data-theme="light"] main .text-white\\80 { color: #475569 !important; }
+        [data-theme="light"] main .text-white\\90 { color: #334155 !important; }
+        [data-theme="light"] main .text-slate-300 { color: #334155 !important; }
+        [data-theme="light"] main .text-slate-400 { color: #64748b !important; }
+        [data-theme="light"] main .text-slate-500 { color: #64748b !important; }
+        [data-theme="light"] main .border-white\\5 { border-color: #e2e8f0 !important; }
+        [data-theme="light"] main .border-indigo-400\\10 { border-color: #c7d2fe !important; }
+        [data-theme="light"] main input::placeholder { color: #94a3b8 !important; }
+        [data-theme="light"] main .hover\\:bg-white\\/5:hover { background: #f1f5f9 !important; }
+      `}</style>
       <div className="flex min-h-screen">
 
         {sidebarOpen && (
@@ -244,8 +271,13 @@ function Home() {
               </button>
 
               {/* tema */}
-              <button className="hidden h-8 w-14 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 sm:flex">
-                ☀️
+              <button
+                onClick={toggleTheme}
+                aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+                title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+                className="hidden h-8 w-14 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 transition hover:bg-indigo-500/30 sm:flex"
+              >
+                {theme === "dark" ? "☀️" : "🌙"}
               </button>
 
               {/* interface do perfil */}
