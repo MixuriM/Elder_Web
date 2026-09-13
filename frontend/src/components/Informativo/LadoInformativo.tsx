@@ -16,7 +16,6 @@ function LadoInformativo({
   tipo,
   tipoPerfil,
 }: LadoInformativoProps) {
-
   // Conteúdos gerais utilizados na Landing e no Login
   const conteudos = {
     landing: {
@@ -82,16 +81,20 @@ function LadoInformativo({
       className="
         relative
         hidden
+
+        h-full
         min-h-screen
+
         overflow-hidden
 
         bg-[#F3F0FF]
-        dark:bg-[#151522]
 
         px-12
 
         transition-colors
         duration-300
+
+        dark:bg-[#151522]
 
         lg:flex
         lg:items-center
@@ -99,7 +102,6 @@ function LadoInformativo({
         xl:px-16
       "
     >
-
       {/* Folhas decorativas superiores */}
       <img
         src={folhasDecorativas}
@@ -107,12 +109,15 @@ function LadoInformativo({
         aria-hidden="true"
         className="
           pointer-events-none
+
           absolute
           left-0
           top-0
+
           w-[270px]
 
           opacity-35
+
           dark:opacity-15
         "
       />
@@ -124,12 +129,15 @@ function LadoInformativo({
         aria-hidden="true"
         className="
           pointer-events-none
+
           absolute
           -bottom-6
           -right-4
+
           w-72
 
           opacity-20
+
           dark:opacity-10
         "
       />
@@ -139,27 +147,27 @@ function LadoInformativo({
         className={`
           relative
           z-10
+
           mx-auto
+
           w-full
           max-w-2xl
 
           ${tipo !== "landing" ? "-translate-y-6" : ""}
         `}
       >
-
         {/* Logo */}
         <div className="flex w-full justify-center">
-
           <img
             src={logoElder}
             alt="Elder"
             className="
               h-auto
               w-56
+
               xl:w-60
             "
           />
-
         </div>
 
         {/* Título */}
@@ -168,22 +176,22 @@ function LadoInformativo({
             mx-auto
             mt-3
             max-w-xl
+
             text-center
             text-3xl
             font-bold
             leading-[1.15]
 
             text-[#071A38]
-            dark:text-[#F5F5FA]
 
             transition-colors
             duration-300
 
+            dark:text-[#F5F5FA]
+
             xl:text-4xl
           "
         >
-
-          {/* Parte destacada em roxo */}
           <span
             className="
               text-[#6C63FF]
@@ -200,7 +208,6 @@ function LadoInformativo({
           <br />
 
           {conteudo.complemento}
-
         </h1>
 
         {/* Descrição */}
@@ -209,15 +216,17 @@ function LadoInformativo({
             mx-auto
             mt-5
             max-w-lg
+
             text-center
             text-lg
             leading-8
 
             text-[#56657D]
-            dark:text-[#C7C7D1]
 
             transition-colors
             duration-300
+
+            dark:text-[#C7C7D1]
           "
         >
           {conteudo.descricao}
@@ -225,7 +234,6 @@ function LadoInformativo({
 
         {/* Benefícios aparecem somente na Landing */}
         {tipo === "landing" && (
-
           <div
             className="
               mx-auto
@@ -234,10 +242,8 @@ function LadoInformativo({
               space-y-4
             "
           >
-
             {/* Benefício 1 */}
             <div className="flex items-center gap-3">
-
               <span
                 aria-hidden="true"
                 className="
@@ -247,15 +253,16 @@ function LadoInformativo({
                   shrink-0
                   items-center
                   justify-center
+
                   rounded-full
 
                   bg-[#E2DEFF]
+
+                  font-bold
                   text-[#6C63FF]
 
                   dark:bg-[#2A2840]
                   dark:text-[#A89FFF]
-
-                  font-bold
                 "
               >
                 ✓
@@ -265,17 +272,16 @@ function LadoInformativo({
                 className="
                   text-lg
                   text-[#40506A]
+
                   dark:text-[#D6D6DF]
                 "
               >
                 Mais autonomia para a pessoa idosa
               </p>
-
             </div>
 
             {/* Benefício 2 */}
             <div className="flex items-center gap-3">
-
               <span
                 aria-hidden="true"
                 className="
@@ -285,15 +291,16 @@ function LadoInformativo({
                   shrink-0
                   items-center
                   justify-center
+
                   rounded-full
 
                   bg-[#E2DEFF]
+
+                  font-bold
                   text-[#6C63FF]
 
                   dark:bg-[#2A2840]
                   dark:text-[#A89FFF]
-
-                  font-bold
                 "
               >
                 ✓
@@ -303,17 +310,16 @@ function LadoInformativo({
                 className="
                   text-lg
                   text-[#40506A]
+
                   dark:text-[#D6D6DF]
                 "
               >
                 Mais organização para a rotina de cuidados
               </p>
-
             </div>
 
             {/* Benefício 3 */}
             <div className="flex items-center gap-3">
-
               <span
                 aria-hidden="true"
                 className="
@@ -323,15 +329,16 @@ function LadoInformativo({
                   shrink-0
                   items-center
                   justify-center
+
                   rounded-full
 
                   bg-[#E2DEFF]
+
+                  font-bold
                   text-[#6C63FF]
 
                   dark:bg-[#2A2840]
                   dark:text-[#A89FFF]
-
-                  font-bold
                 "
               >
                 ✓
@@ -341,20 +348,16 @@ function LadoInformativo({
                 className="
                   text-lg
                   text-[#40506A]
+
                   dark:text-[#D6D6DF]
                 "
               >
                 Mais proximidade entre idosos, familiares e cuidadores
               </p>
-
             </div>
-
           </div>
-
         )}
-
       </div>
-
     </section>
   );
 }

@@ -4,19 +4,19 @@ import { useState, type FormEvent } from "react";
 
 // Importa as funções relacionadas à autenticação
 import {
-  registerUser,     // Registra o usuário no Firebase Authentication
-  loginWithGoogle,  // Realiza a autenticação utilizando Google
-  syncUser,         // Sincroniza os dados do usuário com o Firestore
-  type TipoPerfil,  // Define os tipos de perfil permitidos
+  registerUser,
+  loginWithGoogle,
+  syncUser,
+  type TipoPerfil,
 } from "../lib/auth";
 
 // Importa os componentes principais da página
 import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioCadastro from "../components/cadastro/FormularioCadastro";
+import ControleTema from "../components/layout/ControleTema";
 
 // Componente principal da página de cadastro
 function Cadastro() {
-
   // Estado responsável por armazenar o nome digitado
   const [nome, setNome] = useState("");
 
@@ -31,133 +31,143 @@ function Cadastro() {
   const [tipoPerfil, setTipoPerfil] =
     useState<TipoPerfil>("idoso");
 
-  // Estado utilizado para armazenar possíveis mensagens de erro
-  // null significa que não existe erro no momento
+  // Estado responsável por armazenar possíveis mensagens de erro
   const [erro, setErro] =
     useState<string | null>(null);
 
-  // Função executada quando o usuário envia
-  // o formulário de cadastro com e-mail e senha
+  // Função executada quando o usuário cadastra
+  // utilizando e-mail e senha
   async function handleSubmit(e: FormEvent) {
-
-    // Impede que o navegador recarregue a página
+    // Impede o recarregamento da página
     e.preventDefault();
 
     // Remove possíveis mensagens de erro anteriores
     setErro(null);
 
     try {
-
-      // Registra o usuário utilizando o e-mail e a senha
+      // Registra o usuário
       await registerUser(email, senha);
 
-      // Sincroniza as informações adicionais
-      // do usuário com o banco de dados
+      // Sincroniza os dados adicionais do usuário
       await syncUser({
         tipoPerfil,
         nome,
       });
-
     } catch (err) {
+      console.error(
+        "Falha no cadastro (e-mail/senha):",
+        err
+      );
 
-      // Caso alguma etapa apresente erro,
-      // registra o erro real e armazena
-      // uma mensagem no estado erro
-      console.error("Falha no cadastro (e-mail/senha):", err);
       setErro(
         "Não foi possível criar a conta. Confira os dados e tente novamente."
       );
-
     }
   }
 
-  // Função executada quando o usuário escolhe
-  // realizar o cadastro utilizando Google
+  // Função executada quando o usuário
+  // cadastra utilizando Google
   async function handleGoogleCadastro() {
-
     // Remove possíveis mensagens de erro anteriores
     setErro(null);
 
     try {
-
-      // Realiza a autenticação através da conta Google
+      // Realiza autenticação com Google
       await loginWithGoogle();
 
-      // Sincroniza o perfil escolhido com o banco de dados
+      // Sincroniza o perfil escolhido
       await syncUser({
         tipoPerfil,
       });
-
     } catch (err) {
+      console.error(
+        "Falha no cadastro (Google):",
+        err
+      );
 
-      // Registra o erro real e exibe uma mensagem
-      // caso o cadastro com Google falhe
-      console.error("Falha no cadastro (Google):", err);
       setErro(
         "Não foi possível criar a conta com o Google."
       );
-
     }
   }
 
-  // Renderiza a página de cadastro
   return (
     <main
       className="
         min-h-screen
-
         bg-white
-        dark:bg-[#101018]
-
         font-['Atkinson_Hyperlegible']
 
         transition-colors
         duration-300
+
+        dark:bg-[#101018]
       "
     >
-
-      {/* Divide a página em duas colunas em telas maiores */}
+      {/* Estrutura principal da página */}
       <div
         className="
           grid
           min-h-screen
+          items-stretch
+
           lg:grid-cols-2
         "
       >
+        {/* Lado esquerdo informativo */}
+        <div className="h-full">
+          <LadoInformativo
+            tipo="cadastro"
+            tipoPerfil={tipoPerfil}
+          />
+        </div>
 
-        {/*
-          Lado esquerdo com informações do Elder.
+        {/* Lado direito */}
+        <section
+          className="
+            flex
+            min-h-screen
+            flex-col
 
-          Recebe o perfil selecionado para alterar
-          o conteúdo conforme o tipo de usuário.
-        */}
-        <LadoInformativo
-          tipo="cadastro"
-          tipoPerfil={tipoPerfil}
-        />
+            bg-white
 
-        {/*
-          Lado direito com o formulário de cadastro.
+            transition-colors
+            duration-300
 
-          Os estados e funções são enviados
-          para o componente através das props.
-        */}
-        <FormularioCadastro
-          nome={nome}
-          email={email}
-          senha={senha}
-          tipoPerfil={tipoPerfil}
-          erro={erro}
-          setNome={setNome}
-          setEmail={setEmail}
-          setSenha={setSenha}
-          setTipoPerfil={setTipoPerfil}
-          onSubmit={handleSubmit}
-          onGoogleCadastro={handleGoogleCadastro}
-        />
+            dark:bg-[#101018]
+          "
+        >
+          {/* Controle de tema */}
+          <ControleTema />
 
+          {/* Área do formulário */}
+          <div
+            className="
+              flex
+              flex-1
+              items-center
+              justify-center
+
+              px-6
+              pb-10
+            "
+          >
+            <FormularioCadastro
+              nome={nome}
+              email={email}
+              senha={senha}
+              tipoPerfil={tipoPerfil}
+              erro={erro}
+              setNome={setNome}
+              setEmail={setEmail}
+              setSenha={setSenha}
+              setTipoPerfil={setTipoPerfil}
+              onSubmit={handleSubmit}
+              onGoogleCadastro={handleGoogleCadastro}
+            />
+          </div>
+        </section>
       </div>
-
     </main>
   );
 }
