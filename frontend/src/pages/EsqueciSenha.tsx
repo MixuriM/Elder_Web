@@ -16,7 +16,10 @@ function EsqueciSenha() {
     } catch (err) {
       console.error('Falha ao solicitar redefinição de senha:', err)
       const codigo = (err as { code?: string }).code
-      if (codigo === 'auth/invalid-email') {
+      if (codigo === 'auth/user-not-found') {
+        // Não revelar que o e-mail não existe: mesmo feedback de sucesso.
+        setEnviado(true)
+      } else if (codigo === 'auth/invalid-email') {
         setErro('Digite um e-mail válido.')
       } else if (codigo === 'auth/too-many-requests') {
         setErro('Muitas tentativas. Aguarde um pouco e tente novamente.')
