@@ -5,10 +5,15 @@ function BotaoTema() {
 
   useEffect(() => {
     const temaSalvo = localStorage.getItem("tema");
+
     const temaEscuro = temaSalvo === "escuro";
 
     setEscuro(temaEscuro);
-    document.documentElement.classList.toggle("dark", temaEscuro);
+
+    document.documentElement.classList.toggle(
+      "dark",
+      temaEscuro
+    );
   }, []);
 
   function alterarTema() {
@@ -31,45 +36,56 @@ function BotaoTema() {
     <button
       type="button"
       onClick={alterarTema}
-      aria-label={escuro ? "Ativar modo claro" : "Ativar modo escuro"}
+      aria-pressed={escuro}
+      aria-label={
+        escuro
+          ? "Ativar modo claro"
+          : "Ativar modo escuro"
+      }
       className="
-        relative
-        h-12
-        w-24
-        rounded-full
+        flex
+        min-h-14
+        items-center
+        justify-center
+        gap-3
+
+        rounded-xl
         border
-        border-[#5F6075]
-        bg-[#2B2C3B]
-        p-1
-        transition-all
-        duration-300
-        hover:border-[#8B82FF]
+        border-gray-300
+
+        bg-white
+        px-5
+
+        text-lg
+        font-semibold
+        text-gray-800
+
+        shadow-sm
+
+        transition-colors
+        duration-200
+
+        hover:bg-gray-100
+
         focus:outline-none
-        focus:ring-2
-        focus:ring-[#6C63FF]/40
+        focus-visible:ring-2
+        focus-visible:ring-[#6C63FF]/40
+
+        dark:border-[#5F6075]
+        dark:bg-[#2B2C3B]
+        dark:text-white
+        dark:hover:bg-[#373849]
       "
     >
       <span
-        className={`
-          absolute
-          top-1
-          flex
-          h-10
-          w-10
-          items-center
-          justify-center
-          rounded-full
-          bg-[#55566D]
-          text-2xl
-          text-white
-          shadow-md
-          transition-all
-          duration-300
-
-          ${escuro ? "left-[50px]" : "left-1"}
-        `}
+        className="text-2xl"
+        aria-hidden="true"
       >
-        {escuro ? "☾" : "☀"}
+        {escuro ? "☀" : "☾"}
+      </span>
+
+      <span>
+        {escuro ? "Modo claro" : "Modo escuro"}
       </span>
     </button>
   );
