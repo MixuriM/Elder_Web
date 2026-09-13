@@ -2,14 +2,24 @@ import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import Home from './Home'
 
-// Cobre o conteúdo de scaffold provisório da rota raiz ("/"). Home ainda não
-// tem lógica de auth/redirecionamento (AuthContext e proteção de rota
-// pendentes, ver CLAUDE.md) — quando isso for implementado, este teste
-// precisa ser atualizado ou removido.
+// jsdom não implementa matchMedia; Home usa pra detectar tema do sistema.
+beforeAll(() => {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia
+})
+
 describe('Home', () => {
-  it('renderiza o título Elder Web', () => {
+  it('renderiza sem erros e exibe a marca Elder Web', () => {
     render(<Home />)
 
-    expect(screen.getByText('Elder Web')).toBeInTheDocument()
+    expect(screen.getByText('Cuidado e bem-estar')).toBeInTheDocument()
   })
 })
