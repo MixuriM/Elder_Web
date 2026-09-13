@@ -1,4 +1,4 @@
-import LandingBotoes from "./LandingBotoes";
+import WelcomeBotoes from "./WelcomeBotoes";
 import BotaoTema from "../layout/BotaoTema";
 
 function LandingWelcome() {
@@ -110,7 +110,7 @@ function LandingWelcome() {
         </p>
 
         {/* Botões */}
-        <LandingBotoes />
+        <WelcomeBotoes />
       </div>
     </section>
   );
