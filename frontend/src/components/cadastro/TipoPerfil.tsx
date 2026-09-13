@@ -3,6 +3,7 @@ import type { TipoPerfil } from "../../lib/auth";
 
 // Define as propriedades que o componente deve receber
 type TipoPerfilProps = {
+
   // Perfil atualmente selecionado
   tipoPerfil: TipoPerfil;
 
@@ -25,20 +26,46 @@ function TipoPerfilCampo({
 
   return (
     <fieldset>
+
       {/* Título do grupo de opções */}
-      <legend className="text-lg font-medium text-gray-900">
+      <legend
+        className="
+          text-lg
+          font-medium
+
+          text-[#071A38]
+          dark:text-[#F5F5FA]
+
+          transition-colors
+          duration-300
+        "
+      >
         Eu sou
       </legend>
 
       {/* Container das opções de perfil */}
-      <div className="mt-1 space-y-2">
+      <div className="mt-2 space-y-2">
 
         {/* Percorre a lista de perfis e cria uma opção para cada um */}
         {opcoes.map((opcao) => (
           <label
             key={opcao.valor}
-            className="flex items-center gap-2 text-lg text-gray-900"
+            className="
+              flex
+              cursor-pointer
+              items-center
+              gap-3
+
+              text-lg
+              text-[#071A38]
+              dark:text-[#D6D6DF]
+
+              transition-colors
+              duration-300
+            "
           >
+
+            {/* Botão de seleção do perfil */}
             <input
               type="radio"
               name="tipo_perfil"
@@ -49,14 +76,24 @@ function TipoPerfilCampo({
 
               // Altera o tipo de perfil quando o usuário seleciona a opção
               onChange={() => setTipoPerfil(opcao.valor)}
+
+              className="
+                h-5
+                w-5
+
+                cursor-pointer
+                accent-[#6C63FF]
+              "
             />
 
             {/* Exibe Idoso, Cuidador ou Familiar */}
             {opcao.label}
+
           </label>
         ))}
 
       </div>
+
     </fieldset>
   );
 }

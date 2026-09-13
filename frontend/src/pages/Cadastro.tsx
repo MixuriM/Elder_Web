@@ -11,7 +11,7 @@ import {
 } from "../lib/auth";
 
 // Importa os componentes principais da página
-import LadoInformativo from "../components/cadastro/LadoInformativo";
+import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioCadastro from "../components/cadastro/FormularioCadastro";
 
 // Componente principal da página de cadastro
@@ -36,13 +36,11 @@ function Cadastro() {
   const [erro, setErro] =
     useState<string | null>(null);
 
-
   // Função executada quando o usuário envia
   // o formulário de cadastro com e-mail e senha
   async function handleSubmit(e: FormEvent) {
 
     // Impede que o navegador recarregue a página
-    // ao enviar o formulário
     e.preventDefault();
 
     // Remove possíveis mensagens de erro anteriores
@@ -71,7 +69,6 @@ function Cadastro() {
     }
   }
 
-
   // Função executada quando o usuário escolhe
   // realizar o cadastro utilizando Google
   async function handleGoogleCadastro() {
@@ -99,20 +96,47 @@ function Cadastro() {
     }
   }
 
-
   // Renderiza a página de cadastro
   return (
-    <main className="min-h-screen bg-white">
+    <main
+      className="
+        min-h-screen
+
+        bg-white
+        dark:bg-[#101018]
+
+        font-['Atkinson_Hyperlegible']
+
+        transition-colors
+        duration-300
+      "
+    >
 
       {/* Divide a página em duas colunas em telas maiores */}
-      <div className="grid min-h-screen lg:grid-cols-2">
+      <div
+        className="
+          grid
+          min-h-screen
+          lg:grid-cols-2
+        "
+      >
 
-        {/* Exibe as informações sobre o Elder Web */}
-        <LadoInformativo />
+        {/*
+          Lado esquerdo com informações do Elder.
 
-        {/* 
-          Envia os estados e funções para o formulário
-          através das props
+          Recebe o perfil selecionado para alterar
+          o conteúdo conforme o tipo de usuário.
+        */}
+        <LadoInformativo
+          tipo="cadastro"
+          tipoPerfil={tipoPerfil}
+        />
+
+        {/*
+          Lado direito com o formulário de cadastro.
+
+          Os estados e funções são enviados
+          para o componente através das props.
         */}
         <FormularioCadastro
           nome={nome}

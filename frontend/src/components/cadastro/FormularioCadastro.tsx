@@ -8,6 +8,7 @@ import type { TipoPerfil } from "../../lib/auth";
 import CampoTexto from "./CampoTexto";
 import TipoPerfilCampo from "./TipoPerfil";
 import BotaoGoogle from "./BotaoGoogle";
+import BotaoTema from "../layout/BotaoTema";
 
 // Define as propriedades recebidas pelo formulário
 type FormularioCadastroProps = {
@@ -52,15 +53,31 @@ function FormularioCadastro({
   return (
     <section
       className="
+        relative
         flex
         min-h-screen
         items-center
         justify-center
         bg-white
+        dark:bg-[#101018]
         px-6
         py-10
+        transition-colors
+        duration-300
       "
     >
+      {/* Botão para alternar entre modo claro e escuro */}
+      <div
+        className="
+          absolute
+          right-6
+          top-6
+          z-50
+        "
+      >
+        <BotaoTema />
+      </div>
+
       {/* Formulário principal */}
       <form
         onSubmit={onSubmit}
@@ -74,6 +91,13 @@ function FormularioCadastro({
           px-9
           py-8
           shadow-sm
+
+          dark:border-[#343445]
+          dark:bg-[#181824]
+          dark:shadow-[0_10px_35px_rgba(0,0,0,0.25)]
+
+          transition-colors
+          duration-300
         "
       >
         {/* Título */}
@@ -83,6 +107,9 @@ function FormularioCadastro({
             text-4xl
             font-bold
             text-[#111827]
+            dark:text-[#F5F5FA]
+            transition-colors
+            duration-300
           "
         >
           Criar conta
@@ -95,6 +122,9 @@ function FormularioCadastro({
             text-center
             text-2xl
             text-[#4B5563]
+            dark:text-[#B9B9C5]
+            transition-colors
+            duration-300
           "
         >
           Cadastre-se de forma rápida e simples.
@@ -149,6 +179,12 @@ function FormularioCadastro({
               p-3
               text-base
               text-red-700
+
+              dark:bg-red-950/40
+              dark:text-red-300
+
+              transition-colors
+              duration-300
             "
           >
             {erro}
@@ -168,11 +204,19 @@ function FormularioCadastro({
             text-lg
             font-bold
             text-white
+
             transition
+            duration-300
+
             hover:bg-[#5B54E8]
+
             focus:outline-none
             focus:ring-4
             focus:ring-[#EDE7FF]
+
+            dark:bg-[#8B82FF]
+            dark:hover:bg-[#9E96FF]
+            dark:focus:ring-[#3A355C]
           "
         >
           Criar minha conta
@@ -182,14 +226,34 @@ function FormularioCadastro({
         <div className="my-6 flex items-center gap-4">
 
           {/* Linha esquerda */}
-          <div className="h-px flex-1 bg-gray-200" />
+          <div
+            className="
+              h-px
+              flex-1
+              bg-gray-200
+              dark:bg-[#343445]
+            "
+          />
 
-          <span className="text-base text-gray-500">
+          <span
+            className="
+              text-base
+              text-gray-500
+              dark:text-[#B9B9C5]
+            "
+          >
             ou
           </span>
 
           {/* Linha direita */}
-          <div className="h-px flex-1 bg-gray-200" />
+          <div
+            className="
+              h-px
+              flex-1
+              bg-gray-200
+              dark:bg-[#343445]
+            "
+          />
 
         </div>
 
@@ -203,6 +267,9 @@ function FormularioCadastro({
             text-center
             text-base
             text-[#4B5563]
+            dark:text-[#B9B9C5]
+            transition-colors
+            duration-300
           "
         >
           Já tem uma conta?{" "}
@@ -213,6 +280,7 @@ function FormularioCadastro({
               font-bold
               text-[#6C63FF]
               hover:underline
+              dark:text-[#A89FFF]
             "
           >
             Entrar
