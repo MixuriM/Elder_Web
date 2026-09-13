@@ -1,102 +1,164 @@
-// Importa apenas o tipo TipoPerfil definido no arquivo de autenticação
+// Importa os ícones utilizados nos perfis
+import { Heart, UserRound, UsersRound } from "lucide-react";
+
+// Importa o tipo TipoPerfil
 import type { TipoPerfil } from "../../lib/auth";
 
-// Define as propriedades que o componente deve receber
+// Define as propriedades do componente
 type TipoPerfilProps = {
-
-  // Perfil atualmente selecionado
   tipoPerfil: TipoPerfil;
-
-  // Função utilizada para alterar o perfil selecionado
   setTipoPerfil: (tipo: TipoPerfil) => void;
 };
 
-// Componente responsável pela escolha do tipo de perfil
+// Componente responsável pela escolha do perfil
 function TipoPerfilCampo({
   tipoPerfil,
   setTipoPerfil,
 }: TipoPerfilProps) {
-
-  // Lista com os tipos de perfil disponíveis no cadastro
+  // Opções disponíveis
   const opcoes = [
-    { valor: "idoso", label: "Idoso" },
-    { valor: "cuidador", label: "Cuidador" },
-    { valor: "familiar", label: "Familiar" },
+    {
+      valor: "idoso",
+      label: "Idoso",
+      icone: Heart,
+    },
+    {
+      valor: "cuidador",
+      label: "Cuidador",
+      icone: UserRound,
+    },
+    {
+      valor: "familiar",
+      label: "Familiar",
+      icone: UsersRound,
+    },
   ] as const;
 
   return (
     <fieldset>
-
-      {/* Título do grupo de opções */}
+      {/* Título */}
       <legend
         className="
           text-lg
-          font-medium
-
+          font-semibold
           text-[#071A38]
           dark:text-[#F5F5FA]
-
-          transition-colors
-          duration-300
         "
       >
-        Eu sou
+        Você é:
       </legend>
 
-      {/* Container das opções de perfil */}
-      <div className="mt-2 space-y-2">
+      {/* Cards */}
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        {opcoes.map((opcao) => {
+          // Verifica qual opção está selecionada
+          const selecionado = tipoPerfil === opcao.valor;
 
-        {/* Percorre a lista de perfis e cria uma opção para cada um */}
-        {opcoes.map((opcao) => (
-          <label
-            key={opcao.valor}
-            className="
-              flex
-              cursor-pointer
-              items-center
-              gap-3
+          // Ícone da opção
+          const Icone = opcao.icone;
 
-              text-lg
-              text-[#071A38]
-              dark:text-[#D6D6DF]
-
-              transition-colors
-              duration-300
-            "
-          >
-
-            {/* Botão de seleção do perfil */}
-            <input
-              type="radio"
-              name="tipo_perfil"
-              value={opcao.valor}
-
-              // Verifica se esta opção é a atualmente selecionada
-              checked={tipoPerfil === opcao.valor}
-
-              // Altera o tipo de perfil quando o usuário seleciona a opção
-              onChange={() => setTipoPerfil(opcao.valor)}
-
-              className="
-                h-5
-                w-5
-
+          return (
+            <label
+              key={opcao.valor}
+              className={`
+                flex
                 cursor-pointer
-                accent-[#6C63FF]
-              "
-            />
+                flex-col
+                items-center
+                justify-center
+                rounded-xl
+                border-2
+                px-3
+                py-4
+                transition-all
+                duration-300
 
-            {/* Exibe Idoso, Cuidador ou Familiar */}
-            {opcao.label}
+                ${
+                  selecionado
+                    ? `
+                      border-[#6C63FF]
+                      bg-[#6C63FF]
+                      shadow-md
+                    `
+                    : `
+                      border-[#E5E0F5]
+                      bg-white
+                      hover:border-[#8B82FF]
+                      hover:bg-[#F8F7FF]
 
-          </label>
-        ))}
+                      dark:border-[#343445]
+                      dark:bg-[#181824]
+                      dark:hover:border-[#6C63FF]
+                      dark:hover:bg-[#20202E]
+                    `
+                }
+              `}
+            >
+              {/* Radio escondido */}
+              <input
+                type="radio"
+                name="tipo_perfil"
+                value={opcao.valor}
+                checked={selecionado}
+                onChange={() => setTipoPerfil(opcao.valor)}
+                className="sr-only"
+              />
 
+              {/* Fundo do ícone */}
+              <div
+                className={`
+                  flex
+                  h-11
+                  w-11
+                  items-center
+                  justify-center
+                  rounded-xl
+                  transition-all
+                  duration-300
+
+                  ${
+                    selecionado
+                      ? "bg-[#817AFF]"
+                      : "bg-[#F0EDFF] dark:bg-[#29243F]"
+                  }
+                `}
+              >
+                {/* Ícone */}
+                <Icone
+                  size={23}
+                  strokeWidth={2.2}
+                  className={
+                    selecionado
+                      ? "text-white"
+                      : "text-[#6C63FF] dark:text-[#A89FFF]"
+                  }
+                />
+              </div>
+
+              {/* Nome do perfil */}
+              <span
+                className={`
+                  mt-2
+                  text-base
+                  font-bold
+                  transition-colors
+                  duration-300
+
+                  ${
+                    selecionado
+                      ? "text-white"
+                      : "text-[#071A38] dark:text-[#F5F5FA]"
+                  }
+                `}
+              >
+                {opcao.label}
+              </span>
+            </label>
+          );
+        })}
       </div>
-
     </fieldset>
   );
 }
 
-// Exporta o componente
 export default TipoPerfilCampo;
