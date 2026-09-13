@@ -1,5 +1,5 @@
 import LadoInformativo from "../components/Informativo/LadoInformativo";
-import LandingWelcome from "../components/LandingPage/LandingWelcome";
+import LandingWelcome from "../components/Welcome/LandingWelcome";
 import BotaoTema from "../components/layout/BotaoTema";
 
 function LandingPage() {

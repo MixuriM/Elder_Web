@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-function LandingBotoes() {
+function WelcomeBotoes() {
   const navigate = useNavigate();
 
   return (
@@ -79,4 +79,4 @@ function LandingBotoes() {
   );
 }
 
-export default LandingBotoes;
+export default WelcomeBotoes;
