@@ -28,6 +28,25 @@ type MenuItem = {
   icon: React.ElementType;
 };
 
+type Theme = 'light' | 'dark' | 'system';
+
+const getStoredTheme = (): Theme => {
+  return (localStorage.getItem('theme') as Theme) || 'system';
+};
+
+const setTheme = (theme: Theme): void => {
+  const root = document.documentElement;
+  let effectiveTheme = theme;
+
+  if (theme === 'system') {
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    effectiveTheme = systemDark ? 'dark' : 'light';
+  }
+
+  root.setAttribute('data-theme', effectiveTheme);
+  localStorage.setItem('theme', theme);
+};
+
 const menuItems: MenuItem[] = [
   { label: "Início", icon: HomeIcon },
   { label: "Meu Perfil", icon: Users },
