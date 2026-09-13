@@ -17,6 +17,8 @@ import {
   Pill,
   Search,
   Settings,
+  Sun,
+  Moon,
   ShieldCheck,
   Users,
   X,
@@ -76,24 +78,24 @@ function ActionCard({
 }: ActionCardProps) {
   return (
     <button
-      className={`group relative flex min-h-[145px] flex-1 flex-col justify-between overflow-hidden rounded-xl p-5 text-left shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${color}`}
+      className={`group relative flex min-h-[158px] flex-1 flex-col justify-between overflow-hidden rounded-2xl p-5 text-left shadow-lg ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-white/70 sm:min-h-[168px] lg:p-6 ${color}`}
     >
       <div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-white/5 transition-transform duration-300 group-hover:scale-150" />
 
       <Icon
-        size={38}
+        size={40}
         strokeWidth={1.8}
         className="relative text-white/90"
       />
 
       <div className="relative">
-        <h3 className="text-[16px] font-bold text-white">{title}</h3>
-        <p className="mt-1 max-w-[170px] text-[12px] leading-4 text-white/80">
+        <h3 className="text-[17px] font-bold text-white sm:text-[18px]">{title}</h3>
+        <p className="mt-1 max-w-[230px] text-[12px] leading-4 text-white/80 sm:text-[13px]">
           {description}
         </p>
       </div>
 
-      <span className="absolute bottom-4 right-4 flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-800 transition-transform group-hover:translate-x-1">
+      <span className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-800 shadow-md transition-transform group-hover:translate-x-1 sm:bottom-5 sm:right-5">
         <ChevronRight size={17} />
       </span>
     </button>
@@ -114,21 +116,40 @@ function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#06142d] text-white">
+    <main className="min-h-screen bg-[#0B1026] text-white antialiased">
       <style>{`
-        [data-theme="light"] main { background: #f8fafc !important; color: #0f172a !important; }
-        [data-theme="light"] main .bg-[#081a3a] { background: #ffffff !important; }
-        [data-theme="light"] main .bg-[#071832] { background: #ffffff !important; }
-        [data-theme="light"] main .bg-[#0b2044] { background: #f1f5f9 !important; color: #0f172a !important; }
-        [data-theme="light"] main .bg-[#0b1d40] { background: #ffffff !important; }
-        [data-theme="light"] main .theme-preserve-dark { background: #0b1d40 !important; color: #ffffff !important; border-color: rgba(255,255,255,0.05) !important; }
-        [data-theme="light"] main .text-slate-300 { color: #334155 !important; }
-        [data-theme="light"] main .text-slate-400 { color: #64748b !important; }
-        [data-theme="light"] main .text-slate-500 { color: #64748b !important; }
-        [data-theme="light"] main .border-white\\5 { border-color: #e2e8f0 !important; }
-        [data-theme="light"] main .border-indigo-400\\10 { border-color: #c7d2fe !important; }
-        [data-theme="light"] main input::placeholder { color: #94a3b8 !important; }
-        [data-theme="light"] main .hover\\:bg-white\\/5:hover { background: #f1f5f9 !important; }
+        :root {
+          --app-bg: #0B1026;
+          --surface: #2D255F;
+          --surface-2: #151B35;
+          --header: #0B1026;
+          --border: rgba(255,255,255,.07);
+          --text: #FFFFFF;
+          --muted: #94a3b8;
+        }
+        [data-theme="light"] {
+          --app-bg: #FFFFFF;
+          --surface: #FFFFFF;
+          --surface-2: #FFFFFF;
+          --header: rgba(255,255,255,.94);
+          --border: #EDE7FF;
+          --text: #1F2937;
+          --muted: #4B5563;
+        }
+        [data-theme="light"] main { background: var(--app-bg) !important; color: var(--text) !important; }
+        [data-theme="light"] .app-sidebar,
+        [data-theme="light"] .app-header { background: var(--surface) !important; }
+        [data-theme="light"] .app-header { background: var(--header) !important; }
+        [data-theme="light"] .search-input { background: #EDE7FF !important; color: #1F2937 !important; border-color: #A18BFF !important; }
+        [data-theme="light"] .search-input::placeholder { color: #94a3b8 !important; }
+        [data-theme="light"] .surface-card { background: var(--surface-2) !important; border-color: var(--border) !important; }
+        [data-theme="light"] .theme-muted { color: #4B5563 !important; }
+        [data-theme="light"] .theme-heading { color: #1F2937 !important; }
+        [data-theme="light"] .theme-hover:hover { background: #EDE7FF !important; }
+        .safe-area-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+        @media (max-width: 639px) {
+          .mobile-sidebar { width: min(86vw, 320px); }
+        }
       `}</style>
       <div className="flex min-h-screen">
 
@@ -136,29 +157,30 @@ function Home() {
           <button
             aria-label="Fechar menu"
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+            className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-[2px] lg:hidden"
           />
         )}
 
         {/* sidebar */}
         <aside
           className={`
-            fixed left-0 top-0 z-40 flex h-screen w-[225px]
-            flex-col border-r border-white/5
-            bg-[#081a3a] transition-transform duration-300
-            lg:static lg:translate-x-0
+            mobile-sidebar app-sidebar fixed left-0 top-0 z-40 flex h-[100dvh]
+            flex-col border-r border-white/5 bg-[#2D255F]
+            shadow-2xl shadow-black/20 transition-transform duration-300 ease-out
+            lg:sticky lg:top-0 lg:h-screen lg:w-[240px] lg:shrink-0 lg:shadow-none
+            lg:translate-x-0
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
           {/* logo */}
-          <div className="flex h-[68px] items-center border-b border-white/5 px-6">
-            <div className="mr-3 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-600">
+          <div className="flex h-[68px] shrink-0 items-center border-b border-white/5 px-5 sm:px-6">
+            <div className="mr-3 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#A18BFF] to-[#6C63FF]">
               <ShieldCheck size={22} />
             </div>
 
             <div>
               <h1 className="text-[17px] font-bold tracking-tight">
-                Elder<span className="text-violet-400">Web</span>
+                Elder<span className="text-[#A18BFF]">Web</span>
               </h1>
               <p className="text-[9px] text-slate-400">
                 Cuidado e bem-estar
@@ -174,7 +196,7 @@ function Home() {
           </div>
 
           {/* menu */}
-          <nav className="flex-1 px-3 py-5">
+          <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
             <p className="mb-3 px-3 text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-500">
               Menu principal
             </p>
@@ -196,7 +218,7 @@ function Home() {
                       text-left text-[12px] transition-all
                       ${
                         active
-                          ? "bg-gradient-to-r from-indigo-600 to-violet-600 font-semibold text-white shadow-lg shadow-indigo-900/30"
+                          ? "bg-gradient-to-r from-[#6C63FF] to-[#A18BFF] font-semibold text-white shadow-lg shadow-indigo-900/30"
                           : "text-slate-400 hover:bg-white/5 hover:text-white"
                       }
                     `}
@@ -210,7 +232,7 @@ function Home() {
           </nav>
 
           {/* configurações */}
-          <div className="border-t border-white/5 px-3 py-3">
+          <div className="safe-area-bottom border-t border-white/5 px-3 py-3">
             <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] text-slate-400 hover:bg-white/5 hover:text-white">
               <Settings size={17} />
               Configurações
@@ -227,39 +249,34 @@ function Home() {
         <section className="min-w-0 flex-1">
 
           {/* cabeçalho */}
-          <header className="flex h-[68px] items-center justify-between border-b border-white/5 bg-[#071832] px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
+          <header className="app-header sticky top-0 z-20 flex min-h-[68px] items-center justify-between border-b border-white/5 bg-[#0B1026]/95 px-3 backdrop-blur-md sm:px-5 lg:px-8">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="rounded-lg p-2 text-slate-300 hover:bg-white/5 lg:hidden"
+                className="rounded-xl p-2.5 text-slate-300 transition hover:bg-white/5 hover:text-white lg:hidden"
               >
                 <Menu size={22} />
               </button>
 
               {/* busca */}
-              <div className="relative hidden sm:block">
+              <div className="relative hidden min-w-0 sm:block">
                 <Search
                   size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-300"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A18BFF]"
                 />
 
                 <input
                   type="text"
                   placeholder="Buscar no sistema..."
-                  className="
-                    h-9 w-[250px] rounded-md border border-indigo-400/20
-                    bg-[#0b2044] pl-9 pr-4 text-xs text-white
-                    outline-none placeholder:text-slate-500
-                    focus:border-indigo-400/50
-                  "
+                  className="search-input h-10 w-[clamp(180px,28vw,320px)] rounded-xl border border-[#A18BFF]/20 bg-[#2D255F] pl-9 pr-4 text-xs text-white shadow-inner outline-none transition focus:border-[#A18BFF]/60 focus:ring-2 focus:ring-[#A18BFF]/10 placeholder:text-slate-500"
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
 
               {/* notificação */}
-              <button className="relative rounded-full p-2 text-slate-300 hover:bg-white/5">
+              <button className="relative rounded-xl p-2.5 text-slate-300 transition hover:bg-white/5 hover:text-white">
                 <Bell size={20} />
               
                 {/* <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold">
@@ -272,14 +289,14 @@ function Home() {
                 onClick={toggleTheme}
                 aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
                 title={theme === "dark" ? "Modo claro" : "Modo escuro"}
-                className="hidden h-8 w-14 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 transition hover:bg-indigo-500/30 sm:flex"
+                className="flex h-9 w-11 items-center justify-center rounded-full bg-[#6C63FF]/20 text-[#A18BFF] transition hover:bg-[#6C63FF]/30 focus:outline-none focus:ring-2 focus:ring-[#A18BFF]/40 sm:w-14"
               >
-                {theme === "dark" ? "☀️" : "🌙"}
+                {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
               </button>
 
               {/* interface do perfil */}
-              <button className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white">
+              <button className="flex items-center gap-1.5 rounded-xl p-1 transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#A18BFF]/30">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A18BFF] to-[#6C63FF] text-[10px] font-bold text-white shadow-md sm:h-10 sm:w-10">
                   iniciais do nome
                 </div>
 
@@ -296,30 +313,30 @@ function Home() {
             </div>
           </header>
 
-          <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
 
             {/* nome e descrição */}
-            <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div className="mb-5 flex flex-col justify-between gap-4 sm:mb-7 sm:flex-row sm:items-end">
               <div>
 
-                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                <h2 className="theme-heading text-2xl font-bold tracking-tight sm:text-3xl lg:text-[34px]">
                   Olá, 
                   {/* {nome}! */}
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="theme-muted mt-1 text-sm text-slate-400 sm:text-[15px]">
                   Que bom ver você por aqui!
                 </p>
               </div>
 
               <div className="flex items-center gap-2 text-xs text-slate-400">
-                <CalendarDays size={16} className="text-indigo-400" />
+                <CalendarDays size={16} className="text-[#6C63FF]" />
                 
               </div>
             </div>
 
             {/* card */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
 
               <ActionCard
                 title="Minha Saúde"
@@ -332,7 +349,7 @@ function Home() {
                 title="Meus Medicamentos"
                 description="Veja seus remédios e horários."
                 icon={Pill}
-                color="bg-gradient-to-br from-indigo-700 to-violet-800"
+                color="bg-gradient-to-br from-[#6C63FF] to-[#2D255F]"
               />
 
               <ActionCard
@@ -352,21 +369,21 @@ function Home() {
             </div>
 
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-[1.7fr_0.9fr]">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.85fr)]">
 
               {/* banner */}
-              <section className="theme-preserve-dark relative min-h-[150px] overflow-hidden rounded-xl border border-indigo-400/10 bg-gradient-to-r from-[#101e59] to-[#151d58] p-6">
+              <section className="theme-preserve-dark relative min-h-[170px] overflow-hidden rounded-2xl border border-[#A18BFF]/10 bg-gradient-to-r from-[#2D255F] to-[#151B35] p-5 shadow-lg shadow-black/10 sm:p-6">
 
                 {/* pra decoração */}
-                <div className="absolute -right-4 bottom-[-45px] h-36 w-36 rotate-12 border-l-[25px] border-indigo-400/40" />
+                <div className="absolute -right-4 bottom-[-45px] h-36 w-36 rotate-12 border-l-[25px] border-[#A18BFF]/40" />
 
-                <div className="relative flex h-full items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-500 shadow-lg shadow-indigo-500/20">
+                <div className="relative flex h-full items-center gap-4 sm:gap-5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#6C63FF] shadow-lg shadow-indigo-500/20 sm:h-14 sm:w-14">
                     <FileText size={24} />
                   </div>
 
                   <div>
-                    <p className="text-lg font-bold text-white">
+                    <p className="max-w-[560px] text-lg font-bold leading-snug text-white sm:text-xl lg:text-[22px]">
                       Pequenas ações hoje,
                       <br />
                       grandes resultados amanhã!
@@ -380,10 +397,10 @@ function Home() {
               </section>
 
               {/* ajuda */}
-              <section className="theme-preserve-dark rounded-xl border border-white/5 bg-[#0b1d40] p-5">
+              <section className="theme-preserve-dark rounded-2xl border border-white/5 bg-[#151B35] p-5 shadow-lg shadow-black/10 sm:p-6">
 
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6C63FF]">
                     <LifeBuoy size={20} />
                   </div>
 
@@ -400,7 +417,7 @@ function Home() {
                   </div>
                 </div>
 
-                <button className="mt-4 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-600 text-xs font-semibold text-white transition hover:brightness-110">
+                <button className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#A18BFF] text-xs font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:-translate-y-0.5 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#A18BFF]/50">
                   Ver orientações
                   <ChevronRight size={15} />
                 </button>
@@ -408,20 +425,20 @@ function Home() {
             </div>
 
             {/* resumo */}
-            <div className="mt-6">
-              <h3 className="mb-3 text-sm font-semibold text-slate-300">
+            <div className="mt-6 sm:mt-8">
+              <h3 className="theme-muted mb-3 text-sm font-semibold text-slate-300">
                 Resumo do seu dia
               </h3>
 
               <div className="grid gap-3 sm:grid-cols-3">
 
-                <div className="rounded-xl border border-white/5 bg-[#0b1d40] p-4">
+                <div className="surface-card rounded-2xl border border-white/5 bg-[#151B35] p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-400">
                       Medicamentos hoje
                     </span>
 
-                    <Pill size={17} className="text-violet-400" />
+                    <Pill size={17} className="text-[#A18BFF]" />
                   </div>
 
                   <p className="mt-2 text-2xl font-bold"></p>
@@ -430,7 +447,7 @@ function Home() {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/5 bg-[#0b1d40] p-4">
+                <div className="surface-card rounded-2xl border border-white/5 bg-[#151B35] p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-400">
                       Compromissos
@@ -445,7 +462,7 @@ function Home() {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/5 bg-[#0b1d40] p-4">
+                <div className="surface-card rounded-2xl border border-white/5 bg-[#151B35] p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-400">
                       Saúde
