@@ -1,11 +1,24 @@
-import { useEffect, useState } from "react";
+import {
+  Moon,
+  Sun,
+} from "lucide-react";
 
-function BotaoTema() {
+import {
+  useEffect,
+  useState,
+} from "react";
+
+type BotaoTemaProps = {
+  compacto?: boolean;
+};
+
+function BotaoTema({
+  compacto = false,
+}: BotaoTemaProps) {
   const [escuro, setEscuro] = useState(false);
 
   useEffect(() => {
     const temaSalvo = localStorage.getItem("tema");
-
     const temaEscuro = temaSalvo === "escuro";
 
     setEscuro(temaEscuro);
@@ -42,51 +55,91 @@ function BotaoTema() {
           ? "Ativar modo claro"
           : "Ativar modo escuro"
       }
-      className="
+      className={`
         flex
-        min-h-14
         items-center
         justify-center
-        gap-3
 
-        rounded-xl
-        border
-        border-gray-300
-
-        bg-white
-        px-5
-
-        text-lg
-        font-semibold
-        text-gray-800
-
-        shadow-sm
-
-        transition-colors
+        transition-all
         duration-200
-
-        hover:bg-gray-100
 
         focus:outline-none
         focus-visible:ring-2
-        focus-visible:ring-[#6C63FF]/40
+        focus-visible:ring-[#6C63FF]/30
 
-        dark:border-[#5F6075]
-        dark:bg-[#2B2C3B]
-        dark:text-white
-        dark:hover:bg-[#373849]
-      "
+        ${
+          compacto
+            ? `
+              h-10
+              w-10
+
+              rounded-full
+
+              bg-transparent
+
+              text-[#6C63FF]
+
+              hover:bg-[#F3F0FF]
+
+              dark:bg-transparent
+              dark:text-[#A89FFF]
+
+              dark:hover:bg-[#2B2C3B]
+            `
+            : `
+              h-10
+
+              gap-2
+
+              rounded-xl
+
+              border
+              border-gray-300
+
+              bg-white
+
+              px-4
+
+              text-sm
+              font-semibold
+              text-[#071A38]
+
+              shadow-sm
+
+              hover:border-[#A18BFF]
+              hover:bg-[#F3F0FF]
+              hover:text-[#6C63FF]
+
+              dark:border-[#454558]
+              dark:bg-[#2B2C3B]
+              dark:text-[#F5F5FA]
+
+              dark:hover:border-[#66667A]
+              dark:hover:bg-[#373849]
+              dark:hover:text-[#A89FFF]
+            `
+        }
+      `}
     >
-      <span
-        className="text-2xl"
-        aria-hidden="true"
-      >
-        {escuro ? "☀" : "☾"}
-      </span>
+      {escuro ? (
+        <Sun
+          size={compacto ? 20 : 17}
+          strokeWidth={2}
+        />
+      ) : (
+        <Moon
+          size={compacto ? 20 : 17}
+          strokeWidth={2}
+        />
+      )}
 
-      <span>
-        {escuro ? "Modo claro" : "Modo escuro"}
-      </span>
+      {!compacto && (
+        <span className="whitespace-nowrap">
+          {escuro
+            ? "Modo claro"
+            : "Modo escuro"}
+        </span>
+      )}
     </button>
   );
 }
