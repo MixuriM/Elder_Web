@@ -1,6 +1,7 @@
 // Importa o useState para criar os estados da página
 // e FormEvent para definir o tipo do evento do formulário
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
 // Importa as funções relacionadas à autenticação
 import {
@@ -25,6 +26,8 @@ function Login() {
   // Estado responsável por armazenar possíveis mensagens de erro
   const [erro, setErro] = useState<string | null>(null);
 
+  const navigate = useNavigate();
+
   // Função executada quando o usuário entra
   // utilizando e-mail e senha
   async function handleSubmit(e: FormEvent) {
@@ -40,6 +43,8 @@ function Login() {
 
       // Sincroniza os dados do usuário
       await syncUser();
+
+      navigate("/Home");
     } catch (err) {
       console.error(
         "Falha no login com e-mail e senha:",
@@ -64,6 +69,8 @@ function Login() {
 
       // Sincroniza os dados do usuário
       await syncUser();
+
+      navigate("/Home");
     } catch (err) {
       console.error(
         "Falha no login com Google:",
