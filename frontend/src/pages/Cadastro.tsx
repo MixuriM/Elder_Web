@@ -1,6 +1,7 @@
 // Importa o useState para criar os estados da página
 // e FormEvent para definir o tipo do evento do formulário
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
 // Importa as funções relacionadas à autenticação
 import {
@@ -35,6 +36,8 @@ function Cadastro() {
   const [erro, setErro] =
     useState<string | null>(null);
 
+  const navigate = useNavigate();
+
   // Função executada quando o usuário cadastra
   // utilizando e-mail e senha
   async function handleSubmit(e: FormEvent) {
@@ -53,6 +56,8 @@ function Cadastro() {
         tipoPerfil,
         nome,
       });
+
+      navigate("/welcome", { state: { cadastroSucesso: true } });
     } catch (err) {
       console.error(
         "Falha no cadastro (e-mail/senha):",
@@ -79,6 +84,8 @@ function Cadastro() {
       await syncUser({
         tipoPerfil,
       });
+
+      navigate("/welcome", { state: { cadastroSucesso: true } });
     } catch (err) {
       console.error(
         "Falha no cadastro (Google):",
