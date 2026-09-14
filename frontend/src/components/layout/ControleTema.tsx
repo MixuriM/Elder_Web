@@ -7,7 +7,6 @@ function ControleTema() {
         flex
         w-full
         justify-end
-
         px-6
         pt-5
 
