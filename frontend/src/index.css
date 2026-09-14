@@ -5,3 +5,65 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* ================================
+   PADRÃO GLOBAL - ELDER WEB
+================================ */
+
+/* Evita elementos ultrapassarem a largura da tela */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Imagens nunca ultrapassam a tela */
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Inputs e botões */
+input,
+button,
+select,
+textarea {
+  max-width: 100%;
+}
+
+/* ================================
+   RESPONSIVIDADE
+================================ */
+
+/* Celular */
+@media (max-width: 639px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+/* Tablet */
+@media (min-width: 640px) {
+  body {
+    font-size: 17px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  body {
+    font-size: 18px;
+  }
+}
