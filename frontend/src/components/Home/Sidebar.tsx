@@ -4,8 +4,10 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { menuItems } from "../../data/menuItems";
+import { logoutUser } from "../../lib/auth";
 
 type SidebarProps = {
   aberto: boolean;
@@ -20,6 +22,13 @@ function Sidebar({
   setAberto,
   setMenuAtivo,
 }: SidebarProps) {
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logoutUser();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <>
       {/* Fundo escuro ao abrir o menu no celular */}
@@ -354,6 +363,7 @@ function Sidebar({
           {/* Sair */}
           <button
             type="button"
+            onClick={handleLogout}
             className="
               mt-1
 
