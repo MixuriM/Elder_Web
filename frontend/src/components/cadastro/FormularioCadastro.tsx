@@ -8,6 +8,7 @@ import type { TipoPerfil } from "../../lib/auth";
 import CampoTexto from "./CampoTexto";
 import TipoPerfilCampo from "./TipoPerfil";
 import BotaoGoogle from "./BotaoGoogle";
+import Spinner from "../common/Spinner";
 
 // Define as propriedades recebidas pelo formulário
 type FormularioCadastroProps = {
@@ -16,6 +17,7 @@ type FormularioCadastroProps = {
   senha: string;
   tipoPerfil: TipoPerfil;
   erro: string | null;
+  carregando: boolean;
 
   setNome: (valor: string) => void;
   setEmail: (valor: string) => void;
@@ -33,6 +35,7 @@ function FormularioCadastro({
   senha,
   tipoPerfil,
   erro,
+  carregando,
   setNome,
   setEmail,
   setSenha,
@@ -165,9 +168,15 @@ function FormularioCadastro({
         {/* Botão para criar a conta */}
         <button
           type="submit"
+          disabled={carregando}
+          aria-busy={carregando}
           className="
             mt-7
+            flex
             w-full
+            items-center
+            justify-center
+            gap-3
             rounded-2xl
             bg-[#6C63FF]
             px-6
@@ -184,12 +193,16 @@ function FormularioCadastro({
             focus:ring-4
             focus:ring-[#EDE7FF]
 
+            disabled:cursor-not-allowed
+            disabled:opacity-70
+
             dark:bg-[#6C63FF]
             dark:hover:bg-[#7C74FF]
             dark:focus:ring-[#3A355C]
           "
         >
-          Criar minha conta
+          {carregando && <Spinner />}
+          {carregando ? "Criando conta" : "Criar minha conta"}
         </button>
 
         {/* Divisor */}
@@ -224,7 +237,7 @@ function FormularioCadastro({
         </div>
 
         {/* Cadastro utilizando Google */}
-        <BotaoGoogle onClick={onGoogleCadastro} />
+        <BotaoGoogle onClick={onGoogleCadastro} disabled={carregando} />
 
         {/* Link para a página de login */}
         <p
