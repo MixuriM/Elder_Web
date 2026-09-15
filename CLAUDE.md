@@ -183,6 +183,12 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
   após cada ação — não é opcional, é requisito de projeto
 
 ## Workflow
+- **Antes de qualquer alteração (código, docs, config), sempre conferir em qual
+  branch está** (`git branch --show-current` ou `git status`). Toda adição/mudança
+  vai por padrão na branch `development` — só usar outra branch quando o usuário
+  pedir explicitamente. Se já estiver numa branch diferente sem pedido explícito
+  pra isso, trocar para `development` antes de começar (confirmando antes se
+  houver mudanças não commitadas na branch atual).
 - Planejar a estrutura antes de criar múltiplos arquivos/componentes de uma vez
 - Pode criar pastas e arquivos livremente durante o scaffold inicial
 - **Sempre pedir confirmação antes de**: `git init`, `git remote add`,

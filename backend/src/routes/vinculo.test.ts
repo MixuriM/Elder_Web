@@ -39,6 +39,8 @@ function buildApp() {
 
 const CUIDADOR = { id: 1, tipo_perfil: "cuidador" };
 
+type FindFirstUsuarioArgs = { where: { firebase_uid?: string; tipo_perfil?: string } };
+
 function post(body: Record<string, unknown>) {
   return request(buildApp()).post("/vinculo/solicitar-cuidador").set("Authorization", "Bearer x").send(body);
 }
@@ -63,7 +65,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("sucesso via idoso direto", async () => {
-    findFirstUsuario.mockImplementation((args: any) =>
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
       args.where.firebase_uid ? CUIDADOR : { id: 10, nome: "Zé", email: "idoso@a.com" },
     );
     findFirstVinculo.mockResolvedValue(null);
@@ -84,7 +86,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("sucesso via familiar no controle (candidato único)", async () => {
-    findFirstUsuario.mockImplementation((args: any) => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => {
       if (args.where.firebase_uid) return CUIDADOR;
       if (args.where.tipo_perfil === "idoso") return null;
       return { id: 20 }; // familiar
@@ -102,7 +104,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("404 quando e-mail não encontrado", async () => {
-    findFirstUsuario.mockImplementation((args: any) => (args.where.firebase_uid ? CUIDADOR : null));
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => (args.where.firebase_uid ? CUIDADOR : null));
 
     const res = await post({ email: "ninguem@a.com" });
 
@@ -110,7 +112,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("400 em auto-vínculo", async () => {
-    findFirstUsuario.mockImplementation((args: any) =>
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
       args.where.firebase_uid ? CUIDADOR : { id: 1, nome: "Eu Mesmo", email: "eu@a.com" },
     );
 
@@ -120,7 +122,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("409 quando já existe solicitação pendente", async () => {
-    findFirstUsuario.mockImplementation((args: any) =>
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
       args.where.firebase_uid ? CUIDADOR : { id: 10, nome: "Zé", email: "idoso@a.com" },
     );
     findFirstVinculo.mockResolvedValue({ status: "pendente" });
@@ -132,7 +134,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("409 quando já vinculados (aprovado)", async () => {
-    findFirstUsuario.mockImplementation((args: any) =>
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
       args.where.firebase_uid ? CUIDADOR : { id: 10, nome: "Zé", email: "idoso@a.com" },
     );
     findFirstVinculo.mockResolvedValue({ status: "aprovado" });
@@ -144,7 +146,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("422 com múltiplos idosos candidatos sem nome_idoso", async () => {
-    findFirstUsuario.mockImplementation((args: any) => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => {
       if (args.where.firebase_uid) return CUIDADOR;
       if (args.where.tipo_perfil === "idoso") return null;
       return { id: 20 };
@@ -161,7 +163,7 @@ describe("POST /vinculo/solicitar-cuidador", () => {
   });
 
   it("resolve múltiplos candidatos via nome_idoso", async () => {
-    findFirstUsuario.mockImplementation((args: any) => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => {
       if (args.where.firebase_uid) return CUIDADOR;
       if (args.where.tipo_perfil === "idoso") return null;
       return { id: 20 };
