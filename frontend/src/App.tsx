@@ -6,6 +6,7 @@ import Cadastro from './pages/Cadastro'
 import Welcome from './pages/Welcome'
 import EsqueciSenha from './pages/EsqueciSenha'
 import Perfil from './pages/Perfil'
+import Vinculos from './pages/Vinculos'
 import RotaProtegida from './components/RotaProtegida'
 
 function App() {
@@ -29,6 +30,14 @@ function App() {
         element={
           <RotaProtegida>
             <Perfil />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/vinculos"
+        element={
+          <RotaProtegida>
+            <Vinculos />
           </RotaProtegida>
         }
       />
