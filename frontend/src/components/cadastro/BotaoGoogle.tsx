@@ -7,11 +7,14 @@ type BotaoGoogleProps = {
   // Função executada quando o botão for clicado
   onClick: () => void;
 
+  disabled?: boolean;
+
 };
 
 // Componente responsável pelo botão de cadastro com Google
 function BotaoGoogle({
   onClick,
+  disabled,
 }: BotaoGoogleProps) {
 
   return (
@@ -22,6 +25,8 @@ function BotaoGoogle({
 
       // Executa a função de cadastro com Google
       onClick={onClick}
+
+      disabled={disabled}
 
       // Estilização do botão
       className="
@@ -47,6 +52,8 @@ function BotaoGoogle({
         focus:ring-2
         focus:ring-[#6C63FF]
         focus:ring-offset-2
+        disabled:cursor-not-allowed
+        disabled:opacity-60
         dark:border-gray-600
         dark:bg-[#181824]
         dark:text-[#F5F5FA]

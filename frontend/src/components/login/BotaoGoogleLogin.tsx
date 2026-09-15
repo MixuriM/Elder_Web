@@ -4,16 +4,19 @@ import googleLogo from "../../Img/google.svg";
 // Define as propriedades recebidas pelo botão
 type BotaoGoogleLoginProps = {
   onClick: () => void;
+  disabled?: boolean;
 };
 
 // Componente responsável pelo botão de login com Google
 function BotaoGoogleLogin({
   onClick,
+  disabled,
 }: BotaoGoogleLoginProps) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className="
         flex
         w-full
@@ -31,6 +34,8 @@ function BotaoGoogleLogin({
         text-gray-900
         transition
         hover:bg-gray-50
+        disabled:cursor-not-allowed
+        disabled:opacity-60
       "
     >
       {/* Ícone do Google */}

@@ -26,6 +26,10 @@ function Login() {
   // Estado responsável por armazenar possíveis mensagens de erro
   const [erro, setErro] = useState<string | null>(null);
 
+  // Estado responsável por indicar se uma requisição está em andamento
+  // (evita que o usuário clique de novo enquanto o backend responde)
+  const [carregando, setCarregando] = useState(false);
+
   const navigate = useNavigate();
 
   // Função executada quando o usuário entra
@@ -36,6 +40,7 @@ function Login() {
 
     // Remove possíveis mensagens de erro anteriores
     setErro(null);
+    setCarregando(true);
 
     try {
       // Realiza o login
@@ -54,6 +59,8 @@ function Login() {
       setErro(
         "Não foi possível entrar. Confira seu e-mail e senha."
       );
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -62,6 +69,7 @@ function Login() {
   async function handleGoogleLogin() {
     // Remove possíveis mensagens de erro anteriores
     setErro(null);
+    setCarregando(true);
 
     try {
       // Realiza o login com Google
@@ -80,6 +88,8 @@ function Login() {
       setErro(
         "Não foi possível entrar com o Google."
       );
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -147,6 +157,7 @@ function Login() {
               email={email}
               senha={senha}
               erro={erro}
+              carregando={carregando}
               setEmail={setEmail}
               setSenha={setSenha}
               onSubmit={handleSubmit}
