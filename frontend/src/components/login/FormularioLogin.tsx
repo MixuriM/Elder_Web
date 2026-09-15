@@ -7,12 +7,14 @@ import { Link } from "react-router-dom";
 // Importa os componentes utilizados no formulário
 import CampoLogin from "./CampoLogin";
 import BotaoGoogleLogin from "./BotaoGoogleLogin";
+import Spinner from "../common/Spinner";
 
 // Define as propriedades recebidas pelo formulário
 type FormularioLoginProps = {
   email: string;
   senha: string;
   erro: string | null;
+  carregando: boolean;
 
   setEmail: (valor: string) => void;
   setSenha: (valor: string) => void;
@@ -26,6 +28,7 @@ function FormularioLogin({
   email,
   senha,
   erro,
+  carregando,
   setEmail,
   setSenha,
   onSubmit,
@@ -155,9 +158,15 @@ function FormularioLogin({
       {/* Botão principal */}
       <button
         type="submit"
+        disabled={carregando}
+        aria-busy={carregando}
         className="
           mt-6
+          flex
           w-full
+          items-center
+          justify-center
+          gap-3
 
           rounded-2xl
 
@@ -179,11 +188,15 @@ function FormularioLogin({
           focus-visible:ring-2
           focus-visible:ring-[#6C63FF]/40
 
+          disabled:cursor-not-allowed
+          disabled:opacity-70
+
           dark:bg-[#7C74FF]
           dark:hover:bg-[#6C63FF]
         "
       >
-        Entrar
+        {carregando && <Spinner />}
+        {carregando ? "Entrando" : "Entrar"}
       </button>
 
       {/* Separador */}
@@ -223,7 +236,7 @@ function FormularioLogin({
       </div>
 
       {/* Login com Google */}
-      <BotaoGoogleLogin onClick={onGoogleLogin} />
+      <BotaoGoogleLogin onClick={onGoogleLogin} disabled={carregando} />
 
       {/* Link para criar conta */}
       <p

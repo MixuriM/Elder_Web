@@ -36,6 +36,10 @@ function Cadastro() {
   const [erro, setErro] =
     useState<string | null>(null);
 
+  // Estado responsável por indicar se uma requisição está em andamento
+  // (evita que o usuário clique de novo enquanto o backend responde)
+  const [carregando, setCarregando] = useState(false);
+
   const navigate = useNavigate();
 
   // Função executada quando o usuário cadastra
@@ -46,6 +50,7 @@ function Cadastro() {
 
     // Remove possíveis mensagens de erro anteriores
     setErro(null);
+    setCarregando(true);
 
     try {
       // Registra o usuário
@@ -67,6 +72,8 @@ function Cadastro() {
       setErro(
         "Não foi possível criar a conta. Confira os dados e tente novamente."
       );
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -75,6 +82,7 @@ function Cadastro() {
   async function handleGoogleCadastro() {
     // Remove possíveis mensagens de erro anteriores
     setErro(null);
+    setCarregando(true);
 
     try {
       // Realiza autenticação com Google
@@ -95,6 +103,8 @@ function Cadastro() {
       setErro(
         "Não foi possível criar a conta com o Google."
       );
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -165,6 +175,7 @@ function Cadastro() {
               senha={senha}
               tipoPerfil={tipoPerfil}
               erro={erro}
+              carregando={carregando}
               setNome={setNome}
               setEmail={setEmail}
               setSenha={setSenha}
