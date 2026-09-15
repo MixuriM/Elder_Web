@@ -4,6 +4,9 @@ import type { ReactNode } from "react";
 // Importa o controle responsável pela troca de tema
 import ControleTema from "../layout/ControleTema";
 
+// Importa as folhas decorativas
+import folhasDecorativas from "../../Img/folhas_superior.png";
+
 // Define as propriedades recebidas pelo layout
 type LayoutPerfilProps = {
   children: ReactNode;
@@ -21,8 +24,10 @@ function LayoutPerfil({
         min-h-screen
         items-center
         justify-center
+        overflow-hidden
 
         bg-[#F8F7FC]
+
         px-6
         py-12
 
@@ -32,12 +37,59 @@ function LayoutPerfil({
         lg:px-12
       "
     >
+
+      {/* Folhas decorativas - canto superior esquerdo */}
+      <img
+        src={folhasDecorativas}
+        alt=""
+        aria-hidden="true"
+        className="
+          pointer-events-none
+          absolute
+          left-0
+          top-0
+
+          w-52
+          opacity-40
+
+          dark:opacity-15
+
+          sm:w-64
+          lg:w-72
+        "
+      />
+
+
+      {/* Folhas decorativas - canto inferior direito */}
+      <img
+        src={folhasDecorativas}
+        alt=""
+        aria-hidden="true"
+        className="
+          pointer-events-none
+          absolute
+          bottom-0
+          right-0
+
+          w-56
+          rotate-180
+          opacity-30
+
+          dark:opacity-10
+
+          sm:w-72
+          lg:w-80
+        "
+      />
+
+
       {/* Botão responsável pela alteração do tema */}
       <div
         className="
           absolute
           right-5
           top-5
+          z-20
 
           sm:right-8
           sm:top-8
@@ -46,13 +98,18 @@ function LayoutPerfil({
         <ControleTema />
       </div>
 
+
       {/* Área principal do perfil */}
       <section
         className="
+          relative
+          z-10
+
           w-full
           max-w-xl
 
           rounded-3xl
+
           border
           border-gray-200
 
@@ -71,6 +128,7 @@ function LayoutPerfil({
       >
         {children}
       </section>
+
     </main>
   );
 }
