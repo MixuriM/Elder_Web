@@ -183,6 +183,15 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
   após cada ação — não é opcional, é requisito de projeto
 
 ## Workflow
+- **Divisão de trabalho do grupo:** Marcos é responsável pelo backend; o
+  frontend "de verdade" (layout final, polish, UX) é da Laureane e da
+  Jennifer — não implementar telas completas/finais no lugar delas. Exceção:
+  Marcos pode pedir um **esqueleto de frontend cru** (formulário/página
+  mínima, sem estilo além do padrão de acessibilidade do projeto, sem
+  listagem/refinamento) só pra ele conseguir testar uma feature de backend
+  que acabou de implementar, sem depender do cronograma delas. Esse esqueleto
+  cobre só a(s) rota(s) da tarefa em questão — não adianta funcionalidade que
+  ainda não existe no backend, nem tenta ser a versão final da tela.
 - **Antes de qualquer alteração (código, docs, config), sempre conferir em qual
   branch está** (`git branch --show-current` ou `git status`). Toda adição/mudança
   vai por padrão na branch `development` — só usar outra branch quando o usuário
