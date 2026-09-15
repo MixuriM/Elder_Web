@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from 'express'
 import cors from 'cors'
 import authRouter from './routes/auth'
 import usuarioRouter from './routes/usuario'
+import vinculoRouter from './routes/vinculo'
 
 const app = express()
 
@@ -15,6 +16,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/auth', authRouter)
 app.use('/usuario', usuarioRouter)
+app.use('/vinculo', vinculoRouter)
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
   console.error(err)

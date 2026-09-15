@@ -1,6 +1,6 @@
 # Elder Web — Estrutura ER (nível lógico)
 
-> Estado atual do modelo (consolidado após 9 revisões). As tabelas abaixo mostram
+> Estado atual do modelo (consolidado após 13 revisões). As tabelas abaixo mostram
 > **o schema como ele é hoje** — sem tags de revisão espalhadas pelo meio. Todo o
 > raciocínio, o histórico de mudanças e as decisões de risco aceito ficam nas
 > seções 4, 5 e 6, no fim do documento. Se você só precisa consultar a estrutura,
@@ -76,6 +76,14 @@ migration 20260902014014_firebase_uid_nullable (2026-09-01).
 | permite_criar_evento_cuidado | bit            | —                | Não         | Idem, pra criar Evento tipo 'cuidado'. Default false.                                                                                                                                      |
 | definido_por_id              | int            | FK -> Usuario.id | Não         | Quem definiu/alterou as 3 permissões acima por último. Quem pode escrever é determinado por Usuario.modo_decisao do idoso — este campo é só auditoria.                                     |
 | definido_em                  | datetime2      | —                | Não         | Quando as permissões foram definidas/alteradas pela última vez.                                                                                                                            |
+
+Constraint de tabela: índice único **filtrado** sobre (idoso_id, vinculado_id,
+tipo_vinculo), `WHERE status IN ('pendente', 'aprovado')` — impede duas linhas
+ativas pro mesmo par idoso/vinculado do mesmo tipo (corrida de duas solicitações
+simultâneas), mas deixa `status='recusado'` de fora do filtro de propósito: uma
+nova solicitação depois de uma recusa precisa continuar permitida. Mesmo padrão de
+índice único filtrado manual usado em Usuario.email/firebase_uid, acima — migration
+`20260915090000_vinculo_unique_ativo` (2026-09-15).
 
 ### Evento
 
@@ -266,6 +274,7 @@ permitir contestação (RF-022) mesmo depois de já 'aprovado'.
 | REV.10  | firebase_uid passa a nullable (mesmo padrão de índice filtrado do email) para suportar RF-030 — idoso cadastrado por familiar não tem login Firebase próprio de imediato. Ver nota (3) em Usuario.        |
 | REV.11 | Autoridade de aprovação/recusa/contestação de vínculo (RF-021/RF-022/RF-027) passa a seguir Usuario.modo_decisao, mesma regra das flags de permissão do Cuidador (RF-032), sem mecanismo novo. |
 | REV.12 | Documentado como 3º risco residual aceito (seção 5.2): janela sem autoridade formal entre o cadastro de um idoso via RF-030 e a confirmação de e-mail do Familiar cadastrante. Sem mecanismo novo — decisão de escopo. |
+| REV.13 | Índice único filtrado em Vinculo(idoso_id, vinculado_id, tipo_vinculo) WHERE status IN ('pendente','aprovado') — fecha corrida entre solicitações simultâneas do mesmo par, item 2.1 (RF-020). Ver nota após a tabela Vinculo. |
 
 ---
 
