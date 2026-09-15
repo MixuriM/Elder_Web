@@ -22,6 +22,14 @@ momento — é uma inversão temporária, o PDF será sincronizado com esse mode
 em breve. Até lá, trate o ER.md como a referência canônica de trabalho para
 entidades, atributos e relacionamentos.
 
+**Caminhos locais (máquina do Marcos) dos documentos-fonte, fora deste repo —
+cofre Obsidian:**
+- Plano de desenvolvimento (fonte de verdade do escopo, ver acima):
+  `C:\Users\Marcos Castelli\Documents\Notas\TCC - Elder Web\Elder Web - Plano de
+  Desenvolvimento.md`
+- Cofre Obsidian do projeto (ER.md e demais notas do TCC):
+  `C:\Users\Marcos Castelli\Documents\Notas\TCC - Elder Web`
+
 Existe um protótipo antigo em https://github.com/MixuriM/Prototipo-Elder-App
 (mobile, hospedado via GitHub Pages). Ele é **apenas referência visual** — não
 reaproveitar código dele. Este é um repositório novo, do zero.

@@ -110,6 +110,12 @@ model Usuario {
 // REV.9 e já foram confirmadas pelo grupo (Laureane e Jennifer) — ver CLAUDE.md,
 // "Decisões fechadas".
 model Vinculo {
+  // TODO (manual na migration): índice único composto (idoso_id, vinculado_id, tipo_vinculo)
+  // precisa ser FILTRADO (WHERE status IN ('pendente','aprovado')) — @@unique do Prisma não
+  // aceita WHERE. Sem o filtro bloquearia uma nova solicitação depois de um Vinculo
+  // 'recusado', que é comportamento permitido de propósito (RF-020, item 2.1 do plano —
+  // ver checagem de duplicidade em backend/src/routes/vinculo.ts e
+  // isDuplicateVinculoConstraint, que já espera essa constraint existir).
   id                           Int       @id @default(autoincrement())
   idoso_id                     Int
   vinculado_id                 Int
