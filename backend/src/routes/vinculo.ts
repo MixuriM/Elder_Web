@@ -137,4 +137,84 @@ router.post("/solicitar-cuidador", requireAuth, async (req, res, next) => {
   }
 });
 
+// Tarefa 2.2 (RF-021, RF-022) — aprovar/recusar solicitação de vínculo de Cuidador.
+// Compartilhada entre /aprovar e /recusar: mesma checagem de autoridade e de estado,
+// só muda o status final. Autoridade segue Usuario.modo_decisao do IDOSO DONO do
+// vínculo (Vinculo.idoso_id), nunca de quem está chamando — mesma regra que vai
+// valer pra vínculo de Familiar Fluxo B (tarefa 2.7, fora de escopo aqui) e pras
+// flags permite_* (tarefa 2.8, também fora de escopo).
+async function responderSolicitacaoCuidador(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction,
+  novoStatus: "aprovado" | "recusado",
+) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Id de vínculo inválido." });
+    }
+
+    const vinculo = await prisma.vinculo.findUnique({
+      where: { id },
+      select: { id: true, idoso_id: true, status: true, tipo_vinculo: true },
+    });
+    // tipo_vinculo !== 'cuidador': vínculo de Familiar existe mas pertence ao fluxo da
+    // tarefa 2.7, não a esta rota — tratado como inexistente aqui. Decisão de backend,
+    // confirmada por Marcos (2026-09-15).
+    if (!vinculo || vinculo.tipo_vinculo !== "cuidador") {
+      return res.status(404).json({ error: "Vínculo não encontrado." });
+    }
+    if (vinculo.status !== "pendente") {
+      return res.status(409).json({ error: "Este vínculo já foi resolvido." });
+    }
+
+    const idoso = await prisma.usuario.findUnique({
+      where: { id: vinculo.idoso_id },
+      select: { modo_decisao: true },
+    });
+    // NULL (modo_decisao nunca setado) tratado como 'idoso' — estado inicial/default
+    // do sistema até ser explicitamente transferido pra 'familiar'. Decisão de backend,
+    // confirmada por Marcos (2026-09-15).
+    const modo = idoso?.modo_decisao ?? "idoso";
+
+    if (modo === "idoso") {
+      if (req.usuarioId !== vinculo.idoso_id) {
+        return res.status(403).json({ error: "Só o idoso pode responder esta solicitação." });
+      }
+    } else {
+      if (req.usuarioId === vinculo.idoso_id) {
+        return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
+      }
+      const familiarAprovado = await prisma.vinculo.findFirst({
+        where: {
+          idoso_id: vinculo.idoso_id,
+          vinculado_id: req.usuarioId,
+          tipo_vinculo: "familiar",
+          status: "aprovado",
+        },
+        select: { id: true },
+      });
+      if (!familiarAprovado) {
+        return res.status(403).json({ error: "Só familiar vinculado e aprovado pode responder esta solicitação." });
+      }
+    }
+
+    const atualizado = await prisma.vinculo.update({
+      where: { id },
+      data: { status: novoStatus, aprovador_id: req.usuarioId, data_resposta: new Date() },
+    });
+    res.status(200).json(atualizado);
+  } catch (e) {
+    next(e);
+  }
+}
+
+router.post("/:id/aprovar", requireAuth, (req, res, next) =>
+  responderSolicitacaoCuidador(req, res, next, "aprovado"),
+);
+router.post("/:id/recusar", requireAuth, (req, res, next) =>
+  responderSolicitacaoCuidador(req, res, next, "recusado"),
+);
+
 export default router;
