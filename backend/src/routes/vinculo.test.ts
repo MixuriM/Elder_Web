@@ -7,6 +7,8 @@ const findUniqueUsuario = jest.fn();
 const findManyVinculo = jest.fn();
 const findFirstVinculo = jest.fn();
 const createVinculo = jest.fn();
+const findUniqueVinculo = jest.fn();
+const updateVinculo = jest.fn();
 
 jest.mock("../lib/firebaseAdmin", () => ({
   auth: { verifyIdToken: (...args: unknown[]) => verifyIdToken(...args) },
@@ -21,6 +23,8 @@ jest.mock("../lib/prisma", () => ({
       findMany: (...args: unknown[]) => findManyVinculo(...args),
       findFirst: (...args: unknown[]) => findFirstVinculo(...args),
       create: (...args: unknown[]) => createVinculo(...args),
+      findUnique: (...args: unknown[]) => findUniqueVinculo(...args),
+      update: (...args: unknown[]) => updateVinculo(...args),
     },
   },
 }));
@@ -43,6 +47,10 @@ type FindFirstUsuarioArgs = { where: { firebase_uid?: string; tipo_perfil?: stri
 
 function post(body: Record<string, unknown>) {
   return request(buildApp()).post("/vinculo/solicitar-cuidador").set("Authorization", "Bearer x").send(body);
+}
+
+function responder(id: number, acao: "aprovar" | "recusar") {
+  return request(buildApp()).post(`/vinculo/${id}/${acao}`).set("Authorization", "Bearer x").send();
 }
 
 describe("POST /vinculo/solicitar-cuidador", () => {
@@ -181,5 +189,126 @@ describe("POST /vinculo/solicitar-cuidador", () => {
     expect(createVinculo).toHaveBeenCalledWith({
       data: expect.objectContaining({ idoso_id: 31 }),
     });
+  });
+});
+
+describe("POST /vinculo/:id/aprovar e /recusar", () => {
+  const VINCULO_PENDENTE = { id: 5, idoso_id: 10, status: "pendente", tipo_vinculo: "cuidador" };
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirstUsuario.mockReset();
+    findUniqueUsuario.mockReset();
+    findFirstVinculo.mockReset();
+    findUniqueVinculo.mockReset();
+    updateVinculo.mockReset();
+    verifyIdToken.mockResolvedValue({ uid: "uid-1" });
+  });
+
+  it("aprova quando modo_decisao='idoso' e chamador é o idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    updateVinculo.mockResolvedValue({ ...VINCULO_PENDENTE, status: "aprovado", aprovador_id: 10 });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateVinculo).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: expect.objectContaining({ status: "aprovado", aprovador_id: 10 }),
+    });
+  });
+
+  it("recusa quando modo_decisao='idoso' e chamador é o idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    updateVinculo.mockResolvedValue({ ...VINCULO_PENDENTE, status: "recusado", aprovador_id: 10 });
+
+    const res = await responder(5, "recusar");
+
+    expect(res.status).toBe(200);
+    expect(updateVinculo).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: expect.objectContaining({ status: "recusado" }),
+    });
+  });
+
+  it("403 quando modo_decisao='idoso' e chamador não é o idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 99 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(403);
+  });
+
+  it("aprova quando modo_decisao='familiar' e chamador é familiar aprovado", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 999 });
+    updateVinculo.mockResolvedValue({ ...VINCULO_PENDENTE, status: "aprovado", aprovador_id: 20 });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(findFirstVinculo).toHaveBeenCalledWith({
+      where: { idoso_id: 10, vinculado_id: 20, tipo_vinculo: "familiar", status: "aprovado" },
+      select: { id: true },
+    });
+  });
+
+  it("recusa quando modo_decisao='familiar' e chamador é familiar aprovado", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 999 });
+    updateVinculo.mockResolvedValue({ ...VINCULO_PENDENTE, status: "recusado", aprovador_id: 20 });
+
+    const res = await responder(5, "recusar");
+
+    expect(res.status).toBe(200);
+  });
+
+  it("403 quando modo_decisao='familiar' e chamador é o próprio idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403 quando modo_decisao='familiar' e chamador é familiar sem vínculo aprovado", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue(null);
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(403);
+  });
+
+  it("404 quando vínculo não existe", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(null);
+
+    const res = await responder(999, "aprovar");
+
+    expect(res.status).toBe(404);
+  });
+
+  it("409 quando vínculo já foi resolvido", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_PENDENTE, status: "aprovado" });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(409);
   });
 });
