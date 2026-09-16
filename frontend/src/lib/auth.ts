@@ -7,6 +7,7 @@ import {
   signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  sendEmailVerification as firebaseSendEmailVerification,
   type User,
 } from "firebase/auth";
 import { app } from "./firebase";
@@ -45,11 +46,24 @@ export function onAuthChange(callback: (user: User | null) => void) {
   return onAuthStateChanged(auth, callback);
 }
 
-// Pega o ID Token pra mandar nas requisições ao backend
-export async function getCurrentUserToken(): Promise<string | null> {
+// Pega o ID Token pra mandar nas requisições ao backend.
+// forceRefresh=true busca um token novo no Firebase em vez do cache local —
+// necessário depois de confirmar e-mail, pra email_verified vir atualizado (ver
+// ConfirmarEmail.tsx, RF-025).
+export async function getCurrentUserToken(forceRefresh = false): Promise<string | null> {
   const user = auth.currentUser;
   if (!user) return null;
-  return user.getIdToken();
+  return user.getIdToken(forceRefresh);
+}
+
+// Envia o e-mail de verificação do Firebase Auth (RF-025) — usado no cadastro de
+// Familiar pra permitir vínculo automático com Idoso já confirmado por posse do e-mail.
+export async function sendEmailVerification() {
+  const user = auth.currentUser;
+  if (!user || user.emailVerified) return; // contas Google já chegam verificadas
+  await firebaseSendEmailVerification(user, {
+    url: `${window.location.origin}/confirmar-email`,
+  });
 }
 
 export type TipoPerfil = "idoso" | "cuidador" | "familiar";
