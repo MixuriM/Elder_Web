@@ -45,6 +45,13 @@ export function isTipoPerfil(value: unknown): value is TipoPerfil {
   return typeof value === "string" && (TIPOS_PERFIL as readonly string[]).includes(value);
 }
 
+// Validação simples de formato — sem lib de e-mail no projeto, checagem real de
+// entregabilidade não é o objetivo aqui, só barrar lixo óbvio antes de persistir.
+// Usada por /auth/sync (email_convite_familiar, RF-024).
+export function isValidEmailFormat(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 // SQL Server rejeita a criação concorrente do mesmo firebase_uid via índice único
 // filtrado — firebase_uid não é @unique nativo do Prisma (é índice manual, ver
 // schema.prisma), então o erro chega como texto genérico do driver, não como P2002.

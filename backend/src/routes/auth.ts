@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
-import { isTipoPerfil, isDuplicateFirebaseUid, verifyFirebaseToken } from "../lib/authHelpers";
+import {
+  isTipoPerfil,
+  isDuplicateFirebaseUid,
+  isValidEmailFormat,
+  verifyFirebaseToken,
+} from "../lib/authHelpers";
 
 const router = Router();
 
@@ -50,6 +55,27 @@ router.post("/sync", async (req, res, next) => {
       return res.status(400).json({ error: "Conta Firebase sem e-mail ou telefone associado." });
     }
 
+    // email_convite_familiar (RF-024): só o idoso informa, pra casar depois com o
+    // cadastro de um Familiar (RF-025, fora de escopo aqui). Não é único — mais de um
+    // idoso pode indicar o mesmo e-mail de familiar.
+    const emailConviteFamiliarRaw = req.body?.email_convite_familiar;
+    let emailConviteFamiliar: string | undefined;
+    if (
+      emailConviteFamiliarRaw !== undefined &&
+      emailConviteFamiliarRaw !== null &&
+      emailConviteFamiliarRaw !== ""
+    ) {
+      if (tipoPerfil !== "idoso") {
+        return res
+          .status(400)
+          .json({ error: "email_convite_familiar só pode ser informado por idoso." });
+      }
+      if (typeof emailConviteFamiliarRaw !== "string" || !isValidEmailFormat(emailConviteFamiliarRaw.trim())) {
+        return res.status(400).json({ error: "email_convite_familiar em formato inválido." });
+      }
+      emailConviteFamiliar = emailConviteFamiliarRaw.trim();
+    }
+
     try {
       const usuario = await prisma.usuario.create({
         data: {
@@ -58,6 +84,7 @@ router.post("/sync", async (req, res, next) => {
           email: decoded.email,
           telefone: decoded.phone_number,
           tipo_perfil: tipoPerfil,
+          email_convite_familiar: emailConviteFamiliar,
         },
       });
       return res.status(201).json({ criado: true, usuario });

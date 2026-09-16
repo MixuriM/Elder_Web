@@ -24,6 +24,9 @@ function Cadastro() {
   // Estado responsável por armazenar o e-mail digitado
   const [email, setEmail] = useState("");
 
+  // Estado responsável por armazenar o e-mail de familiar digitado (RF-024, só idoso)
+  const [emailConviteFamiliar, setEmailConviteFamiliar] = useState("");
+
   // Estado responsável por armazenar a senha digitada
   const [senha, setSenha] = useState("");
 
@@ -60,6 +63,7 @@ function Cadastro() {
       await syncUser({
         tipoPerfil,
         nome,
+        emailConviteFamiliar: tipoPerfil === "idoso" ? emailConviteFamiliar : undefined,
       });
 
       navigate("/welcome", { state: { cadastroSucesso: true } });
@@ -91,6 +95,7 @@ function Cadastro() {
       // Sincroniza o perfil escolhido
       await syncUser({
         tipoPerfil,
+        emailConviteFamiliar: tipoPerfil === "idoso" ? emailConviteFamiliar : undefined,
       });
 
       navigate("/welcome", { state: { cadastroSucesso: true } });
@@ -173,12 +178,14 @@ function Cadastro() {
               nome={nome}
               email={email}
               senha={senha}
+              emailConviteFamiliar={emailConviteFamiliar}
               tipoPerfil={tipoPerfil}
               erro={erro}
               carregando={carregando}
               setNome={setNome}
               setEmail={setEmail}
               setSenha={setSenha}
+              setEmailConviteFamiliar={setEmailConviteFamiliar}
               setTipoPerfil={setTipoPerfil}
               onSubmit={handleSubmit}
               onGoogleCadastro={handleGoogleCadastro}

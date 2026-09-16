@@ -15,6 +15,7 @@ type FormularioCadastroProps = {
   nome: string;
   email: string;
   senha: string;
+  emailConviteFamiliar: string;
   tipoPerfil: TipoPerfil;
   erro: string | null;
   carregando: boolean;
@@ -22,6 +23,7 @@ type FormularioCadastroProps = {
   setNome: (valor: string) => void;
   setEmail: (valor: string) => void;
   setSenha: (valor: string) => void;
+  setEmailConviteFamiliar: (valor: string) => void;
   setTipoPerfil: (tipo: TipoPerfil) => void;
 
   onSubmit: (e: FormEvent) => void;
@@ -33,12 +35,14 @@ function FormularioCadastro({
   nome,
   email,
   senha,
+  emailConviteFamiliar,
   tipoPerfil,
   erro,
   carregando,
   setNome,
   setEmail,
   setSenha,
+  setEmailConviteFamiliar,
   setTipoPerfil,
   onSubmit,
   onGoogleCadastro,
@@ -142,6 +146,18 @@ function FormularioCadastro({
             tipoPerfil={tipoPerfil}
             setTipoPerfil={setTipoPerfil}
           />
+
+          {/* E-mail de familiar (RF-024) — só faz sentido pro idoso, e é opcional */}
+          {tipoPerfil === "idoso" && (
+            <CampoTexto
+              id="email_convite_familiar"
+              label="E-mail de um familiar (opcional)"
+              type="email"
+              value={emailConviteFamiliar}
+              onChange={setEmailConviteFamiliar}
+              required={false}
+            />
+          )}
         </div>
 
         {/* Mensagem de erro */}

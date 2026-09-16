@@ -5,6 +5,7 @@ type CampoTextoProps = {
   type: "text" | "email" | "password"; // Tipo do input
   value: string; // Valor atual digitado
   onChange: (valor: string) => void; // Função responsável por atualizar o valor
+  required?: boolean; // Se o campo é obrigatório (padrão: true)
 };
 
 // Componente reutilizável para os campos do formulário
@@ -14,6 +15,7 @@ function CampoTexto({
   type,
   value,
   onChange,
+  required = true,
 }: CampoTextoProps) {
   return (
     <div>
@@ -40,7 +42,7 @@ function CampoTexto({
       <input
         id={id}
         type={type}
-        required
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="
