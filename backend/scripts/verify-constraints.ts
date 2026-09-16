@@ -1,7 +1,8 @@
-// Verifica que as 10 constraints manuais da migration 20260831005102_init_schema
-// (1 índice único filtrado + 9 CHECKs) estão realmente ativas no banco — não só
-// presentes no arquivo SQL. Cada teste roda dentro de uma transação sempre revertida
-// no final (nenhum dado de teste é commitado).
+// Verifica que as constraints manuais adicionadas à mão nas migrations (índices únicos
+// filtrados + CHECKs — @@unique do Prisma não aceita WHERE, sqlserver não suporta enum)
+// estão realmente ativas no banco, não só presentes no arquivo SQL. Cobre as 10 da
+// migration 20260831005102_init_schema e as adicionadas depois. Cada teste roda dentro
+// de uma transação sempre revertida no final (nenhum dado de teste é commitado).
 //
 // Uso: npx tsx scripts/verify-constraints.ts
 
@@ -249,6 +250,15 @@ async function main() {
         data_hora_administracao: new Date(),
         status_administracao: "invalido",
       },
+    });
+  });
+
+  // 11. CK_Usuario_email_convite_familiar_tipo_perfil (RF-024, migration
+  // 20260916090000_add_check_email_convite_familiar_idoso) — email_convite_familiar
+  // só pode ser não-nulo quando tipo_perfil='idoso'.
+  await runExpectingRejection("CK_Usuario_email_convite_familiar_tipo_perfil", async (tx) => {
+    await tx.usuario.create({
+      data: baseUsuario({ tipo_perfil: "cuidador", email_convite_familiar: "familiar@teste.local" }),
     });
   });
 
