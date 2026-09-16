@@ -81,6 +81,18 @@ describe("requireVinculoAprovado", () => {
     expect(res.status).toBe(403);
   });
 
+  it("retorna 401 sem req.usuarioId (requireAuth não rodou antes) e não consulta o Prisma", async () => {
+    const app = express();
+    app.get("/_test/idoso/:idosoId", requireVinculoAprovado("idosoId"), (req, res) => {
+      res.status(200).json({ vinculoAprovado: req.vinculoAprovado });
+    });
+
+    const res = await request(app).get("/_test/idoso/5");
+
+    expect(res.status).toBe(401);
+    expect(findFirstVinculo).not.toHaveBeenCalled();
+  });
+
   it("retorna 403 quando vínculo aprovado existe mas para outro idoso", async () => {
     // findFirst já filtra por idoso_id na query — outro idoso nunca bate no where.
     findFirstVinculo.mockResolvedValue(null);
