@@ -39,6 +39,10 @@ model Usuario {
   telefone                            String?   @db.NVarChar(20)
   // 'idoso' / 'cuidador' / 'familiar'
   tipo_perfil                         String    @db.NVarChar(20)
+  // RF-024: idoso informa o e-mail de um familiar no cadastro, usado depois (RF-025, fora
+  // de escopo aqui) pra casar automaticamente o cadastro do Familiar com este Usuario. Não
+  // é único — mais de um idoso pode indicar o mesmo e-mail de familiar.
+  // TODO (manual na migration): CHECK (email_convite_familiar IS NULL OR tipo_perfil = 'idoso')
   email_convite_familiar              String?   @db.NVarChar(255)
   cadastrado_por_id                   Int?
   termo_responsabilidade_aceito_em    DateTime? @db.DateTime2
