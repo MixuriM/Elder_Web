@@ -8,6 +8,15 @@ import { prisma } from "../lib/prisma";
 // flags permite_* (tarefa 2.8).
 export function requireVinculoAprovado(paramIdoso: string) {
   return async function (req: Request, res: Response, next: NextFunction) {
+    // Guarda de trust boundary: se este middleware rodar sem requireAuth antes,
+    // req.usuarioId vem undefined. Prisma ignora filtro de where com valor
+    // undefined (não filtra por "nenhum"), então vinculado_id: undefined removeria
+    // essa condição da query e aprovaria qualquer chamador com vínculo aprovado de
+    // OUTRA pessoa para o mesmo idoso — fail-open. 401 explícito fecha essa lacuna.
+    if (typeof req.usuarioId !== "number") {
+      return res.status(401).json({ error: "Token ausente." });
+    }
+
     const idosoId = Number(req.params[paramIdoso]);
     if (!Number.isInteger(idosoId)) {
       return res.status(400).json({ error: "Id de idoso inválido." });
