@@ -9,6 +9,61 @@ import {
 
 const router = Router();
 
+// RF-025 (Fluxo A) — vínculo automático Familiar↔Idoso quando o e-mail de cadastro do
+// Familiar bate com email_convite_familiar de algum Idoso. Sem tabela de token: a
+// confirmação de posse do e-mail reaproveita decoded.email_verified do Firebase.
+// Aprovação imediata só quando o e-mail já chega verificado (comum em contas Google);
+// senão fica pendente até o próximo login com email_verified=true (ver branch de login
+// abaixo). Um Vinculo por Idoso encontrado — mais de um Idoso pode ter convidado o
+// mesmo e-mail de Familiar.
+async function vincularFamiliarConvidado(familiarId: number, email: string, emailVerified: boolean) {
+  const idosos = await prisma.usuario.findMany({
+    where: { tipo_perfil: "idoso", email_convite_familiar: email },
+    select: { id: true },
+  });
+  if (idosos.length === 0) return;
+
+  const agora = new Date();
+  await Promise.all(
+    idosos.map((idoso) =>
+      prisma.vinculo.create({
+        data: {
+          idoso_id: idoso.id,
+          vinculado_id: familiarId,
+          tipo_vinculo: "familiar",
+          origem: "convite_idoso",
+          status: emailVerified ? "aprovado" : "pendente",
+          data_solicitacao: agora,
+          confirmado_em: emailVerified ? agora : undefined,
+        },
+      }),
+    ),
+  );
+}
+
+// Direção oposta do RF-025: Idoso se cadastra depois informando email_convite_familiar
+// de um Familiar que já existe. Sempre pendente aqui — esta requisição não carrega o
+// token do Familiar, então não há email_verified dele pra checar; promovido no próximo
+// login do Familiar (branch de login abaixo).
+async function vincularIdosoComFamiliarExistente(idosoId: number, emailFamiliar: string) {
+  const familiar = await prisma.usuario.findFirst({
+    where: { tipo_perfil: "familiar", email: emailFamiliar },
+    select: { id: true },
+  });
+  if (!familiar) return;
+
+  await prisma.vinculo.create({
+    data: {
+      idoso_id: idosoId,
+      vinculado_id: familiar.id,
+      tipo_vinculo: "familiar",
+      origem: "convite_idoso",
+      status: "pendente",
+      data_solicitacao: new Date(),
+    },
+  });
+}
+
 router.post("/sync", async (req, res, next) => {
   // Express 4 não propaga rejeições de handlers async pro errorHandler sozinho —
   // sem esse try/catch externo, um erro assíncrono (ex.: Prisma fora do ar) vira
@@ -34,6 +89,20 @@ router.post("/sync", async (req, res, next) => {
     });
 
     if (usuarioExistente) {
+      // RF-025 (Fluxo A): promove no login do Familiar os vínculos que ficaram
+      // pendentes por falta de e-mail confirmado no momento do cadastro. Idempotente
+      // por construção — updateMany só afeta linhas ainda 'pendente'.
+      if (usuarioExistente.tipo_perfil === "familiar" && decoded.email_verified) {
+        await prisma.vinculo.updateMany({
+          where: {
+            vinculado_id: usuarioExistente.id,
+            tipo_vinculo: "familiar",
+            origem: "convite_idoso",
+            status: "pendente",
+          },
+          data: { status: "aprovado", confirmado_em: new Date() },
+        });
+      }
       return res.status(200).json({ criado: false, usuario: usuarioExistente });
     }
 
@@ -87,6 +156,16 @@ router.post("/sync", async (req, res, next) => {
           email_convite_familiar: emailConviteFamiliar,
         },
       });
+
+      // RF-025 (Fluxo A) — as duas direções: Familiar chegando depois do Idoso, ou
+      // Idoso chegando depois do Familiar. Nunca as duas no mesmo cadastro, tipo_perfil
+      // é fixo e único por conta.
+      if (tipoPerfil === "familiar" && decoded.email) {
+        await vincularFamiliarConvidado(usuario.id, decoded.email, decoded.email_verified ?? false);
+      } else if (tipoPerfil === "idoso" && emailConviteFamiliar) {
+        await vincularIdosoComFamiliarExistente(usuario.id, emailConviteFamiliar);
+      }
+
       return res.status(201).json({ criado: true, usuario });
     } catch (e) {
       if (isDuplicateFirebaseUid(e)) {

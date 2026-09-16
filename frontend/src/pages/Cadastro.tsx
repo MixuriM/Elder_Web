@@ -8,6 +8,7 @@ import {
   registerUser,
   loginWithGoogle,
   syncUser,
+  sendEmailVerification,
   type TipoPerfil,
 } from "../lib/auth";
 
@@ -59,6 +60,12 @@ function Cadastro() {
       // Registra o usuário
       await registerUser(email, senha);
 
+      // RF-025: dispara a confirmação de posse do e-mail só para Familiar — é o que
+      // habilita o vínculo automático com o Idoso que já o convidou.
+      if (tipoPerfil === "familiar") {
+        await sendEmailVerification();
+      }
+
       // Sincroniza os dados adicionais do usuário
       await syncUser({
         tipoPerfil,
@@ -91,6 +98,11 @@ function Cadastro() {
     try {
       // Realiza autenticação com Google
       await loginWithGoogle();
+
+      // RF-025: no-op se a conta Google já chegar com e-mail verificado.
+      if (tipoPerfil === "familiar") {
+        await sendEmailVerification();
+      }
 
       // Sincroniza o perfil escolhido
       await syncUser({
