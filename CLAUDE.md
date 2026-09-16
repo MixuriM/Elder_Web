@@ -411,3 +411,57 @@ desta feature, vale para qualquer teste futuro que toque `react-router-dom`.
 Fora de escopo deste item (não implementado, por instrução explícita):
 logout (item 1.7), card de notificações/avisos, e qualquer lógica de
 permissão por `tipo_perfil` ou vínculo (Fase 2).
+
+**Item 2.4 da Fase 2 (RF-024) implementado — email_convite_familiar no cadastro
+do idoso (2026-09-16, PR #45, commit `5abefc0`):**
+
+A coluna `email_convite_familiar` já existia em `Usuario` desde a migration
+inicial (`20260831005102_init_schema`), sem CHECK — esta tarefa não criou
+coluna nova, só a regra de negócio em cima dela. Persistência usada depois
+pelo item 2.5 (RF-025, fora de escopo aqui) pra casar automaticamente o
+cadastro de um Familiar com o Idoso que já informou o e-mail dele; por isso
+o campo não é único (`@unique`/`@@unique`) — mais de um idoso pode indicar o
+mesmo e-mail de familiar.
+
+Backend: `POST /auth/sync` (`backend/src/routes/auth.ts`) aceita o campo só
+no branch de criação de conta (nunca em login de conta já existente) e só
+quando `tipo_perfil === 'idoso'` — cuidador ou familiar mandando o campo
+preenchido recebe 400 explícito (`"email_convite_familiar só pode ser
+informado por idoso."`), mesmo padrão de erro claro já usado no
+`tipo_perfil` obrigatório e em `PATCH /usuario/me`. Formato validado por
+`isValidEmailFormat` (regex simples, nova em
+`backend/src/lib/authHelpers.ts`) — nenhuma lib de e-mail está instalada no
+backend e nenhuma validação de formato existia em nenhum lugar do projeto
+até então (nem em `email` de `PATCH /usuario/me`).
+
+CHECK `CK_Usuario_email_convite_familiar_tipo_perfil` (`email_convite_familiar
+IS NULL OR tipo_perfil = 'idoso'`) trava a regra a nível de banco, mesmo
+padrão de `CK_Usuario_firebase_uid_cadastrado_por`. Migration
+`20260916090000_add_check_email_convite_familiar_idoso` escrita à mão (só a
+`ALTER TABLE ADD CONSTRAINT`, coluna já existia) e aplicada via
+`npx prisma migrate deploy` — não `migrate dev`, porque o Azure SQL recusou
+criar shadow database automaticamente (erro P3020, limitação de
+infraestrutura, não de rede/firewall). Rodar `migrate deploy` contra esse
+banco foi autorizado explicitamente pelo Marcos só pra esta migration
+pontual; a trava geral do CLAUDE.md que exige autorização separada pra
+`migrate deploy` contra produção continua valendo, não foi reaberta.
+`backend/scripts/verify-constraints.ts` ganhou o caso 11 pra essa CHECK —
+15/15 PASS confirmados de verdade no banco (não só aceito na migration).
+
+Testes novos: `backend/src/routes/auth.test.ts` (arquivo não existia antes
+desta tarefa, criado do zero seguindo o padrão de `usuario.test.ts`) — 5
+casos (idoso com o campo, idoso sem o campo, cuidador bloqueado, familiar
+bloqueado, formato inválido bloqueado). Suíte inteira do backend: 6 arquivos
+de teste, 43 testes, todos passando.
+
+Frontend: campo novo em `Cadastro.tsx` via `FormularioCadastro.tsx`,
+condicional só pro perfil idoso (`tipoPerfil === "idoso"`) e opcional, mesmo
+padrão visual dos demais campos do formulário. `CampoTexto.tsx` ganhou prop
+`required?: boolean` (default `true`) pra suportar esse campo opcional sem
+alterar o comportamento dos campos existentes. `lib/auth.ts` (`syncUser`)
+propaga `emailConviteFamiliar` no body de `/auth/sync` como
+`email_convite_familiar`, só quando o perfil selecionado é idoso.
+
+Fora de escopo deste item (não implementado, por instrução explícita):
+casamento automático do cadastro de um Familiar com o
+`email_convite_familiar` informado pelo idoso (item 2.5, RF-025).
