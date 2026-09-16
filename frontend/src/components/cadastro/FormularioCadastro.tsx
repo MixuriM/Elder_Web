@@ -1,3 +1,4 @@
+
 // Importa o tipo utilizado pelo evento de envio do formulário
 import type { FormEvent } from "react";
 
@@ -67,12 +68,12 @@ function FormularioCadastro({
         onSubmit={onSubmit}
         className="
           w-full
-          max-w-lg
+          max-w-xl
           rounded-3xl
           border
           border-gray-200
           bg-white
-          px-9
+          px-10
           py-8
           shadow-sm
           transition-colors
@@ -112,6 +113,12 @@ function FormularioCadastro({
           Cadastre-se de forma rápida e simples.
         </p>
 
+        {/* Tipo de perfil */}
+        <TipoPerfilCampo
+          tipoPerfil={tipoPerfil}
+          setTipoPerfil={setTipoPerfil}
+        />
+
         {/* Campos do formulário */}
         <div className="mt-8 space-y-5">
           {/* Nome completo */}
@@ -141,13 +148,7 @@ function FormularioCadastro({
             onChange={setSenha}
           />
 
-          {/* Tipo de perfil */}
-          <TipoPerfilCampo
-            tipoPerfil={tipoPerfil}
-            setTipoPerfil={setTipoPerfil}
-          />
-
-          {/* E-mail de familiar (RF-024) — só faz sentido pro idoso, e é opcional */}
+          {/* E-mail do familiar - exibido somente para o perfil idoso */}
           {tipoPerfil === "idoso" && (
             <CampoTexto
               id="email_convite_familiar"
@@ -202,22 +203,19 @@ function FormularioCadastro({
             text-white
             transition
             duration-300
-
             hover:bg-[#5B54E8]
-
             focus:outline-none
             focus:ring-4
             focus:ring-[#EDE7FF]
-
             disabled:cursor-not-allowed
             disabled:opacity-70
-
             dark:bg-[#6C63FF]
             dark:hover:bg-[#7C74FF]
             dark:focus:ring-[#3A355C]
           "
         >
           {carregando && <Spinner />}
+
           {carregando ? "Criando conta" : "Criar minha conta"}
         </button>
 
@@ -253,7 +251,10 @@ function FormularioCadastro({
         </div>
 
         {/* Cadastro utilizando Google */}
-        <BotaoGoogle onClick={onGoogleCadastro} disabled={carregando} />
+        <BotaoGoogle
+          onClick={onGoogleCadastro}
+          disabled={carregando}
+        />
 
         {/* Link para a página de login */}
         <p
