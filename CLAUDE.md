@@ -465,3 +465,71 @@ propaga `emailConviteFamiliar` no body de `/auth/sync` como
 Fora de escopo deste item (não implementado, por instrução explícita):
 casamento automático do cadastro de um Familiar com o
 `email_convite_familiar` informado pelo idoso (item 2.5, RF-025).
+
+**Item 2.5 da Fase 2 (RF-025, RNF-004) implementado — vínculo automático
+Familiar↔Idoso (2026-09-16, PR #47, commit `a236b11`):**
+
+Fluxo A completo, cobrindo as duas ordens de cadastro possíveis (Familiar
+depois do Idoso, ou Idoso depois do Familiar). Sem tabela de token nova —
+confirmação de posse do e-mail reaproveita `decoded.email_verified` do
+próprio Firebase Auth, decisão tomada nesta tarefa pra não montar sistema de
+e-mail próprio (nenhuma dependência nova instalada, nenhuma variável de
+ambiente nova).
+
+Backend, `POST /auth/sync` (`backend/src/routes/auth.ts`), branch de
+cadastro: `vincularFamiliarConvidado` roda quando `tipo_perfil === 'familiar'`
+— busca todo `Usuario` com `tipo_perfil='idoso'` e `email_convite_familiar`
+batendo o e-mail do Familiar recém-criado (comparação de string simples,
+mesmo padrão já usado em `POST /vinculo/solicitar-cuidador`), e cria um
+`Vinculo` por Idoso encontrado (`origem='convite_idoso'`): `status='aprovado'`
+direto se `email_verified` já vier `true` no token (comum em contas Google),
+senão `status='pendente'`. `vincularIdosoComFamiliarExistente` cobre a ordem
+oposta — Idoso cadastrado depois de um Familiar já existente — busca o
+Familiar pelo e-mail informado em `email_convite_familiar` e cria `Vinculo`
+sempre `pendente` (esta requisição não carrega o token do Familiar, não dá
+pra checar `email_verified` dele agora).
+
+Branch de login: quando `usuarioExistente.tipo_perfil === 'familiar'` e
+`decoded.email_verified === true`, `prisma.vinculo.updateMany` promove todo
+`Vinculo` `pendente`/`origem='convite_idoso'` desse Familiar pra `aprovado`
+— idempotente por construção, `updateMany` só afeta linhas ainda `pendente`,
+login repetido não duplica nem falha.
+
+Nenhuma migration nesta tarefa — nenhum campo/tabela novo, só lógica em cima
+do que já existia (`Vinculo.status`, `confirmado_em`, `notificado_em`,
+`origem`, todos já modelados desde antes; `email_convite_familiar` já
+persistido pelo item 2.4).
+
+Frontend: `sendEmailVerification` (Firebase Auth Web SDK, `lib/auth.ts`)
+disparado em `Cadastro.tsx` só quando `tipoPerfil === 'familiar'`, com
+`actionCodeSettings.url` apontando pra
+`${window.location.origin}/confirmar-email` (sem env var nova, evita repetir
+o bug de `FRONTEND_URL` mal configurada já documentado acima nesta seção);
+vira no-op se a conta já chegar verificada (`user.emailVerified`, caso comum
+de contas Google). Página nova `frontend/src/pages/ConfirmarEmail.tsx` —
+esqueleto cru (mesma exceção de divisão de trabalho já registrada na seção
+Workflow), rota pública `/confirmar-email` em `App.tsx`, fora de
+`RotaProtegida` de propósito: quem clica o link do e-mail sem sessão ativa
+precisa cair na mensagem "faça login primeiro", não num redirect silencioso
+pra `/login`. Reaproveita `useAuthUser()` já existente; força refresh do ID
+token via novo parâmetro `forceRefresh` em `getCurrentUserToken` e rechama
+`syncUser()`. Não implementa `handleCodeInApp`/`oobCode` customizado — no
+fluxo padrão do Firebase o e-mail já é marcado como verificado antes do
+usuário chegar em `continueUrl`.
+
+Testes novos: `backend/src/routes/auth.test.ts` ganhou 11 casos cobrindo as
+duas direções do vínculo automático e a promoção/idempotência no login
+(cadastro de Familiar com/sem e-mail correspondente, `email_verified=true`
+na hora do cadastro, e-mail batendo mais de um Idoso, cadastro de Idoso
+batendo Familiar existente, login promovendo/não promovendo vínculo
+pendente, login sem vínculo pendente, login repetido). Escritos e
+confirmados falhando (RED) antes da implementação. Suíte inteira do backend:
+6 arquivos de teste, 54 testes, todos passando. Frontend: `tsc --noEmit`
+limpo, suíte existente (2 suites, 4 testes) sem regressão.
+
+Fora de escopo deste item (não implementado, por instrução explícita):
+endpoint de contestação de vínculo automático já `aprovado` via
+`notificado_em` (extensão futura de `POST /vinculo/:id/aprovar|recusar` pra
+`tipo_vinculo='familiar'` — hoje só aceita `'cuidador'`) — `notificado_em`
+fica `NULL`, dívida técnica conhecida, não fechada nesta tarefa. Itens
+2.6/2.7 (Fluxo B), 2.8/2.9 e Fase 3/RF-030 também não tocados.
