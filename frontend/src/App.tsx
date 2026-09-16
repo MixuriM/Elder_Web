@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Cadastro from './pages/Cadastro'
 import Welcome from './pages/Welcome'
 import EsqueciSenha from './pages/EsqueciSenha'
+import ConfirmarEmail from './pages/ConfirmarEmail'
 import Perfil from './pages/Perfil'
 import Vinculos from './pages/Vinculos'
 import RotaProtegida from './components/RotaProtegida'
@@ -25,6 +26,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
       <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+      <Route path="/confirmar-email" element={<ConfirmarEmail />} />
       <Route
         path="/perfil"
         element={
