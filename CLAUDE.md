@@ -533,3 +533,60 @@ endpoint de contestação de vínculo automático já `aprovado` via
 `tipo_vinculo='familiar'` — hoje só aceita `'cuidador'`) — `notificado_em`
 fica `NULL`, dívida técnica conhecida, não fechada nesta tarefa. Itens
 2.6/2.7 (Fluxo B), 2.8/2.9 e Fase 3/RF-030 também não tocados.
+
+**Item 2.6 da Fase 2 (RF-026) implementado — Familiar solicita vínculo
+diretamente pelo e-mail do Idoso, Fluxo B (2026-09-16, PR #52, commit
+`d1fb458`):**
+
+`POST /vinculo/solicitar-familiar`, em `backend/src/routes/vinculo.ts`,
+atrás de `requireAuth` — espelho de `/solicitar-cuidador` (item 2.1),
+adaptado pro Familiar. Só `tipo_perfil='familiar'` pode chamar (403 caso
+contrário). Diferente da 2.1, não tem ambiguidade de múltiplos idosos: a
+busca é direta pelo e-mail do próprio Idoso (`email` é `@unique` filtrado em
+`Usuario`, no máximo uma conta bate), então não existe branch de
+desambiguação por `nome_idoso`. O `findFirst` já filtra `tipo_perfil='idoso'`
+na query — uma conta de outro tipo com o mesmo e-mail resolve `null` e cai no
+mesmo 404 genérico ("Nenhum idoso encontrado para este e-mail."), sem
+revelar a que tipo de conta o e-mail pertence (mesmo padrão da 2.1).
+Auto-vínculo não tem guard explícito: `tipo_perfil` é fixo e único por conta
+(decisão fechada), o chamador já foi confirmado `familiar` e o alvo só
+resolve `idoso` — os dois nunca podem ser a mesma conta, por construção.
+
+Cria `Vinculo` com `tipo_vinculo='familiar'`, `origem='solicitacao_familiar'`,
+`status='pendente'`. Nenhuma migration nova: confirmado lendo
+`20260915090000_vinculo_unique_ativo/migration.sql` (item 2.3) antes de
+decidir — o índice único filtrado `(idoso_id, vinculado_id, tipo_vinculo)`
+`WHERE status IN ('pendente','aprovado')` não é específico de
+`tipo_vinculo='cuidador'`, já cobre `'familiar'`. Duplicidade
+`pendente`/`aprovado` → 409 (mesmo padrão da 2.1: se o único registro
+existente for `recusado`, permite nova solicitação — decisão assumida, não
+confirmada com o grupo). Esse mesmo índice/checagem não distingue `origem`:
+um `Vinculo` já criado pelo Fluxo A (item 2.5, `origem='convite_idoso'`) pro
+mesmo par idoso/familiar bloqueia a solicitação via Fluxo B também —
+comportamento correto (não duplicar vínculo), com teste dedicado separado do
+teste genérico de duplicidade. Reaproveita `isDuplicateVinculoConstraint`,
+já existente em `vinculo.ts`, como rede de segurança contra corrida no
+`create` (mesmo padrão da 2.1).
+
+8 testes novos em `vinculo.test.ts` (sucesso, 403 tipo_perfil errado, 404
+e-mail não encontrado, 404 e-mail de conta não-idoso, 409 pendente, 409
+aprovado, 409 colisão com Fluxo A, permitido após recusado) — suíte completa
+do backend em 62 testes/6 suítes, sem quebra. `npx tsc --noEmit` limpo.
+
+Frontend: nova seção em `Vinculos.tsx` ("Solicitar vínculo (familiar → idoso,
+pelo e-mail)"), esqueleto cru cobrindo só essa rota — mesmo padrão de
+acessibilidade das seções existentes (label associado, erro com
+`role="alert"`, fontes grandes). `tsc --noEmit` limpo, suíte existente do
+frontend (2 suites, 4 testes) sem regressão.
+
+Fora de escopo deste item (não implementado, por instrução explícita): item
+2.7 (aprovar/recusar essa solicitação).
+
+**Risco residual aceito, não mitigado (decisão do grupo, não decidida por
+este agente):** Idoso sem e-mail cadastrado (`Usuario.email IS NULL`,
+cenário legítimo de RF-030 — cadastrado por familiar sem e-mail próprio)
+deixa o Fluxo B estruturalmente inalcançável pra esse Idoso: o `findFirst`
+por e-mail nunca bate, cai no mesmo 404 genérico de "nenhum idoso
+encontrado" — indistinguível de e-mail que não corresponde a ninguém. Não
+mitigado nesta tarefa; é decisão de escopo do grupo, mesmo tratamento dado
+aos outros riscos residuais aceitos já documentados nesta seção.
