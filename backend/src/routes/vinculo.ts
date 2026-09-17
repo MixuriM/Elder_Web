@@ -215,12 +215,14 @@ router.post("/solicitar-familiar", requireAuth, async (req, res, next) => {
 });
 
 // Tarefa 2.2 (RF-021, RF-022) — aprovar/recusar solicitação de vínculo de Cuidador.
-// Compartilhada entre /aprovar e /recusar: mesma checagem de autoridade e de estado,
-// só muda o status final. Autoridade segue Usuario.modo_decisao do IDOSO DONO do
-// vínculo (Vinculo.idoso_id), nunca de quem está chamando — mesma regra que vai
-// valer pra vínculo de Familiar Fluxo B (tarefa 2.7, fora de escopo aqui) e pras
-// flags permite_* (tarefa 2.8, também fora de escopo).
-async function responderSolicitacaoCuidador(
+// Estendida pela tarefa 2.7 (RF-027) pra também cobrir vínculo de Familiar (Fluxo B,
+// tarefa 2.6). Compartilhada entre /aprovar e /recusar, e entre os dois tipo_vinculo:
+// mesma checagem de autoridade e de estado, só muda o status final. Autoridade segue
+// Usuario.modo_decisao do IDOSO DONO do vínculo (Vinculo.idoso_id), nunca de quem está
+// chamando — mesma regra pros dois tipos, sem variante nova. tipo_vinculo só tem os
+// dois valores 'cuidador'/'familiar' (CHECK constraint em schema.prisma), então uma
+// vez que vinculo existe, sempre pertence a um dos dois fluxos que esta rota cobre.
+async function responderSolicitacaoVinculo(
   req: import("express").Request,
   res: import("express").Response,
   next: import("express").NextFunction,
@@ -236,10 +238,7 @@ async function responderSolicitacaoCuidador(
       where: { id },
       select: { id: true, idoso_id: true, status: true, tipo_vinculo: true },
     });
-    // tipo_vinculo !== 'cuidador': vínculo de Familiar existe mas pertence ao fluxo da
-    // tarefa 2.7, não a esta rota — tratado como inexistente aqui. Decisão de backend,
-    // confirmada por Marcos (2026-09-15).
-    if (!vinculo || vinculo.tipo_vinculo !== "cuidador") {
+    if (!vinculo) {
       return res.status(404).json({ error: "Vínculo não encontrado." });
     }
     if (vinculo.status !== "pendente") {
@@ -288,10 +287,10 @@ async function responderSolicitacaoCuidador(
 }
 
 router.post("/:id/aprovar", requireAuth, (req, res, next) =>
-  responderSolicitacaoCuidador(req, res, next, "aprovado"),
+  responderSolicitacaoVinculo(req, res, next, "aprovado"),
 );
 router.post("/:id/recusar", requireAuth, (req, res, next) =>
-  responderSolicitacaoCuidador(req, res, next, "recusado"),
+  responderSolicitacaoVinculo(req, res, next, "recusado"),
 );
 
 export default router;
