@@ -634,7 +634,9 @@ limpo, suíte do backend (62 testes/6 suítes) e do frontend (2 suítes/4
 testes) sem regressão.
 
 **Item 2.7 da Fase 2 (RF-027) implementado — aprovar/recusar solicitação de
-vínculo de Familiar, Fluxo B (2026-09-17, PR #58, commit `2360f57`):**
+vínculo de Familiar, Fluxo B (2026-09-17, PR #58, mergeado em `main`,
+commit `8d1c3c4` — hash final diferente do commit local, mesmo padrão dos
+PRs #38/#40/#47/#52):**
 
 `responderSolicitacaoCuidador` em `backend/src/routes/vinculo.ts` renomeada
 pra `responderSolicitacaoVinculo` e estendida pra também aceitar
