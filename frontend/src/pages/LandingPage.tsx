@@ -21,7 +21,7 @@ function LandingPage() {
     navigate("/cadastro");
   }
 
-  // Navega para a página de login
+  // Navega para a página de entrar
   function handleLogin() {
     navigate("/welcome");
   }
