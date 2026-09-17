@@ -13,6 +13,7 @@ import {
   loginWithGoogle,
   syncUser,
   sendEmailVerification,
+  mensagemErroCadastro,
   type TipoPerfil,
 } from "../lib/auth";
 
@@ -93,9 +94,7 @@ function Cadastro() {
         err
       );
 
-      setErro(
-        "Não foi possível criar a conta. Confira os dados e tente novamente."
-      );
+      setErro(mensagemErroCadastro(err));
     } finally {
       setCarregando(false);
     }
@@ -136,9 +135,7 @@ function Cadastro() {
         err
       );
 
-      setErro(
-        "Não foi possível criar a conta com o Google."
-      );
+      setErro(mensagemErroCadastro(err));
     } finally {
       setCarregando(false);
     }
