@@ -137,6 +137,83 @@ router.post("/solicitar-cuidador", requireAuth, async (req, res, next) => {
   }
 });
 
+// Tarefa 2.6 (RF-026, Fluxo B) — Familiar solicita vínculo diretamente pelo e-mail do
+// Idoso. Espelho de /solicitar-cuidador, mas sem a ambiguidade "1 ou 2+ idosos" daquela
+// rota: aqui a busca é direta pelo e-mail do próprio Idoso, e email é @unique filtrado em
+// Usuario — no máximo 1 conta bate. Não existe branch pra "e-mail de conta não-idoso": o
+// findFirst abaixo já filtra tipo_perfil='idoso', então uma conta de outro tipo com esse
+// e-mail resolve null e cai no mesmo 404 genérico — não revela a que tipo de conta o
+// e-mail pertence (mesmo padrão da tarefa 2.1).
+//
+// Auto-vínculo: sem guard explícito. tipo_perfil é fixo e único por conta (decisão
+// fechada) — o chamador já foi confirmado tipo_perfil='familiar' acima, e idosoAlvo só
+// resolve contas tipo_perfil='idoso'. Os dois nunca podem ser o mesmo id.
+router.post("/solicitar-familiar", requireAuth, async (req, res, next) => {
+  try {
+    const familiar = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { id: true, tipo_perfil: true },
+    });
+    if (familiar?.tipo_perfil !== "familiar") {
+      return res.status(403).json({ error: "Apenas familiares podem solicitar este vínculo." });
+    }
+
+    const { email } = req.body ?? {};
+    if (typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({ error: "E-mail é obrigatório." });
+    }
+
+    const idosoAlvo = await prisma.usuario.findFirst({
+      where: { email: email.trim(), tipo_perfil: "idoso" },
+      select: { id: true },
+    });
+    if (!idosoAlvo) {
+      return res.status(404).json({ error: "Nenhum idoso encontrado para este e-mail." });
+    }
+
+    // Mesma checagem de duplicidade da tarefa 2.1 (findFirst antes do create — ver
+    // isDuplicateVinculoConstraint acima pra rede de segurança contra corrida). O
+    // índice único filtrado (idoso_id, vinculado_id, tipo_vinculo, WHERE status IN
+    // ('pendente','aprovado')) não distingue origem — um Vinculo já criado pelo Fluxo A
+    // (tarefa 2.5, origem='convite_idoso') pro mesmo par bloqueia aqui também, de
+    // propósito: não duplicar vínculo entre os dois fluxos.
+    const existente = await prisma.vinculo.findFirst({
+      where: {
+        idoso_id: idosoAlvo.id,
+        vinculado_id: req.usuarioId,
+        tipo_vinculo: "familiar",
+        status: { in: ["pendente", "aprovado"] },
+      },
+      select: { status: true },
+    });
+    if (existente?.status === "pendente") {
+      return res.status(409).json({ error: "Já existe uma solicitação pendente para este idoso." });
+    }
+    if (existente?.status === "aprovado") {
+      return res.status(409).json({ error: "Você já está vinculado a este idoso." });
+    }
+    // status === 'recusado': permite nova solicitação (novo registro). Mesma decisão
+    // assumida e não confirmada com o grupo da tarefa 2.1.
+
+    const vinculo = await prisma.vinculo.create({
+      data: {
+        idoso_id: idosoAlvo.id,
+        vinculado_id: req.usuarioId,
+        tipo_vinculo: "familiar",
+        origem: "solicitacao_familiar",
+        status: "pendente",
+        data_solicitacao: new Date(),
+      },
+    });
+    res.status(201).json(vinculo);
+  } catch (e) {
+    if (isDuplicateVinculoConstraint(e)) {
+      return res.status(409).json({ error: "Já existe uma solicitação para este idoso." });
+    }
+    next(e);
+  }
+});
+
 // Tarefa 2.2 (RF-021, RF-022) — aprovar/recusar solicitação de vínculo de Cuidador.
 // Compartilhada entre /aprovar e /recusar: mesma checagem de autoridade e de estado,
 // só muda o status final. Autoridade segue Usuario.modo_decisao do IDOSO DONO do
