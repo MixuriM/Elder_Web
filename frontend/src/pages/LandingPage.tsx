@@ -23,7 +23,7 @@ function LandingPage() {
 
   // Navega para a página de login
   function handleLogin() {
-    navigate("/login");
+    navigate("/welcome");
   }
 
   // Faz a rolagem suave até uma seção
