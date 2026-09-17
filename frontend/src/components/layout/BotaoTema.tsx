@@ -17,9 +17,12 @@ function BotaoTema({
 }: BotaoTemaProps) {
   const [escuro, setEscuro] = useState(false);
 
+  // Carrega o tema salvo
   useEffect(() => {
     const temaSalvo = localStorage.getItem("tema");
-    const temaEscuro = temaSalvo === "escuro";
+
+    const temaEscuro =
+      temaSalvo === "escuro";
 
     setEscuro(temaEscuro);
 
@@ -29,6 +32,7 @@ function BotaoTema({
     );
   }, []);
 
+  // Alterna entre tema claro e escuro
   function alterarTema() {
     const novoTemaEscuro = !escuro;
 
@@ -41,7 +45,9 @@ function BotaoTema({
 
     localStorage.setItem(
       "tema",
-      novoTemaEscuro ? "escuro" : "claro"
+      novoTemaEscuro
+        ? "escuro"
+        : "claro"
     );
   }
 
@@ -56,7 +62,8 @@ function BotaoTema({
           : "Ativar modo escuro"
       }
       className={`
-        flex
+        inline-flex
+        shrink-0
         items-center
         justify-center
 
@@ -76,18 +83,17 @@ function BotaoTema({
               rounded-full
 
               bg-transparent
-
               text-[#6C63FF]
 
               hover:bg-[#F3F0FF]
 
               dark:bg-transparent
               dark:text-[#A89FFF]
-
               dark:hover:bg-[#2B2C3B]
             `
             : `
-              h-10
+              h-11
+              w-fit
 
               gap-2
 
@@ -125,11 +131,13 @@ function BotaoTema({
         <Sun
           size={compacto ? 20 : 17}
           strokeWidth={2}
+          className="shrink-0"
         />
       ) : (
         <Moon
           size={compacto ? 20 : 17}
           strokeWidth={2}
+          className="shrink-0"
         />
       )}
 

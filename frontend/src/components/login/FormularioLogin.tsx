@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 // Importa o Link para navegação entre páginas
 import { Link } from "react-router-dom";
 
-// Importa os componentes utilizados no formulário
+// Componentes utilizados no formulário
 import CampoLogin from "./CampoLogin";
 import BotaoGoogleLogin from "./BotaoGoogleLogin";
 import Spinner from "../common/Spinner";
@@ -42,19 +42,20 @@ function FormularioLogin({
         max-w-lg
 
         rounded-3xl
-
         border
         border-gray-200
 
         bg-white
 
-        px-9
-        py-8
+        px-8
+        py-9
 
         shadow-sm
 
         transition-colors
         duration-300
+
+        sm:px-10
 
         dark:border-[#343445]
         dark:bg-[#181824]
@@ -62,14 +63,15 @@ function FormularioLogin({
       "
     >
       {/* Título */}
-      <div className="mb-8">
+      <div className="mb-8 text-center">
         <h1
           className="
-            text-center
-            text-4xl
+            text-3xl
             font-bold
+            tracking-tight
+            text-[#101828]
 
-            text-gray-900
+            sm:text-4xl
 
             dark:text-white
           "
@@ -80,23 +82,23 @@ function FormularioLogin({
         <p
           className="
             mt-3
+            text-base
+            leading-7
+            text-gray-500
 
-            text-center
-            text-xl
-
-            text-gray-600
+            sm:text-lg
 
             dark:text-gray-300
           "
         >
-          Entre na sua conta para continuar.
+          Acesse sua conta para continuar.
         </p>
       </div>
 
       {/* Campos */}
       <div className="space-y-5">
         <CampoLogin
-          label="E-mail"
+          label="E-mail:"
           type="email"
           value={email}
           onChange={setEmail}
@@ -104,7 +106,7 @@ function FormularioLogin({
         />
 
         <CampoLogin
-          label="Senha"
+          label="Senha:"
           type="password"
           value={senha}
           onChange={setSenha}
@@ -112,19 +114,22 @@ function FormularioLogin({
         />
       </div>
 
-      {/* Link para recuperação de senha */}
+      {/* Recuperação de senha */}
       <div className="mt-3 text-right">
         <Link
           to="/esqueci-senha"
           className="
-            text-lg
+            text-sm
             font-semibold
-
             text-[#6C63FF]
 
+            transition-colors
+
+            hover:text-[#554CD8]
             hover:underline
 
             dark:text-[#A9A4FF]
+            dark:hover:text-[#C3BFFF]
           "
         >
           Esqueci minha senha
@@ -137,14 +142,15 @@ function FormularioLogin({
           role="alert"
           className="
             mt-5
-
             rounded-xl
 
             bg-red-50
 
-            p-4
+            px-4
+            py-3
 
-            text-lg
+            text-sm
+            leading-6
             text-red-700
 
             dark:bg-red-950/40
@@ -155,27 +161,28 @@ function FormularioLogin({
         </p>
       )}
 
-      {/* Botão principal */}
+      {/* Botão Entrar */}
       <button
         type="submit"
         disabled={carregando}
         aria-busy={carregando}
         className="
           mt-6
+
           flex
           w-full
           items-center
           justify-center
           gap-3
 
-          rounded-2xl
+          rounded-xl
 
           bg-[#6C63FF]
 
           px-6
-          py-4
+          py-3.5
 
-          text-xl
+          text-base
           font-bold
           text-white
 
@@ -196,7 +203,10 @@ function FormularioLogin({
         "
       >
         {carregando && <Spinner />}
-        {carregando ? "Entrando" : "Entrar"}
+
+        {carregando
+          ? "Entrando..."
+          : "Entrar"}
       </button>
 
       {/* Separador */}
@@ -205,19 +215,18 @@ function FormularioLogin({
           className="
             h-px
             flex-1
+            bg-gray-200
 
-            bg-gray-300
-
-            dark:bg-gray-600
+            dark:bg-white/10
           "
         />
 
         <span
           className="
-            text-lg
-            text-gray-500
+            text-sm
+            text-gray-400
 
-            dark:text-gray-400
+            dark:text-gray-500
           "
         >
           ou
@@ -227,28 +236,29 @@ function FormularioLogin({
           className="
             h-px
             flex-1
+            bg-gray-200
 
-            bg-gray-300
-
-            dark:bg-gray-600
+            dark:bg-white/10
           "
         />
       </div>
 
       {/* Login com Google */}
-      <BotaoGoogleLogin onClick={onGoogleLogin} disabled={carregando} />
+      <BotaoGoogleLogin
+        onClick={onGoogleLogin}
+        disabled={carregando}
+      />
 
-      {/* Link para criar conta */}
+      {/* Criar conta */}
       <p
         className="
-          mt-7
-
+          mt-6
           text-center
-          text-lg
 
-          text-gray-600
+          text-sm
+          text-gray-500
 
-          dark:text-gray-300
+          dark:text-gray-400
         "
       >
         Ainda não possui uma conta?{" "}
@@ -257,12 +267,15 @@ function FormularioLogin({
           to="/cadastro"
           className="
             font-bold
-
             text-[#6C63FF]
 
+            transition-colors
+
+            hover:text-[#554CD8]
             hover:underline
 
             dark:text-[#A9A4FF]
+            dark:hover:text-[#C3BFFF]
           "
         >
           Criar conta
@@ -272,5 +285,4 @@ function FormularioLogin({
   );
 }
 
-// Exporta o componente
 export default FormularioLogin;
