@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { getCurrentUserToken } from '../lib/auth'
 
-// Esqueleto cru da Fase 2, itens 2.1 (RF-020) e 2.2 (RF-021, RF-022) — só o
-// necessário pra exercitar os endpoints de backend já implementados, sem
-// listagem, sem polish visual. Layout final é responsabilidade de
-// Laureane/Jennifer; isto existe só pra não depender do front delas pra
-// testar o back.
+// Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022) e 2.6
+// (RF-026) — só o necessário pra exercitar os endpoints de backend já
+// implementados, sem listagem, sem polish visual. Layout final é
+// responsabilidade de Laureane/Jennifer; isto existe só pra não depender do
+// front delas pra testar o back.
 
 async function chamarApi(path: string, options: RequestInit = {}) {
   const token = await getCurrentUserToken()
@@ -32,6 +32,10 @@ function Vinculos() {
   const [resultadoResponder, setResultadoResponder] = useState<string | null>(null)
   const [erroResponder, setErroResponder] = useState<string | null>(null)
 
+  const [emailIdoso, setEmailIdoso] = useState('')
+  const [resultadoSolicitarFamiliar, setResultadoSolicitarFamiliar] = useState<string | null>(null)
+  const [erroSolicitarFamiliar, setErroSolicitarFamiliar] = useState<string | null>(null)
+
   async function handleSolicitar(e: FormEvent) {
     e.preventDefault()
     setErroSolicitar(null)
@@ -57,6 +61,22 @@ function Vinculos() {
     } catch (err) {
       console.error(`Falha ao ${acao} vínculo:`, err)
       setErroResponder(err instanceof Error ? err.message : `Falha ao ${acao} vínculo.`)
+    }
+  }
+
+  async function handleSolicitarFamiliar(e: FormEvent) {
+    e.preventDefault()
+    setErroSolicitarFamiliar(null)
+    setResultadoSolicitarFamiliar(null)
+    try {
+      const corpo = await chamarApi('/vinculo/solicitar-familiar', {
+        method: 'POST',
+        body: JSON.stringify({ email: emailIdoso }),
+      })
+      setResultadoSolicitarFamiliar(JSON.stringify(corpo, null, 2))
+    } catch (err) {
+      console.error('Falha ao solicitar vínculo de familiar:', err)
+      setErroSolicitarFamiliar(err instanceof Error ? err.message : 'Falha ao solicitar vínculo.')
     }
   }
 
@@ -139,6 +159,36 @@ function Vinculos() {
           </p>
         )}
         {resultadoResponder && <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoResponder}</pre>}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Solicitar vínculo (familiar → idoso, pelo e-mail)</h1>
+        <form onSubmit={handleSolicitarFamiliar} className="space-y-4">
+          <div>
+            <label htmlFor="email_idoso" className="block text-lg font-medium text-gray-900">
+              E-mail do idoso
+            </label>
+            <input
+              id="email_idoso"
+              type="email"
+              required
+              value={emailIdoso}
+              onChange={(e) => setEmailIdoso(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
+            Solicitar
+          </button>
+        </form>
+        {erroSolicitarFamiliar && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroSolicitarFamiliar}
+          </p>
+        )}
+        {resultadoSolicitarFamiliar && (
+          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoSolicitarFamiliar}</pre>
+        )}
       </section>
     </main>
   )

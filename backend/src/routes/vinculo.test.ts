@@ -42,11 +42,16 @@ function buildApp() {
 }
 
 const CUIDADOR = { id: 1, tipo_perfil: "cuidador" };
+const FAMILIAR = { id: 1, tipo_perfil: "familiar" };
 
 type FindFirstUsuarioArgs = { where: { firebase_uid?: string; tipo_perfil?: string } };
 
 function post(body: Record<string, unknown>) {
   return request(buildApp()).post("/vinculo/solicitar-cuidador").set("Authorization", "Bearer x").send(body);
+}
+
+function postFamiliar(body: Record<string, unknown>) {
+  return request(buildApp()).post("/vinculo/solicitar-familiar").set("Authorization", "Bearer x").send(body);
 }
 
 function responder(id: number, acao: "aprovar" | "recusar") {
@@ -189,6 +194,115 @@ describe("POST /vinculo/solicitar-cuidador", () => {
     expect(createVinculo).toHaveBeenCalledWith({
       data: expect.objectContaining({ idoso_id: 31 }),
     });
+  });
+});
+
+describe("POST /vinculo/solicitar-familiar", () => {
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirstUsuario.mockReset();
+    findUniqueUsuario.mockReset();
+    findFirstVinculo.mockReset();
+    createVinculo.mockReset();
+    verifyIdToken.mockResolvedValue({ uid: "uid-1" });
+    findFirstUsuario.mockResolvedValue(FAMILIAR); // requireAuth resolve caller
+    findUniqueUsuario.mockResolvedValue(FAMILIAR);
+  });
+
+  it("403 quando chamador não é familiar", async () => {
+    findUniqueUsuario.mockResolvedValue({ id: 1, tipo_perfil: "cuidador" });
+    const res = await postFamiliar({ email: "idoso@a.com" });
+    expect(res.status).toBe(403);
+  });
+
+  it("sucesso: cria vínculo pendente com origem solicitacao_familiar", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? FAMILIAR : { id: 10, tipo_perfil: "idoso" },
+    );
+    findFirstVinculo.mockResolvedValue(null);
+    createVinculo.mockResolvedValue({ id: 200, idoso_id: 10, vinculado_id: 1, status: "pendente" });
+
+    const res = await postFamiliar({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(201);
+    expect(createVinculo).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        idoso_id: 10,
+        vinculado_id: 1,
+        tipo_vinculo: "familiar",
+        origem: "solicitacao_familiar",
+        status: "pendente",
+      }),
+    });
+  });
+
+  it("404 quando e-mail não encontra idoso nenhum", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => (args.where.firebase_uid ? FAMILIAR : null));
+
+    const res = await postFamiliar({ email: "ninguem@a.com" });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("404 genérico quando e-mail pertence a conta que não é idoso", async () => {
+    // findFirst já filtra tipo_perfil='idoso' na query — uma conta de outro tipo com
+    // esse e-mail nunca bate no where, então resolve null igual a "não encontrado".
+    // Não revela a que tipo de conta o e-mail pertence (mesmo padrão da tarefa 2.1).
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => (args.where.firebase_uid ? FAMILIAR : null));
+
+    const res = await postFamiliar({ email: "cuidador@a.com" });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("409 quando já existe solicitação pendente", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? FAMILIAR : { id: 10, tipo_perfil: "idoso" },
+    );
+    findFirstVinculo.mockResolvedValue({ status: "pendente" });
+
+    const res = await postFamiliar({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("409 quando já vinculados (aprovado)", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? FAMILIAR : { id: 10, tipo_perfil: "idoso" },
+    );
+    findFirstVinculo.mockResolvedValue({ status: "aprovado" });
+
+    const res = await postFamiliar({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("409 quando colide com vínculo já criado pelo Fluxo A (origem convite_idoso)", async () => {
+    // Fluxo A (tarefa 2.5) já criou Vinculo pendente/aprovado com origem='convite_idoso'
+    // pro mesmo par idoso/familiar — o índice único (idoso_id, vinculado_id, tipo_vinculo)
+    // filtrado por status não distingue origem, então a checagem de duplicidade em
+    // aplicação (findFirst) já pega esse caso antes de tentar o create. Comportamento
+    // correto: não duplicar vínculo, não é bug.
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? FAMILIAR : { id: 10, tipo_perfil: "idoso" },
+    );
+    findFirstVinculo.mockResolvedValue({ status: "aprovado", origem: "convite_idoso" });
+
+    const res = await postFamiliar({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("permite nova solicitação quando único registro existente foi recusado", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? FAMILIAR : { id: 10, tipo_perfil: "idoso" },
+    );
+    findFirstVinculo.mockResolvedValue(null); // findFirst já filtra status in [pendente, aprovado]
+    createVinculo.mockResolvedValue({ id: 201, idoso_id: 10, vinculado_id: 1, status: "pendente" });
+
+    const res = await postFamiliar({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(201);
   });
 });
 
