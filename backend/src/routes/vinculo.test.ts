@@ -425,4 +425,86 @@ describe("POST /vinculo/:id/aprovar e /recusar", () => {
 
     expect(res.status).toBe(409);
   });
+
+  // Tarefa 2.7 (RF-027) — mesma rota compartilhada, agora também cobrindo
+  // tipo_vinculo='familiar' (Fluxo B, tarefa 2.6). Autoridade idêntica à do
+  // vínculo de cuidador, sem variante nova.
+  const VINCULO_FAMILIAR_PENDENTE = { id: 6, idoso_id: 10, status: "pendente", tipo_vinculo: "familiar" };
+
+  it("aprova vínculo familiar quando modo_decisao='idoso' e chamador é o idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    updateVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_PENDENTE, status: "aprovado", aprovador_id: 10 });
+
+    const res = await responder(6, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateVinculo).toHaveBeenCalledWith({
+      where: { id: 6 },
+      data: expect.objectContaining({ status: "aprovado", aprovador_id: 10 }),
+    });
+  });
+
+  it("recusa vínculo familiar quando modo_decisao='idoso' e chamador é o idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    updateVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_PENDENTE, status: "recusado", aprovador_id: 10 });
+
+    const res = await responder(6, "recusar");
+
+    expect(res.status).toBe(200);
+  });
+
+  it("aprova vínculo familiar quando modo_decisao='familiar' e chamador é outro familiar já aprovado", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 999 }); // outro Vinculo familiar já aprovado do chamador com este idoso
+    updateVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_PENDENTE, status: "aprovado", aprovador_id: 20 });
+
+    const res = await responder(6, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(findFirstVinculo).toHaveBeenCalledWith({
+      where: { idoso_id: 10, vinculado_id: 20, tipo_vinculo: "familiar", status: "aprovado" },
+      select: { id: true },
+    });
+  });
+
+  it("403 vínculo familiar quando modo_decisao='familiar' e chamador é o próprio idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+
+    const res = await responder(6, "aprovar");
+
+    expect(res.status).toBe(403);
+  });
+
+  it("403 vínculo familiar quando chamador é o próprio familiar que solicitou (sem vínculo aprovado prévio)", async () => {
+    // Familiar solicitante não tem, para este idoso, nenhum outro Vinculo tipo_vinculo='familiar'
+    // já aprovado — a checagem de autoridade (findFirstVinculo status='aprovado') não encontra nada,
+    // então o próprio solicitante não consegue aprovar o próprio pedido pendente.
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue(null);
+
+    const res = await responder(6, "aprovar");
+
+    expect(res.status).toBe(403);
+  });
+
+  it("fluxo de cuidador não regride: tipo_vinculo='cuidador' continua aprovável normalmente", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    updateVinculo.mockResolvedValue({ ...VINCULO_PENDENTE, status: "aprovado", aprovador_id: 10 });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+  });
 });

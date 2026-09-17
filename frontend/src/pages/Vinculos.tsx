@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { getCurrentUserToken } from '../lib/auth'
 
-// Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022) e 2.6
-// (RF-026) — só o necessário pra exercitar os endpoints de backend já
-// implementados, sem listagem, sem polish visual. Layout final é
+// Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022), 2.6
+// (RF-026) e 2.7 (RF-027) — só o necessário pra exercitar os endpoints de
+// backend já implementados, sem listagem, sem polish visual. Layout final é
 // responsabilidade de Laureane/Jennifer; isto existe só pra não depender do
 // front delas pra testar o back.
 
@@ -123,7 +123,12 @@ function Vinculos() {
       </section>
 
       <section className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Responder solicitação de vínculo</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Responder solicitação de vínculo (cuidador ou familiar)
+        </h1>
+        <p className="text-base text-gray-700">
+          Mesma rota pros dois tipos de vínculo — o backend resolve pelo id.
+        </p>
         <div>
           <label htmlFor="vinculo_id" className="block text-lg font-medium text-gray-900">
             Id do vínculo
