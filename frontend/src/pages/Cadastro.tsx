@@ -1,6 +1,10 @@
 // Importa o useState para criar os estados da página
 // e FormEvent para definir o tipo do evento do formulário
-import { useState, type FormEvent } from "react";
+import {
+  useState,
+  type FormEvent,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
 // Importa as funções relacionadas à autenticação
@@ -25,34 +29,36 @@ function Cadastro() {
   // Estado responsável por armazenar o e-mail digitado
   const [email, setEmail] = useState("");
 
-  // Estado responsável por armazenar o e-mail de familiar digitado (RF-024, só idoso)
-  const [emailConviteFamiliar, setEmailConviteFamiliar] = useState("");
+  // E-mail do familiar convidado
+  const [
+    emailConviteFamiliar,
+    setEmailConviteFamiliar,
+  ] = useState("");
 
-  // Estado responsável por armazenar a senha digitada
+  // Estado responsável por armazenar a senha
   const [senha, setSenha] = useState("");
 
-  // Estado responsável por armazenar o tipo de perfil selecionado
-  // O perfil "idoso" é selecionado inicialmente
+  // Perfil selecionado
   const [tipoPerfil, setTipoPerfil] =
     useState<TipoPerfil>("idoso");
 
-  // Estado responsável por armazenar possíveis mensagens de erro
+  // Mensagem de erro
   const [erro, setErro] =
     useState<string | null>(null);
 
-  // Estado responsável por indicar se uma requisição está em andamento
-  // (evita que o usuário clique de novo enquanto o backend responde)
-  const [carregando, setCarregando] = useState(false);
+  // Indica se uma requisição está em andamento
+  const [carregando, setCarregando] =
+    useState(false);
 
+  // Responsável pela navegação
   const navigate = useNavigate();
 
-  // Função executada quando o usuário cadastra
-  // utilizando e-mail e senha
-  async function handleSubmit(e: FormEvent) {
-    // Impede o recarregamento da página
+  // Cadastro utilizando e-mail e senha
+  async function handleSubmit(
+    e: FormEvent
+  ) {
     e.preventDefault();
 
-    // Remove possíveis mensagens de erro anteriores
     setErro(null);
     setCarregando(true);
 
@@ -60,20 +66,27 @@ function Cadastro() {
       // Registra o usuário
       await registerUser(email, senha);
 
-      // RF-025: dispara a confirmação de posse do e-mail só para Familiar — é o que
-      // habilita o vínculo automático com o Idoso que já o convidou.
+      // Envia confirmação de e-mail para familiar
       if (tipoPerfil === "familiar") {
         await sendEmailVerification();
       }
 
-      // Sincroniza os dados adicionais do usuário
+      // Sincroniza os dados adicionais
       await syncUser({
         tipoPerfil,
         nome,
-        emailConviteFamiliar: tipoPerfil === "idoso" ? emailConviteFamiliar : undefined,
+        emailConviteFamiliar:
+          tipoPerfil === "idoso"
+            ? emailConviteFamiliar
+            : undefined,
       });
 
-      navigate("/welcome", { state: { cadastroSucesso: true } });
+      // Navega para a página de boas-vindas
+      navigate("/welcome", {
+        state: {
+          cadastroSucesso: true,
+        },
+      });
     } catch (err) {
       console.error(
         "Falha no cadastro (e-mail/senha):",
@@ -88,18 +101,16 @@ function Cadastro() {
     }
   }
 
-  // Função executada quando o usuário
-  // cadastra utilizando Google
+  // Cadastro utilizando Google
   async function handleGoogleCadastro() {
-    // Remove possíveis mensagens de erro anteriores
     setErro(null);
     setCarregando(true);
 
     try {
-      // Realiza autenticação com Google
+      // Autenticação com Google
       await loginWithGoogle();
 
-      // RF-025: no-op se a conta Google já chegar com e-mail verificado.
+      // Confirmação do e-mail para familiar
       if (tipoPerfil === "familiar") {
         await sendEmailVerification();
       }
@@ -107,10 +118,18 @@ function Cadastro() {
       // Sincroniza o perfil escolhido
       await syncUser({
         tipoPerfil,
-        emailConviteFamiliar: tipoPerfil === "idoso" ? emailConviteFamiliar : undefined,
+        emailConviteFamiliar:
+          tipoPerfil === "idoso"
+            ? emailConviteFamiliar
+            : undefined,
       });
 
-      navigate("/welcome", { state: { cadastroSucesso: true } });
+      // Navega para a página de boas-vindas
+      navigate("/welcome", {
+        state: {
+          cadastroSucesso: true,
+        },
+      });
     } catch (err) {
       console.error(
         "Falha no cadastro (Google):",
@@ -138,7 +157,7 @@ function Cadastro() {
         dark:bg-[#101018]
       "
     >
-      {/* Estrutura principal da página */}
+      {/* Estrutura principal */}
       <div
         className="
           grid
@@ -148,7 +167,7 @@ function Cadastro() {
           lg:grid-cols-2
         "
       >
-        {/* Lado esquerdo informativo */}
+        {/* LADO ESQUERDO */}
         <div className="h-full">
           <LadoInformativo
             tipo="cadastro"
@@ -156,14 +175,20 @@ function Cadastro() {
           />
         </div>
 
-        {/* Lado direito */}
+        {/* LADO DIREITO */}
         <section
           className="
+            relative
+
             flex
             min-h-screen
-            flex-col
+            items-center
+            justify-center
 
             bg-white
+
+            px-6
+            py-20
 
             transition-colors
             duration-300
@@ -171,36 +196,51 @@ function Cadastro() {
             dark:bg-[#101018]
           "
         >
-          {/* Controle de tema */}
-          <ControleTema />
+          {/* CONTROLE DE TEMA */}
+          <div
+            className="
+              absolute
+              right-6
+              top-5
+              z-20
 
-          {/* Área do formulário */}
+              sm:right-8
+              sm:top-6
+            "
+          >
+            <ControleTema />
+          </div>
+
+          {/* FORMULÁRIO */}
           <div
             className="
               flex
-              flex-1
+              w-full
               items-center
               justify-center
-
-              px-6
-              pb-10
             "
           >
             <FormularioCadastro
               nome={nome}
               email={email}
               senha={senha}
-              emailConviteFamiliar={emailConviteFamiliar}
+              emailConviteFamiliar={
+                emailConviteFamiliar
+              }
               tipoPerfil={tipoPerfil}
               erro={erro}
               carregando={carregando}
               setNome={setNome}
               setEmail={setEmail}
               setSenha={setSenha}
-              setEmailConviteFamiliar={setEmailConviteFamiliar}
+              setEmailConviteFamiliar={
+                setEmailConviteFamiliar
+              }
               setTipoPerfil={setTipoPerfil}
               onSubmit={handleSubmit}
-              onGoogleCadastro={handleGoogleCadastro}
+              onGoogleCadastro={
+                handleGoogleCadastro
+              }
             />
           </div>
         </section>
