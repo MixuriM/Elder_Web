@@ -590,3 +590,45 @@ por e-mail nunca bate, cai no mesmo 404 genérico de "nenhum idoso
 encontrado" — indistinguível de e-mail que não corresponde a ninguém. Não
 mitigado nesta tarefa; é decisão de escopo do grupo, mesmo tratamento dado
 aos outros riscos residuais aceitos já documentados nesta seção.
+
+**Bug de produção corrigido — `/auth/sync` retornava 500 depois de o backend
+ficar ocioso, não é cold start do Render (2026-09-17):** Diagnosticado via
+logs do serviço `elder-web-backend` no Render (MCP), não só suposição.
+Timeline real do incidente: Express sobe e já responde em 3s
+(`Backend rodando em http://localhost:10000`), mas a primeira query Prisma
+falha três vezes seguidas com `PrismaClientInitializationError: Can't reach
+database server at elder-web-sql-marcos.database.windows.net:1433` antes de
+emplacar — ou seja, o gargalo é o Azure SQL recusando conexão logo após
+ficar ocioso (padrão tipo auto-resume), não o container do Render subindo
+devagar. A entrada de memória antiga (`render_free_tier_cold_start.md`)
+apontava spin-down do Render como causa da lentidão em login/cadastro — isso
+continua válido para a lentidão em si, mas o erro 500 especificamente tem
+essa outra causa, e não foi cogitado reabrir upgrade de plano Render nem
+keep-alive (já recusados 2026-09-14) porque não resolveriam esse erro.
+
+Correção em `backend/src/lib/prisma.ts`: o client Prisma exportado passou a
+ser uma client extension (`$extends` com `query.$allOperations`, não `$use`
+— depreciado e a caminho de remoção no Prisma 6) que re-tenta a query com
+backoff (1s/2s/4s/8s/8s/8s, ~31s de margem) especificamente em
+`Prisma.PrismaClientInitializationError`, antes de deixar o erro subir pro
+errorHandler genérico de `app.ts`. Como é o client único importado em toda
+rota (`import { prisma } from "../lib/prisma"`), cobre `/auth/sync` e
+qualquer outra rota sem precisar tocar em cada arquivo de rota individual.
+
+Reforço no frontend, mesmo padrão de causa raiz (função compartilhada, não
+por tela): `syncUser()` em `frontend/src/lib/auth.ts` ganhou retry próprio
+(mesmo backoff, até 4xx que é erro real e não deve repetir) para cobrir
+qualquer falha de rede que escape do retry do backend, e duas funções novas
+exportadas — `mensagemErroLogin`/`mensagemErroCadastro` — que distinguem
+"login/cadastro no Firebase falhou de verdade" de "Firebase OK mas
+`/auth/sync` falhou": antes disso, `Login.tsx`/`Cadastro.tsx` mostravam
+"confira seu e-mail e senha" mesmo quando a credencial estava certa e o
+problema era só o backend/banco ainda acordando, o que podia levar o usuário
+a achar (erroneamente) que errou a senha. `Cadastro.tsx` também passou a
+orientar "não tente cadastrar de novo" nesse cenário, porque a conta Firebase
+já foi criada — recadastrar bate no problema de conta órfã já documentado
+nesta seção (ver "Nota operacional" acima).
+
+`npx tsc --noEmit` limpo em ambos os pacotes, `npm run build` do backend
+limpo, suíte do backend (62 testes/6 suítes) e do frontend (2 suítes/4
+testes) sem regressão.

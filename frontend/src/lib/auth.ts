@@ -70,31 +70,80 @@ export type TipoPerfil = "idoso" | "cuidador" | "familiar";
 
 // Sincroniza com o backend logo após login/cadastro (POST /auth/sync).
 // tipo_perfil e nome só são obrigatórios no backend quando a conta ainda não existe.
+// Backend no Render free tier hiberna após inatividade: primeiro request após
+// hibernação sofre cold start e pode retornar 500 (timeout de conexão com o
+// banco) antes do backend acordar de vez — retry com backoff cobre essa janela
+// sem expor o erro transitório como se fosse e-mail/senha errados.
+const SYNC_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 8000];
+
 export async function syncUser(dados?: {
   tipoPerfil?: TipoPerfil;
   nome?: string;
   emailConviteFamiliar?: string;
 }) {
   const token = await getCurrentUserToken();
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/sync`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      tipo_perfil: dados?.tipoPerfil,
-      nome: dados?.nome,
-      email_convite_familiar: dados?.emailConviteFamiliar || undefined,
-    }),
-  });
 
-  if (!res.ok) {
-    const corpo = await res.text().catch(() => "");
-    throw new Error(
-      `Falha em /auth/sync: status ${res.status}${corpo ? ` — ${corpo}` : ""}`
-    );
+  let ultimoErro: unknown;
+  for (let tentativa = 0; tentativa <= SYNC_RETRY_DELAYS_MS.length; tentativa++) {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          tipo_perfil: dados?.tipoPerfil,
+          nome: dados?.nome,
+          email_convite_familiar: dados?.emailConviteFamiliar || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const corpo = await res.text().catch(() => "");
+        const erro = new Error(
+          `Falha em /auth/sync: status ${res.status}${corpo ? ` — ${corpo}` : ""}`
+        );
+        // 4xx é erro real (token inválido, dado inválido) — não adianta tentar de novo.
+        if (res.status < 500 || tentativa === SYNC_RETRY_DELAYS_MS.length) {
+          throw erro;
+        }
+        ultimoErro = erro;
+        await new Promise((r) => setTimeout(r, SYNC_RETRY_DELAYS_MS[tentativa]));
+        continue;
+      }
+
+      return await res.json();
+    } catch (err) {
+      // TypeError = falha de rede/CORS (backend ainda nem respondendo) — também retry.
+      if (!(err instanceof TypeError) || tentativa === SYNC_RETRY_DELAYS_MS.length) {
+        throw err;
+      }
+      ultimoErro = err;
+      await new Promise((r) => setTimeout(r, SYNC_RETRY_DELAYS_MS[tentativa]));
+    }
   }
+  throw ultimoErro;
+}
 
-  return res.json();
+// Diferencia "senha/e-mail errados" (erro do Firebase Auth) de "/auth/sync falhou
+// mesmo depois do login funcionar" (backend hibernado no Render demorando pra
+// acordar) — sem isso o usuário lê "confira seu e-mail e senha" quando a conta
+// está certa e o problema é só o servidor ainda subindo.
+export function mensagemErroLogin(err: unknown): string {
+  if (err instanceof Error && err.message.includes("/auth/sync")) {
+    return "Login validado, mas o servidor está iniciando. Aguarde alguns segundos e tente de novo.";
+  }
+  return "Não foi possível entrar. Confira seu e-mail e senha.";
+}
+
+// Mesma ideia que mensagemErroLogin: se registerUser/loginWithGoogle já criou a
+// conta e só o /auth/sync falhou (servidor iniciando), reenviar o formulário bate
+// em "e-mail já cadastrado" no Firebase — orientar login em vez de tentar cadastrar
+// de novo.
+export function mensagemErroCadastro(err: unknown): string {
+  if (err instanceof Error && err.message.includes("/auth/sync")) {
+    return "Conta criada, mas o servidor está iniciando. Aguarde alguns segundos e faça login normalmente (não tente cadastrar de novo).";
+  }
+  return "Não foi possível criar a conta. Confira os dados e tente novamente.";
 }

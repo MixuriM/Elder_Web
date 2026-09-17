@@ -12,6 +12,7 @@ import {
   loginUser,
   loginWithGoogle,
   syncUser,
+  mensagemErroLogin,
 } from "../lib/auth";
 
 // Componentes principais da página
@@ -61,9 +62,7 @@ function Login() {
         err
       );
 
-      setErro(
-        "Não foi possível entrar. Confira seu e-mail e senha."
-      );
+      setErro(mensagemErroLogin(err));
     } finally {
       setCarregando(false);
     }
@@ -89,9 +88,7 @@ function Login() {
         err
       );
 
-      setErro(
-        "Não foi possível entrar com o Google."
-      );
+      setErro(mensagemErroLogin(err));
     } finally {
       setCarregando(false);
     }
