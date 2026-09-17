@@ -16,9 +16,9 @@ function LandingPage() {
   // Hook utilizado para navegar entre páginas
   const navigate = useNavigate();
 
-  // Navega para a página de cadastro
+  // Navega para a página de boas-vindas (mesmo destino do botão "Entrar")
   function handleCadastro() {
-    navigate("/cadastro");
+    navigate("/welcome");
   }
 
   // Navega para a página de entrar
