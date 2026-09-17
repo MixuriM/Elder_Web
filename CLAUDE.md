@@ -579,8 +579,8 @@ acessibilidade das seções existentes (label associado, erro com
 `role="alert"`, fontes grandes). `tsc --noEmit` limpo, suíte existente do
 frontend (2 suites, 4 testes) sem regressão.
 
-Fora de escopo deste item (não implementado, por instrução explícita): item
-2.7 (aprovar/recusar essa solicitação).
+Item 2.7 (aprovar/recusar essa solicitação) implementado depois — ver
+entrada no fim deste arquivo.
 
 **Risco residual aceito, não mitigado (decisão do grupo, não decidida por
 este agente):** Idoso sem e-mail cadastrado (`Usuario.email IS NULL`,
@@ -632,3 +632,53 @@ nesta seção (ver "Nota operacional" acima).
 `npx tsc --noEmit` limpo em ambos os pacotes, `npm run build` do backend
 limpo, suíte do backend (62 testes/6 suítes) e do frontend (2 suítes/4
 testes) sem regressão.
+
+**Item 2.7 da Fase 2 (RF-027) implementado — aprovar/recusar solicitação de
+vínculo de Familiar, Fluxo B (2026-09-17, PR #58, commit `2360f57`):**
+
+`responderSolicitacaoCuidador` em `backend/src/routes/vinculo.ts` renomeada
+pra `responderSolicitacaoVinculo` e estendida pra também aceitar
+`tipo_vinculo='familiar'` — mesma função compartilhada entre
+`POST /vinculo/:id/aprovar` e `/recusar`, sem duplicar lógica. Único ponto
+de mudança: removida a condição `vinculo.tipo_vinculo !== "cuidador"` que
+dava 404 pra vínculo de Familiar (item 2.2, decisão de 2026-09-15, reaberta
+aqui de propósito — era o próprio 404 que este item precisava fechar). Ficou
+só `if (!vinculo)`: `tipo_vinculo` tem CHECK constraint no banco travando
+os únicos dois valores possíveis (`'cuidador'`/`'familiar'`,
+`schema.prisma:127`), então checar o valor específico depois de confirmar
+que o registro existe é redundante — qualquer `Vinculo` encontrado já
+pertence a um dos dois fluxos que esta rota cobre. Nenhuma mudança na
+checagem de autoridade (`Usuario.modo_decisao` do idoso dono do vínculo):
+lida antes de alterar e confirmado que já era agnóstica a `tipo_vinculo`.
+
+Investigada a pergunta feita explicitamente antes de decidir sozinho: se um
+Familiar consegue aprovar o próprio pedido pendente criado por ele mesmo via
+`/solicitar-familiar` (item 2.6). Resposta, confirmada lendo
+`20260915090000_vinculo_unique_ativo/migration.sql` (índice único filtrado
+`(idoso_id, vinculado_id, tipo_vinculo)` `WHERE status IN
+('pendente','aprovado')`, item 2.3): não consegue, por construção, sem
+precisar de guard novo. A checagem de autoridade em `modo_decisao='familiar'`
+exige um `Vinculo` já `aprovado` do chamador com aquele idoso; como o índice
+único impede o mesmo par idoso/familiar/tipo_vinculo ter simultaneamente uma
+linha `pendente` e uma `aprovado`, o próprio solicitante nunca tem como
+satisfazer essa condição com o próprio pedido. Autoridade sempre cai pra um
+Familiar diferente (já aprovado) ou pro idoso (`modo_decisao='idoso'`).
+Teste dedicado cobrindo esse caso.
+
+6 testes novos em `vinculo.test.ts` (aprovar/recusar por idoso, aprovar por
+outro familiar já aprovado, 403 pro próprio idoso quando `modo_decisao`
+transferido, 403 pro próprio solicitante sem vínculo aprovado prévio, e
+confirmação de que o fluxo de cuidador não regrediu) — suíte completa do
+backend em 68 testes/6 suítes (era 62), sem quebra.
+
+Frontend: nenhuma seção nova — a seção "Responder solicitação de vínculo"
+já existente em `Vinculos.tsx` (item 2.2) já cobria qualquer `tipo_vinculo`,
+já que só pede o id do vínculo e chama a mesma rota. Só título e um parágrafo
+curto atualizados pra deixar explícito que cobre os dois fluxos agora. `npx
+tsc --noEmit` limpo, suíte frontend (2 suítes/4 testes) sem regressão.
+
+Fora de escopo deste item (não implementado, por instrução explícita, fica
+como dívida técnica futura): endpoint de contestação de vínculo automático
+já `aprovado` via `notificado_em` (Fluxo A, item 2.5) — continua não
+coberto por `/vinculo/:id/aprovar|recusar`. Item 2.8 (flags `permite_*`)
+também não tocado.
