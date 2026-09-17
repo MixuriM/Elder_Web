@@ -1,44 +1,48 @@
 // Importa o useState para criar os estados da página
 // e FormEvent para definir o tipo do evento do formulário
-import { useState, type FormEvent } from "react";
+import {
+  useState,
+  type FormEvent,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
-// Importa as funções relacionadas à autenticação
+// Funções relacionadas à autenticação
 import {
   loginUser,
   loginWithGoogle,
   syncUser,
 } from "../lib/auth";
 
-// Importa os componentes principais da página
+// Componentes principais da página
 import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioLogin from "../components/login/FormularioLogin";
 import ControleTema from "../components/layout/ControleTema";
 
-// Componente principal da página de login
 function Login() {
-  // Estado responsável por armazenar o e-mail digitado
+  // E-mail digitado pelo usuário
   const [email, setEmail] = useState("");
 
-  // Estado responsável por armazenar a senha digitada
+  // Senha digitada pelo usuário
   const [senha, setSenha] = useState("");
 
-  // Estado responsável por armazenar possíveis mensagens de erro
-  const [erro, setErro] = useState<string | null>(null);
+  // Mensagem de erro
+  const [erro, setErro] =
+    useState<string | null>(null);
 
-  // Estado responsável por indicar se uma requisição está em andamento
-  // (evita que o usuário clique de novo enquanto o backend responde)
-  const [carregando, setCarregando] = useState(false);
+  // Indica se uma requisição está acontecendo
+  const [carregando, setCarregando] =
+    useState(false);
 
+  // Responsável pela navegação
   const navigate = useNavigate();
 
-  // Função executada quando o usuário entra
-  // utilizando e-mail e senha
-  async function handleSubmit(e: FormEvent) {
-    // Impede o recarregamento da página
+  // Login utilizando e-mail e senha
+  async function handleSubmit(
+    e: FormEvent
+  ) {
     e.preventDefault();
 
-    // Remove possíveis mensagens de erro anteriores
     setErro(null);
     setCarregando(true);
 
@@ -49,6 +53,7 @@ function Login() {
       // Sincroniza os dados do usuário
       await syncUser();
 
+      // Navega para a Home
       navigate("/Home");
     } catch (err) {
       console.error(
@@ -64,10 +69,8 @@ function Login() {
     }
   }
 
-  // Função executada quando o usuário
-  // entra utilizando Google
+  // Login utilizando Google
   async function handleGoogleLogin() {
-    // Remove possíveis mensagens de erro anteriores
     setErro(null);
     setCarregando(true);
 
@@ -75,9 +78,10 @@ function Login() {
       // Realiza o login com Google
       await loginWithGoogle();
 
-      // Sincroniza os dados do usuário
+      // Sincroniza os dados
       await syncUser();
 
+      // Navega para a Home
       navigate("/Home");
     } catch (err) {
       console.error(
@@ -106,7 +110,7 @@ function Login() {
         dark:bg-[#101018]
       "
     >
-      {/* Estrutura principal da página */}
+      {/* Estrutura principal */}
       <div
         className="
           grid
@@ -116,21 +120,25 @@ function Login() {
           lg:grid-cols-2
         "
       >
-        {/* Lado esquerdo informativo */}
+        {/* LADO ESQUERDO */}
         <div className="h-full">
           <LadoInformativo tipo="login" />
         </div>
 
-        {/* Lado direito */}
+        {/* LADO DIREITO */}
         <section
           className="
+            relative
+
             flex
             min-h-screen
-            flex-col
-
-            gap-8
+            items-center
+            justify-center
 
             bg-white
+
+            px-6
+            py-20
 
             transition-colors
             duration-300
@@ -138,19 +146,28 @@ function Login() {
             dark:bg-[#101018]
           "
         >
-          {/* Controle de tema */}
-          <ControleTema />
+          {/* CONTROLE DE TEMA */}
+          <div
+            className="
+              absolute
+              right-6
+              top-5
+              z-20
 
-          {/* Área do formulário */}
+              sm:right-8
+              sm:top-6
+            "
+          >
+            <ControleTema />
+          </div>
+
+          {/* FORMULÁRIO */}
           <div
             className="
               flex
-              flex-1
+              w-full
               items-center
               justify-center
-
-              px-6
-              pb-10
             "
           >
             <FormularioLogin
@@ -161,7 +178,9 @@ function Login() {
               setEmail={setEmail}
               setSenha={setSenha}
               onSubmit={handleSubmit}
-              onGoogleLogin={handleGoogleLogin}
+              onGoogleLogin={
+                handleGoogleLogin
+              }
             />
           </div>
         </section>

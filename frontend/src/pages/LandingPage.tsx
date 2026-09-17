@@ -1,111 +1,104 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
-// Interfaces de tipos para os dados da Landing Page
-export interface HeroProps {
-  headline: string;
-  subheadline: string;
-  ctaText: string;
-  onCtaClick?: () => void;
-}
+// Componentes da Landing Page
+import Navbar from "../components/landing/Navbar";
+import HeroSection from "../components/landing/HeroSection";
+import ResumoSection from "../components/landing/ResumoSection";
+import FuncionalidadesSection from "../components/landing/FuncionalidadesSection";
+import ComoFuncionaSection from "../components/landing/ComoFuncionaSection";
+import PropositoSection from "../components/landing/PropositoSection";
+import PublicoSection from "../components/landing/PublicoSection";
+import AcessibilidadeSection from "../components/landing/AcessibilidadeSection";
+import CTASection from "../components/landing/CTASection";
+import Footer from "../components/landing/Footer";
 
-export interface LandingPageProps {
-  title?: string;
-  children?: React.ReactNode;
-}
-
-// Subcomponente de Hero (Seção Principal)
-const HeroSection: React.FC<HeroProps> = ({ headline, subheadline, ctaText, onCtaClick }) => (
-  <header className="hero-section flex flex-col items-center gap-6 px-6 py-16 text-center">
-    <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{headline}</h1>
-    <p className="max-w-xl text-xl text-gray-600 dark:text-gray-300">{subheadline}</p>
-    <button
-      onClick={onCtaClick}
-      type="button"
-      className="
-        rounded-2xl
-        bg-[#6C63FF]
-        px-8
-        py-4
-        text-xl
-        font-bold
-        text-white
-        transition
-        duration-300
-        hover:bg-[#5C54E8]
-        focus:outline-none
-        focus-visible:ring-2
-        focus-visible:ring-[#6C63FF]/40
-        dark:bg-[#7C74FF]
-        dark:hover:bg-[#6C63FF]
-      "
-    >
-      {ctaText}
-    </button>
-  </header>
-);
-
-// Componente Principal da Landing Page
-export const LandingPage: React.FC<LandingPageProps> = ({ children }) => {
+function LandingPage() {
+  // Hook utilizado para navegar entre páginas
   const navigate = useNavigate();
-  const handlePrimaryAction = () => {
-    navigate('/welcome');
-  };
+
+  // Navega para a página de cadastro
+  function handleCadastro() {
+    navigate("/cadastro");
+  }
+
+  // Navega para a página de login
+  function handleLogin() {
+    navigate("/login");
+  }
+
+  // Faz a rolagem suave até uma seção
+  function irParaSecao(id: string) {
+    const secao = document.getElementById(id);
+
+    if (secao) {
+      secao.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }
 
   return (
-    <div className="landing-page-container">
-      {/* 1. Header / Navegação */}
-      <nav className="navbar flex items-center justify-between px-6 py-4">
-        <div className="logo text-2xl font-bold text-gray-900 dark:text-white">SuaMarca</div>
-        <button
-          onClick={handlePrimaryAction}
-          type="button"
-          className="
-            rounded-2xl
-            bg-[#6C63FF]
-            px-6
-            py-3
-            text-lg
-            font-bold
-            text-white
-            transition
-            duration-300
-            hover:bg-[#5C54E8]
-            focus:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-[#6C63FF]/40
-            dark:bg-[#7C74FF]
-            dark:hover:bg-[#6C63FF]
+    <div
+      className="
+        min-h-screen
+        bg-white
+        text-[#101828]
+        transition-colors
+        duration-300
+
+        dark:bg-[#10101A]
+        dark:text-white
+      "
+    >
+      {/* Barra de navegação */}
+      <Navbar onEntrar={handleLogin} />
+
+      {/* Conteúdo principal */}
+      <main>
+        {/* Apresentação do Elder */}
+        <HeroSection
+          headline="Mais autonomia para um amanhã melhor."
+          subheadline="
+            O Elder Web conecta pessoas idosas,
+            familiares, cuidadores e profissionais,
+            tornando o cuidado mais simples,
+            organizado e próximo.
           "
-        >
-          Entrar
-        </button>
-      </nav>
+          ctaText="Conheça o Elder"
+          onCtaClick={() =>
+            irParaSecao("funcionalidades")
+          }
+        />
 
-      {/* 2. Hero Section */}
-      <HeroSection
-        headline="Transforme seus resultados com a nossa solução"
-        subheadline="Uma proposta de valor clara, direta e objetiva para converter seus visitantes em clientes."
-        ctaText="Garanta seu acesso"
-        onCtaClick={handlePrimaryAction}
-      />
+        {/* Resumo dos principais benefícios */}
+        <ResumoSection />
 
-      {/* 3. Conteúdo Dinâmico (Benefícios, Prova Social, FAQ, etc.) */}
-      <main className="main-content">
-        {children || (
-          <section className="features-placeholder">
-            <h2>Por que nos escolher?</h2>
-            {/* Adicione seus cards ou seções aqui */}
-          </section>
-        )}
+        {/* Funcionalidades */}
+        <FuncionalidadesSection />
+
+        {/* Como funciona */}
+        <ComoFuncionaSection />
+
+        {/* Sobre o Elder / Propósito */}
+        <PropositoSection />
+
+        {/* Para quem é o Elder */}
+        <PublicoSection />
+
+        {/* Acessibilidade */}
+        <AcessibilidadeSection />
+
+        {/* Chamada final para cadastro */}
+        <CTASection
+          onCriarConta={handleCadastro}
+        />
       </main>
 
-      {/* 4. Rodapé */}
-      <footer className="footer">
-        <p>&copy; {new Date().getFullYear()} SuaMarca. Todos os direitos reservados.</p>
-      </footer>
+      {/* Rodapé */}
+      <Footer />
     </div>
   );
-};
+}
 
 export default LandingPage;

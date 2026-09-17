@@ -1,21 +1,12 @@
+// Importa o componente responsável por alterar o tema
 import BotaoTema from "./BotaoTema";
 
+// Componente responsável por exibir o botão de tema
 function ControleTema() {
   return (
-    <div
-      className="
-        flex
-        w-full
-        justify-end
-        px-6
-        pt-5
-
-        sm:px-8
-        sm:pt-6
-      "
-    >
+    <>
       <BotaoTema />
-    </div>
+    </>
   );
 }
 
