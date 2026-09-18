@@ -58,6 +58,13 @@ function responder(id: number, acao: "aprovar" | "recusar") {
   return request(buildApp()).post(`/vinculo/${id}/${acao}`).set("Authorization", "Bearer x").send();
 }
 
+function definirPermissoes(id: number, body: Record<string, unknown>) {
+  return request(buildApp())
+    .patch(`/vinculo/${id}/definir-permissoes`)
+    .set("Authorization", "Bearer x")
+    .send(body);
+}
+
 describe("POST /vinculo/solicitar-cuidador", () => {
   beforeEach(() => {
     verifyIdToken.mockReset();
@@ -506,5 +513,150 @@ describe("POST /vinculo/:id/aprovar e /recusar", () => {
     const res = await responder(5, "aprovar");
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe("PATCH /vinculo/:id/definir-permissoes", () => {
+  const VINCULO_CUIDADOR_APROVADO = { id: 7, idoso_id: 10, status: "aprovado", tipo_vinculo: "cuidador" };
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirstUsuario.mockReset();
+    findUniqueUsuario.mockReset();
+    findFirstVinculo.mockReset();
+    findUniqueVinculo.mockReset();
+    updateVinculo.mockReset();
+    verifyIdToken.mockResolvedValue({ uid: "uid-1" });
+  });
+
+  it("titular idoso atualiza as flags com sucesso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    updateVinculo.mockResolvedValue({
+      ...VINCULO_CUIDADOR_APROVADO,
+      permite_registrar_saude: true,
+      permite_marcar_dose: true,
+      definido_por_id: 10,
+      definido_em: new Date(),
+    });
+
+    const res = await definirPermissoes(7, { permite_registrar_saude: true, permite_marcar_dose: true });
+
+    expect(res.status).toBe(200);
+    expect(updateVinculo).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: expect.objectContaining({
+        permite_registrar_saude: true,
+        permite_marcar_dose: true,
+        definido_por_id: 10,
+        definido_em: expect.any(Date),
+      }),
+      select: expect.any(Object),
+    });
+  });
+
+  it("titular familiar aprovado atualiza as flags com sucesso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 999 });
+    updateVinculo.mockResolvedValue({
+      ...VINCULO_CUIDADOR_APROVADO,
+      permite_criar_evento_cuidado: true,
+      definido_por_id: 20,
+      definido_em: new Date(),
+    });
+
+    const res = await definirPermissoes(7, { permite_criar_evento_cuidado: true });
+
+    expect(res.status).toBe(200);
+    expect(findFirstVinculo).toHaveBeenCalledWith({
+      where: { idoso_id: 10, vinculado_id: 20, tipo_vinculo: "familiar", status: "aprovado" },
+      select: { id: true },
+    });
+  });
+
+  it("403 quando modo_decisao='idoso' e chamador não é o idoso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 99 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+
+    const res = await definirPermissoes(7, { permite_registrar_saude: true });
+
+    expect(res.status).toBe(403);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("403 quando modo_decisao='familiar' e chamador é familiar sem vínculo aprovado", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue(null);
+
+    const res = await definirPermissoes(7, { permite_registrar_saude: true });
+
+    expect(res.status).toBe(403);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("400 quando tipo_vinculo='familiar'", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_CUIDADOR_APROVADO, tipo_vinculo: "familiar" });
+
+    const res = await definirPermissoes(7, { permite_registrar_saude: true });
+
+    expect(res.status).toBe(400);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("409 quando vínculo não está aprovado", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_CUIDADOR_APROVADO, status: "pendente" });
+
+    const res = await definirPermissoes(7, { permite_registrar_saude: true });
+
+    expect(res.status).toBe(409);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("404 quando vínculo não existe", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(null);
+
+    const res = await definirPermissoes(999, { permite_registrar_saude: true });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("atualização parcial: só toca o campo enviado", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    updateVinculo.mockResolvedValue({ ...VINCULO_CUIDADOR_APROVADO, permite_marcar_dose: true });
+
+    const res = await definirPermissoes(7, { permite_marcar_dose: true });
+
+    expect(res.status).toBe(200);
+    expect(updateVinculo).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: {
+        permite_marcar_dose: true,
+        definido_por_id: 10,
+        definido_em: expect.any(Date),
+      },
+      select: expect.any(Object),
+    });
+  });
+
+  it("400 quando nenhuma flag é enviada", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+
+    const res = await definirPermissoes(7, {});
+
+    expect(res.status).toBe(400);
+    expect(updateVinculo).not.toHaveBeenCalled();
   });
 });

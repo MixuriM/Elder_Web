@@ -222,6 +222,25 @@ router.post("/solicitar-familiar", requireAuth, async (req, res, next) => {
 // chamando — mesma regra pros dois tipos, sem variante nova. tipo_vinculo só tem os
 // dois valores 'cuidador'/'familiar' (CHECK constraint em schema.prisma), então uma
 // vez que vinculo existe, sempre pertence a um dos dois fluxos que esta rota cobre.
+// Resolve quem tem autoridade sobre o idoso (Usuario.modo_decisao) — reaproveitado
+// pela tarefa 2.8 (definir-permissoes) além de responderSolicitacaoVinculo. NULL
+// (nunca setado) tratado como 'idoso', mesma decisão de sempre.
+async function resolverModoDecisao(idosoId: number): Promise<"idoso" | "familiar"> {
+  const idoso = await prisma.usuario.findUnique({
+    where: { id: idosoId },
+    select: { modo_decisao: true },
+  });
+  return idoso?.modo_decisao === "familiar" ? "familiar" : "idoso";
+}
+
+async function familiarTemVinculoAprovado(idosoId: number, familiarId: number): Promise<boolean> {
+  const vinculo = await prisma.vinculo.findFirst({
+    where: { idoso_id: idosoId, vinculado_id: familiarId, tipo_vinculo: "familiar", status: "aprovado" },
+    select: { id: true },
+  });
+  return !!vinculo;
+}
+
 async function responderSolicitacaoVinculo(
   req: import("express").Request,
   res: import("express").Response,
@@ -245,14 +264,7 @@ async function responderSolicitacaoVinculo(
       return res.status(409).json({ error: "Este vínculo já foi resolvido." });
     }
 
-    const idoso = await prisma.usuario.findUnique({
-      where: { id: vinculo.idoso_id },
-      select: { modo_decisao: true },
-    });
-    // NULL (modo_decisao nunca setado) tratado como 'idoso' — estado inicial/default
-    // do sistema até ser explicitamente transferido pra 'familiar'. Decisão de backend,
-    // confirmada por Marcos (2026-09-15).
-    const modo = idoso?.modo_decisao ?? "idoso";
+    const modo = await resolverModoDecisao(vinculo.idoso_id);
 
     if (modo === "idoso") {
       if (req.usuarioId !== vinculo.idoso_id) {
@@ -262,16 +274,7 @@ async function responderSolicitacaoVinculo(
       if (req.usuarioId === vinculo.idoso_id) {
         return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
       }
-      const familiarAprovado = await prisma.vinculo.findFirst({
-        where: {
-          idoso_id: vinculo.idoso_id,
-          vinculado_id: req.usuarioId,
-          tipo_vinculo: "familiar",
-          status: "aprovado",
-        },
-        select: { id: true },
-      });
-      if (!familiarAprovado) {
+      if (!(await familiarTemVinculoAprovado(vinculo.idoso_id, req.usuarioId))) {
         return res.status(403).json({ error: "Só familiar vinculado e aprovado pode responder esta solicitação." });
       }
     }
@@ -292,5 +295,98 @@ router.post("/:id/aprovar", requireAuth, (req, res, next) =>
 router.post("/:id/recusar", requireAuth, (req, res, next) =>
   responderSolicitacaoVinculo(req, res, next, "recusado"),
 );
+
+// Tarefa 2.8 (RF-032) — definir as 3 flags de permissão operacional do Cuidador
+// (permite_registrar_saude, permite_marcar_dose, permite_criar_evento_cuidado).
+// PATCH, não POST: diferente de /aprovar e /recusar (ações de estado fixas), esta
+// rota atualiza colunas específicas de um recurso existente — mesmo padrão de
+// PATCH /usuario/me (atualização parcial, só os campos enviados são tocados).
+// Endpoint único pras 3 flags (não 3 rotas separadas): Vinculo.definido_em é um
+// timestamp singular ("quando as permissões foram alteradas pela última vez", não
+// um por flag — ver ER.md) e as 3 sempre pertencem à mesma decisão de autoridade
+// (Usuario.modo_decisao do idoso), então um POST por flag só triplicaria a mesma
+// checagem de autoridade sem nenhum ganho.
+//
+// Exige tipo_vinculo='cuidador' (400 se não) e status='aprovado' (409 se não) antes
+// de checar autoridade — decisão fechada, ver <decisoes_ja_fechadas_nao_reabrir>: as
+// flags não têm efeito fora de tipo_vinculo='cuidador', e liberar escrita num vínculo
+// ainda pendente ativaria a permissão automaticamente na aprovação, sem reconfirmação.
+router.patch("/:id/definir-permissoes", requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Id de vínculo inválido." });
+    }
+
+    const vinculo = await prisma.vinculo.findUnique({
+      where: { id },
+      select: { id: true, idoso_id: true, status: true, tipo_vinculo: true },
+    });
+    if (!vinculo) {
+      return res.status(404).json({ error: "Vínculo não encontrado." });
+    }
+    if (vinculo.tipo_vinculo !== "cuidador") {
+      return res.status(400).json({ error: "Permissões só se aplicam a vínculo de cuidador." });
+    }
+    if (vinculo.status !== "aprovado") {
+      return res.status(409).json({ error: "Vínculo precisa estar aprovado para ter permissões definidas." });
+    }
+
+    const modo = await resolverModoDecisao(vinculo.idoso_id);
+    if (modo === "idoso") {
+      if (req.usuarioId !== vinculo.idoso_id) {
+        return res.status(403).json({ error: "Só o idoso pode definir as permissões deste vínculo." });
+      }
+    } else {
+      if (req.usuarioId === vinculo.idoso_id) {
+        return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
+      }
+      if (!(await familiarTemVinculoAprovado(vinculo.idoso_id, req.usuarioId))) {
+        return res
+          .status(403)
+          .json({ error: "Só familiar vinculado e aprovado pode definir as permissões deste vínculo." });
+      }
+    }
+
+    const { permite_registrar_saude, permite_marcar_dose, permite_criar_evento_cuidado } = req.body ?? {};
+    const data: {
+      permite_registrar_saude?: boolean;
+      permite_marcar_dose?: boolean;
+      permite_criar_evento_cuidado?: boolean;
+    } = {};
+    for (const [campo, valor] of [
+      ["permite_registrar_saude", permite_registrar_saude],
+      ["permite_marcar_dose", permite_marcar_dose],
+      ["permite_criar_evento_cuidado", permite_criar_evento_cuidado],
+    ] as const) {
+      if (valor === undefined) continue;
+      if (typeof valor !== "boolean") {
+        return res.status(400).json({ error: `${campo} precisa ser booleano.` });
+      }
+      data[campo] = valor;
+    }
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({
+        error: "Informe ao menos uma permissão (permite_registrar_saude, permite_marcar_dose ou permite_criar_evento_cuidado).",
+      });
+    }
+
+    const atualizado = await prisma.vinculo.update({
+      where: { id },
+      data: { ...data, definido_por_id: req.usuarioId, definido_em: new Date() },
+      select: {
+        id: true,
+        permite_registrar_saude: true,
+        permite_marcar_dose: true,
+        permite_criar_evento_cuidado: true,
+        definido_por_id: true,
+        definido_em: true,
+      },
+    });
+    res.status(200).json(atualizado);
+  } catch (e) {
+    next(e);
+  }
+});
 
 export default router;
