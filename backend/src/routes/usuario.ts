@@ -3,16 +3,27 @@ import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
 import { isDuplicateEmail } from "../lib/authHelpers";
+import { resolverEstadoModoDecisao } from "./vinculo";
 
 const router = Router();
 
+// Tarefa 2.9 (RF-033) — resolverEstadoModoDecisao roda a checagem preguiçosa de
+// expiração da janela de transferência (efetiva a mudança ou limpa solicitação vencida)
+// antes de responder, então este endpoint nunca devolve um modo_decisao_solicitado já
+// expirado como se ainda estivesse em curso. Os campos modo_decisao_alterado_por_id e
+// modo_decisao_alterado_em servem de "notificação" pro idoso — decisão desta tarefa: sem
+// e-mail, só exposição aqui pro frontend mostrar um aviso.
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
+    // Sequencial, não Promise.all: resolverEstadoModoDecisao pode escrever no mesmo
+    // Usuario (efetivação/lapso da transferência) — rodar antes garante que o findUnique
+    // abaixo nunca leia um estado intermediário.
+    const modoDecisao = await resolverEstadoModoDecisao(req.usuarioId);
     const usuario = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
       select: { id: true, nome: true, email: true, telefone: true, tipo_perfil: true },
     });
-    res.json(usuario);
+    res.json({ ...usuario, ...modoDecisao });
   } catch (e) {
     next(e);
   }
