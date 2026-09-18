@@ -89,6 +89,27 @@ router.post("/sync", async (req, res, next) => {
     });
 
     if (usuarioExistente) {
+      // RF-033 (item 2.9): login do idoso sempre cancela uma transferência de
+      // modo_decisao em curso, com prioridade sobre a expiração da janela de 7 dias —
+      // mesmo se as duas coisas "acontecerem ao mesmo tempo". modo_decisao_motivo é
+      // limpo junto (mesmo padrão da expiração sem segunda confirmação, ver
+      // resolverEstadoModoDecisao em routes/vinculo.ts) — evita motivo órfão
+      // sobrevivendo em GET /usuario/me sem nenhuma solicitação pra dar contexto.
+      const agora = new Date();
+      const dadosLogin: Record<string, unknown> = { ultimo_login_em: agora };
+      if (usuarioExistente.tipo_perfil === "idoso" && usuarioExistente.modo_decisao_solicitado === "familiar") {
+        dadosLogin.modo_decisao_solicitado = null;
+        dadosLogin.modo_decisao_solicitado_por_id = null;
+        dadosLogin.modo_decisao_solicitado_em = null;
+        dadosLogin.modo_decisao_expira_em = null;
+        dadosLogin.modo_decisao_segunda_confirmacao_id = null;
+        dadosLogin.modo_decisao_motivo = null;
+      }
+      const usuarioAtualizado = await prisma.usuario.update({
+        where: { id: usuarioExistente.id },
+        data: dadosLogin,
+      });
+
       // RF-025 (Fluxo A): promove no login do Familiar os vínculos que ficaram
       // pendentes por falta de e-mail confirmado no momento do cadastro. Idempotente
       // por construção — updateMany só afeta linhas ainda 'pendente'.
@@ -103,7 +124,7 @@ router.post("/sync", async (req, res, next) => {
           data: { status: "aprovado", confirmado_em: new Date() },
         });
       }
-      return res.status(200).json({ criado: false, usuario: usuarioExistente });
+      return res.status(200).json({ criado: false, usuario: usuarioAtualizado });
     }
 
     // Não achou pelo firebase_uid: é cadastro. tipo_perfil é obrigatório aqui — nunca

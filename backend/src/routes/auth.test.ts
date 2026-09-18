@@ -5,6 +5,7 @@ const verifyIdToken = jest.fn();
 const findFirst = jest.fn();
 const findManyUsuario = jest.fn();
 const create = jest.fn();
+const updateUsuario = jest.fn();
 const createVinculo = jest.fn();
 const updateManyVinculo = jest.fn();
 
@@ -19,6 +20,7 @@ jest.mock("../lib/prisma", () => ({
       findFirst: (...args: unknown[]) => findFirst(...args),
       findMany: (...args: unknown[]) => findManyUsuario(...args),
       create: (...args: unknown[]) => create(...args),
+      update: (...args: unknown[]) => updateUsuario(...args),
     },
     vinculo: {
       create: (...args: unknown[]) => createVinculo(...args),
@@ -120,10 +122,15 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
     findFirst.mockReset();
     findManyUsuario.mockReset();
     create.mockReset();
+    updateUsuario.mockReset();
     createVinculo.mockReset();
     updateManyVinculo.mockReset();
     createVinculo.mockResolvedValue({ id: 999 });
     updateManyVinculo.mockResolvedValue({ count: 0 });
+    updateUsuario.mockImplementation((args: { where: { id: number }; data: Record<string, unknown> }) => ({
+      id: args.where.id,
+      ...args.data,
+    }));
   });
 
   it("cadastro de familiar com e-mail correspondente cria Vinculo pendente", async () => {
@@ -300,5 +307,72 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
 
     expect(res.status).toBe(200);
     expect(updateManyVinculo).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /auth/sync — login sempre cancela transferência de modo_decisao em curso (RF-033)", () => {
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirst.mockReset();
+    updateUsuario.mockReset();
+    updateUsuario.mockImplementation((args: { where: { id: number }; data: Record<string, unknown> }) => ({
+      id: args.where.id,
+      ...args.data,
+    }));
+  });
+
+  it("login do idoso com solicitação pendente cancela os 4 campos e registra ultimo_login_em", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-idoso" });
+    findFirst.mockResolvedValueOnce({
+      id: 1,
+      tipo_perfil: "idoso",
+      modo_decisao_solicitado: "familiar",
+    });
+
+    const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: {
+        ultimo_login_em: expect.any(Date),
+        modo_decisao_solicitado: null,
+        modo_decisao_solicitado_por_id: null,
+        modo_decisao_solicitado_em: null,
+        modo_decisao_expira_em: null,
+        modo_decisao_segunda_confirmacao_id: null,
+        modo_decisao_motivo: null,
+      },
+    });
+  });
+
+  it("login do idoso sem solicitação pendente só registra ultimo_login_em", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-idoso" });
+    findFirst.mockResolvedValueOnce({ id: 1, tipo_perfil: "idoso", modo_decisao_solicitado: null });
+
+    const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { ultimo_login_em: expect.any(Date) },
+    });
+  });
+
+  it("login de conta não-idoso nunca cancela modo_decisao_solicitado (guard é por tipo_perfil='idoso')", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-familiar", email_verified: false });
+    findFirst.mockResolvedValueOnce({
+      id: 10,
+      tipo_perfil: "familiar",
+      modo_decisao_solicitado: "familiar",
+    });
+
+    const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: { ultimo_login_em: expect.any(Date) },
+    });
   });
 });
