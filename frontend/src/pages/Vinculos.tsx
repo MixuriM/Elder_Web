@@ -2,10 +2,10 @@ import { useState, type FormEvent } from 'react'
 import { getCurrentUserToken } from '../lib/auth'
 
 // Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022), 2.6
-// (RF-026) e 2.7 (RF-027) — só o necessário pra exercitar os endpoints de
-// backend já implementados, sem listagem, sem polish visual. Layout final é
-// responsabilidade de Laureane/Jennifer; isto existe só pra não depender do
-// front delas pra testar o back.
+// (RF-026), 2.7 (RF-027) e 2.8 (RF-032) — só o necessário pra exercitar os
+// endpoints de backend já implementados, sem listagem, sem polish visual.
+// Layout final é responsabilidade de Laureane/Jennifer; isto existe só pra
+// não depender do front delas pra testar o back.
 
 async function chamarApi(path: string, options: RequestInit = {}) {
   const token = await getCurrentUserToken()
@@ -35,6 +35,13 @@ function Vinculos() {
   const [emailIdoso, setEmailIdoso] = useState('')
   const [resultadoSolicitarFamiliar, setResultadoSolicitarFamiliar] = useState<string | null>(null)
   const [erroSolicitarFamiliar, setErroSolicitarFamiliar] = useState<string | null>(null)
+
+  const [vinculoIdPermissoes, setVinculoIdPermissoes] = useState('')
+  const [permiteRegistrarSaude, setPermiteRegistrarSaude] = useState(false)
+  const [permiteMarcarDose, setPermiteMarcarDose] = useState(false)
+  const [permiteCriarEventoCuidado, setPermiteCriarEventoCuidado] = useState(false)
+  const [resultadoPermissoes, setResultadoPermissoes] = useState<string | null>(null)
+  const [erroPermissoes, setErroPermissoes] = useState<string | null>(null)
 
   async function handleSolicitar(e: FormEvent) {
     e.preventDefault()
@@ -77,6 +84,26 @@ function Vinculos() {
     } catch (err) {
       console.error('Falha ao solicitar vínculo de familiar:', err)
       setErroSolicitarFamiliar(err instanceof Error ? err.message : 'Falha ao solicitar vínculo.')
+    }
+  }
+
+  async function handleDefinirPermissoes(e: FormEvent) {
+    e.preventDefault()
+    setErroPermissoes(null)
+    setResultadoPermissoes(null)
+    try {
+      const corpo = await chamarApi(`/vinculo/${vinculoIdPermissoes}/definir-permissoes`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          permite_registrar_saude: permiteRegistrarSaude,
+          permite_marcar_dose: permiteMarcarDose,
+          permite_criar_evento_cuidado: permiteCriarEventoCuidado,
+        }),
+      })
+      setResultadoPermissoes(JSON.stringify(corpo, null, 2))
+    } catch (err) {
+      console.error('Falha ao definir permissões:', err)
+      setErroPermissoes(err instanceof Error ? err.message : 'Falha ao definir permissões.')
     }
   }
 
@@ -194,6 +221,74 @@ function Vinculos() {
         {resultadoSolicitarFamiliar && (
           <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoSolicitarFamiliar}</pre>
         )}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Definir permissões do cuidador</h1>
+        <p className="text-base text-gray-700">
+          Só o titular de modo_decisao do idoso (idoso ou familiar aprovado) pode alterar. Vínculo
+          precisa ser de cuidador e já estar aprovado.
+        </p>
+        <form onSubmit={handleDefinirPermissoes} className="space-y-4">
+          <div>
+            <label htmlFor="vinculo_id_permissoes" className="block text-lg font-medium text-gray-900">
+              Id do vínculo
+            </label>
+            <input
+              id="vinculo_id_permissoes"
+              type="number"
+              required
+              value={vinculoIdPermissoes}
+              onChange={(e) => setVinculoIdPermissoes(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              id="permite_registrar_saude"
+              type="checkbox"
+              checked={permiteRegistrarSaude}
+              onChange={(e) => setPermiteRegistrarSaude(e.target.checked)}
+              className="h-6 w-6"
+            />
+            <label htmlFor="permite_registrar_saude" className="text-lg text-gray-900">
+              Permite registrar saúde
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              id="permite_marcar_dose"
+              type="checkbox"
+              checked={permiteMarcarDose}
+              onChange={(e) => setPermiteMarcarDose(e.target.checked)}
+              className="h-6 w-6"
+            />
+            <label htmlFor="permite_marcar_dose" className="text-lg text-gray-900">
+              Permite marcar dose
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              id="permite_criar_evento_cuidado"
+              type="checkbox"
+              checked={permiteCriarEventoCuidado}
+              onChange={(e) => setPermiteCriarEventoCuidado(e.target.checked)}
+              className="h-6 w-6"
+            />
+            <label htmlFor="permite_criar_evento_cuidado" className="text-lg text-gray-900">
+              Permite criar evento de cuidado
+            </label>
+          </div>
+          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
+            Salvar permissões
+          </button>
+        </form>
+        {erroPermissoes && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroPermissoes}
+          </p>
+        )}
+        {resultadoPermissoes && <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoPermissoes}</pre>}
       </section>
     </main>
   )
