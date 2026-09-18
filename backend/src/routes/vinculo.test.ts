@@ -4,11 +4,13 @@ import request from "supertest";
 const verifyIdToken = jest.fn();
 const findFirstUsuario = jest.fn();
 const findUniqueUsuario = jest.fn();
+const updateUsuario = jest.fn();
 const findManyVinculo = jest.fn();
 const findFirstVinculo = jest.fn();
 const createVinculo = jest.fn();
 const findUniqueVinculo = jest.fn();
 const updateVinculo = jest.fn();
+const countVinculo = jest.fn();
 
 jest.mock("../lib/firebaseAdmin", () => ({
   auth: { verifyIdToken: (...args: unknown[]) => verifyIdToken(...args) },
@@ -18,6 +20,7 @@ jest.mock("../lib/prisma", () => ({
     usuario: {
       findFirst: (...args: unknown[]) => findFirstUsuario(...args),
       findUnique: (...args: unknown[]) => findUniqueUsuario(...args),
+      update: (...args: unknown[]) => updateUsuario(...args),
     },
     vinculo: {
       findMany: (...args: unknown[]) => findManyVinculo(...args),
@@ -25,6 +28,7 @@ jest.mock("../lib/prisma", () => ({
       create: (...args: unknown[]) => createVinculo(...args),
       findUnique: (...args: unknown[]) => findUniqueVinculo(...args),
       update: (...args: unknown[]) => updateVinculo(...args),
+      count: (...args: unknown[]) => countVinculo(...args),
     },
   },
 }));
@@ -63,6 +67,20 @@ function definirPermissoes(id: number, body: Record<string, unknown>) {
     .patch(`/vinculo/${id}/definir-permissoes`)
     .set("Authorization", "Bearer x")
     .send(body);
+}
+
+function solicitarTransferencia(id: number, body: Record<string, unknown> = {}) {
+  return request(buildApp())
+    .post(`/vinculo/${id}/solicitar-transferencia-decisao`)
+    .set("Authorization", "Bearer x")
+    .send(body);
+}
+
+function confirmarTransferencia(id: number) {
+  return request(buildApp())
+    .post(`/vinculo/${id}/confirmar-transferencia-decisao`)
+    .set("Authorization", "Bearer x")
+    .send();
 }
 
 describe("POST /vinculo/solicitar-cuidador", () => {
@@ -658,5 +676,357 @@ describe("PATCH /vinculo/:id/definir-permissoes", () => {
 
     expect(res.status).toBe(400);
     expect(updateVinculo).not.toHaveBeenCalled();
+  });
+});
+
+// Tarefa 2.9 (RF-033) — transferência de Usuario.modo_decisao pra 'familiar'.
+describe("POST /vinculo/:id/solicitar-transferencia-decisao", () => {
+  // :id aqui é o vínculo aprovado DO PRÓPRIO familiar solicitante (vinculado_id === req.usuarioId).
+  const VINCULO_FAMILIAR_APROVADO = { id: 7, idoso_id: 10, vinculado_id: 77, status: "aprovado", tipo_vinculo: "familiar" };
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirstUsuario.mockReset();
+    findUniqueUsuario.mockReset();
+    updateUsuario.mockReset();
+    findUniqueVinculo.mockReset();
+    countVinculo.mockReset();
+    verifyIdToken.mockResolvedValue({ uid: "uid-77" });
+    findFirstUsuario.mockResolvedValue({ id: 77 });
+    updateUsuario.mockImplementation((args: { data: Record<string, unknown> }) => args.data);
+  });
+
+  it("404 quando vínculo não existe", async () => {
+    findUniqueVinculo.mockResolvedValue(null);
+    const res = await solicitarTransferencia(999);
+    expect(res.status).toBe(404);
+  });
+
+  it("400 quando tipo_vinculo não é familiar", async () => {
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, tipo_vinculo: "cuidador" });
+    const res = await solicitarTransferencia(7);
+    expect(res.status).toBe(400);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("409 quando vínculo não está aprovado", async () => {
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, status: "pendente" });
+    const res = await solicitarTransferencia(7);
+    expect(res.status).toBe(409);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("403 quando o vínculo não é do próprio chamador", async () => {
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, vinculado_id: 999 });
+    const res = await solicitarTransferencia(7);
+    expect(res.status).toBe(403);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("409 quando modo_decisao já é 'familiar'", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    const res = await solicitarTransferencia(7);
+    expect(res.status).toBe(409);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("409 quando já existe solicitação em curso — não sobrescreve", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 999,
+      modo_decisao_expira_em: new Date(Date.now() + 1000 * 60 * 60),
+    });
+    const res = await solicitarTransferencia(7);
+    expect(res.status).toBe(409);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("400 quando modo_decisao_motivo não é texto", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    const res = await solicitarTransferencia(7, { modo_decisao_motivo: 123 });
+    expect(res.status).toBe(400);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("400 quando modo_decisao_motivo excede 300 caracteres", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    const res = await solicitarTransferencia(7, { modo_decisao_motivo: "a".repeat(301) });
+    expect(res.status).toBe(400);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("sucesso: abre janela de 7 dias e persiste motivo opcional", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+
+    const res = await solicitarTransferencia(7, { modo_decisao_motivo: "Facilita o dia a dia" });
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: {
+        modo_decisao_solicitado: "familiar",
+        modo_decisao_solicitado_por_id: 77,
+        modo_decisao_solicitado_em: expect.any(Date),
+        modo_decisao_expira_em: expect.any(Date),
+        modo_decisao_segunda_confirmacao_id: null,
+        modo_decisao_motivo: "Facilita o dia a dia",
+      },
+      select: expect.any(Object),
+    });
+    const chamada = updateUsuario.mock.calls[0][0];
+    const diasJanela =
+      (chamada.data.modo_decisao_expira_em.getTime() - chamada.data.modo_decisao_solicitado_em.getTime()) /
+      (1000 * 60 * 60 * 24);
+    expect(diasJanela).toBeCloseTo(7, 5);
+  });
+
+  it("sucesso sem motivo: persiste null", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+
+    const res = await solicitarTransferencia(7);
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ modo_decisao_motivo: null }) }),
+    );
+  });
+});
+
+describe("POST /vinculo/:id/confirmar-transferencia-decisao", () => {
+  const VINCULO_FAMILIAR_APROVADO = { id: 8, idoso_id: 10, vinculado_id: 88, status: "aprovado", tipo_vinculo: "familiar" };
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirstUsuario.mockReset();
+    findUniqueUsuario.mockReset();
+    updateUsuario.mockReset();
+    findUniqueVinculo.mockReset();
+    countVinculo.mockReset();
+    verifyIdToken.mockResolvedValue({ uid: "uid-88" });
+    findFirstUsuario.mockResolvedValue({ id: 88 });
+    updateUsuario.mockImplementation((args: { data: Record<string, unknown> }) => args.data);
+  });
+
+  it("404 quando vínculo não existe", async () => {
+    findUniqueVinculo.mockResolvedValue(null);
+    const res = await confirmarTransferencia(999);
+    expect(res.status).toBe(404);
+  });
+
+  it("400 quando tipo_vinculo não é familiar", async () => {
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, tipo_vinculo: "cuidador" });
+    const res = await confirmarTransferencia(8);
+    expect(res.status).toBe(400);
+  });
+
+  it("409 quando vínculo não está aprovado", async () => {
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, status: "pendente" });
+    const res = await confirmarTransferencia(8);
+    expect(res.status).toBe(409);
+  });
+
+  it("403 quando o vínculo não é do próprio chamador", async () => {
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, vinculado_id: 999 });
+    const res = await confirmarTransferencia(8);
+    expect(res.status).toBe(403);
+  });
+
+  it("409 quando não há solicitação em curso", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso", modo_decisao_solicitado: null });
+    const res = await confirmarTransferencia(8);
+    expect(res.status).toBe(409);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("403 quando quem confirma é o próprio solicitante", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 88,
+      modo_decisao_expira_em: new Date(Date.now() + 1000 * 60 * 60),
+    });
+    const res = await confirmarTransferencia(8);
+    expect(res.status).toBe(403);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("sucesso: registra a segunda confirmação sem efetivar a mudança na hora", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 77,
+      modo_decisao_expira_em: new Date(Date.now() + 1000 * 60 * 60),
+    });
+
+    const res = await confirmarTransferencia(8);
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: { modo_decisao_segunda_confirmacao_id: 88 },
+      select: expect.any(Object),
+    });
+  });
+
+  it("edge: confirmação chegando depois da janela expirar (sem segunda confirmação prévia) é tratada como vencida, não efetiva", async () => {
+    findUniqueVinculo.mockResolvedValue(VINCULO_FAMILIAR_APROVADO);
+    // resolverEstadoModoDecisao lê o estado expirado, exige 2ª confirmação (2 familiares
+    // aprovados) e ainda não tinha sido dada — lapsa a solicitação antes desta rota checar.
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 77,
+      modo_decisao_expira_em: new Date(Date.now() - 1000),
+      modo_decisao_segunda_confirmacao_id: null,
+    });
+    countVinculo.mockResolvedValue(2);
+    updateUsuario.mockResolvedValue({ modo_decisao_solicitado: null });
+
+    const res = await confirmarTransferencia(8);
+
+    expect(res.status).toBe(409);
+    // A única chamada de update até aqui foi o lapso feito por resolverEstadoModoDecisao,
+    // não a confirmação (que nunca chega a rodar).
+    expect(updateUsuario).toHaveBeenCalledTimes(1);
+    expect(updateUsuario).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ modo_decisao_solicitado: null }) }),
+    );
+  });
+});
+
+describe("resolverEstadoModoDecisao — checagem preguiçosa de expiração (RF-033)", () => {
+  const VINCULO_CUIDADOR_PENDENTE = { id: 5, idoso_id: 10, status: "pendente", tipo_vinculo: "cuidador" };
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirstUsuario.mockReset();
+    findUniqueUsuario.mockReset();
+    updateUsuario.mockReset();
+    findUniqueVinculo.mockReset();
+    findFirstVinculo.mockReset();
+    updateVinculo.mockReset();
+    countVinculo.mockReset();
+    verifyIdToken.mockResolvedValue({ uid: "uid-77" });
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_PENDENTE);
+    // /aprovar (veículo destes testes) também escreve em Vinculo pra marcar status —
+    // irrelevante pro que está sendo testado aqui (a checagem preguiçosa em Usuario).
+    updateVinculo.mockResolvedValue({ id: 5, status: "aprovado" });
+  });
+
+  it("efetiva a transferência quando a janela expirou e só 1 familiar aprovado (sem 2ª confirmação exigida)", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 77 }); // chamador = o próprio familiar solicitante
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 77,
+      modo_decisao_expira_em: new Date(Date.now() - 1000),
+      modo_decisao_segunda_confirmacao_id: null,
+    });
+    countVinculo.mockResolvedValue(1);
+    updateUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 900 }); // familiarTemVinculoAprovado(10, 77)
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: {
+        modo_decisao: "familiar",
+        modo_decisao_alterado_por_id: 77,
+        modo_decisao_alterado_em: expect.any(Date),
+        modo_decisao_solicitado: null,
+        modo_decisao_solicitado_por_id: null,
+        modo_decisao_solicitado_em: null,
+        modo_decisao_expira_em: null,
+        modo_decisao_segunda_confirmacao_id: null,
+      },
+      select: expect.any(Object),
+    });
+  });
+
+  it("não efetiva (lapsa) quando a janela expirou, 2+ familiares aprovados e a 2ª confirmação nunca veio", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 }); // chamador = o próprio idoso (ainda tem autoridade)
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 77,
+      modo_decisao_expira_em: new Date(Date.now() - 1000),
+      modo_decisao_segunda_confirmacao_id: null,
+    });
+    countVinculo.mockResolvedValue(2);
+    updateUsuario.mockResolvedValue({ modo_decisao_solicitado: null });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200); // idoso ainda tem autoridade — solicitação vencida não mudou isso
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: {
+        modo_decisao_solicitado: null,
+        modo_decisao_solicitado_por_id: null,
+        modo_decisao_solicitado_em: null,
+        modo_decisao_expira_em: null,
+        modo_decisao_segunda_confirmacao_id: null,
+        modo_decisao_motivo: null,
+      },
+      select: expect.any(Object),
+    });
+  });
+
+  it("efetiva quando a janela expirou, 2+ familiares aprovados e a 2ª confirmação já tinha sido dada", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 77 });
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 77,
+      modo_decisao_expira_em: new Date(Date.now() - 1000),
+      modo_decisao_segunda_confirmacao_id: 88,
+    });
+    countVinculo.mockResolvedValue(2);
+    updateUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 901 });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ modo_decisao: "familiar" }) }),
+    );
+  });
+
+  it("não mexe em nada quando não há solicitação em curso", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso", modo_decisao_solicitado: null });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).not.toHaveBeenCalled();
+    expect(countVinculo).not.toHaveBeenCalled();
+  });
+
+  it("não mexe em nada quando a solicitação ainda não expirou", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueUsuario.mockResolvedValue({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_expira_em: new Date(Date.now() + 1000 * 60 * 60),
+    });
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).not.toHaveBeenCalled();
   });
 });

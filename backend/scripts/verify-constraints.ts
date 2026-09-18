@@ -262,6 +262,15 @@ async function main() {
     });
   });
 
+  // 12. CK_Usuario_modo_decisao_solicitado_conjunto (RF-033, migration
+  // 20260918100000_add_check_modo_decisao_solicitado_conjunto) — modo_decisao_solicitado
+  // preenchido sem os campos irmãos (solicitado_por_id/em, expira_em) deve ser rejeitado.
+  await runExpectingRejection("CK_Usuario_modo_decisao_solicitado_conjunto", async (tx) => {
+    await tx.usuario.create({
+      data: baseUsuario({ modo_decisao_solicitado: "familiar" }),
+    });
+  });
+
   console.log("\nConstraint".padEnd(52) + "Resultado");
   console.log("-".repeat(70));
   for (const r of results) {

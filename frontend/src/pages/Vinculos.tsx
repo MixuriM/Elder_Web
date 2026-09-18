@@ -2,10 +2,10 @@ import { useState, type FormEvent } from 'react'
 import { getCurrentUserToken } from '../lib/auth'
 
 // Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022), 2.6
-// (RF-026), 2.7 (RF-027) e 2.8 (RF-032) — só o necessário pra exercitar os
-// endpoints de backend já implementados, sem listagem, sem polish visual.
-// Layout final é responsabilidade de Laureane/Jennifer; isto existe só pra
-// não depender do front delas pra testar o back.
+// (RF-026), 2.7 (RF-027), 2.8 (RF-032) e 2.9 (RF-033) — só o necessário pra
+// exercitar os endpoints de backend já implementados, sem listagem, sem
+// polish visual. Layout final é responsabilidade de Laureane/Jennifer; isto
+// existe só pra não depender do front delas pra testar o back.
 
 async function chamarApi(path: string, options: RequestInit = {}) {
   const token = await getCurrentUserToken()
@@ -42,6 +42,18 @@ function Vinculos() {
   const [permiteCriarEventoCuidado, setPermiteCriarEventoCuidado] = useState(false)
   const [resultadoPermissoes, setResultadoPermissoes] = useState<string | null>(null)
   const [erroPermissoes, setErroPermissoes] = useState<string | null>(null)
+
+  const [resultadoStatusDecisao, setResultadoStatusDecisao] = useState<string | null>(null)
+  const [erroStatusDecisao, setErroStatusDecisao] = useState<string | null>(null)
+
+  const [vinculoIdSolicitarTransferencia, setVinculoIdSolicitarTransferencia] = useState('')
+  const [motivoTransferencia, setMotivoTransferencia] = useState('')
+  const [resultadoSolicitarTransferencia, setResultadoSolicitarTransferencia] = useState<string | null>(null)
+  const [erroSolicitarTransferencia, setErroSolicitarTransferencia] = useState<string | null>(null)
+
+  const [vinculoIdConfirmarTransferencia, setVinculoIdConfirmarTransferencia] = useState('')
+  const [resultadoConfirmarTransferencia, setResultadoConfirmarTransferencia] = useState<string | null>(null)
+  const [erroConfirmarTransferencia, setErroConfirmarTransferencia] = useState<string | null>(null)
 
   async function handleSolicitar(e: FormEvent) {
     e.preventDefault()
@@ -104,6 +116,53 @@ function Vinculos() {
     } catch (err) {
       console.error('Falha ao definir permissões:', err)
       setErroPermissoes(err instanceof Error ? err.message : 'Falha ao definir permissões.')
+    }
+  }
+
+  async function handleVerStatusDecisao() {
+    setErroStatusDecisao(null)
+    setResultadoStatusDecisao(null)
+    try {
+      const corpo = await chamarApi('/usuario/me')
+      setResultadoStatusDecisao(JSON.stringify(corpo, null, 2))
+    } catch (err) {
+      console.error('Falha ao buscar status de decisão:', err)
+      setErroStatusDecisao(err instanceof Error ? err.message : 'Falha ao buscar status de decisão.')
+    }
+  }
+
+  async function handleSolicitarTransferencia(e: FormEvent) {
+    e.preventDefault()
+    setErroSolicitarTransferencia(null)
+    setResultadoSolicitarTransferencia(null)
+    try {
+      const corpo = await chamarApi(`/vinculo/${vinculoIdSolicitarTransferencia}/solicitar-transferencia-decisao`, {
+        method: 'POST',
+        body: JSON.stringify({ modo_decisao_motivo: motivoTransferencia || undefined }),
+      })
+      setResultadoSolicitarTransferencia(JSON.stringify(corpo, null, 2))
+    } catch (err) {
+      console.error('Falha ao solicitar transferência de decisão:', err)
+      setErroSolicitarTransferencia(
+        err instanceof Error ? err.message : 'Falha ao solicitar transferência de decisão.',
+      )
+    }
+  }
+
+  async function handleConfirmarTransferencia(e: FormEvent) {
+    e.preventDefault()
+    setErroConfirmarTransferencia(null)
+    setResultadoConfirmarTransferencia(null)
+    try {
+      const corpo = await chamarApi(`/vinculo/${vinculoIdConfirmarTransferencia}/confirmar-transferencia-decisao`, {
+        method: 'POST',
+      })
+      setResultadoConfirmarTransferencia(JSON.stringify(corpo, null, 2))
+    } catch (err) {
+      console.error('Falha ao confirmar transferência de decisão:', err)
+      setErroConfirmarTransferencia(
+        err instanceof Error ? err.message : 'Falha ao confirmar transferência de decisão.',
+      )
     }
   }
 
@@ -289,6 +348,111 @@ function Vinculos() {
           </p>
         )}
         {resultadoPermissoes && <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoPermissoes}</pre>}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Ver meu status de decisão (GET /usuario/me)</h1>
+        <p className="text-base text-gray-700">
+          Mostra modo_decisao, a solicitação de transferência em curso (se houver) e a última
+          alteração efetivada — mesmos campos que servem de aviso pro idoso (item 2.9, RF-033).
+        </p>
+        <button
+          type="button"
+          onClick={handleVerStatusDecisao}
+          className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white"
+        >
+          Buscar status
+        </button>
+        {erroStatusDecisao && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroStatusDecisao}
+          </p>
+        )}
+        {resultadoStatusDecisao && (
+          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoStatusDecisao}</pre>
+        )}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Solicitar transferência de decisão (familiar → idoso)</h1>
+        <p className="text-base text-gray-700">
+          Id do vínculo aprovado do próprio familiar solicitante com o idoso. Abre janela de 7
+          dias; efetivação só acontece se a janela expirar sem o idoso logar (e, com 2+
+          familiares aprovados, com a segunda confirmação).
+        </p>
+        <form onSubmit={handleSolicitarTransferencia} className="space-y-4">
+          <div>
+            <label htmlFor="vinculo_id_solicitar_transferencia" className="block text-lg font-medium text-gray-900">
+              Id do vínculo
+            </label>
+            <input
+              id="vinculo_id_solicitar_transferencia"
+              type="number"
+              required
+              value={vinculoIdSolicitarTransferencia}
+              onChange={(e) => setVinculoIdSolicitarTransferencia(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <div>
+            <label htmlFor="motivo_transferencia" className="block text-lg font-medium text-gray-900">
+              Motivo (opcional)
+            </label>
+            <input
+              id="motivo_transferencia"
+              type="text"
+              maxLength={300}
+              value={motivoTransferencia}
+              onChange={(e) => setMotivoTransferencia(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
+            Solicitar transferência
+          </button>
+        </form>
+        {erroSolicitarTransferencia && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroSolicitarTransferencia}
+          </p>
+        )}
+        {resultadoSolicitarTransferencia && (
+          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoSolicitarTransferencia}</pre>
+        )}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Confirmar transferência de decisão (segundo familiar)</h1>
+        <p className="text-base text-gray-700">
+          Id do vínculo aprovado do familiar que está confirmando — precisa ser diferente de quem
+          solicitou. Só marca a confirmação; não efetiva a mudança na hora.
+        </p>
+        <form onSubmit={handleConfirmarTransferencia} className="space-y-4">
+          <div>
+            <label htmlFor="vinculo_id_confirmar_transferencia" className="block text-lg font-medium text-gray-900">
+              Id do vínculo
+            </label>
+            <input
+              id="vinculo_id_confirmar_transferencia"
+              type="number"
+              required
+              value={vinculoIdConfirmarTransferencia}
+              onChange={(e) => setVinculoIdConfirmarTransferencia(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
+            Confirmar transferência
+          </button>
+        </form>
+        {erroConfirmarTransferencia && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroConfirmarTransferencia}
+          </p>
+        )}
+        {resultadoConfirmarTransferencia && (
+          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoConfirmarTransferencia}</pre>
+        )}
       </section>
     </main>
   )

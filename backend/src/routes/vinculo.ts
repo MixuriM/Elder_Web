@@ -226,11 +226,8 @@ router.post("/solicitar-familiar", requireAuth, async (req, res, next) => {
 // pela tarefa 2.8 (definir-permissoes) além de responderSolicitacaoVinculo. NULL
 // (nunca setado) tratado como 'idoso', mesma decisão de sempre.
 async function resolverModoDecisao(idosoId: number): Promise<"idoso" | "familiar"> {
-  const idoso = await prisma.usuario.findUnique({
-    where: { id: idosoId },
-    select: { modo_decisao: true },
-  });
-  return idoso?.modo_decisao === "familiar" ? "familiar" : "idoso";
+  const estado = await resolverEstadoModoDecisao(idosoId);
+  return estado.modo_decisao === "familiar" ? "familiar" : "idoso";
 }
 
 async function familiarTemVinculoAprovado(idosoId: number, familiarId: number): Promise<boolean> {
@@ -239,6 +236,115 @@ async function familiarTemVinculoAprovado(idosoId: number, familiarId: number): 
     select: { id: true },
   });
   return !!vinculo;
+}
+
+// Tarefa 2.9 (RF-033) — transferência de Usuario.modo_decisao pra 'familiar', com janela
+// de carência de 7 dias e segunda confirmação quando o idoso tem 2+ familiares aprovados.
+// Mecanismo completo em Elder Web - Modelagem ER.md seção 3.
+const MODO_DECISAO_SELECT = {
+  modo_decisao: true,
+  modo_decisao_solicitado: true,
+  modo_decisao_solicitado_por_id: true,
+  modo_decisao_solicitado_em: true,
+  modo_decisao_expira_em: true,
+  modo_decisao_segunda_confirmacao_id: true,
+  modo_decisao_alterado_por_id: true,
+  modo_decisao_alterado_em: true,
+  modo_decisao_motivo: true,
+} as const;
+
+type ModoDecisaoEstado = {
+  modo_decisao: string | null;
+  modo_decisao_solicitado: string | null;
+  modo_decisao_solicitado_por_id: number | null;
+  modo_decisao_solicitado_em: Date | null;
+  modo_decisao_expira_em: Date | null;
+  modo_decisao_segunda_confirmacao_id: number | null;
+  modo_decisao_alterado_por_id: number | null;
+  modo_decisao_alterado_em: Date | null;
+  modo_decisao_motivo: string | null;
+};
+
+const MODO_DECISAO_NEUTRO: ModoDecisaoEstado = {
+  modo_decisao: null,
+  modo_decisao_solicitado: null,
+  modo_decisao_solicitado_por_id: null,
+  modo_decisao_solicitado_em: null,
+  modo_decisao_expira_em: null,
+  modo_decisao_segunda_confirmacao_id: null,
+  modo_decisao_alterado_por_id: null,
+  modo_decisao_alterado_em: null,
+  modo_decisao_motivo: null,
+};
+
+// Checagem preguiçosa de expiração — chamada em todo ponto que já lê modo_decisao pra
+// autoridade (resolverModoDecisao acima) e nas duas rotas novas desta tarefa. NÃO cobre
+// login do idoso: cancelamento por login é tratado separadamente em POST /auth/sync,
+// porque login sempre cancela a solicitação primeiro, com prioridade sobre a expiração
+// (mesmo se os dois acontecerem "ao mesmo tempo") — ver CLAUDE.md, limitação aceita desta
+// tarefa: sem job agendado, uma linha pode ficar com modo_decisao_solicitado* preenchido
+// além do prazo até o próximo ponto de leitura relevante rodar esta função.
+export async function resolverEstadoModoDecisao(idosoId: number): Promise<ModoDecisaoEstado> {
+  // findUnique, não findUniqueOrThrow: mesmo padrão do antigo resolverModoDecisao — id
+  // sempre vem de um Vinculo.idoso_id ou de req.usuarioId já resolvido por requireAuth,
+  // nunca de entrada não confiável, mas mantém a mesma tolerância defensiva de antes.
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: idosoId },
+    select: MODO_DECISAO_SELECT,
+  });
+  if (!usuario) {
+    return MODO_DECISAO_NEUTRO;
+  }
+
+  const expirou =
+    usuario.modo_decisao_solicitado === "familiar" &&
+    usuario.modo_decisao_expira_em !== null &&
+    usuario.modo_decisao_expira_em !== undefined &&
+    usuario.modo_decisao_expira_em <= new Date();
+
+  if (!expirou) {
+    return usuario;
+  }
+
+  const aprovadosCount = await prisma.vinculo.count({
+    where: { idoso_id: idosoId, tipo_vinculo: "familiar", status: "aprovado" },
+  });
+  const exigeSegundaConfirmacao = aprovadosCount >= 2;
+  const podeEfetivar = !exigeSegundaConfirmacao || usuario.modo_decisao_segunda_confirmacao_id !== null;
+
+  if (podeEfetivar) {
+    return prisma.usuario.update({
+      where: { id: idosoId },
+      data: {
+        modo_decisao: "familiar",
+        modo_decisao_alterado_por_id: usuario.modo_decisao_solicitado_por_id,
+        modo_decisao_alterado_em: new Date(),
+        modo_decisao_solicitado: null,
+        modo_decisao_solicitado_por_id: null,
+        modo_decisao_solicitado_em: null,
+        modo_decisao_expira_em: null,
+        modo_decisao_segunda_confirmacao_id: null,
+      },
+      select: MODO_DECISAO_SELECT,
+    });
+  }
+
+  // Expirou sem a segunda confirmação exigida: solicitação vencida, não efetiva.
+  // modo_decisao_motivo é limpo junto (mesmo padrão do cancelamento por login em
+  // POST /auth/sync) — evita motivo órfão sobrevivendo em GET /usuario/me sem
+  // nenhum modo_decisao_solicitado*/alterado* pra dar contexto.
+  return prisma.usuario.update({
+    where: { id: idosoId },
+    data: {
+      modo_decisao_solicitado: null,
+      modo_decisao_solicitado_por_id: null,
+      modo_decisao_solicitado_em: null,
+      modo_decisao_expira_em: null,
+      modo_decisao_segunda_confirmacao_id: null,
+      modo_decisao_motivo: null,
+    },
+    select: MODO_DECISAO_SELECT,
+  });
 }
 
 async function responderSolicitacaoVinculo(
@@ -382,6 +488,132 @@ router.patch("/:id/definir-permissoes", requireAuth, async (req, res, next) => {
         definido_por_id: true,
         definido_em: true,
       },
+    });
+    res.status(200).json(atualizado);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Tarefa 2.9 (RF-033) — Familiar com vínculo aprovado solicita a transferência de
+// Usuario.modo_decisao do idoso pra 'familiar'. :id é o vínculo aprovado DO PRÓPRIO
+// solicitante com aquele idoso (não o de um cuidador, como em /definir-permissoes) — é
+// como identificamos o idoso alvo e autenticamos que quem chama é de fato um familiar
+// aprovado dele. Abre uma janela de carência de 7 dias (ver
+// resolverEstadoModoDecisao acima) — nenhum job agendado, a expiração é resolvida sob
+// demanda nos pontos onde modo_decisao já é lido, e no login do idoso (POST /auth/sync).
+router.post("/:id/solicitar-transferencia-decisao", requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Id de vínculo inválido." });
+    }
+
+    const vinculo = await prisma.vinculo.findUnique({
+      where: { id },
+      select: { id: true, idoso_id: true, vinculado_id: true, tipo_vinculo: true, status: true },
+    });
+    if (!vinculo) {
+      return res.status(404).json({ error: "Vínculo não encontrado." });
+    }
+    if (vinculo.tipo_vinculo !== "familiar") {
+      return res.status(400).json({ error: "Transferência de decisão só pode ser solicitada por vínculo de familiar." });
+    }
+    if (vinculo.status !== "aprovado") {
+      return res.status(409).json({ error: "Vínculo precisa estar aprovado para solicitar transferência." });
+    }
+    if (vinculo.vinculado_id !== req.usuarioId) {
+      return res.status(403).json({ error: "Você só pode solicitar transferência usando seu próprio vínculo." });
+    }
+
+    const estado = await resolverEstadoModoDecisao(vinculo.idoso_id);
+    if (estado.modo_decisao === "familiar") {
+      return res.status(409).json({ error: "Autoridade já está com familiar(es)." });
+    }
+    if (estado.modo_decisao_solicitado === "familiar") {
+      return res.status(409).json({ error: "Já existe uma solicitação de transferência em curso para este idoso." });
+    }
+
+    const motivoRaw = req.body?.modo_decisao_motivo;
+    let motivo: string | null = null;
+    if (motivoRaw !== undefined && motivoRaw !== null && motivoRaw !== "") {
+      if (typeof motivoRaw !== "string") {
+        return res.status(400).json({ error: "modo_decisao_motivo precisa ser texto." });
+      }
+      const motivoTrim = motivoRaw.trim();
+      if (motivoTrim.length > 300) {
+        return res.status(400).json({ error: "modo_decisao_motivo excede 300 caracteres." });
+      }
+      motivo = motivoTrim;
+    }
+
+    const agora = new Date();
+    const expiraEm = new Date(agora.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const atualizado = await prisma.usuario.update({
+      where: { id: vinculo.idoso_id },
+      data: {
+        modo_decisao_solicitado: "familiar",
+        modo_decisao_solicitado_por_id: req.usuarioId,
+        modo_decisao_solicitado_em: agora,
+        modo_decisao_expira_em: expiraEm,
+        modo_decisao_segunda_confirmacao_id: null,
+        modo_decisao_motivo: motivo,
+      },
+      select: MODO_DECISAO_SELECT,
+    });
+    res.status(200).json(atualizado);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Tarefa 2.9 (RF-033) — segunda confirmação, exigida só quando o idoso tem 2+ familiares
+// aprovados (checado dentro de resolverEstadoModoDecisao no momento da efetivação, não
+// aqui). :id é o vínculo aprovado do familiar QUE ESTÁ CONFIRMANDO — precisa ser
+// diferente do familiar que solicitou. Confirmar não efetiva a mudança na hora: só marca
+// modo_decisao_segunda_confirmacao_id; a efetivação de fato só acontece quando a janela
+// de 7 dias expirar (resolverEstadoModoDecisao), conforme o mecanismo do ER.md.
+router.post("/:id/confirmar-transferencia-decisao", requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Id de vínculo inválido." });
+    }
+
+    const vinculo = await prisma.vinculo.findUnique({
+      where: { id },
+      select: { id: true, idoso_id: true, vinculado_id: true, tipo_vinculo: true, status: true },
+    });
+    if (!vinculo) {
+      return res.status(404).json({ error: "Vínculo não encontrado." });
+    }
+    if (vinculo.tipo_vinculo !== "familiar") {
+      return res.status(400).json({ error: "Confirmação de transferência só pode ser feita por vínculo de familiar." });
+    }
+    if (vinculo.status !== "aprovado") {
+      return res.status(409).json({ error: "Vínculo precisa estar aprovado para confirmar transferência." });
+    }
+    if (vinculo.vinculado_id !== req.usuarioId) {
+      return res.status(403).json({ error: "Você só pode confirmar transferência usando seu próprio vínculo." });
+    }
+
+    // resolverEstadoModoDecisao já resolve expiração antes desta checagem: se a janela
+    // expirou sem a segunda confirmação (que é exatamente o cenário que levaria alguém a
+    // chamar esta rota), a solicitação já terá sido limpa e cai no 409 abaixo — cobre o
+    // caso de borda "confirmação chega depois que a janela já expirou" sem checagem extra.
+    const estado = await resolverEstadoModoDecisao(vinculo.idoso_id);
+    if (estado.modo_decisao_solicitado !== "familiar") {
+      return res.status(409).json({ error: "Não há solicitação de transferência em curso para este idoso." });
+    }
+    if (estado.modo_decisao_solicitado_por_id === req.usuarioId) {
+      return res.status(403).json({ error: "Quem solicitou a transferência não pode confirmá-la." });
+    }
+
+    const atualizado = await prisma.usuario.update({
+      where: { id: vinculo.idoso_id },
+      data: { modo_decisao_segunda_confirmacao_id: req.usuarioId },
+      select: MODO_DECISAO_SELECT,
     });
     res.status(200).json(atualizado);
   } catch (e) {

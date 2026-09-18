@@ -52,6 +52,9 @@ model Usuario {
   ultimo_login_em                     DateTime? @db.DateTime2
   // 'familiar' (valor pendente durante a janela de carência) / NULL
   // TODO (manual na migration): CHECK (modo_decisao_solicitado IS NULL OR modo_decisao_solicitado = 'familiar')
+  // TODO (manual na migration): CHECK conjunto — modo_decisao_solicitado,
+  // modo_decisao_solicitado_por_id, modo_decisao_solicitado_em e modo_decisao_expira_em
+  // só podem estar todos NULL ou todos preenchidos (CK_Usuario_modo_decisao_solicitado_conjunto).
   modo_decisao_solicitado             String?   @db.NVarChar(10)
   modo_decisao_solicitado_por_id      Int?
   modo_decisao_solicitado_em          DateTime? @db.DateTime2
