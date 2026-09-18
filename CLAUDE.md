@@ -684,3 +684,60 @@ como dívida técnica futura): endpoint de contestação de vínculo automático
 já `aprovado` via `notificado_em` (Fluxo A, item 2.5) — continua não
 coberto por `/vinculo/:id/aprovar|recusar`. Item 2.8 (flags `permite_*`)
 também não tocado.
+
+**Item 2.8 da Fase 2 (RF-032) implementado — definir permissões operacionais do cuidador
+(2026-09-18, PR #61, mergeado em `main` via squash, commit
+`2f400ab9d4b027327d3717852b1ba37c8b1c1f16` — hash final diferente do commit local
+`2eeecb0`, mesmo padrão dos PRs #38/#40/#47/#52/#58):**
+
+Rota nova `PATCH /vinculo/:id/definir-permissoes` em `backend/src/routes/vinculo.ts`,
+atrás de `requireAuth`. Atualiza `permite_registrar_saude`, `permite_marcar_dose`,
+`permite_criar_evento_cuidado` com atualização parcial (mesmo padrão de `PATCH
+/usuario/me` — só campos enviados são tocados), preenche `definido_por_id`/`definido_em`
+em toda escrita bem-sucedida.
+
+Decisão de design: endpoint único PATCH, não 3 rotas separadas. Justificativa:
+`Vinculo.definido_em` é timestamp singular (última alteração das 3 flags, não uma por
+flag — ver ER.md), e as 3 flags compartilham a mesma checagem de autoridade
+(`Usuario.modo_decisao` do idoso) — 3 rotas triplicariam a mesma checagem sem ganho.
+PATCH em vez de POST porque atualiza colunas específicas de um recurso existente (mesmo
+padrão de `PATCH /usuario/me`), diferente de `/aprovar` e `/recusar` (transições de
+estado fixas).
+
+Ordem de validação: 404 (vínculo não existe) → 400 (`tipo_vinculo≠'cuidador'`, mesmo
+código já usado no padrão de `email_convite_familiar`) → 409 (`status≠'aprovado'`, mesmo
+código já usado em "vínculo já resolvido" do item 2.2) → 403 (autoridade) → 400 (nenhuma
+flag booleana informada). As duas exigências `tipo_vinculo='cuidador'` e
+`status='aprovado'` são obrigatórias e não opcionais: (1) as flags não têm efeito fora de
+`tipo_vinculo='cuidador'` (ER.md), permitir escrita nesse caso deixaria dado morto no
+banco; (2) permitir escrita num vínculo pendente ativaria a permissão automaticamente na
+aprovação, sem reconfirmação — buraco de autorização.
+
+Refatoração: a checagem de autoridade (`Usuario.modo_decisao` do idoso dono do vínculo,
+mesma regra desde os itens 2.2/2.7) foi extraída de dentro de
+`responderSolicitacaoVinculo` pras funções `resolverModoDecisao` e
+`familiarTemVinculoAprovado`, reaproveitadas também nesta rota nova — comportamento
+idêntico ao anterior, sem mudança de mensagem de erro nas rotas `/aprovar` e `/recusar`.
+
+Nenhuma migration nova: `permite_registrar_saude`, `permite_marcar_dose`,
+`permite_criar_evento_cuidado`, `definido_por_id` e `definido_em` já existiam em
+`schema.prisma` desde a migration inicial (`20260831005102_init_schema`) — só faltava a
+rota/lógica, como o item 2.3 já antecipava.
+
+Testes novos em `backend/src/routes/vinculo.test.ts`
+(`describe("PATCH /vinculo/:id/definir-permissoes")`): 9 casos — titular idoso atualiza
+com sucesso, titular familiar aprovado atualiza com sucesso, 403 não-titular
+(`modo_decisao='idoso'`), 403 familiar sem vínculo aprovado (`modo_decisao='familiar'`),
+400 `tipo_vinculo='familiar'`, 409 `status≠'aprovado'`, 404 vínculo inexistente,
+atualização parcial só toca campo enviado, 400 nenhuma flag enviada. Suíte completa do
+backend em 77 testes/6 suítes (era 68 antes desta tarefa). `npx tsc --noEmit` limpo nos
+dois pacotes.
+
+Frontend: nova seção "Definir permissões do cuidador" em `Vinculos.tsx` — esqueleto cru
+(mesma exceção de divisão de trabalho já registrada na seção Workflow), 3 checkboxes
+(`permite_registrar_saude`, `permite_marcar_dose`, `permite_criar_evento_cuidado`) + id
+do vínculo, chama `PATCH /vinculo/:id/definir-permissoes`. Suíte frontend sem regressão
+(2 suítes/4 testes).
+
+Fora de escopo deste item: nenhuma dívida técnica nova registrada — item fecha a Fase 2
+no que diz respeito às permissões granulares do cuidador (RF-032).
