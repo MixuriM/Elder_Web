@@ -1,13 +1,33 @@
 import { useState, type FormEvent } from 'react'
 import { getCurrentUserToken } from '../lib/auth'
+import Spinner from '../components/common/Spinner'
 
 // Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022), 2.6
-// (RF-026), 2.7 (RF-027), 2.8 (RF-032) e 2.9 (RF-033) — só o necessário pra
-// exercitar os endpoints de backend já implementados, sem listagem, sem
-// polish visual. Layout final é responsabilidade de Laureane/Jennifer; isto
-// existe só pra não depender do front delas pra testar o back.
+// (RF-026), 2.7 (RF-027), 2.8 (RF-032), 2.9 (RF-033) e 2.10 (RF-034) — só o
+// necessário pra exercitar os endpoints de backend já implementados, sem
+// listagem, sem polish visual. Layout final é responsabilidade de
+// Laureane/Jennifer; isto existe só pra não depender do front delas pra
+// testar o back. Resultados em texto legível (não JSON cru) e botões com
+// indicador de carregamento, mesmo padrão de Login/Cadastro.
 
-type StatusDecisao = {
+type VinculoCriado = {
+  id: number
+  status: string
+}
+
+type VinculoRespondido = {
+  id: number
+  status: string
+}
+
+type PermissoesAtualizadas = {
+  permite_registrar_saude: boolean
+  permite_marcar_dose: boolean
+  permite_criar_evento_cuidado: boolean
+  definido_em: string | null
+}
+
+type ModoDecisaoInfo = {
   modo_decisao: string | null
   modo_decisao_solicitado: string | null
   modo_decisao_solicitado_em: string | null
@@ -20,6 +40,37 @@ type StatusDecisao = {
 function formatarData(valor: string | null) {
   if (!valor) return null
   return new Date(valor).toLocaleString('pt-BR')
+}
+
+function ResumoModoDecisao({ info }: { info: ModoDecisaoInfo }) {
+  return (
+    <div className="space-y-2 text-lg text-gray-900">
+      <p>
+        Hoje, quem decide é:{' '}
+        <strong>{info.modo_decisao === 'familiar' ? 'um familiar aprovado' : 'você mesmo'}</strong>
+      </p>
+
+      {info.modo_decisao_solicitado === 'familiar' ? (
+        <div>
+          <p>Há uma transferência para um familiar em andamento.</p>
+          {formatarData(info.modo_decisao_expira_em) && <p>Prazo até: {formatarData(info.modo_decisao_expira_em)}</p>}
+          <p>
+            Confirmação de um segundo familiar:{' '}
+            {info.modo_decisao_segunda_confirmacao_id ? 'já registrada' : 'ainda não registrada'}
+          </p>
+        </div>
+      ) : (
+        <p>Nenhuma transferência em andamento.</p>
+      )}
+
+      {formatarData(info.modo_decisao_alterado_em) && (
+        <p>
+          Última alteração: {formatarData(info.modo_decisao_alterado_em)}
+          {info.modo_decisao_motivo && ` — motivo: ${info.modo_decisao_motivo}`}
+        </p>
+      )}
+    </div>
+  )
 }
 
 async function chamarApi(path: string, options: RequestInit = {}) {
@@ -40,65 +91,79 @@ async function chamarApi(path: string, options: RequestInit = {}) {
 function Vinculos() {
   const [email, setEmail] = useState('')
   const [nomeIdoso, setNomeIdoso] = useState('')
-  const [resultadoSolicitar, setResultadoSolicitar] = useState<string | null>(null)
+  const [carregandoSolicitar, setCarregandoSolicitar] = useState(false)
+  const [resultadoSolicitar, setResultadoSolicitar] = useState<VinculoCriado | null>(null)
   const [erroSolicitar, setErroSolicitar] = useState<string | null>(null)
 
   const [vinculoId, setVinculoId] = useState('')
-  const [resultadoResponder, setResultadoResponder] = useState<string | null>(null)
+  const [acaoResponderEmAndamento, setAcaoResponderEmAndamento] = useState<'aprovar' | 'recusar' | null>(null)
+  const [resultadoResponder, setResultadoResponder] = useState<VinculoRespondido | null>(null)
   const [erroResponder, setErroResponder] = useState<string | null>(null)
 
   const [emailIdoso, setEmailIdoso] = useState('')
-  const [resultadoSolicitarFamiliar, setResultadoSolicitarFamiliar] = useState<string | null>(null)
+  const [carregandoSolicitarFamiliar, setCarregandoSolicitarFamiliar] = useState(false)
+  const [resultadoSolicitarFamiliar, setResultadoSolicitarFamiliar] = useState<VinculoCriado | null>(null)
   const [erroSolicitarFamiliar, setErroSolicitarFamiliar] = useState<string | null>(null)
 
   const [vinculoIdPermissoes, setVinculoIdPermissoes] = useState('')
   const [permiteRegistrarSaude, setPermiteRegistrarSaude] = useState(false)
   const [permiteMarcarDose, setPermiteMarcarDose] = useState(false)
   const [permiteCriarEventoCuidado, setPermiteCriarEventoCuidado] = useState(false)
-  const [resultadoPermissoes, setResultadoPermissoes] = useState<string | null>(null)
+  const [carregandoPermissoes, setCarregandoPermissoes] = useState(false)
+  const [resultadoPermissoes, setResultadoPermissoes] = useState<PermissoesAtualizadas | null>(null)
   const [erroPermissoes, setErroPermissoes] = useState<string | null>(null)
 
-  const [statusDecisao, setStatusDecisao] = useState<StatusDecisao | null>(null)
+  const [carregandoStatusDecisao, setCarregandoStatusDecisao] = useState(false)
+  const [statusDecisao, setStatusDecisao] = useState<ModoDecisaoInfo | null>(null)
   const [erroStatusDecisao, setErroStatusDecisao] = useState<string | null>(null)
 
   const [vinculoIdSolicitarTransferencia, setVinculoIdSolicitarTransferencia] = useState('')
   const [motivoTransferencia, setMotivoTransferencia] = useState('')
-  const [resultadoSolicitarTransferencia, setResultadoSolicitarTransferencia] = useState<string | null>(null)
+  const [carregandoSolicitarTransferencia, setCarregandoSolicitarTransferencia] = useState(false)
+  const [resultadoSolicitarTransferencia, setResultadoSolicitarTransferencia] = useState<ModoDecisaoInfo | null>(null)
   const [erroSolicitarTransferencia, setErroSolicitarTransferencia] = useState<string | null>(null)
 
   const [vinculoIdConfirmarTransferencia, setVinculoIdConfirmarTransferencia] = useState('')
-  const [resultadoConfirmarTransferencia, setResultadoConfirmarTransferencia] = useState<string | null>(null)
+  const [carregandoConfirmarTransferencia, setCarregandoConfirmarTransferencia] = useState(false)
+  const [resultadoConfirmarTransferencia, setResultadoConfirmarTransferencia] = useState<ModoDecisaoInfo | null>(null)
   const [erroConfirmarTransferencia, setErroConfirmarTransferencia] = useState<string | null>(null)
 
   const [modoDecisaoDesejado, setModoDecisaoDesejado] = useState<'idoso' | 'familiar'>('idoso')
-  const [resultadoAlterarModoDecisao, setResultadoAlterarModoDecisao] = useState<string | null>(null)
+  const [carregandoAlterarModoDecisao, setCarregandoAlterarModoDecisao] = useState(false)
+  const [resultadoAlterarModoDecisao, setResultadoAlterarModoDecisao] = useState<ModoDecisaoInfo | null>(null)
   const [erroAlterarModoDecisao, setErroAlterarModoDecisao] = useState<string | null>(null)
 
   async function handleSolicitar(e: FormEvent) {
     e.preventDefault()
     setErroSolicitar(null)
     setResultadoSolicitar(null)
+    setCarregandoSolicitar(true)
     try {
       const corpo = await chamarApi('/vinculo/solicitar-cuidador', {
         method: 'POST',
         body: JSON.stringify({ email, nome_idoso: nomeIdoso || undefined }),
       })
-      setResultadoSolicitar(JSON.stringify(corpo, null, 2))
+      setResultadoSolicitar(corpo)
     } catch (err) {
       console.error('Falha ao solicitar vínculo:', err)
       setErroSolicitar(err instanceof Error ? err.message : 'Falha ao solicitar vínculo.')
+    } finally {
+      setCarregandoSolicitar(false)
     }
   }
 
   async function handleResponder(acao: 'aprovar' | 'recusar') {
     setErroResponder(null)
     setResultadoResponder(null)
+    setAcaoResponderEmAndamento(acao)
     try {
       const corpo = await chamarApi(`/vinculo/${vinculoId}/${acao}`, { method: 'POST' })
-      setResultadoResponder(JSON.stringify(corpo, null, 2))
+      setResultadoResponder(corpo)
     } catch (err) {
       console.error(`Falha ao ${acao} vínculo:`, err)
       setErroResponder(err instanceof Error ? err.message : `Falha ao ${acao} vínculo.`)
+    } finally {
+      setAcaoResponderEmAndamento(null)
     }
   }
 
@@ -106,15 +171,18 @@ function Vinculos() {
     e.preventDefault()
     setErroSolicitarFamiliar(null)
     setResultadoSolicitarFamiliar(null)
+    setCarregandoSolicitarFamiliar(true)
     try {
       const corpo = await chamarApi('/vinculo/solicitar-familiar', {
         method: 'POST',
         body: JSON.stringify({ email: emailIdoso }),
       })
-      setResultadoSolicitarFamiliar(JSON.stringify(corpo, null, 2))
+      setResultadoSolicitarFamiliar(corpo)
     } catch (err) {
       console.error('Falha ao solicitar vínculo de familiar:', err)
       setErroSolicitarFamiliar(err instanceof Error ? err.message : 'Falha ao solicitar vínculo.')
+    } finally {
+      setCarregandoSolicitarFamiliar(false)
     }
   }
 
@@ -122,6 +190,7 @@ function Vinculos() {
     e.preventDefault()
     setErroPermissoes(null)
     setResultadoPermissoes(null)
+    setCarregandoPermissoes(true)
     try {
       const corpo = await chamarApi(`/vinculo/${vinculoIdPermissoes}/definir-permissoes`, {
         method: 'PATCH',
@@ -131,22 +200,27 @@ function Vinculos() {
           permite_criar_evento_cuidado: permiteCriarEventoCuidado,
         }),
       })
-      setResultadoPermissoes(JSON.stringify(corpo, null, 2))
+      setResultadoPermissoes(corpo)
     } catch (err) {
       console.error('Falha ao definir permissões:', err)
       setErroPermissoes(err instanceof Error ? err.message : 'Falha ao definir permissões.')
+    } finally {
+      setCarregandoPermissoes(false)
     }
   }
 
   async function handleVerStatusDecisao() {
     setErroStatusDecisao(null)
     setStatusDecisao(null)
+    setCarregandoStatusDecisao(true)
     try {
       const corpo = await chamarApi('/usuario/me')
       setStatusDecisao(corpo)
     } catch (err) {
       console.error('Falha ao buscar status de decisão:', err)
       setErroStatusDecisao(err instanceof Error ? err.message : 'Falha ao buscar status de decisão.')
+    } finally {
+      setCarregandoStatusDecisao(false)
     }
   }
 
@@ -154,17 +228,20 @@ function Vinculos() {
     e.preventDefault()
     setErroSolicitarTransferencia(null)
     setResultadoSolicitarTransferencia(null)
+    setCarregandoSolicitarTransferencia(true)
     try {
       const corpo = await chamarApi(`/vinculo/${vinculoIdSolicitarTransferencia}/solicitar-transferencia-decisao`, {
         method: 'POST',
         body: JSON.stringify({ modo_decisao_motivo: motivoTransferencia || undefined }),
       })
-      setResultadoSolicitarTransferencia(JSON.stringify(corpo, null, 2))
+      setResultadoSolicitarTransferencia(corpo)
     } catch (err) {
       console.error('Falha ao solicitar transferência de decisão:', err)
       setErroSolicitarTransferencia(
         err instanceof Error ? err.message : 'Falha ao solicitar transferência de decisão.',
       )
+    } finally {
+      setCarregandoSolicitarTransferencia(false)
     }
   }
 
@@ -172,16 +249,19 @@ function Vinculos() {
     e.preventDefault()
     setErroConfirmarTransferencia(null)
     setResultadoConfirmarTransferencia(null)
+    setCarregandoConfirmarTransferencia(true)
     try {
       const corpo = await chamarApi(`/vinculo/${vinculoIdConfirmarTransferencia}/confirmar-transferencia-decisao`, {
         method: 'POST',
       })
-      setResultadoConfirmarTransferencia(JSON.stringify(corpo, null, 2))
+      setResultadoConfirmarTransferencia(corpo)
     } catch (err) {
       console.error('Falha ao confirmar transferência de decisão:', err)
       setErroConfirmarTransferencia(
         err instanceof Error ? err.message : 'Falha ao confirmar transferência de decisão.',
       )
+    } finally {
+      setCarregandoConfirmarTransferencia(false)
     }
   }
 
@@ -189,15 +269,18 @@ function Vinculos() {
     e.preventDefault()
     setErroAlterarModoDecisao(null)
     setResultadoAlterarModoDecisao(null)
+    setCarregandoAlterarModoDecisao(true)
     try {
       const corpo = await chamarApi('/usuario/me/modo-decisao', {
         method: 'PATCH',
         body: JSON.stringify({ modo_decisao: modoDecisaoDesejado }),
       })
-      setResultadoAlterarModoDecisao(JSON.stringify(corpo, null, 2))
+      setResultadoAlterarModoDecisao(corpo)
     } catch (err) {
       console.error('Falha ao alterar modo_decisao:', err)
       setErroAlterarModoDecisao(err instanceof Error ? err.message : 'Falha ao alterar quem decide.')
+    } finally {
+      setCarregandoAlterarModoDecisao(false)
     }
   }
 
@@ -231,8 +314,14 @@ function Vinculos() {
               className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
             />
           </div>
-          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
-            Solicitar
+          <button
+            type="submit"
+            disabled={carregandoSolicitar}
+            aria-busy={carregandoSolicitar}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoSolicitar && <Spinner />}
+            {carregandoSolicitar ? 'Enviando...' : 'Solicitar'}
           </button>
         </form>
         {erroSolicitar && (
@@ -240,7 +329,11 @@ function Vinculos() {
             {erroSolicitar}
           </p>
         )}
-        {resultadoSolicitar && <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoSolicitar}</pre>}
+        {resultadoSolicitar && (
+          <p className="text-lg text-gray-900">
+            Solicitação enviada (vínculo #{resultadoSolicitar.id}). Aguardando aprovação.
+          </p>
+        )}
       </section>
 
       <section className="w-full max-w-sm space-y-4">
@@ -267,16 +360,22 @@ function Vinculos() {
           <button
             type="button"
             onClick={() => handleResponder('aprovar')}
-            className="flex-1 rounded bg-green-700 p-3 text-lg font-semibold text-white"
+            disabled={acaoResponderEmAndamento !== null}
+            aria-busy={acaoResponderEmAndamento === 'aprovar'}
+            className="flex flex-1 items-center justify-center gap-2 rounded bg-green-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
           >
-            Aprovar
+            {acaoResponderEmAndamento === 'aprovar' && <Spinner />}
+            {acaoResponderEmAndamento === 'aprovar' ? 'Aprovando...' : 'Aprovar'}
           </button>
           <button
             type="button"
             onClick={() => handleResponder('recusar')}
-            className="flex-1 rounded bg-red-700 p-3 text-lg font-semibold text-white"
+            disabled={acaoResponderEmAndamento !== null}
+            aria-busy={acaoResponderEmAndamento === 'recusar'}
+            className="flex flex-1 items-center justify-center gap-2 rounded bg-red-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
           >
-            Recusar
+            {acaoResponderEmAndamento === 'recusar' && <Spinner />}
+            {acaoResponderEmAndamento === 'recusar' ? 'Recusando...' : 'Recusar'}
           </button>
         </div>
         {erroResponder && (
@@ -284,7 +383,11 @@ function Vinculos() {
             {erroResponder}
           </p>
         )}
-        {resultadoResponder && <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoResponder}</pre>}
+        {resultadoResponder && (
+          <p className="text-lg text-gray-900">
+            Vínculo #{resultadoResponder.id} {resultadoResponder.status === 'aprovado' ? 'aprovado.' : 'recusado.'}
+          </p>
+        )}
       </section>
 
       <section className="w-full max-w-sm space-y-4">
@@ -303,8 +406,14 @@ function Vinculos() {
               className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
             />
           </div>
-          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
-            Solicitar
+          <button
+            type="submit"
+            disabled={carregandoSolicitarFamiliar}
+            aria-busy={carregandoSolicitarFamiliar}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoSolicitarFamiliar && <Spinner />}
+            {carregandoSolicitarFamiliar ? 'Enviando...' : 'Solicitar'}
           </button>
         </form>
         {erroSolicitarFamiliar && (
@@ -313,7 +422,9 @@ function Vinculos() {
           </p>
         )}
         {resultadoSolicitarFamiliar && (
-          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoSolicitarFamiliar}</pre>
+          <p className="text-lg text-gray-900">
+            Solicitação enviada (vínculo #{resultadoSolicitarFamiliar.id}). Aguardando aprovação do idoso.
+          </p>
         )}
       </section>
 
@@ -373,8 +484,14 @@ function Vinculos() {
               Permite criar evento de cuidado
             </label>
           </div>
-          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
-            Salvar permissões
+          <button
+            type="submit"
+            disabled={carregandoPermissoes}
+            aria-busy={carregandoPermissoes}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoPermissoes && <Spinner />}
+            {carregandoPermissoes ? 'Salvando...' : 'Salvar permissões'}
           </button>
         </form>
         {erroPermissoes && (
@@ -382,7 +499,14 @@ function Vinculos() {
             {erroPermissoes}
           </p>
         )}
-        {resultadoPermissoes && <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoPermissoes}</pre>}
+        {resultadoPermissoes && (
+          <div className="space-y-1 text-lg text-gray-900">
+            <p>Permissões salvas:</p>
+            <p>Registrar saúde: {resultadoPermissoes.permite_registrar_saude ? 'sim' : 'não'}</p>
+            <p>Marcar dose: {resultadoPermissoes.permite_marcar_dose ? 'sim' : 'não'}</p>
+            <p>Criar evento de cuidado: {resultadoPermissoes.permite_criar_evento_cuidado ? 'sim' : 'não'}</p>
+          </div>
+        )}
       </section>
 
       <section className="w-full max-w-sm space-y-4">
@@ -394,45 +518,19 @@ function Vinculos() {
         <button
           type="button"
           onClick={handleVerStatusDecisao}
-          className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white"
+          disabled={carregandoStatusDecisao}
+          aria-busy={carregandoStatusDecisao}
+          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
         >
-          Buscar status
+          {carregandoStatusDecisao && <Spinner />}
+          {carregandoStatusDecisao ? 'Buscando...' : 'Buscar status'}
         </button>
         {erroStatusDecisao && (
           <p role="alert" className="text-lg text-red-700">
             {erroStatusDecisao}
           </p>
         )}
-        {statusDecisao && (
-          <div className="space-y-2 text-lg text-gray-900">
-            <p>
-              Hoje, quem decide é:{' '}
-              <strong>{statusDecisao.modo_decisao === 'familiar' ? 'um familiar aprovado' : 'você mesmo'}</strong>
-            </p>
-
-            {statusDecisao.modo_decisao_solicitado === 'familiar' ? (
-              <div>
-                <p>Há uma transferência para um familiar em andamento.</p>
-                {formatarData(statusDecisao.modo_decisao_expira_em) && (
-                  <p>Prazo até: {formatarData(statusDecisao.modo_decisao_expira_em)}</p>
-                )}
-                <p>
-                  Confirmação de um segundo familiar:{' '}
-                  {statusDecisao.modo_decisao_segunda_confirmacao_id ? 'já registrada' : 'ainda não registrada'}
-                </p>
-              </div>
-            ) : (
-              <p>Nenhuma transferência em andamento.</p>
-            )}
-
-            {formatarData(statusDecisao.modo_decisao_alterado_em) && (
-              <p>
-                Última alteração: {formatarData(statusDecisao.modo_decisao_alterado_em)}
-                {statusDecisao.modo_decisao_motivo && ` — motivo: ${statusDecisao.modo_decisao_motivo}`}
-              </p>
-            )}
-          </div>
-        )}
+        {statusDecisao && <ResumoModoDecisao info={statusDecisao} />}
       </section>
 
       <section className="w-full max-w-sm space-y-4">
@@ -469,8 +567,14 @@ function Vinculos() {
               className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
             />
           </div>
-          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
-            Solicitar transferência
+          <button
+            type="submit"
+            disabled={carregandoSolicitarTransferencia}
+            aria-busy={carregandoSolicitarTransferencia}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoSolicitarTransferencia && <Spinner />}
+            {carregandoSolicitarTransferencia ? 'Enviando...' : 'Solicitar transferência'}
           </button>
         </form>
         {erroSolicitarTransferencia && (
@@ -479,7 +583,11 @@ function Vinculos() {
           </p>
         )}
         {resultadoSolicitarTransferencia && (
-          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoSolicitarTransferencia}</pre>
+          <p className="text-lg text-gray-900">
+            Transferência solicitada.
+            {formatarData(resultadoSolicitarTransferencia.modo_decisao_expira_em) &&
+              ` Se ninguém agir, passa a valer em ${formatarData(resultadoSolicitarTransferencia.modo_decisao_expira_em)}.`}
+          </p>
         )}
       </section>
 
@@ -503,8 +611,14 @@ function Vinculos() {
               className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
             />
           </div>
-          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
-            Confirmar transferência
+          <button
+            type="submit"
+            disabled={carregandoConfirmarTransferencia}
+            aria-busy={carregandoConfirmarTransferencia}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoConfirmarTransferencia && <Spinner />}
+            {carregandoConfirmarTransferencia ? 'Confirmando...' : 'Confirmar transferência'}
           </button>
         </form>
         {erroConfirmarTransferencia && (
@@ -513,7 +627,9 @@ function Vinculos() {
           </p>
         )}
         {resultadoConfirmarTransferencia && (
-          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoConfirmarTransferencia}</pre>
+          <p className="text-lg text-gray-900">
+            Confirmação registrada. A mudança só é efetivada quando a janela de 7 dias expirar.
+          </p>
         )}
       </section>
 
@@ -539,8 +655,14 @@ function Vinculos() {
               <option value="familiar">Familiar(es) aprovado(s)</option>
             </select>
           </div>
-          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
-            Salvar
+          <button
+            type="submit"
+            disabled={carregandoAlterarModoDecisao}
+            aria-busy={carregandoAlterarModoDecisao}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoAlterarModoDecisao && <Spinner />}
+            {carregandoAlterarModoDecisao ? 'Salvando...' : 'Salvar'}
           </button>
         </form>
         {erroAlterarModoDecisao && (
@@ -548,9 +670,7 @@ function Vinculos() {
             {erroAlterarModoDecisao}
           </p>
         )}
-        {resultadoAlterarModoDecisao && (
-          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoAlterarModoDecisao}</pre>
-        )}
+        {resultadoAlterarModoDecisao && <ResumoModoDecisao info={resultadoAlterarModoDecisao} />}
       </section>
     </main>
   )
