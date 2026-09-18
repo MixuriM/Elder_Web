@@ -225,6 +225,13 @@ Transferência de modo_decisao para 'familiar' (RF-033) não é instantânea:
 4. Se a janela expirar sem login do idoso (e com a segunda confirmação, quando
    exigida) -> modo_decisao é atualizado, idoso é notificado.
 
+O Idoso pode alterar Usuario.modo_decisao diretamente, a qualquer momento e sem
+janela de carência, incluindo reverter de 'familiar' para 'idoso' (RF-034) —
+autoridade top-level do próprio Idoso sobre o campo. Essa alteração direta
+cancela imediatamente qualquer transferência em curso (modo_decisao_solicitado*
+voltam a NULL). Delegar para 'familiar' exige ao menos um Vinculo de familiar
+aprovado; reverter para 'idoso' não tem pré-condição.
+
 ### Autoridade de aprovação, recusa e contestação de vínculo (RF-021, RF-022, RF-027)
 
 Segue a mesma regra do sistema de permissões acima: quem tem autoridade pra
@@ -275,6 +282,7 @@ permitir contestação (RF-022) mesmo depois de já 'aprovado'.
 | REV.11 | Autoridade de aprovação/recusa/contestação de vínculo (RF-021/RF-022/RF-027) passa a seguir Usuario.modo_decisao, mesma regra das flags de permissão do Cuidador (RF-032), sem mecanismo novo. |
 | REV.12 | Documentado como 3º risco residual aceito (seção 5.2): janela sem autoridade formal entre o cadastro de um idoso via RF-030 e a confirmação de e-mail do Familiar cadastrante. Sem mecanismo novo — decisão de escopo. |
 | REV.13 | Índice único filtrado em Vinculo(idoso_id, vinculado_id, tipo_vinculo) WHERE status IN ('pendente','aprovado') — fecha corrida entre solicitações simultâneas do mesmo par, item 2.1 (RF-020). Ver nota após a tabela Vinculo. |
+| REV.14 | Idoso altera Usuario.modo_decisao diretamente e a qualquer momento, sem janela de carência, incluindo reverter de 'familiar' para 'idoso' (RF-034). Delegar para 'familiar' exige familiar aprovado; reverter não. |
 
 ---
 
