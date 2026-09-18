@@ -741,3 +741,96 @@ do vínculo, chama `PATCH /vinculo/:id/definir-permissoes`. Suíte frontend sem 
 
 Fora de escopo deste item: nenhuma dívida técnica nova registrada — item fecha a Fase 2
 no que diz respeito às permissões granulares do cuidador (RF-032).
+
+**Item 2.9 da Fase 2 (RF-033) implementado — transferência de `Usuario.modo_decisao` com
+janela de carência de 7 dias (2026-09-18, PR #63, mergeado em `main`, commit `98a2710`):**
+
+Rotas novas em `backend/src/routes/vinculo.ts`: `POST /vinculo/:id/solicitar-transferencia-decisao`
+(Familiar com vínculo aprovado solicita a transferência de autoridade do idoso pra
+`'familiar'`) e `POST /vinculo/:id/confirmar-transferencia-decisao` (segunda confirmação,
+exigida só quando o idoso tem 2+ familiares aprovados). Em ambas, `:id` é o vínculo
+aprovado DO PRÓPRIO familiar chamador (`vinculado_id === req.usuarioId`) — decisão de
+design desta tarefa, diferente do padrão de `/definir-permissoes` (onde `:id` é o vínculo
+do cuidador-alvo, não do ator): não existe tabela separada de "solicitação de
+transferência" pra escopar por id próprio, então o vínculo do próprio familiar com o idoso
+serve tanto pra identificar o idoso alvo quanto pra autenticar que quem chama é de fato um
+familiar aprovado dele.
+
+Checagem preguiçosa de expiração: `resolverEstadoModoDecisao` (nova, exportada de
+`vinculo.ts`) lê `Usuario.modo_decisao_solicitado` e, se a janela de 7 dias
+(`modo_decisao_expira_em`) já expirou, decide entre efetivar (promove `modo_decisao` pra
+`'familiar'`, preenche `modo_decisao_alterado_por_id`/`_em`) ou lapsar (limpa a solicitação
+sem efetivar) — dependendo de o idoso ter 2+ `Vinculo` `tipo_vinculo='familiar'`/
+`status='aprovado'` (contagem via `prisma.vinculo.count`) e, se tiver, de
+`modo_decisao_segunda_confirmacao_id` já estar preenchido. A antiga `resolverModoDecisao`
+(usada pra autoridade em `/aprovar`, `/recusar`, `/definir-permissoes`) virou um wrapper
+fino em cima dela — ganha a checagem de expiração automaticamente, sem mudar assinatura
+nem os pontos que já chamavam.
+
+Segunda confirmação NÃO efetiva a mudança na hora — só preenche
+`modo_decisao_segunda_confirmacao_id`; a efetivação de fato só acontece na próxima leitura
+preguiçosa depois que a janela expirar, conforme o mecanismo descrito em `Elder Web -
+Modelagem ER.md` seção 3. Confirmação do próprio solicitante é bloqueada (403).
+Confirmação chegando depois da janela já ter expirado (sem segunda confirmação prévia) cai
+automaticamente no lapso da leitura preguiçosa antes mesmo da rota checar — vira 409 "não
+há solicitação em curso", sem checagem extra de data na rota.
+
+`POST /auth/sync`: branch de login do idoso agora sempre cancela uma solicitação de
+transferência em curso (`modo_decisao_solicitado === 'familiar'`), com prioridade sobre a
+expiração da janela — não passa pela checagem preguiçosa de `resolverEstadoModoDecisao`,
+faz o cancelamento direto, então mesmo se login e expiração "acontecerem ao mesmo tempo" o
+login sempre ganha. `ultimo_login_em` passa a ser gravado em todo login (idoso, cuidador ou
+familiar), campo que existia no schema desde a migration inicial mas nunca era escrito
+antes desta tarefa.
+
+`GET /usuario/me` estendido com `modo_decisao`, `modo_decisao_solicitado*`,
+`modo_decisao_alterado_por_id`/`_em` e `modo_decisao_motivo` — chama
+`resolverEstadoModoDecisao` antes de responder, então nunca devolve uma solicitação já
+expirada como se ainda estivesse em curso. "Idoso é notificado" (critério de pronto desta
+tarefa) = esses campos ficarem disponíveis aqui pro frontend mostrar aviso — não há envio
+de e-mail, decisão de escopo desta tarefa.
+
+`modo_decisao_motivo` (justificativa opcional do Familiar ao solicitar) é limpo junto com
+os outros 4 campos de solicitação tanto no cancelamento por login quanto no lapso por
+expiração sem segunda confirmação — evita motivo órfão sobrevivendo em `GET /usuario/me`
+sem nenhuma solicitação pra dar contexto. Só é preenchido de novo quando uma nova
+solicitação é feita; permanece intacto quando a solicitação É efetivada (fica disponível ao
+lado de `modo_decisao_alterado_por_id`/`_em`).
+
+Migration `20260918100000_add_check_modo_decisao_solicitado_conjunto` (escrita à mão,
+mesmo padrão do item 2.4/2.8 — colunas já existiam desde `20260831005102_init_schema`, só
+faltava a constraint) adiciona `CK_Usuario_modo_decisao_solicitado_conjunto`:
+`modo_decisao_solicitado`, `modo_decisao_solicitado_por_id`, `modo_decisao_solicitado_em` e
+`modo_decisao_expira_em` só podem estar todos `NULL` ou todos preenchidos
+(`modo_decisao_segunda_confirmacao_id` fica de fora de propósito — é opcional mesmo com
+solicitação em curso). Aplicada via `npx prisma migrate deploy` contra o Azure SQL de
+produção (autorização pontual do Marcos, mesmo padrão do item 2.4 — a trava geral do
+CLAUDE.md continua valendo). `backend/scripts/verify-constraints.ts` ganhou o caso 12 pra
+essa CHECK — 16/16 PASS confirmados de verdade no banco.
+
+**Limitação aceita (decisão desta tarefa, não é dívida técnica em aberto):** a expiração da
+janela de 7 dias não tem job agendado — é sempre resolvida sob demanda, nos mesmos pontos
+onde `modo_decisao` já era lido pra autoridade (`resolverModoDecisao`), na rota de
+solicitar/confirmar transferência, em `GET /usuario/me`, e no login do idoso em `POST
+/auth/sync`. Uma linha pode ficar com `modo_decisao_solicitado*` preenchido além do prazo
+até o próximo desses pontos rodar — aceito conscientemente, sem mitigação nesta tarefa.
+
+Testes novos em `backend/src/routes/vinculo.test.ts` (`describe`s de
+`solicitar-transferencia-decisao`, `confirmar-transferencia-decisao` e
+`resolverEstadoModoDecisao`) cobrindo: sucesso com/sem motivo, 404/400/409/403 de estado e
+autoridade, edge case de confirmação chegando após expiração, e os 3 ramos da checagem
+preguiçosa (efetiva com 1 familiar, lapsa com 2+ sem segunda confirmação, efetiva com 2+ e
+segunda confirmação já dada) via `/aprovar` como veículo. `backend/src/routes/auth.test.ts`
+ganhou `describe` dedicado pro cancelamento no login (idoso com/sem solicitação pendente,
+guard por `tipo_perfil`). `backend/src/routes/usuario.test.ts` cobre a extensão de `GET
+/usuario/me`. Suíte completa do backend em 104 testes/6 suítes (era 77 antes desta tarefa).
+`npx tsc --noEmit` limpo nos dois pacotes.
+
+Frontend: 3 seções novas em `Vinculos.tsx` — "Ver meu status de decisão" (`GET
+/usuario/me`), "Solicitar transferência de decisão" e "Confirmar transferência de decisão"
+— esqueleto cru (mesma exceção de divisão de trabalho já registrada na seção Workflow),
+cobrindo só as rotas desta tarefa. Suíte frontend sem regressão (2 suítes/4 testes).
+
+Fora de escopo desta tarefa (não implementado, por instrução explícita, fica pro item 2.10
+do plano, RF-034): mudança instantânea de `modo_decisao` pelo próprio idoso, sem janela —
+incluindo reverter de `'familiar'` pra `'idoso'`.
