@@ -241,7 +241,7 @@ async function familiarTemVinculoAprovado(idosoId: number, familiarId: number): 
 // Tarefa 2.9 (RF-033) — transferência de Usuario.modo_decisao pra 'familiar', com janela
 // de carência de 7 dias e segunda confirmação quando o idoso tem 2+ familiares aprovados.
 // Mecanismo completo em Elder Web - Modelagem ER.md seção 3.
-const MODO_DECISAO_SELECT = {
+export const MODO_DECISAO_SELECT = {
   modo_decisao: true,
   modo_decisao_solicitado: true,
   modo_decisao_solicitado_por_id: true,
