@@ -834,3 +834,59 @@ cobrindo só as rotas desta tarefa. Suíte frontend sem regressão (2 suítes/4 
 Fora de escopo desta tarefa (não implementado, por instrução explícita, fica pro item 2.10
 do plano, RF-034): mudança instantânea de `modo_decisao` pelo próprio idoso, sem janela —
 incluindo reverter de `'familiar'` pra `'idoso'`.
+
+**Item 2.10 da Fase 2 (RF-034) implementado — idoso altera `Usuario.modo_decisao`
+diretamente, sem janela de carência (2026-09-18, PR #65, mergeado em `main`, commit
+`0e25bab` feat + `76f5669` docs):**
+
+Rota nova `PATCH /usuario/me/modo-decisao` em `backend/src/routes/usuario.ts`, atrás de
+`requireAuth`, body `{ modo_decisao: "idoso" | "familiar" }`. Separada de `PATCH
+/usuario/me` de propósito, pra não misturar campo de autorização com edição de perfil.
+Alvo sempre `req.usuarioId` (nunca lido de body/params). Só `tipo_perfil='idoso'` chama
+(403 caso contrário); valor ausente/inválido/tipo errado recebe 400, checado depois do
+403.
+
+Chama `resolverEstadoModoDecisao` (`routes/vinculo.ts`, item 2.9) antes de decidir, mesmo
+padrão de `GET /usuario/me` — garante que uma transferência vencida já foi
+efetivada/lapsada antes desta rota ler o estado. Reverter `'familiar'` → `'idoso'` muda na
+hora, sem checar familiares aprovados (autoridade top-level do idoso). Delegar `'idoso'`
+→ `'familiar'` exige pelo menos 1 `Vinculo` `tipo_vinculo='familiar'`/`status='aprovado'`
+(409 sem isso) — único desvio do texto literal do plano ("sem checar familiares
+aprovados"), decisão tomada nesta tarefa e não vetada pelo Marcos. Toda mudança efetiva
+grava `modo_decisao_alterado_por_id`/`_em` e zera `modo_decisao_motivo`; se havia uma
+transferência em curso (item 2.9), ela é cancelada no mesmo update (6 campos
+`modo_decisao_solicitado*`/`_motivo` a `NULL`). Pedido igual ao valor atual sem
+solicitação em curso não grava nada; igual ao atual com solicitação em curso só cancela a
+solicitação, sem tocar `modo_decisao`/`alterado_*`. No máximo 1 `prisma.usuario.update`
+por request nesta rota (a escrita interna de `resolverEstadoModoDecisao`, quando ocorre,
+não conta).
+
+`MODO_DECISAO_SELECT` (antes local a `vinculo.ts`) ganhou `export` — única mudança nesse
+arquivo — pra rota nova devolver os mesmos campos de `GET /usuario/me`. Nenhuma migration:
+os campos usados já existiam desde a tarefa 2.9. Constante local `CANCELAMENTO_SOLICITACAO`
+criada em `usuario.ts` só pra esta rota — terceira cópia da mesma lista de 6 campos (as
+outras duas: `POST /auth/sync`, item 2.9, e `resolverEstadoModoDecisao`), registrada como
+dívida técnica conhecida, não fechada nesta tarefa.
+
+Testes novos em `backend/src/routes/usuario.test.ts` (TDD, RED confirmado antes da
+implementação): 16 casos cobrindo os 4 ramos da tabela de decisão, guard de delegação
+com/sem familiar aprovado, `NULL` tratado como `'idoso'`, reversão nunca consultando
+`count`/`findFirst` de vínculo, motivo zerado, no-op com e sem solicitação em curso,
+solicitação vencida efetivada antes da decisão (efetivação de `resolverEstadoModoDecisao`
++ update próprio da rota, 2 updates no total), 403 por perfil, 400 de body (4 variações
+via `it.each`), e id/idoso_id no body ignorados. Suíte completa do backend: 6 arquivos de
+teste, 120 testes (era 104). `npx tsc --noEmit` limpo nos dois pacotes. `npm run lint` do
+backend pegou 1 erro (`_` não usado num loop de teste), corrigido antes do commit.
+
+Frontend: seção nova "Alterar quem decide (só idoso)" em `Vinculos.tsx` — esqueleto cru
+(mesma exceção de divisão de trabalho já registrada na seção Workflow), select
+`idoso`/`familiar` + botão, chama a rota nova. Suíte frontend sem regressão (2 suítes/4
+testes).
+
+`docs/Elder Web - Modelagem ER.md` ganhou parágrafo novo na seção 3 (mecanismo de
+alteração direta pelo idoso, logo após a lista de transferência do item 2.9) e REV.14 na
+tabela de histórico.
+
+Fora de escopo desta tarefa (não implementado, por instrução explícita): reabertura do
+mecanismo da 2.9 (RF-033), contestação de vínculo via `notificado_em`, job agendado, envio
+de e-mail.
