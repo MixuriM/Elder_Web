@@ -7,6 +7,21 @@ import { getCurrentUserToken } from '../lib/auth'
 // polish visual. Layout final é responsabilidade de Laureane/Jennifer; isto
 // existe só pra não depender do front delas pra testar o back.
 
+type StatusDecisao = {
+  modo_decisao: string | null
+  modo_decisao_solicitado: string | null
+  modo_decisao_solicitado_em: string | null
+  modo_decisao_expira_em: string | null
+  modo_decisao_segunda_confirmacao_id: number | null
+  modo_decisao_alterado_em: string | null
+  modo_decisao_motivo: string | null
+}
+
+function formatarData(valor: string | null) {
+  if (!valor) return null
+  return new Date(valor).toLocaleString('pt-BR')
+}
+
 async function chamarApi(path: string, options: RequestInit = {}) {
   const token = await getCurrentUserToken()
   const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
@@ -43,7 +58,7 @@ function Vinculos() {
   const [resultadoPermissoes, setResultadoPermissoes] = useState<string | null>(null)
   const [erroPermissoes, setErroPermissoes] = useState<string | null>(null)
 
-  const [resultadoStatusDecisao, setResultadoStatusDecisao] = useState<string | null>(null)
+  const [statusDecisao, setStatusDecisao] = useState<StatusDecisao | null>(null)
   const [erroStatusDecisao, setErroStatusDecisao] = useState<string | null>(null)
 
   const [vinculoIdSolicitarTransferencia, setVinculoIdSolicitarTransferencia] = useState('')
@@ -125,10 +140,10 @@ function Vinculos() {
 
   async function handleVerStatusDecisao() {
     setErroStatusDecisao(null)
-    setResultadoStatusDecisao(null)
+    setStatusDecisao(null)
     try {
       const corpo = await chamarApi('/usuario/me')
-      setResultadoStatusDecisao(JSON.stringify(corpo, null, 2))
+      setStatusDecisao(corpo)
     } catch (err) {
       console.error('Falha ao buscar status de decisão:', err)
       setErroStatusDecisao(err instanceof Error ? err.message : 'Falha ao buscar status de decisão.')
@@ -371,10 +386,10 @@ function Vinculos() {
       </section>
 
       <section className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Ver meu status de decisão (GET /usuario/me)</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Quem decide por mim</h1>
         <p className="text-base text-gray-700">
-          Mostra modo_decisao, a solicitação de transferência em curso (se houver) e a última
-          alteração efetivada — mesmos campos que servem de aviso pro idoso (item 2.9, RF-033).
+          Mostra se é você ou um familiar quem decide hoje, e se há alguma transferência em
+          andamento.
         </p>
         <button
           type="button"
@@ -388,8 +403,35 @@ function Vinculos() {
             {erroStatusDecisao}
           </p>
         )}
-        {resultadoStatusDecisao && (
-          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoStatusDecisao}</pre>
+        {statusDecisao && (
+          <div className="space-y-2 text-lg text-gray-900">
+            <p>
+              Hoje, quem decide é:{' '}
+              <strong>{statusDecisao.modo_decisao === 'familiar' ? 'um familiar aprovado' : 'você mesmo'}</strong>
+            </p>
+
+            {statusDecisao.modo_decisao_solicitado === 'familiar' ? (
+              <div>
+                <p>Há uma transferência para um familiar em andamento.</p>
+                {formatarData(statusDecisao.modo_decisao_expira_em) && (
+                  <p>Prazo até: {formatarData(statusDecisao.modo_decisao_expira_em)}</p>
+                )}
+                <p>
+                  Confirmação de um segundo familiar:{' '}
+                  {statusDecisao.modo_decisao_segunda_confirmacao_id ? 'já registrada' : 'ainda não registrada'}
+                </p>
+              </div>
+            ) : (
+              <p>Nenhuma transferência em andamento.</p>
+            )}
+
+            {formatarData(statusDecisao.modo_decisao_alterado_em) && (
+              <p>
+                Última alteração: {formatarData(statusDecisao.modo_decisao_alterado_em)}
+                {statusDecisao.modo_decisao_motivo && ` — motivo: ${statusDecisao.modo_decisao_motivo}`}
+              </p>
+            )}
+          </div>
         )}
       </section>
 
