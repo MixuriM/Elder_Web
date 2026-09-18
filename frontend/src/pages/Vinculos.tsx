@@ -55,6 +55,10 @@ function Vinculos() {
   const [resultadoConfirmarTransferencia, setResultadoConfirmarTransferencia] = useState<string | null>(null)
   const [erroConfirmarTransferencia, setErroConfirmarTransferencia] = useState<string | null>(null)
 
+  const [modoDecisaoDesejado, setModoDecisaoDesejado] = useState<'idoso' | 'familiar'>('idoso')
+  const [resultadoAlterarModoDecisao, setResultadoAlterarModoDecisao] = useState<string | null>(null)
+  const [erroAlterarModoDecisao, setErroAlterarModoDecisao] = useState<string | null>(null)
+
   async function handleSolicitar(e: FormEvent) {
     e.preventDefault()
     setErroSolicitar(null)
@@ -163,6 +167,22 @@ function Vinculos() {
       setErroConfirmarTransferencia(
         err instanceof Error ? err.message : 'Falha ao confirmar transferência de decisão.',
       )
+    }
+  }
+
+  async function handleAlterarModoDecisao(e: FormEvent) {
+    e.preventDefault()
+    setErroAlterarModoDecisao(null)
+    setResultadoAlterarModoDecisao(null)
+    try {
+      const corpo = await chamarApi('/usuario/me/modo-decisao', {
+        method: 'PATCH',
+        body: JSON.stringify({ modo_decisao: modoDecisaoDesejado }),
+      })
+      setResultadoAlterarModoDecisao(JSON.stringify(corpo, null, 2))
+    } catch (err) {
+      console.error('Falha ao alterar modo_decisao:', err)
+      setErroAlterarModoDecisao(err instanceof Error ? err.message : 'Falha ao alterar quem decide.')
     }
   }
 
@@ -452,6 +472,42 @@ function Vinculos() {
         )}
         {resultadoConfirmarTransferencia && (
           <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoConfirmarTransferencia}</pre>
+        )}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Alterar quem decide (só idoso)</h1>
+        <p className="text-base text-gray-700">
+          Só o próprio idoso pode chamar esta rota. Muda modo_decisao imediatamente, sem janela de
+          carência e sem checar familiares ao reverter de familiar pra idoso (item 2.10, RF-034).
+          Se houver uma transferência em curso (item 2.9), esta ação cancela a solicitação.
+        </p>
+        <form onSubmit={handleAlterarModoDecisao} className="space-y-4">
+          <div>
+            <label htmlFor="modo_decisao_desejado" className="block text-lg font-medium text-gray-900">
+              Quem decide
+            </label>
+            <select
+              id="modo_decisao_desejado"
+              value={modoDecisaoDesejado}
+              onChange={(e) => setModoDecisaoDesejado(e.target.value as 'idoso' | 'familiar')}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            >
+              <option value="idoso">Eu mesmo (idoso)</option>
+              <option value="familiar">Familiar(es) aprovado(s)</option>
+            </select>
+          </div>
+          <button type="submit" className="w-full rounded bg-blue-700 p-3 text-lg font-semibold text-white">
+            Salvar
+          </button>
+        </form>
+        {erroAlterarModoDecisao && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroAlterarModoDecisao}
+          </p>
+        )}
+        {resultadoAlterarModoDecisao && (
+          <pre className="whitespace-pre-wrap text-sm text-gray-700">{resultadoAlterarModoDecisao}</pre>
         )}
       </section>
     </main>
