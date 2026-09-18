@@ -1,7 +1,6 @@
 import {
   LogOut,
   Settings,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -116,24 +115,17 @@ function Sidebar({
           {/* Ícone da logo */}
           <div
             className="
-              mr-3
+              mr-1
 
               flex
               h-9
               w-9
               items-center
               justify-center
-
-              rounded-full
-
-              bg-gradient-to-br
-              from-[#A18BFF]
-              to-[#6C63FF]
-
-              text-white
+              
             "
           >
-            <ShieldCheck size={22} />
+            <img src="elder-favicon.ico"></img>
           </div>
 
           {/* Nome da plataforma */}
