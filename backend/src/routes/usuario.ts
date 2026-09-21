@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
+import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
 
 const router = Router();
 
@@ -183,6 +184,16 @@ router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "Telefone deve ter até 20 caracteres." });
     }
 
+    // RNF-011: valida o e-mail ANTES do INSERT, sem distinguir o tipo de conta que o
+    // ocupa (uma mensagem só) e sem ler nada além do id. O catch abaixo é rede de
+    // segurança pra corrida.
+    if (emailLimpo) {
+      const ocupado = await prisma.usuario.findFirst({ where: { email: emailLimpo }, select: { id: true } });
+      if (ocupado) {
+        return res.status(409).json(CONFLITO_EMAIL.EMAIL_JA_EM_USO_CADASTRO_IDOSO);
+      }
+    }
+
     const agora = new Date();
     // Fluxo A: e-mail do Familiar já verificado no token = posse já confirmada.
     const aprovado = req.emailVerificado;
@@ -222,10 +233,9 @@ router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
       vinculo: { id: vinculo.id, status: vinculo.status, origem: vinculo.origem },
     });
   } catch (e) {
-    // Mensagem genérica de propósito: não revela quem é o dono do e-mail (item 3.2
-    // trata a mensagem específica e a orientação de próximo passo).
+    // Corrida entre a pré-checagem e o INSERT: mesmo corpo do 409 da pré-checagem.
     if (isDuplicateEmail(e)) {
-      return res.status(409).json({ error: "Não foi possível cadastrar com este e-mail." });
+      return res.status(409).json(CONFLITO_EMAIL.EMAIL_JA_EM_USO_CADASTRO_IDOSO);
     }
     next(e);
   }

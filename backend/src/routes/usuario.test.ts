@@ -490,9 +490,75 @@ describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
     findUnique.mockReset();
     createUsuario.mockReset();
     verifyIdToken.mockResolvedValue({ uid: "uid-42", email_verified: false });
-    findFirst.mockResolvedValue(USUARIO_LOGADO);
+    // findFirst é compartilhado entre requireAuth (por firebase_uid) e a pré-checagem
+    // de e-mail (3.2) — distingue pelo where. Padrão: e-mail livre.
+    findFirst.mockImplementation((args: { where: { email?: string } }) =>
+      Promise.resolve(args.where.email !== undefined ? null : USUARIO_LOGADO)
+    );
     findUnique.mockResolvedValue({ tipo_perfil: "familiar" });
     createUsuario.mockResolvedValue(CRIADO);
+  });
+
+  // Item 3.2 (RNF-011) — conflito 1. Nomes/e-mails abaixo são FIXTURES de teste.
+  describe("conflito de e-mail (3.2)", () => {
+    const CONTA_EXISTENTE = { id: 77, nome: "FIXTURE Fulano Existente", email: "existente-fixture@x.com", tipo_perfil: "idoso" };
+
+    function emailOcupado() {
+      findFirst.mockImplementation((args: { where: { email?: string } }) =>
+        Promise.resolve(args.where.email !== undefined ? CONTA_EXISTENTE : USUARIO_LOGADO)
+      );
+    }
+
+    it("e-mail já existente: 409 EMAIL_JA_EM_USO_CADASTRO_IDOSO com proximo_passo, sem create", async () => {
+      emailOcupado();
+
+      const res = await post(BODY_OK);
+
+      expect(res.status).toBe(409);
+      expect(res.body.codigo).toBe("EMAIL_JA_EM_USO_CADASTRO_IDOSO");
+      expect(typeof res.body.error).toBe("string");
+      expect(res.body.proximo_passo).toEqual(expect.any(String));
+      expect(res.body.proximo_passo.length).toBeGreaterThan(0);
+      expect(Object.keys(res.body).sort()).toEqual(["codigo", "error", "proximo_passo"]);
+      expect(createUsuario).not.toHaveBeenCalled();
+    });
+
+    it("corpo não contém e-mail enviado nem nome/e-mail/id da conta existente", async () => {
+      emailOcupado();
+
+      const res = await post(BODY_OK);
+      const corpo = JSON.stringify(res.body);
+
+      expect(corpo).not.toContain("maria@a.com");
+      expect(corpo).not.toContain("FIXTURE");
+      expect(corpo).not.toContain("existente-fixture@x.com");
+      expect(corpo).not.toContain("77");
+    });
+
+    it("pré-checagem seleciona só id", async () => {
+      emailOcupado();
+
+      await post(BODY_OK);
+
+      const chamadaEmail = findFirst.mock.calls.find((c) => c[0].where.email !== undefined);
+      expect(chamadaEmail?.[0]).toEqual({ where: { email: "maria@a.com" }, select: { id: true } });
+    });
+
+    it("só telefone: pré-checagem de e-mail é pulada", async () => {
+      await post({ nome: "Seu José", telefone: "11999990000", aceita_termo_responsabilidade: true });
+
+      expect(findFirst.mock.calls.some((c) => c[0].where.email !== undefined)).toBe(false);
+    });
+
+    it("corrida: pré-checagem não acha, create rejeita com duplicidade: 409 com o mesmo corpo", async () => {
+      createUsuario.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint 'Usuario_email_key'"));
+      const corrida = await post(BODY_OK);
+      emailOcupado();
+      const preCheck = await post(BODY_OK);
+
+      expect(corrida.status).toBe(409);
+      expect(corrida.body).toEqual(preCheck.body);
+    });
   });
 
   it("401 sem token", async () => {
