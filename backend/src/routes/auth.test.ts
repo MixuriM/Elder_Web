@@ -282,6 +282,20 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
     expect(origem.in).not.toContain("solicitacao_familiar");
   });
 
+  it("login de familiar com vínculo contestado ('recusado') não o reativa (RF-022)", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: true });
+    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });
+    updateManyVinculo.mockResolvedValue({ count: 0 });
+
+    const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+
+    expect(res.status).toBe(200);
+    // O updateMany só alcança linhas 'pendente': um vínculo 'recusado' fica fora do where.
+    const arg = updateManyVinculo.mock.calls[0][0];
+    expect(arg.where.status).toBe("pendente");
+    expect(arg.data.status).toBe("aprovado");
+  });
+
   it("login de familiar com email_verified=false não promove nada", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: false });
     findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });

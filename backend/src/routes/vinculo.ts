@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -253,6 +254,18 @@ export const MODO_DECISAO_SELECT = {
   modo_decisao_motivo: true,
 } as const;
 
+// Cancelamento de uma transferência de decisão em curso — os 6 campos zerados. Movida de
+// usuario.ts pra cá (exportada) pra a contestação (RF-022) reaproveitar sem criar uma
+// quarta cópia da lista; usuario.ts importa daqui, na direção que já existe.
+export const CANCELAMENTO_SOLICITACAO = {
+  modo_decisao_solicitado: null,
+  modo_decisao_solicitado_por_id: null,
+  modo_decisao_solicitado_em: null,
+  modo_decisao_expira_em: null,
+  modo_decisao_segunda_confirmacao_id: null,
+  modo_decisao_motivo: null,
+} as const;
+
 type ModoDecisaoEstado = {
   modo_decisao: string | null;
   modo_decisao_solicitado: string | null;
@@ -401,6 +414,83 @@ router.post("/:id/aprovar", requireAuth, (req, res, next) =>
 router.post("/:id/recusar", requireAuth, (req, res, next) =>
   responderSolicitacaoVinculo(req, res, next, "recusado"),
 );
+
+// Contestação de vínculo automático Familiar↔Idoso já 'aprovado' (RF-022; dívida técnica
+// do item 2.5). Elegível: tipo_vinculo='familiar', origem 'convite_idoso' (Fluxo A) ou
+// 'cadastro_familiar' (RF-030) — os dois que aprovam por e-mail, sem humano. Vínculo
+// 'solicitacao_familiar' já passou por aprovação manual e não entra aqui. Mesma autoridade
+// de aprovar/recusar (Usuario.modo_decisao). Efeito idêntico a /recusar: status='recusado'
+// + aprovador_id + data_resposta (que nos vínculos automáticos é NULL, então passa a
+// registrar a data da contestação). Não depende de notificado_em: não há canal de
+// notificação, ver ER.md REV.16.
+//
+// Contestar o próprio vínculo dá 403: é desvincular (outro requisito) e poderia deixar sem
+// familiar um idoso cadastrado via RF-030, que não tem login.
+router.post("/:id/contestar", requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Id de vínculo inválido." });
+    }
+
+    const vinculo = await prisma.vinculo.findUnique({
+      where: { id },
+      select: { id: true, idoso_id: true, vinculado_id: true, status: true, tipo_vinculo: true, origem: true },
+    });
+    if (!vinculo) {
+      return res.status(404).json({ error: "Vínculo não encontrado." });
+    }
+    if (vinculo.tipo_vinculo !== "familiar" || !["convite_idoso", "cadastro_familiar"].includes(vinculo.origem)) {
+      return res.status(400).json({ error: "Só é possível contestar vínculo automático de familiar." });
+    }
+    if (vinculo.status !== "aprovado") {
+      return res.status(409).json({ error: "Só é possível contestar um vínculo aprovado." });
+    }
+
+    const estado = await resolverEstadoModoDecisao(vinculo.idoso_id);
+    if (estado.modo_decisao !== "familiar") {
+      if (req.usuarioId !== vinculo.idoso_id) {
+        return res.status(403).json({ error: "Só o idoso pode contestar este vínculo." });
+      }
+    } else {
+      if (req.usuarioId === vinculo.idoso_id) {
+        return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
+      }
+      if (!(await familiarTemVinculoAprovado(vinculo.idoso_id, req.usuarioId))) {
+        return res.status(403).json({ error: "Só familiar vinculado e aprovado pode contestar este vínculo." });
+      }
+      if (req.usuarioId === vinculo.vinculado_id) {
+        return res.status(403).json({ error: "Você não pode contestar o seu próprio vínculo." });
+      }
+    }
+
+    // resolverEstadoModoDecisao não revalida o vínculo de quem solicitou/confirmou a
+    // transferência na hora de efetivar — sem isto, um familiar contestado ainda
+    // conseguiria promover modo_decisao='familiar' com o pedido que já tinha aberto.
+    const operacoes: Prisma.PrismaPromise<unknown>[] = [
+      prisma.vinculo.update({
+        where: { id },
+        data: { status: "recusado", aprovador_id: req.usuarioId, data_resposta: new Date() },
+      }),
+    ];
+    if (estado.modo_decisao_solicitado === "familiar") {
+      if (estado.modo_decisao_solicitado_por_id === vinculo.vinculado_id) {
+        operacoes.push(prisma.usuario.update({ where: { id: vinculo.idoso_id }, data: CANCELAMENTO_SOLICITACAO }));
+      } else if (estado.modo_decisao_segunda_confirmacao_id === vinculo.vinculado_id) {
+        operacoes.push(
+          prisma.usuario.update({
+            where: { id: vinculo.idoso_id },
+            data: { modo_decisao_segunda_confirmacao_id: null },
+          }),
+        );
+      }
+    }
+    const [atualizado] = await prisma.$transaction(operacoes);
+    res.status(200).json(atualizado);
+  } catch (e) {
+    next(e);
+  }
+});
 
 // Tarefa 2.8 (RF-032) — definir as 3 flags de permissão operacional do Cuidador
 // (permite_registrar_saude, permite_marcar_dose, permite_criar_evento_cuidado).

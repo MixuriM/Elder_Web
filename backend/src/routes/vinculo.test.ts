@@ -11,12 +11,14 @@ const createVinculo = jest.fn();
 const findUniqueVinculo = jest.fn();
 const updateVinculo = jest.fn();
 const countVinculo = jest.fn();
+const transaction = jest.fn();
 
 jest.mock("../lib/firebaseAdmin", () => ({
   auth: { verifyIdToken: (...args: unknown[]) => verifyIdToken(...args) },
 }));
 jest.mock("../lib/prisma", () => ({
   prisma: {
+    $transaction: (...args: unknown[]) => transaction(...args),
     usuario: {
       findFirst: (...args: unknown[]) => findFirstUsuario(...args),
       findUnique: (...args: unknown[]) => findUniqueUsuario(...args),
@@ -34,6 +36,8 @@ jest.mock("../lib/prisma", () => ({
 }));
 
 import vinculoRouter from "./vinculo";
+import { requireAuth } from "../middleware/requireAuth";
+import { requireVinculoAprovado } from "../middleware/requireVinculoAprovado";
 
 function buildApp() {
   const app = express();
@@ -1028,5 +1032,256 @@ describe("resolverEstadoModoDecisao — checagem preguiçosa de expiração (RF-
 
     expect(res.status).toBe(200);
     expect(updateUsuario).not.toHaveBeenCalled();
+  });
+});
+
+// Contestação de vínculo automático já 'aprovado' (RF-022, Fluxo A e RF-030 — dívida
+// técnica do item 2.5). Mesma autoridade de aprovar/recusar (Usuario.modo_decisao).
+describe("POST /vinculo/:id/contestar", () => {
+  // idoso 10, familiar contestado 30, vínculo automático já aprovado.
+  const VINCULO_AUTO = {
+    id: 5,
+    idoso_id: 10,
+    vinculado_id: 30,
+    status: "aprovado",
+    tipo_vinculo: "familiar",
+    origem: "convite_idoso",
+  };
+
+  function contestar(id: number | string, token = true) {
+    const r = request(buildApp()).post(`/vinculo/${id}/contestar`);
+    return (token ? r.set("Authorization", "Bearer x") : r).send();
+  }
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirstUsuario.mockReset();
+    findUniqueUsuario.mockReset();
+    updateUsuario.mockReset();
+    findFirstVinculo.mockReset();
+    findUniqueVinculo.mockReset();
+    updateVinculo.mockReset();
+    transaction.mockReset();
+    transaction.mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops));
+    verifyIdToken.mockResolvedValue({ uid: "uid-1" });
+    findUniqueVinculo.mockResolvedValue(VINCULO_AUTO);
+    updateVinculo.mockImplementation(({ data }: { data: object }) => Promise.resolve({ ...VINCULO_AUTO, ...data }));
+    updateUsuario.mockResolvedValue({});
+  });
+
+  it("401 sem token", async () => {
+    const res = await contestar(5, false);
+    expect(res.status).toBe(401);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("400 id não numérico", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    const res = await contestar("abc");
+    expect(res.status).toBe(400);
+  });
+
+  it("404 vínculo inexistente", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue(null);
+    const res = await contestar(5);
+    expect(res.status).toBe(404);
+  });
+
+  it.each([
+    ["tipo_vinculo cuidador", { tipo_vinculo: "cuidador", origem: "solicitacao_cuidador" }],
+    ["origem solicitacao_familiar (aprovação manual)", { origem: "solicitacao_familiar" }],
+  ])("400 fora de elegibilidade: %s", async (_nome, override) => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_AUTO, ...override });
+    const res = await contestar(5);
+    expect(res.status).toBe(400);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it.each(["pendente", "recusado"])("409 quando status=%s", async (status) => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueVinculo.mockResolvedValue({ ...VINCULO_AUTO, status });
+    const res = await contestar(5);
+    expect(res.status).toBe(409);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it.each(["convite_idoso", "cadastro_familiar"])(
+    "sucesso: titular idoso (modo_decisao='idoso'), origem %s",
+    async (origem) => {
+      findFirstUsuario.mockResolvedValue({ id: 10 });
+      findUniqueVinculo.mockResolvedValue({ ...VINCULO_AUTO, origem });
+      findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+
+      const res = await contestar(5);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe("recusado");
+      expect(updateVinculo).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { status: "recusado", aprovador_id: 10, data_resposta: expect.any(Date) },
+      });
+    },
+  );
+
+  it("sucesso: titular familiar aprovado (modo_decisao='familiar')", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 20 });
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 999 });
+
+    const res = await contestar(5);
+
+    expect(res.status).toBe(200);
+    expect(findFirstVinculo).toHaveBeenCalledWith({
+      where: { idoso_id: 10, vinculado_id: 20, tipo_vinculo: "familiar", status: "aprovado" },
+      select: { id: true },
+    });
+    expect(updateVinculo).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: expect.objectContaining({ status: "recusado", aprovador_id: 20 }),
+    });
+  });
+
+  it("403 não titular com modo_decisao='idoso'", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 99 });
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    const res = await contestar(5);
+    expect(res.status).toBe(403);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("403 não titular com modo_decisao='familiar' (sem vínculo aprovado)", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 77 });
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue(null);
+    const res = await contestar(5);
+    expect(res.status).toBe(403);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("403 idoso quando modo_decisao='familiar'", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    const res = await contestar(5);
+    expect(res.status).toBe(403);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("403 ao contestar o próprio vínculo (isso é desvincular, outro requisito)", async () => {
+    findFirstUsuario.mockResolvedValue({ id: 30 });
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 5 }); // tem vínculo aprovado — é o próprio
+    const res = await contestar(5);
+    expect(res.status).toBe(403);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it("vínculo contestado deixa de passar em requireVinculoAprovado", async () => {
+    // Estado em memória: update muda o status, findFirst filtra por status como o banco.
+    const store = { ...VINCULO_AUTO } as Record<string, unknown>;
+    updateVinculo.mockImplementation(({ data }: { data: object }) => {
+      Object.assign(store, data);
+      return Promise.resolve({ ...store });
+    });
+    findFirstVinculo.mockImplementation(
+      ({ where }: { where: { idoso_id: number; vinculado_id: number; status: string } }) =>
+        Promise.resolve(
+          store.idoso_id === where.idoso_id &&
+            store.vinculado_id === where.vinculado_id &&
+            store.status === where.status
+            ? store
+            : null,
+        ),
+    );
+    const app = express();
+    app.use(express.json());
+    app.use("/vinculo", vinculoRouter);
+    app.get("/idoso/:idosoId/dados", requireAuth, requireVinculoAprovado("idosoId"), (_req, res) => {
+      res.json({ ok: true });
+    });
+
+    findFirstUsuario.mockResolvedValue({ id: 30 });
+    expect((await request(app).get("/idoso/10/dados").set("Authorization", "Bearer x")).status).toBe(200);
+
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+    findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+    expect((await request(app).post("/vinculo/5/contestar").set("Authorization", "Bearer x")).status).toBe(200);
+
+    findFirstUsuario.mockResolvedValue({ id: 30 });
+    expect((await request(app).get("/idoso/10/dados").set("Authorization", "Bearer x")).status).toBe(403);
+  });
+
+  describe("transferência de modo_decisao em curso (D6, RF-033)", () => {
+    const EM_CURSO = {
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 30,
+      modo_decisao_solicitado_em: new Date(),
+      modo_decisao_expira_em: new Date(Date.now() + 86_400_000),
+      modo_decisao_segunda_confirmacao_id: null,
+    };
+
+    beforeEach(() => {
+      findFirstUsuario.mockResolvedValue({ id: 10 });
+    });
+
+    it("contestado é o solicitante: cancela a solicitação inteira (6 campos), atomicamente", async () => {
+      findUniqueUsuario.mockResolvedValue({ ...EM_CURSO, modo_decisao_solicitado_por_id: 30 });
+
+      const res = await contestar(5);
+
+      expect(res.status).toBe(200);
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect(updateUsuario).toHaveBeenCalledTimes(1);
+      expect(updateUsuario).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: {
+          modo_decisao_solicitado: null,
+          modo_decisao_solicitado_por_id: null,
+          modo_decisao_solicitado_em: null,
+          modo_decisao_expira_em: null,
+          modo_decisao_segunda_confirmacao_id: null,
+          modo_decisao_motivo: null,
+        },
+      });
+    });
+
+    it("contestado é o segundo confirmador: zera só modo_decisao_segunda_confirmacao_id", async () => {
+      findUniqueUsuario.mockResolvedValue({
+        ...EM_CURSO,
+        modo_decisao_solicitado_por_id: 31,
+        modo_decisao_segunda_confirmacao_id: 30,
+      });
+
+      const res = await contestar(5);
+
+      expect(res.status).toBe(200);
+      expect(updateUsuario).toHaveBeenCalledTimes(1);
+      expect(updateUsuario).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { modo_decisao_segunda_confirmacao_id: null },
+      });
+    });
+
+    it("contestado não participa da transferência: não toca Usuario", async () => {
+      findUniqueUsuario.mockResolvedValue({
+        ...EM_CURSO,
+        modo_decisao_solicitado_por_id: 31,
+        modo_decisao_segunda_confirmacao_id: 32,
+      });
+
+      const res = await contestar(5);
+
+      expect(res.status).toBe(200);
+      expect(updateUsuario).not.toHaveBeenCalled();
+    });
+
+    it("sem transferência em curso: não toca Usuario", async () => {
+      findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
+      const res = await contestar(5);
+      expect(res.status).toBe(200);
+      expect(updateUsuario).not.toHaveBeenCalled();
+    });
   });
 });

@@ -3,7 +3,8 @@ import { getCurrentUserToken } from '../lib/auth'
 import Spinner from '../components/common/Spinner'
 
 // Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022), 2.6
-// (RF-026), 2.7 (RF-027), 2.8 (RF-032), 2.9 (RF-033) e 2.10 (RF-034), e da
+// (RF-026), 2.7 (RF-027), 2.8 (RF-032), 2.9 (RF-033) e 2.10 (RF-034), a
+// contestação de vínculo automático (RF-022, dívida do 2.5) e da
 // Fase 3, item 3.1 (RF-030, cadastrar idoso) — só o
 // necessário pra exercitar os endpoints de backend já implementados, sem
 // listagem, sem polish visual. Layout final é responsabilidade de
@@ -139,6 +140,11 @@ function Vinculos() {
   const [resultadoAlterarModoDecisao, setResultadoAlterarModoDecisao] = useState<ModoDecisaoInfo | null>(null)
   const [erroAlterarModoDecisao, setErroAlterarModoDecisao] = useState<string | null>(null)
 
+  const [vinculoIdContestar, setVinculoIdContestar] = useState('')
+  const [carregandoContestar, setCarregandoContestar] = useState(false)
+  const [resultadoContestar, setResultadoContestar] = useState<VinculoRespondido | null>(null)
+  const [erroContestar, setErroContestar] = useState<string | null>(null)
+
   const [nomeIdosoCadastro, setNomeIdosoCadastro] = useState('')
   const [emailIdosoCadastro, setEmailIdosoCadastro] = useState('')
   const [telefoneIdosoCadastro, setTelefoneIdosoCadastro] = useState('')
@@ -146,6 +152,22 @@ function Vinculos() {
   const [carregandoCadastroIdoso, setCarregandoCadastroIdoso] = useState(false)
   const [resultadoCadastroIdoso, setResultadoCadastroIdoso] = useState<IdosoCadastrado | null>(null)
   const [erroCadastroIdoso, setErroCadastroIdoso] = useState<string | null>(null)
+
+  async function handleContestar(e: FormEvent) {
+    e.preventDefault()
+    setErroContestar(null)
+    setResultadoContestar(null)
+    setCarregandoContestar(true)
+    try {
+      const corpo = await chamarApi(`/vinculo/${vinculoIdContestar}/contestar`, { method: 'POST' })
+      setResultadoContestar(corpo)
+    } catch (err) {
+      console.error('Falha ao contestar vínculo:', err)
+      setErroContestar(err instanceof Error ? err.message : 'Falha ao contestar vínculo.')
+    } finally {
+      setCarregandoContestar(false)
+    }
+  }
 
   async function handleCadastrarIdoso(e: FormEvent) {
     e.preventDefault()
@@ -796,6 +818,46 @@ function Vinculos() {
               ? 'aprovado.'
               : 'pendente, aguardando a confirmação do seu e-mail.'}
           </p>
+        )}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Contestar vínculo automático de familiar</h1>
+        <p className="text-base text-gray-700">
+          Só vale pra vínculo de familiar criado por convite ou por cadastro feito por familiar, já
+          aprovado. Sem listagem por enquanto: é preciso saber o id do vínculo.
+        </p>
+        <form onSubmit={handleContestar} className="space-y-4">
+          <div>
+            <label htmlFor="vinculo_id_contestar" className="block text-lg font-medium text-gray-900">
+              Id do vínculo
+            </label>
+            <input
+              id="vinculo_id_contestar"
+              type="number"
+              required
+              value={vinculoIdContestar}
+              onChange={(e) => setVinculoIdContestar(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={carregandoContestar}
+            aria-busy={carregandoContestar}
+            className="flex w-full items-center justify-center gap-2 rounded bg-red-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoContestar && <Spinner />}
+            {carregandoContestar ? 'Contestando...' : 'Contestar vínculo'}
+          </button>
+        </form>
+        {erroContestar && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroContestar}
+          </p>
+        )}
+        {resultadoContestar && (
+          <p className="text-lg text-gray-900">Vínculo #{resultadoContestar.id} contestado (recusado).</p>
         )}
       </section>
     </main>

@@ -3,22 +3,9 @@ import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
 import { isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
-import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
+import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT, CANCELAMENTO_SOLICITACAO } from "./vinculo";
 
 const router = Router();
-
-// Item 2.10 (RF-034) — cancelamento de uma transferência de decisão em curso. Mesmos 6
-// campos zerados em POST /auth/sync (login do idoso) e em resolverEstadoModoDecisao
-// (routes/vinculo.ts, lapso por expiração) — terceira cópia da mesma lista, ver
-// relatório da tarefa (D8: não refatorar os outros dois pontos nesta tarefa).
-const CANCELAMENTO_SOLICITACAO = {
-  modo_decisao_solicitado: null,
-  modo_decisao_solicitado_por_id: null,
-  modo_decisao_solicitado_em: null,
-  modo_decisao_expira_em: null,
-  modo_decisao_segunda_confirmacao_id: null,
-  modo_decisao_motivo: null,
-} as const;
 
 // Tarefa 2.9 (RF-033) — resolverEstadoModoDecisao roda a checagem preguiçosa de
 // expiração da janela de transferência (efetiva a mudança ou limpa solicitação vencida)

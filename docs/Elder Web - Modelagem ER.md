@@ -70,7 +70,7 @@ migration 20260902014014_firebase_uid_nullable (2026-09-01).
 | data_solicitacao             | datetime2      | —                | Sim         | —                                                                                                                                                                                          |
 | data_resposta                | datetime2      | —                | Não         | Preenchido quando status sai de 'pendente'.                                                                                                                                                |
 | confirmado_em                | datetime2      | —                | Não         | Timestamp da confirmação de posse do e-mail envolvido (Fluxo A / cadastro pelo familiar) — é essa confirmação, não aprovação humana, que move o status pra 'aprovado' nesses fluxos.       |
-| notificado_em                | datetime2      | —                | Não         | Timestamp de quando o Familiar foi notificado sobre um vínculo automático criado em seu nome (origem='convite_idoso'). Permite contestar via RF-022 mesmo já 'aprovado'.                   |
+| notificado_em                | datetime2      | —                | Não         | Timestamp de quando o Familiar foi notificado sobre um vínculo automático criado em seu nome (origem='convite_idoso'). Reservado: hoje nenhum código o escreve e a contestação (RF-022) não depende dele — ver REV.16. |
 | permite_registrar_saude      | bit            | —                | Não         | Só relevante quando tipo_vinculo='cuidador'. Default false.                                                                                                                                |
 | permite_marcar_dose          | bit            | —                | Não         | Idem, pra marcar dose administrada. Default false.                                                                                                                                         |
 | permite_criar_evento_cuidado | bit            | —                | Não         | Idem, pra criar Evento tipo 'cuidado'. Default false.                                                                                                                                      |
@@ -260,8 +260,20 @@ Dois fluxos usam aprovação por confirmação de e-mail, não aprovação manua
 - Cadastro pelo Familiar (origem='cadastro_familiar', RF-030): mesma lógica de
   confirmação de e-mail, usada quando é o Familiar quem cria a conta do Idoso.
 
-Em ambos, Vinculo.notificado_em registra quando o outro lado foi avisado, para
-permitir contestação (RF-022) mesmo depois de já 'aprovado'.
+Contestação (RF-022): vale para os dois fluxos (origem='convite_idoso' e
+origem='cadastro_familiar'), sobre vínculo de Familiar já 'aprovado', via
+POST /vinculo/:id/contestar. Mesma autoridade de aprovar/recusar
+(Usuario.modo_decisao) e mesmo efeito de recusar: status='recusado',
+aprovador_id e data_resposta de quem contestou. O Familiar não pode contestar o
+próprio vínculo (isso é desvincular, outro requisito). Vínculo com
+origem='solicitacao_familiar' já passou por aprovação manual e não entra aqui.
+
+A contestação NÃO depende de Vinculo.notificado_em, e não há prazo para contestar.
+O campo fica reservado para quando existir um canal real de notificação; gravar a
+data hoje afirmaria um aviso que nunca foi enviado. Se o Familiar contestado era
+quem solicitou uma transferência de modo_decisao em curso (RF-033), a solicitação
+inteira é cancelada; se era o segundo confirmador, só a segunda confirmação é
+zerada — na mesma transação da mudança de status.
 
 ---
 
@@ -284,6 +296,7 @@ permitir contestação (RF-022) mesmo depois de já 'aprovado'.
 | REV.13 | Índice único filtrado em Vinculo(idoso_id, vinculado_id, tipo_vinculo) WHERE status IN ('pendente','aprovado') — fecha corrida entre solicitações simultâneas do mesmo par, item 2.1 (RF-020). Ver nota após a tabela Vinculo. |
 | REV.14 | Idoso altera Usuario.modo_decisao diretamente e a qualquer momento, sem janela de carência, incluindo reverter de 'familiar' para 'idoso' (RF-034). Delegar para 'familiar' exige familiar aprovado; reverter não. |
 | REV.15 | CHECK CK_Usuario_termo_cadastrado_por: termo_responsabilidade_aceito_em IS NULL OR cadastrado_por_id IS NOT NULL (RF-030, item 3.1). Migration 20260921090000_add_check_termo_cadastrado_por, aplicada no Azure em 21/09/2026. |
+| REV.16 | Contestação de vínculo automático de Familiar já 'aprovado' (RF-022, dívida do item 2.5): POST /vinculo/:id/contestar, sem depender de notificado_em (campo reservado, sem canal de notificação) e sem migration. Ver nota após a seção 3 e a linha de notificado_em. |
 
 ---
 
