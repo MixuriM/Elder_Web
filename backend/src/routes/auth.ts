@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
+import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import {
   isTipoPerfil,
   isDuplicateFirebaseUid,
@@ -98,12 +99,7 @@ router.post("/sync", async (req, res, next) => {
       const agora = new Date();
       const dadosLogin: Record<string, unknown> = { ultimo_login_em: agora };
       if (usuarioExistente.tipo_perfil === "idoso" && usuarioExistente.modo_decisao_solicitado === "familiar") {
-        dadosLogin.modo_decisao_solicitado = null;
-        dadosLogin.modo_decisao_solicitado_por_id = null;
-        dadosLogin.modo_decisao_solicitado_em = null;
-        dadosLogin.modo_decisao_expira_em = null;
-        dadosLogin.modo_decisao_segunda_confirmacao_id = null;
-        dadosLogin.modo_decisao_motivo = null;
+        Object.assign(dadosLogin, CANCELAMENTO_SOLICITACAO);
       }
       const usuarioAtualizado = await prisma.usuario.update({
         where: { id: usuarioExistente.id },

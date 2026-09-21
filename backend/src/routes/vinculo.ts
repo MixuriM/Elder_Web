@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { requireAuth } from "../middleware/requireAuth";
 
 const router = Router();
@@ -254,18 +255,6 @@ export const MODO_DECISAO_SELECT = {
   modo_decisao_motivo: true,
 } as const;
 
-// Cancelamento de uma transferência de decisão em curso — os 6 campos zerados. Movida de
-// usuario.ts pra cá (exportada) pra a contestação (RF-022) reaproveitar sem criar uma
-// quarta cópia da lista; usuario.ts importa daqui, na direção que já existe.
-export const CANCELAMENTO_SOLICITACAO = {
-  modo_decisao_solicitado: null,
-  modo_decisao_solicitado_por_id: null,
-  modo_decisao_solicitado_em: null,
-  modo_decisao_expira_em: null,
-  modo_decisao_segunda_confirmacao_id: null,
-  modo_decisao_motivo: null,
-} as const;
-
 type ModoDecisaoEstado = {
   modo_decisao: string | null;
   modo_decisao_solicitado: string | null;
@@ -348,14 +337,7 @@ export async function resolverEstadoModoDecisao(idosoId: number): Promise<ModoDe
   // nenhum modo_decisao_solicitado*/alterado* pra dar contexto.
   return prisma.usuario.update({
     where: { id: idosoId },
-    data: {
-      modo_decisao_solicitado: null,
-      modo_decisao_solicitado_por_id: null,
-      modo_decisao_solicitado_em: null,
-      modo_decisao_expira_em: null,
-      modo_decisao_segunda_confirmacao_id: null,
-      modo_decisao_motivo: null,
-    },
+    data: CANCELAMENTO_SOLICITACAO,
     select: MODO_DECISAO_SELECT,
   });
 }

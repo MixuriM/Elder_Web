@@ -94,7 +94,7 @@ async function runExpectingSuccess(
   }
 }
 
-function baseUsuario(overrides: Partial<Prisma.UsuarioCreateInput> = {}): Prisma.UsuarioCreateInput {
+function baseUsuario(overrides: Partial<Prisma.UsuarioUncheckedCreateInput> = {}): Prisma.UsuarioUncheckedCreateInput {
   return {
     firebase_uid: randomUUID(),
     nome: "Usuário de Teste",
