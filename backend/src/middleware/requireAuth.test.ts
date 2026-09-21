@@ -71,4 +71,21 @@ describe("requireAuth", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ usuarioId: 42 });
   });
+
+  it.each([
+    [{ uid: "u", email_verified: true }, true],
+    [{ uid: "u", email_verified: false }, false],
+    [{ uid: "u" }, false],
+  ])("expõe req.emailVerificado (%j -> %s)", async (decoded, esperado) => {
+    verifyIdToken.mockResolvedValue(decoded);
+    findFirst.mockResolvedValue({ id: 42, firebase_uid: "u" });
+    const app = express();
+    app.get("/p", requireAuth, (req, res) => {
+      res.json({ emailVerificado: req.emailVerificado });
+    });
+
+    const res = await request(app).get("/p").set("Authorization", "Bearer t");
+
+    expect(res.body).toEqual({ emailVerificado: esperado });
+  });
 });

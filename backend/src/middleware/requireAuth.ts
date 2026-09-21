@@ -36,5 +36,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   req.usuarioId = usuario.id;
+  // RF-030: expõe se o e-mail do token já foi verificado (ausente vira false).
+  req.emailVerificado = resultado.decoded.email_verified ?? false;
   next();
 }

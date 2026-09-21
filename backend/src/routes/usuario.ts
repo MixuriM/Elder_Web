@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
-import { isDuplicateEmail } from "../lib/authHelpers";
+import { isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
 
 const router = Router();
@@ -154,6 +154,91 @@ router.patch("/me/modo-decisao", requireAuth, async (req, res, next) => {
     });
     res.status(200).json(atualizado);
   } catch (e) {
+    next(e);
+  }
+});
+
+// Item 3.1 (RF-030) — Familiar cadastra conta de Idoso em seu nome. O idoso nasce sem
+// firebase_uid (CK_Usuario_firebase_uid_cadastrado_por libera isso porque
+// cadastrado_por_id vem preenchido). Usuario + Vinculo em um único create aninhado
+// (transação implícita do Prisma): ou criam os dois, ou nenhum.
+router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
+  try {
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    if (chamador?.tipo_perfil !== "familiar") {
+      return res.status(403).json({ error: "Apenas familiares podem cadastrar um idoso." });
+    }
+
+    // Só estes 4 campos são lidos do body — o resto (tipo_perfil, cadastrado_por_id,
+    // firebase_uid, modo_decisao, timestamp do aceite...) é sempre definido aqui.
+    const { nome, email, telefone, aceita_termo_responsabilidade } = req.body ?? {};
+
+    if (aceita_termo_responsabilidade !== true) {
+      return res.status(400).json({ error: "É necessário aceitar o termo de responsabilidade." });
+    }
+    const nomeLimpo = typeof nome === "string" ? nome.trim() : "";
+    if (!nomeLimpo || nomeLimpo.length > 150) {
+      return res.status(400).json({ error: "Nome é obrigatório e deve ter até 150 caracteres." });
+    }
+    const emailLimpo = typeof email === "string" ? email.trim() : "";
+    const telefoneLimpo = typeof telefone === "string" ? telefone.trim() : "";
+    if (!emailLimpo && !telefoneLimpo) {
+      return res.status(400).json({ error: "Informe e-mail ou telefone do idoso." });
+    }
+    if (emailLimpo && (emailLimpo.length > 255 || !isValidEmailFormat(emailLimpo))) {
+      return res.status(400).json({ error: "E-mail inválido." });
+    }
+    if (telefoneLimpo.length > 20) {
+      return res.status(400).json({ error: "Telefone deve ter até 20 caracteres." });
+    }
+
+    const agora = new Date();
+    // Fluxo A: e-mail do Familiar já verificado no token = posse já confirmada.
+    const aprovado = req.emailVerificado;
+
+    const idoso = await prisma.usuario.create({
+      data: {
+        nome: nomeLimpo,
+        ...(emailLimpo && { email: emailLimpo }),
+        ...(telefoneLimpo && { telefone: telefoneLimpo }),
+        tipo_perfil: "idoso",
+        cadastrado_por_id: req.usuarioId,
+        termo_responsabilidade_aceito_em: agora,
+        modo_decisao: "familiar",
+        vinculos_como_idoso: {
+          create: {
+            vinculado_id: req.usuarioId,
+            tipo_vinculo: "familiar",
+            origem: "cadastro_familiar",
+            data_solicitacao: agora,
+            status: aprovado ? "aprovado" : "pendente",
+            ...(aprovado && { confirmado_em: agora }),
+          },
+        },
+      },
+      include: { vinculos_como_idoso: true },
+    });
+
+    const vinculo = idoso.vinculos_como_idoso[0];
+    res.status(201).json({
+      usuario: {
+        id: idoso.id,
+        nome: idoso.nome,
+        email: idoso.email,
+        telefone: idoso.telefone,
+        tipo_perfil: idoso.tipo_perfil,
+      },
+      vinculo: { id: vinculo.id, status: vinculo.status, origem: vinculo.origem },
+    });
+  } catch (e) {
+    // Mensagem genérica de propósito: não revela quem é o dono do e-mail (item 3.2
+    // trata a mensagem específica e a orientação de próximo passo).
+    if (isDuplicateEmail(e)) {
+      return res.status(409).json({ error: "Não foi possível cadastrar com este e-mail." });
+    }
     next(e);
   }
 });
