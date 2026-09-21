@@ -181,6 +181,20 @@ async function listar(comoId: number, query = "") {
   return request(buildApp()).get(`/vinculo${query}`).set("Authorization", "Bearer x");
 }
 
+// Toda checagem de conteúdo parte de 200 + lista (senão varreduras de ausência passariam por vacuidade).
+async function listarOk(comoId: number, query = "") {
+  const res = await listar(comoId, query);
+  expect(res.status).toBe(200);
+  expect(Array.isArray(res.body.vinculos)).toBe(true);
+  return res;
+}
+
+function itemPorId(res: request.Response, id: number): Item {
+  const achado = (res.body.vinculos as Item[]).find((v) => v.id === id);
+  expect(achado).toBeDefined();
+  return achado as Item;
+}
+
 const ids = (res: request.Response) => (res.body.vinculos as Item[]).map((v) => v.id).sort((a, b) => a - b);
 const papel = (res: request.Response, id: number) =>
   (res.body.vinculos as Item[]).find((v) => v.id === id)?.papel_do_chamador;
@@ -198,48 +212,48 @@ describe("GET /vinculo", () => {
   });
 
   it("filtra por status", async () => {
-    const res = await listar(A, "?status=aprovado");
+    const res = await listarOk(A, "?status=aprovado");
     expect(res.status).toBe(200);
     expect(ids(res)).toEqual([1, 2, 3]);
   });
 
   it("ordena por data_solicitacao decrescente e expõe o campo com esse nome", async () => {
-    const res = await listar(A);
+    const res = await listarOk(A);
     expect((res.body.vinculos as Item[]).map((v) => v.id)).toEqual([6, 3, 2, 1]);
     expect(res.body.vinculos[0].data_solicitacao).toBe("2026-01-06T00:00:00.000Z");
     expect(res.body.vinculos[0]).not.toHaveProperty("criado_em");
   });
 
   it("idoso vê os próprios vínculos como dono e não vê os de outro idoso (A x B)", async () => {
-    const resA = await listar(A);
+    const resA = await listarOk(A);
     expect(ids(resA)).toEqual([1, 2, 3, 6]);
     expect((resA.body.vinculos as Item[]).every((v) => v.papel_do_chamador === "dono")).toBe(true);
 
-    const resB = await listar(B);
+    const resB = await listarOk(B);
     expect(ids(resB)).toEqual([4, 5]);
   });
 
   it("cuidador vê só os próprios", async () => {
-    const res = await listar(C1);
+    const res = await listarOk(C1);
     expect(ids(res)).toEqual([1]);
     expect(papel(res, 1)).toBe("vinculado");
   });
 
   it("cuidador nunca é titular, mesmo com o idoso em modo 'familiar'", async () => {
     usuarios[A].modo_decisao = "familiar";
-    const res = await listar(C1);
+    const res = await listarOk(C1);
     expect(ids(res)).toEqual([1]);
   });
 
   it("familiar vê só os próprios com o idoso em modo 'idoso' ou NULL", async () => {
-    expect(ids(await listar(F1))).toEqual([2]);
+    expect(ids(await listarOk(F1))).toEqual([2]);
     usuarios[A].modo_decisao = null;
-    expect(ids(await listar(F1))).toEqual([2]);
+    expect(ids(await listarOk(F1))).toEqual([2]);
   });
 
   it("familiar aprovado com idoso em modo 'familiar' é titular e vê os vínculos de outras pessoas", async () => {
     usuarios[A].modo_decisao = "familiar";
-    const res = await listar(F1);
+    const res = await listarOk(F1);
     expect(ids(res)).toEqual([1, 2, 3, 6]);
     expect(papel(res, 1)).toBe("titular");
     expect(papel(res, 3)).toBe("titular");
@@ -248,7 +262,7 @@ describe("GET /vinculo", () => {
 
   it("sem duplicação: vínculo próprio do titular aparece uma vez, como 'vinculado'", async () => {
     usuarios[A].modo_decisao = "familiar";
-    const res = await listar(F1);
+    const res = await listarOk(F1);
     expect((res.body.vinculos as Item[]).filter((v) => v.id === 2)).toHaveLength(1);
     expect(papel(res, 2)).toBe("vinculado");
   });
@@ -256,14 +270,14 @@ describe("GET /vinculo", () => {
   it.each(["pendente", "recusado"])("familiar com o próprio vínculo %s NÃO é titular", async (status) => {
     usuarios[A].modo_decisao = "familiar";
     vinculos[1].status = status;
-    const res = await listar(F1);
+    const res = await listarOk(F1);
     expect(ids(res)).toEqual([2]);
   });
 
   it("familiar de um idoso não vê vínculos de outro idoso (F2 titular de A não vê o vínculo 4 de B)", async () => {
     usuarios[A].modo_decisao = "familiar";
     usuarios[B].modo_decisao = "familiar"; // B em modo familiar, mas F2 só tem vínculo pendente com B
-    const res = await listar(F2);
+    const res = await listarOk(F2);
     expect(ids(res)).toEqual([1, 2, 3, 5, 6]);
     expect(ids(res)).not.toContain(4);
   });
@@ -278,7 +292,7 @@ describe("GET /vinculo", () => {
       modo_decisao_segunda_confirmacao_id: F2, // 2 familiares aprovados: exige segunda confirmação
     });
 
-    const res = await listar(F1);
+    const res = await listarOk(F1);
 
     expect(usuarios[A].modo_decisao).toBe("familiar");
     expect(ids(res)).toEqual([1, 2, 3, 6]);
@@ -290,14 +304,15 @@ describe("GET /vinculo", () => {
       modo_decisao_solicitado_por_id: F1,
       modo_decisao_expira_em: new Date(Date.now() + 86_400_000),
     });
-    const res = await listar(F1);
+    const res = await listarOk(F1);
     expect(ids(res)).toEqual([2]);
   });
 
   it("a resposta nunca contém e-mail completo, telefone nem firebase_uid", async () => {
     usuarios[A].modo_decisao = "familiar";
     for (const quem of [A, B, F1, F2, C1, C2]) {
-      const res = await listar(quem);
+      const res = await listarOk(quem);
+      expect(res.body.vinculos.length).toBeGreaterThan(0);
       const json = JSON.stringify(res.body);
       for (const u of Object.values(usuarios)) {
         expect(json).not.toContain(u.email as string);
@@ -311,17 +326,17 @@ describe("GET /vinculo", () => {
 
   it("traz o e-mail do outro lado mascarado e nulo quando não há e-mail", async () => {
     usuarios[C1].email = null;
-    const res = await listar(A);
-    const item = (res.body.vinculos as Item[]).find((v) => v.id === 1) as Item;
+    const res = await listarOk(A);
+    const item = itemPorId(res, 1);
     expect(item.vinculado).toEqual({ id: C1, nome: "Caio", email_mascarado: null });
-    const item2 = (res.body.vinculos as Item[]).find((v) => v.id === 2) as Item;
+    const item2 = itemPorId(res, 2);
     expect(item2.vinculado.email_mascarado).toBe("f***@exemplo.com");
   });
 
   describe("D7: fail-closed sobre o idoso para quem é o vinculado", () => {
     it.each([[4], [6]])("vínculo %i (pendente/recusado) do cuidador: idoso.nome e email_mascarado null", async (id) => {
-      const res = await listar(C2);
-      const item = (res.body.vinculos as Item[]).find((v) => v.id === id) as Item;
+      const res = await listarOk(C2);
+      const item = itemPorId(res, id);
       expect(item.idoso.nome).toBeNull();
       expect(item.idoso.email_mascarado).toBeNull();
       expect(JSON.stringify(res.body)).not.toContain("Beto");
@@ -329,14 +344,14 @@ describe("GET /vinculo", () => {
     });
 
     it("vínculo aprovado: o vinculado recebe nome e e-mail mascarado do idoso", async () => {
-      const res = await listar(C1);
-      const item = res.body.vinculos[0] as Item;
+      const res = await listarOk(C1);
+      const item = itemPorId(res, 1);
       expect(item.idoso).toEqual({ id: A, nome: "Ana", email_mascarado: "a***@exemplo.com" });
     });
 
     it("o idoso (dono) vê o vinculado completo mesmo com vínculo pendente", async () => {
-      const res = await listar(B);
-      const item = (res.body.vinculos as Item[]).find((v) => v.id === 4) as Item;
+      const res = await listarOk(B);
+      const item = itemPorId(res, 4);
       expect(item.vinculado.nome).toBe("Clara");
       expect(item.vinculado.email_mascarado).toBe("c***@exemplo.com");
     });
