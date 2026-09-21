@@ -115,13 +115,19 @@ function Sidebar({
           {/* Ícone da logo */}
           <div
             className="
-              mr-1
+              mr-2
 
               flex
-              h-9
-              w-9
+              h-10
+              w-10
               items-center
               justify-center
+
+              rounded-full
+
+              bg-gradient-to-br
+              from-[#A18BFF]
+              to-[#6C63FF]
               
             "
           >
