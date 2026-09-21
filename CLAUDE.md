@@ -1043,3 +1043,58 @@ Nenhum código ou teste foi alterado por causa desta recomendação.
 script fica fora do `include` do `tsconfig.json` (só `src`), e `baseUsuario` era tipada com
 `Prisma.UsuarioCreateInput`, que só aceita a relação `cadastrado_por`; o Prisma Client não
 estava desatualizado. Corrigido trocando o tipo para `Prisma.UsuarioUncheckedCreateInput`.
+
+**Item 2.11 da Fase 2 implementado: listagem de vínculos, `GET /vinculo` (2026-09-21, PR #77,
+mergeado em `main`, commit `7e326259ba92e25e8eccc96243c5648530492475`, hash final
+diferente do commit local `1e24557`; ajustes
+posteriores no PR #78, mergeado em `main`, commit `df27b65e034eaeec3fe6b824c6b9da520ba4407b`):**
+
+Rota `GET /vinculo` em `backend/src/routes/vinculo.ts`, atrás de `requireAuth`. Cada item traz
+`papel_do_chamador` com um destes valores: `dono` (chamador é o idoso do vínculo), `vinculado`
+(chamador é o cuidador ou familiar do vínculo) ou `titular` (familiar aprovado com autoridade
+sobre o idoso, vendo vínculo de outra pessoa). Visibilidade: idoso lê os vínculos com
+`idoso_id` igual ao próprio; cuidador e familiar leem os com `vinculado_id` igual ao próprio; o
+familiar também lê todos os vínculos de um idoso quando tem vínculo `tipo_vinculo='familiar'` e
+`status='aprovado'` com ele e `resolverModoDecisao` devolve `'familiar'` para esse idoso (mesma
+regra de autoridade de `/aprovar`, `/recusar`, `/contestar` e `/definir-permissoes`). Cuidador
+nunca é titular. Vínculo que cabe em dois papéis aparece uma vez, como `vinculado`.
+
+Campos do item: `id`, `tipo_vinculo`, `origem`, `status`, `data_solicitacao` (o campo do
+schema; não existe `criado_em` em `Vinculo`), `data_resposta`, `confirmado_em`,
+`papel_do_chamador`, `idoso` e `vinculado`, cada um com `id`, `nome` e `email_mascarado`. Nunca
+telefone, e-mail completo, `firebase_uid` nem outro campo de `Usuario`. A máscara é a função pura
+`mascararEmail` (`backend/src/lib/mascararEmail.ts`): primeiro caractere da parte local, `***`,
+arroba e domínio completo; e-mail nulo vira `null`; malformado vira `***`. Ordem por
+`data_solicitacao` decrescente. Filtro opcional `?status=pendente|aprovado|recusado` (outro valor
+retorna 400). Sem paginação.
+
+Fail-closed sobre o idoso: quando o chamador é só o vinculado e o status não é `aprovado`,
+`idoso.nome` e `idoso.email_mascarado` vêm `null`, para que nenhuma conta leia o nome de um idoso
+apenas solicitando vínculo pelo e-mail dele. O `idoso.id` também vinha exposto nesse caso na
+primeira versão (PR #77); o PR #78 passou a devolvê-lo `null`. O idoso e o titular veem sempre o
+`vinculado` completo (nome e e-mail mascarado). `confirmado_em` e `data_resposta` vão na
+resposta e permitem distinguir vínculo contestado de recusado ainda pendente; a listagem não
+rotula isso.
+
+`resolverEstadoModoDecisao` pode gravar durante este GET (efetiva ou lapsa transferência
+vencida), mesmo padrão de `GET /usuario/me`: a leitura tem efeito colateral. Para o papel de
+titular, a rota chama `resolverModoDecisao` uma vez por idoso em que o familiar tem vínculo
+aprovado, o que gera uma consulta por idoso, sem otimização nesta etapa. Os idosos do titular são
+derivados das próprias linhas do familiar (filtro `tipo_vinculo === "familiar" && status ===
+"aprovado"`, `vinculo.ts:739` na revisão auditada) em vez de chamar `familiarTemVinculoAprovado`,
+com o mesmo resultado. Nenhuma migration. Esqueleto cru em `frontend/src/pages/Vinculos.tsx`
+(seção "Listar vínculos", id do vínculo em destaque); os campos de id das outras seções não foram
+preenchidos a partir da lista.
+
+Testes: backend de 166 para 195 em 8 suítes (21 em `vinculoListar.test.ts`, com fake de Prisma em
+memória com dois idosos, e 8 em `mascararEmail.test.ts`); frontend 4 em 2 suítes, sem mudança.
+Auditoria posterior (PR #78): o teste de vazamento passava por vacuidade sem a rota, porque a
+resposta 404 não tem dados; agora todo teste parte de status 200 e lista presente, e o de
+vazamento exige lista não vazia por perfil. Mutação local, não commitada, com cada uma derrubando
+pelo menos um teste: telefone no item, e-mail completo no lugar do mascarado, remoção do `null`
+do idoso (D7), titular com vínculo pendente ou recusado e titular sem filtro por idoso. CI do
+PR #77 (`backend`, `frontend`, Vercel) e o CI de `main` no commit de merge passaram.
+
+A dependência do P1 (`/aprovar` sem exigir `confirmado_em`) do item 2.11 foi cumprida: o titular
+já vê quem é o familiar antes de aprovar. O P1 segue aberto, pendente da decisão do grupo, e
+nada em `/aprovar` foi alterado.
