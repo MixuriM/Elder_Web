@@ -1120,3 +1120,81 @@ Teste de caracterização: `backend/src/routes/vinculoListar.test.ts` ganhou o b
 `null` quando nulo. O teste passa sem mudança de código, porque o comportamento já existia. Removendo
 `confirmado_em` do item da resposta em `vinculo.ts`, os 3 casos falham (mutação temporária, revertida,
 nunca commitada). Suíte do backend: 8 arquivos, 198 testes. Nenhuma linha de código de produção mudou.
+
+**Item 3.2 da Fase 3 (RNF-011) implementado — mensagens específicas nos conflitos
+de e-mail no cadastro (2026-09-21, PR #82, mergeado em `main`, commit `64757d9` —
+hash final diferente do commit local `819dc3f`, mesmo padrão dos PRs anteriores):**
+
+Validação em aplicação antes do `INSERT` nas duas rotas de cadastro, via `findFirst`
+por e-mail. O catch de constraint (`isDuplicateEmail`) continua só como rede de
+segurança para corrida.
+
+`POST /usuario/cadastrar-idoso`: se o e-mail já existe, 409
+`EMAIL_JA_EM_USO_CADASTRO_IDOSO`, uma mensagem só, sem distinguir o tipo da conta
+encontrada. A pré-checagem seleciona só `id`.
+
+`POST /auth/sync`, ramo de criação: a pré-checagem seleciona `id`, `firebase_uid`
+e `cadastrado_por_id`. A mensagem específica `EMAIL_CADASTRADO_POR_FAMILIAR` só
+sai quando `email_verified === true`, `tipo_perfil` pedido é `idoso`,
+`firebase_uid` é nulo e `cadastrado_por_id` está preenchido — ou seja, a linha
+encontrada é mesmo um idoso cadastrado por Familiar via RF-030. Em qualquer outro
+caso (e-mail comum já em uso, ou idoso cadastrado por Familiar mas token não
+verificado, ou perfil diferente de idoso), 409 `EMAIL_JA_EM_USO` com corpo
+idêntico ao caso comum, para não revelar a origem da conta pelo formato da
+resposta. O catch de `isDuplicateEmail` passou a devolver esse 409 em vez de
+`next(e)` (antes virava 500).
+
+Contrato novo desses 409: `{ error, codigo, proximo_passo }`. Textos centralizados
+em `backend/src/lib/mensagensConflito.ts`, marcados como **provisórios até a
+tarefa 3.3** — em especial `EMAIL_CADASTRADO_POR_FAMILIAR` não promete nenhum
+fluxo de "assumir a conta", porque esse fluxo ainda não existe.
+
+**Frontend — `lib/auth.ts` estendido além do 409 novo (mesmo commit):** durante a
+implementação, ficou confirmado que `syncUser` lançava erro só como string
+(`"Falha em /auth/sync: status N — {corpo}"`), sem `status` nem `codigo` como
+campos, e que `mensagemErroCadastro`/`mensagemErroLogin` casavam qualquer erro
+contendo `/auth/sync` na mensagem e mostravam "servidor está iniciando" (texto do
+bug de 17/09) — inclusive para os 409 novos, os 400 de validação e os 401 de
+token. Isso escondia o `proximo_passo` que a tarefa 3.2 pedia. Corrigido:
+
+- `syncUser` agora lança `SyncError` (exportado de `lib/auth.ts`), com `status`,
+  `message` (o `error` do backend), `codigo?` e `proximoPasso?` como propriedades
+  reais, via `res.json()` dentro de `try`.
+- `mensagemErroCadastro`/`mensagemErroLogin`: `SyncError` com `codigo` mostra
+  `error` + `proximo_passo` (o 409 novo); `SyncError` com `status >= 500` mantém
+  o texto de "servidor está iniciando" (17/09, sem regressão); `SyncError` 4xx
+  sem `codigo` mostra "Falha ao sincronizar sua conta com o servidor. Confira os
+  dados e tente novamente." (não culpa mais o servidor por erro de validação);
+  falha de rede pura (`TypeError`) continua nos textos genéricos de antes.
+- `ConfirmarEmail.tsx` consome `syncUser` direto e exibe `err.message` na tela —
+  não precisou de edição, só passou a mostrar texto legível (`error` do backend)
+  em vez do erro cru antigo. Essa página só atinge o branch de login de conta já
+  existente, não os 409 de conflito de e-mail.
+
+Nenhuma migration. Suíte do backend: 8 arquivos, 213 testes (era 198). Frontend:
+3 suítes, 8 testes (era 2 suítes, 4 testes) — `lib/auth.test.ts` novo cobre
+`SyncError` com `codigo`, `status >= 500`, 4xx sem `codigo` e erro que não é
+`SyncError`. `tsc --noEmit` e lint limpos nos dois pacotes; build limpo no
+backend.
+
+**Limitações conhecidas (não mitigadas):**
+- Conflito 2 deixa uma conta Firebase órfã: no cadastro por e-mail/senha, o
+  Firebase já criou a conta antes de `/auth/sync` devolver o 409. O texto "use
+  outro e-mail" não avisa disso.
+- A orientação do conflito 2 é provisória até a tarefa 3.3 existir.
+- Enumeração de e-mail no conflito 1: um Familiar autenticado descobre se um
+  e-mail já tem conta ativa (inerente ao critério de pronto da tarefa). O 409
+  genérico do conflito 2 limita esse mesmo vazamento no autocadastro, mas não o
+  elimina por completo.
+- Idoso cadastrado só com telefone continua fora de escopo (decisão da 3.3).
+- `/auth/sync` não normaliza e-mail antes da pré-checagem (o Firebase costuma
+  entregar em minúsculas, mas não é garantido); `/cadastrar-idoso` faz `trim()`
+  sem normalizar caixa; collation do SQL Server não verificada. Risco: colisão
+  real não detectada pela pré-checagem se a caixa divergir, cai só no catch de
+  constraint como rede de segurança.
+- A pré-checagem nova herda o retry de até ~31s de
+  `PrismaClientInitializationError` da client extension de `lib/prisma.ts`.
+
+Fora de escopo desta tarefa (não implementado, por instrução explícita): tarefa
+3.3 (idoso assume conta cadastrada por Familiar, anexando `firebase_uid`), Phone
+Auth, exclusão da conta Firebase órfã.
