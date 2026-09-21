@@ -44,7 +44,7 @@ type ModoDecisaoInfo = {
   modo_decisao_motivo: string | null
 }
 
-type LadoVinculo = { id: number; nome: string | null; email_mascarado: string | null }
+type LadoVinculo = { id: number | null; nome: string | null; email_mascarado: string | null }
 
 type VinculoListado = {
   id: number

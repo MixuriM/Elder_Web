@@ -772,7 +772,7 @@ router.get("/", requireAuth, async (req, res, next) => {
           confirmado_em: v.confirmado_em,
           papel_do_chamador: papel,
           idoso: {
-            id: v.idoso.id,
+            id: escondeIdoso ? null : v.idoso.id,
             nome: escondeIdoso ? null : v.idoso.nome,
             email_mascarado: escondeIdoso ? null : mascararEmail(v.idoso.email),
           },

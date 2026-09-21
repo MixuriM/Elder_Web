@@ -162,7 +162,7 @@ type Item = {
   id: number;
   papel_do_chamador: string;
   status: string;
-  idoso: { id: number; nome: string | null; email_mascarado: string | null };
+  idoso: { id: number | null; nome: string | null; email_mascarado: string | null };
   vinculado: { id: number; nome: string; email_mascarado: string | null };
 };
 
@@ -334,9 +334,10 @@ describe("GET /vinculo", () => {
   });
 
   describe("D7: fail-closed sobre o idoso para quem é o vinculado", () => {
-    it.each([[4], [6]])("vínculo %i (pendente/recusado) do cuidador: idoso.nome e email_mascarado null", async (id) => {
+    it.each([[4], [6]])("vínculo %i (pendente/recusado) do cuidador: idoso.id, nome e email_mascarado null", async (id) => {
       const res = await listarOk(C2);
       const item = itemPorId(res, id);
+      expect(item.idoso.id).toBeNull();
       expect(item.idoso.nome).toBeNull();
       expect(item.idoso.email_mascarado).toBeNull();
       expect(JSON.stringify(res.body)).not.toContain("Beto");
