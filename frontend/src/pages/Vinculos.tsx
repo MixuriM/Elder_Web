@@ -44,6 +44,21 @@ type ModoDecisaoInfo = {
   modo_decisao_motivo: string | null
 }
 
+type LadoVinculo = { id: number; nome: string | null; email_mascarado: string | null }
+
+type VinculoListado = {
+  id: number
+  tipo_vinculo: string
+  origem: string
+  status: string
+  data_solicitacao: string
+  data_resposta: string | null
+  confirmado_em: string | null
+  papel_do_chamador: string
+  idoso: LadoVinculo
+  vinculado: LadoVinculo
+}
+
 function formatarData(valor: string | null) {
   if (!valor) return null
   return new Date(valor).toLocaleString('pt-BR')
@@ -152,6 +167,28 @@ function Vinculos() {
   const [carregandoCadastroIdoso, setCarregandoCadastroIdoso] = useState(false)
   const [resultadoCadastroIdoso, setResultadoCadastroIdoso] = useState<IdosoCadastrado | null>(null)
   const [erroCadastroIdoso, setErroCadastroIdoso] = useState<string | null>(null)
+
+  const [filtroStatusListar, setFiltroStatusListar] = useState('')
+  const [carregandoListar, setCarregandoListar] = useState(false)
+  const [vinculosListados, setVinculosListados] = useState<VinculoListado[] | null>(null)
+  const [erroListar, setErroListar] = useState<string | null>(null)
+
+  async function handleListar(e: FormEvent) {
+    e.preventDefault()
+    setErroListar(null)
+    setVinculosListados(null)
+    setCarregandoListar(true)
+    try {
+      const query = filtroStatusListar ? `?status=${filtroStatusListar}` : ''
+      const corpo = await chamarApi(`/vinculo${query}`)
+      setVinculosListados(corpo.vinculos)
+    } catch (err) {
+      console.error('Falha ao listar vínculos:', err)
+      setErroListar(err instanceof Error ? err.message : 'Falha ao listar vínculos.')
+    } finally {
+      setCarregandoListar(false)
+    }
+  }
 
   async function handleContestar(e: FormEvent) {
     e.preventDefault()
@@ -825,7 +862,7 @@ function Vinculos() {
         <h1 className="text-2xl font-bold text-gray-900">Contestar vínculo automático de familiar</h1>
         <p className="text-base text-gray-700">
           Só vale pra vínculo de familiar criado por convite ou por cadastro feito por familiar, já
-          aprovado. Sem listagem por enquanto: é preciso saber o id do vínculo.
+          aprovado. O id do vínculo aparece na seção "Listar vínculos".
         </p>
         <form onSubmit={handleContestar} className="space-y-4">
           <div>
@@ -858,6 +895,71 @@ function Vinculos() {
         )}
         {resultadoContestar && (
           <p className="text-lg text-gray-900">Vínculo #{resultadoContestar.id} contestado (recusado).</p>
+        )}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Listar vínculos</h1>
+        <p className="text-base text-gray-700">
+          Mostra os vínculos que você pode ver, com o id de cada um para usar nas outras seções.
+        </p>
+        <form onSubmit={handleListar} className="space-y-4">
+          <div>
+            <label htmlFor="filtro_status_listar" className="block text-lg font-medium text-gray-900">
+              Situação
+            </label>
+            <select
+              id="filtro_status_listar"
+              value={filtroStatusListar}
+              onChange={(e) => setFiltroStatusListar(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            >
+              <option value="">Todas</option>
+              <option value="pendente">Pendente</option>
+              <option value="aprovado">Aprovado</option>
+              <option value="recusado">Recusado</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={carregandoListar}
+            aria-busy={carregandoListar}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoListar && <Spinner />}
+            {carregandoListar ? 'Buscando...' : 'Listar vínculos'}
+          </button>
+        </form>
+        {erroListar && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroListar}
+          </p>
+        )}
+        {vinculosListados && vinculosListados.length === 0 && (
+          <p className="text-lg text-gray-900">Nenhum vínculo encontrado.</p>
+        )}
+        {vinculosListados && vinculosListados.length > 0 && (
+          <ul className="space-y-3">
+            {vinculosListados.map((v) => (
+              <li key={v.id} className="space-y-1 rounded border border-gray-400 p-3 text-lg text-gray-900">
+                <p className="text-2xl font-bold">Id do vínculo: {v.id}</p>
+                <p>
+                  {v.tipo_vinculo} ({v.origem}), {v.status}. Seu papel: {v.papel_do_chamador}.
+                </p>
+                <p>
+                  Idoso: {v.idoso.nome ?? 'oculto até a aprovação'}
+                  {v.idoso.email_mascarado && ` (${v.idoso.email_mascarado})`}
+                </p>
+                <p>
+                  Vinculado: {v.vinculado.nome}
+                  {v.vinculado.email_mascarado && ` (${v.vinculado.email_mascarado})`}
+                </p>
+                <p>Solicitado em: {formatarData(v.data_solicitacao)}</p>
+                {formatarData(v.data_resposta) && <p>Respondido em: {formatarData(v.data_resposta)}</p>}
+                {formatarData(v.confirmado_em) && <p>E-mail confirmado em: {formatarData(v.confirmado_em)}</p>}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </main>

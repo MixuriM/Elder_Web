@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
+import { mascararEmail } from "../lib/mascararEmail";
 import { requireAuth } from "../middleware/requireAuth";
 
 const router = Router();
@@ -688,6 +689,98 @@ router.post("/:id/confirmar-transferencia-decisao", requireAuth, async (req, res
       select: MODO_DECISAO_SELECT,
     });
     res.status(200).json(atualizado);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Item 2.11 — listagem de vínculos visíveis ao chamador. Visibilidade (mesma regra de
+// autoridade das rotas de ação): idoso vê os vínculos de que é dono; cuidador e familiar
+// veem os próprios; familiar com vínculo aprovado com um idoso cujo modo_decisao (já
+// resolvido pela checagem preguiçosa) é 'familiar' também vê todos os vínculos desse
+// idoso (papel 'titular'). Nunca devolve Usuario inteiro: só id, nome e e-mail mascarado.
+// Efeito colateral conhecido: resolverEstadoModoDecisao pode gravar (efetivar ou lapsar
+// transferência vencida) durante este GET, igual a GET /usuario/me.
+// ponytail: sem paginação; uma consulta de resolverEstadoModoDecisao por idoso do titular.
+const STATUS_VALIDOS = ["pendente", "aprovado", "recusado"];
+const LADO_SELECT = { select: { id: true, nome: true, email: true } } as const;
+
+type Papel = "dono" | "vinculado" | "titular";
+type VinculoComLados = Prisma.VinculoGetPayload<{ include: { idoso: typeof LADO_SELECT; vinculado: typeof LADO_SELECT } }>;
+
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const status = req.query.status;
+    if (status !== undefined && (typeof status !== "string" || !STATUS_VALIDOS.includes(status))) {
+      return res.status(400).json({ error: "status deve ser 'pendente', 'aprovado' ou 'recusado'." });
+    }
+
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    if (!chamador) {
+      return res.status(403).json({ error: "Usuário não sincronizado." });
+    }
+
+    const include = { idoso: LADO_SELECT, vinculado: LADO_SELECT } as const;
+    const visiveis = new Map<number, { vinculo: VinculoComLados; papel: Papel }>();
+
+    if (chamador.tipo_perfil === "idoso") {
+      const donos = await prisma.vinculo.findMany({ where: { idoso_id: req.usuarioId }, include });
+      donos.forEach((v) => visiveis.set(v.id, { vinculo: v, papel: "dono" }));
+    } else {
+      const proprios = await prisma.vinculo.findMany({ where: { vinculado_id: req.usuarioId }, include });
+      proprios.forEach((v) => visiveis.set(v.id, { vinculo: v, papel: "vinculado" }));
+
+      if (chamador.tipo_perfil === "familiar") {
+        const idosos = [
+          ...new Set(
+            proprios.filter((v) => v.tipo_vinculo === "familiar" && v.status === "aprovado").map((v) => v.idoso_id),
+          ),
+        ];
+        const titularDe: number[] = [];
+        for (const idosoId of idosos) {
+          if ((await resolverModoDecisao(idosoId)) === "familiar") titularDe.push(idosoId);
+        }
+        if (titularDe.length > 0) {
+          const doIdoso = await prisma.vinculo.findMany({ where: { idoso_id: { in: titularDe } }, include });
+          doIdoso.forEach((v) => {
+            if (!visiveis.has(v.id)) visiveis.set(v.id, { vinculo: v, papel: "titular" });
+          });
+        }
+      }
+    }
+
+    const vinculos = [...visiveis.values()]
+      .filter(({ vinculo }) => status === undefined || vinculo.status === status)
+      .sort(
+        (a, b) =>
+          b.vinculo.data_solicitacao.getTime() - a.vinculo.data_solicitacao.getTime() || b.vinculo.id - a.vinculo.id,
+      )
+      .map(({ vinculo: v, papel }) => {
+        // Fail-closed: quem é só o vinculado não lê nome/e-mail do idoso antes de 'aprovado'
+        // (senão qualquer conta leria o nome de um idoso solicitando vínculo pelo e-mail).
+        const escondeIdoso = papel === "vinculado" && v.status !== "aprovado";
+        return {
+          id: v.id,
+          tipo_vinculo: v.tipo_vinculo,
+          origem: v.origem,
+          status: v.status,
+          data_solicitacao: v.data_solicitacao,
+          data_resposta: v.data_resposta,
+          confirmado_em: v.confirmado_em,
+          papel_do_chamador: papel,
+          idoso: {
+            id: v.idoso.id,
+            nome: escondeIdoso ? null : v.idoso.nome,
+            email_mascarado: escondeIdoso ? null : mascararEmail(v.idoso.email),
+          },
+          vinculado: { id: v.vinculado.id, nome: v.vinculado.nome, email_mascarado: mascararEmail(v.vinculado.email) },
+        };
+      });
+
+    res.json({ vinculos });
   } catch (e) {
     next(e);
   }
