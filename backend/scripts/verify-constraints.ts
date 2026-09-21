@@ -271,6 +271,15 @@ async function main() {
     });
   });
 
+  // 13. CK_Usuario_termo_cadastrado_por (RF-030, migration
+  // 20260921090000_add_check_termo_cadastrado_por) — termo_responsabilidade_aceito_em
+  // preenchido sem cadastrado_por_id deve ser rejeitado.
+  await runExpectingRejection("CK_Usuario_termo_cadastrado_por", async (tx) => {
+    await tx.usuario.create({
+      data: baseUsuario({ termo_responsabilidade_aceito_em: new Date() }),
+    });
+  });
+
   console.log("\nConstraint".padEnd(52) + "Resultado");
   console.log("-".repeat(70));
   for (const r of results) {
