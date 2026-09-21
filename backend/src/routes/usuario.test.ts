@@ -9,6 +9,7 @@ const update = jest.fn();
 const updateUser = jest.fn();
 const findFirstVinculo = jest.fn();
 const countVinculo = jest.fn();
+const createUsuario = jest.fn();
 
 jest.mock("../lib/firebaseAdmin", () => ({
   auth: {
@@ -23,6 +24,7 @@ jest.mock("../lib/prisma", () => ({
       findUnique: (...args: unknown[]) => findUnique(...args),
       findUniqueOrThrow: (...args: unknown[]) => findUniqueOrThrow(...args),
       update: (...args: unknown[]) => update(...args),
+      create: (...args: unknown[]) => createUsuario(...args),
     },
     // Usado só por resolverEstadoModoDecisao (import de ./vinculo — mesmo módulo
     // mockado, mesma instância) e pelo guard D6 de PATCH /usuario/me/modo-decisao.
@@ -459,5 +461,180 @@ describe("PATCH /usuario/me/modo-decisao", () => {
 
     expect(res.status).toBe(200);
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42 } }));
+  });
+});
+
+describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
+  const BODY_OK = { nome: "Dona Maria", email: "maria@a.com", aceita_termo_responsabilidade: true };
+  const CRIADO = {
+    id: 99,
+    nome: "Dona Maria",
+    email: "maria@a.com",
+    telefone: null,
+    tipo_perfil: "idoso",
+    firebase_uid: null,
+    modo_decisao: "familiar",
+    vinculos_como_idoso: [{ id: 7, status: "pendente", origem: "cadastro_familiar" }],
+  };
+
+  function post(body: unknown) {
+    return request(buildApp())
+      .post("/usuario/cadastrar-idoso")
+      .set("Authorization", "Bearer x")
+      .send(body as object);
+  }
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirst.mockReset();
+    findUnique.mockReset();
+    createUsuario.mockReset();
+    verifyIdToken.mockResolvedValue({ uid: "uid-42", email_verified: false });
+    findFirst.mockResolvedValue(USUARIO_LOGADO);
+    findUnique.mockResolvedValue({ tipo_perfil: "familiar" });
+    createUsuario.mockResolvedValue(CRIADO);
+  });
+
+  it("401 sem token", async () => {
+    const res = await request(buildApp()).post("/usuario/cadastrar-idoso").send(BODY_OK);
+    expect(res.status).toBe(401);
+  });
+
+  it("familiar com e-mail NÃO verificado: 201 e vínculo pendente sem confirmado_em", async () => {
+    const res = await post(BODY_OK);
+
+    expect(res.status).toBe(201);
+    const arg = createUsuario.mock.calls[0][0];
+    expect(arg.data).toMatchObject({
+      nome: "Dona Maria",
+      email: "maria@a.com",
+      tipo_perfil: "idoso",
+      cadastrado_por_id: 42,
+      modo_decisao: "familiar",
+    });
+    expect(arg.data.firebase_uid).toBeUndefined();
+    expect(arg.data.modo_decisao_alterado_por_id).toBeUndefined();
+    expect(arg.data.modo_decisao_alterado_em).toBeUndefined();
+    expect(arg.data.vinculos_como_idoso.create).toMatchObject({
+      vinculado_id: 42,
+      tipo_vinculo: "familiar",
+      origem: "cadastro_familiar",
+      status: "pendente",
+      data_solicitacao: expect.any(Date),
+    });
+    expect(arg.data.vinculos_como_idoso.create.confirmado_em).toBeUndefined();
+    expect(arg.data.vinculos_como_idoso.create.aprovador_id).toBeUndefined();
+    expect(arg.data.vinculos_como_idoso.create.notificado_em).toBeUndefined();
+  });
+
+  it("resposta 201 tem só os campos de D8 (sem firebase_uid nem campos de decisão)", async () => {
+    const res = await post(BODY_OK);
+
+    expect(res.body).toEqual({
+      usuario: { id: 99, nome: "Dona Maria", email: "maria@a.com", telefone: null, tipo_perfil: "idoso" },
+      vinculo: { id: 7, status: "pendente", origem: "cadastro_familiar" },
+    });
+  });
+
+  it("familiar com e-mail verificado: vínculo aprovado com confirmado_em", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-42", email_verified: true });
+
+    const res = await post(BODY_OK);
+
+    expect(res.status).toBe(201);
+    expect(createUsuario.mock.calls[0][0].data.vinculos_como_idoso.create).toMatchObject({
+      status: "aprovado",
+      confirmado_em: expect.any(Date),
+    });
+  });
+
+  it("timestamp do aceite é gerado pelo servidor", async () => {
+    const antes = Date.now();
+    await post({ ...BODY_OK, termo_responsabilidade_aceito_em: "2000-01-01T00:00:00Z" });
+    const ts: Date = createUsuario.mock.calls[0][0].data.termo_responsabilidade_aceito_em;
+
+    expect(ts).toBeInstanceOf(Date);
+    expect(ts.getTime()).toBeGreaterThanOrEqual(antes);
+  });
+
+  it("campos proibidos no body são ignorados", async () => {
+    await post({
+      ...BODY_OK,
+      tipo_perfil: "familiar",
+      cadastrado_por_id: 1,
+      firebase_uid: "x",
+      modo_decisao: "idoso",
+      email_convite_familiar: "o@o.com",
+    });
+    const data = createUsuario.mock.calls[0][0].data;
+
+    expect(data.tipo_perfil).toBe("idoso");
+    expect(data.cadastrado_por_id).toBe(42);
+    expect(data.firebase_uid).toBeUndefined();
+    expect(data.modo_decisao).toBe("familiar");
+    expect(data.email_convite_familiar).toBeUndefined();
+  });
+
+  it("201 só com telefone", async () => {
+    const res = await post({ nome: "Seu José", telefone: " 11999990000 ", aceita_termo_responsabilidade: true });
+
+    expect(res.status).toBe(201);
+    const data = createUsuario.mock.calls[0][0].data;
+    expect(data.telefone).toBe("11999990000");
+    expect(data.email).toBeUndefined();
+  });
+
+  it.each(["idoso", "cuidador"])("403 para %s", async (perfil) => {
+    findUnique.mockResolvedValue({ tipo_perfil: perfil });
+
+    const res = await post(BODY_OK);
+
+    expect(res.status).toBe(403);
+    expect(createUsuario).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["ausente", undefined],
+    ["false", false],
+    ['string "true"', "true"],
+  ])("400 sem aceite (%s)", async (_rotulo, valor) => {
+    const res = await post({ nome: "Ana", email: "a@a.com", aceita_termo_responsabilidade: valor });
+
+    expect(res.status).toBe(400);
+    expect(createUsuario).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["sem nome", { email: "a@a.com" }],
+    ["nome só espaços", { nome: "   ", email: "a@a.com" }],
+    ["nome acima de 150", { nome: "x".repeat(151), email: "a@a.com" }],
+    ["sem e-mail e sem telefone", { nome: "Ana" }],
+    ["e-mail e telefone só espaços", { nome: "Ana", email: " ", telefone: " " }],
+    ["e-mail inválido", { nome: "Ana", email: "nao-e-email" }],
+    ["e-mail acima de 255", { nome: "Ana", email: `${"a".repeat(250)}@a.com` }],
+    ["telefone acima de 20", { nome: "Ana", telefone: "1".repeat(21) }],
+  ])("400: %s", async (_rotulo, corpo) => {
+    const res = await post({ ...corpo, aceita_termo_responsabilidade: true });
+
+    expect(res.status).toBe(400);
+    expect(createUsuario).not.toHaveBeenCalled();
+  });
+
+  it("409 e-mail duplicado: mensagem genérica sem dado de terceiro e sem segunda escrita", async () => {
+    createUsuario.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint 'Usuario_email_key'"));
+
+    const res = await post(BODY_OK);
+
+    expect(res.status).toBe(409);
+    expect(JSON.stringify(res.body)).not.toContain("maria@a.com");
+    expect(createUsuario).toHaveBeenCalledTimes(1);
+  });
+
+  it("erro não relacionado a e-mail duplicado vai pro errorHandler (500)", async () => {
+    createUsuario.mockRejectedValue(new Error("boom"));
+
+    const res = await post(BODY_OK);
+
+    expect(res.status).toBe(500);
   });
 });

@@ -3,7 +3,8 @@ import { getCurrentUserToken } from '../lib/auth'
 import Spinner from '../components/common/Spinner'
 
 // Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022), 2.6
-// (RF-026), 2.7 (RF-027), 2.8 (RF-032), 2.9 (RF-033) e 2.10 (RF-034) — só o
+// (RF-026), 2.7 (RF-027), 2.8 (RF-032), 2.9 (RF-033) e 2.10 (RF-034), e da
+// Fase 3, item 3.1 (RF-030, cadastrar idoso) — só o
 // necessário pra exercitar os endpoints de backend já implementados, sem
 // listagem, sem polish visual. Layout final é responsabilidade de
 // Laureane/Jennifer; isto existe só pra não depender do front delas pra
@@ -18,6 +19,11 @@ type VinculoCriado = {
 type VinculoRespondido = {
   id: number
   status: string
+}
+
+type IdosoCadastrado = {
+  usuario: { id: number; nome: string }
+  vinculo: { id: number; status: string }
 }
 
 type PermissoesAtualizadas = {
@@ -132,6 +138,38 @@ function Vinculos() {
   const [carregandoAlterarModoDecisao, setCarregandoAlterarModoDecisao] = useState(false)
   const [resultadoAlterarModoDecisao, setResultadoAlterarModoDecisao] = useState<ModoDecisaoInfo | null>(null)
   const [erroAlterarModoDecisao, setErroAlterarModoDecisao] = useState<string | null>(null)
+
+  const [nomeIdosoCadastro, setNomeIdosoCadastro] = useState('')
+  const [emailIdosoCadastro, setEmailIdosoCadastro] = useState('')
+  const [telefoneIdosoCadastro, setTelefoneIdosoCadastro] = useState('')
+  const [aceitaTermoCadastro, setAceitaTermoCadastro] = useState(false)
+  const [carregandoCadastroIdoso, setCarregandoCadastroIdoso] = useState(false)
+  const [resultadoCadastroIdoso, setResultadoCadastroIdoso] = useState<IdosoCadastrado | null>(null)
+  const [erroCadastroIdoso, setErroCadastroIdoso] = useState<string | null>(null)
+
+  async function handleCadastrarIdoso(e: FormEvent) {
+    e.preventDefault()
+    setErroCadastroIdoso(null)
+    setResultadoCadastroIdoso(null)
+    setCarregandoCadastroIdoso(true)
+    try {
+      const corpo = await chamarApi('/usuario/cadastrar-idoso', {
+        method: 'POST',
+        body: JSON.stringify({
+          nome: nomeIdosoCadastro,
+          email: emailIdosoCadastro || undefined,
+          telefone: telefoneIdosoCadastro || undefined,
+          aceita_termo_responsabilidade: aceitaTermoCadastro,
+        }),
+      })
+      setResultadoCadastroIdoso(corpo)
+    } catch (err) {
+      console.error('Falha ao cadastrar idoso:', err)
+      setErroCadastroIdoso(err instanceof Error ? err.message : 'Falha ao cadastrar idoso.')
+    } finally {
+      setCarregandoCadastroIdoso(false)
+    }
+  }
 
   async function handleSolicitar(e: FormEvent) {
     e.preventDefault()
@@ -671,6 +709,94 @@ function Vinculos() {
           </p>
         )}
         {resultadoAlterarModoDecisao && <ResumoModoDecisao info={resultadoAlterarModoDecisao} />}
+      </section>
+
+      <section className="w-full max-w-sm space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Cadastrar idoso (só familiar)</h1>
+        <p className="text-base text-gray-700">
+          Cria a conta de um idoso em seu nome. Informe e-mail ou telefone (pelo menos um). O
+          vínculo fica pendente até você confirmar o seu e-mail.
+        </p>
+        <form onSubmit={handleCadastrarIdoso} className="space-y-4">
+          <div>
+            <label htmlFor="nome_idoso_cadastro" className="block text-lg font-medium text-gray-900">
+              Nome do idoso
+            </label>
+            <input
+              id="nome_idoso_cadastro"
+              type="text"
+              required
+              maxLength={150}
+              value={nomeIdosoCadastro}
+              onChange={(e) => setNomeIdosoCadastro(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <div>
+            <label htmlFor="email_idoso_cadastro" className="block text-lg font-medium text-gray-900">
+              E-mail do idoso (opcional se informar telefone)
+            </label>
+            <input
+              id="email_idoso_cadastro"
+              type="email"
+              maxLength={255}
+              value={emailIdosoCadastro}
+              onChange={(e) => setEmailIdosoCadastro(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <div>
+            <label htmlFor="telefone_idoso_cadastro" className="block text-lg font-medium text-gray-900">
+              Telefone do idoso (opcional se informar e-mail)
+            </label>
+            <input
+              id="telefone_idoso_cadastro"
+              type="tel"
+              maxLength={20}
+              value={telefoneIdosoCadastro}
+              onChange={(e) => setTelefoneIdosoCadastro(e.target.value)}
+              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            />
+          </div>
+          <div className="flex items-start gap-3">
+            <input
+              id="aceite_termo_cadastro"
+              type="checkbox"
+              checked={aceitaTermoCadastro}
+              onChange={(e) => setAceitaTermoCadastro(e.target.checked)}
+              className="mt-1 h-6 w-6"
+            />
+            {/* TEXTO PROVISÓRIO do termo de responsabilidade — o texto final e o layout
+                são de Laureane e Jennifer. */}
+            <label htmlFor="aceite_termo_cadastro" className="text-lg text-gray-900">
+              Declaro que sou responsável por cadastrar esta pessoa e que informei dados
+              verdadeiros. (texto provisório)
+            </label>
+          </div>
+          <button
+            type="submit"
+            disabled={carregandoCadastroIdoso}
+            aria-busy={carregandoCadastroIdoso}
+            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          >
+            {carregandoCadastroIdoso && <Spinner />}
+            {carregandoCadastroIdoso ? 'Cadastrando...' : 'Cadastrar idoso'}
+          </button>
+        </form>
+        {erroCadastroIdoso && (
+          <p role="alert" className="text-lg text-red-700">
+            {erroCadastroIdoso}
+          </p>
+        )}
+        {resultadoCadastroIdoso && (
+          <p className="text-lg text-gray-900">
+            Idoso {resultadoCadastroIdoso.usuario.nome} cadastrado (id {resultadoCadastroIdoso.usuario.id}).
+            Vínculo {resultadoCadastroIdoso.vinculo.id}:{' '}
+            {resultadoCadastroIdoso.vinculo.status === 'aprovado'
+              ? 'aprovado.'
+              : 'pendente, aguardando a confirmação do seu e-mail.'}
+          </p>
+        )}
       </section>
     </main>
   )

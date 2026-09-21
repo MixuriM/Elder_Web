@@ -118,7 +118,9 @@ router.post("/sync", async (req, res, next) => {
           where: {
             vinculado_id: usuarioExistente.id,
             tipo_vinculo: "familiar",
-            origem: "convite_idoso",
+            // RF-025 (convite_idoso) e RF-030 (cadastro_familiar): ambos aprovam por
+            // confirmação de posse do e-mail do Familiar. solicitacao_familiar é manual.
+            origem: { in: ["convite_idoso", "cadastro_familiar"] },
             status: "pendente",
           },
           data: { status: "aprovado", confirmado_em: new Date() },
