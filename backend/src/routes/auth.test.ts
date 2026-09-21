@@ -261,9 +261,25 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
 
     expect(res.status).toBe(200);
     expect(updateManyVinculo).toHaveBeenCalledWith({
-      where: { vinculado_id: 10, tipo_vinculo: "familiar", origem: "convite_idoso", status: "pendente" },
+      where: {
+        vinculado_id: 10,
+        tipo_vinculo: "familiar",
+        origem: { in: ["convite_idoso", "cadastro_familiar"] },
+        status: "pendente",
+      },
       data: { status: "aprovado", confirmado_em: expect.any(Date) },
     });
+  });
+
+  it("login de familiar promove só origens da lista (convite_idoso, cadastro_familiar), nunca solicitacao_familiar", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: true });
+    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });
+
+    await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+
+    const origem = updateManyVinculo.mock.calls[0][0].where.origem;
+    expect(origem).toEqual({ in: ["convite_idoso", "cadastro_familiar"] });
+    expect(origem.in).not.toContain("solicitacao_familiar");
   });
 
   it("login de familiar com email_verified=false não promove nada", async () => {
