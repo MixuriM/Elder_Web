@@ -1,6 +1,6 @@
 # Elder Web — Estrutura ER (nível lógico)
 
-> Estado atual do modelo (consolidado após 13 revisões). As tabelas abaixo mostram
+> Estado atual do modelo (consolidado após 17 revisões). As tabelas abaixo mostram
 > **o schema como ele é hoje** — sem tags de revisão espalhadas pelo meio. Todo o
 > raciocínio, o histórico de mudanças e as decisões de risco aceito ficam nas
 > seções 4, 5 e 6, no fim do documento. Se você só precisa consultar a estrutura,
