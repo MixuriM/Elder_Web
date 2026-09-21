@@ -951,3 +951,77 @@ do termo sem versionamento.
 Fora de escopo desta tarefa (não implementado, por instrução explícita): item 3.2,
 fluxo de o idoso cadastrado assumir a conta, mitigação da janela de autoridade vazia,
 contestação de vínculo via `notificado_em`, envio de e-mail, job agendado.
+
+**Contestação de vínculo automático de familiar (RF-022, dívida técnica do item 2.5)
+implementada (2026-09-21, PR #74, mergeado em `main` por rebase: `25f557f`
+implementação, `744cc97` script de verificação; hashes finais diferentes dos commits
+locais `be70456`/`d9e77c0`, mesmo padrão dos PRs anteriores):**
+
+`POST /vinculo/:id/contestar`, em `backend/src/routes/vinculo.ts`, atrás de
+`requireAuth`. Elegível: `tipo_vinculo='familiar'`, `status='aprovado'` e `origem` em
+(`convite_idoso`, `cadastro_familiar`), os dois vínculos que aprovam por e-mail, sem
+aprovação humana. `origem='solicitacao_familiar'` fica fora, porque já passou por
+aprovação manual. Ordem de validação: 400 id não numérico, 404 vínculo inexistente, 400
+fora de elegibilidade, 409 status diferente de `aprovado`, 403 autoridade. A autoridade
+segue `Usuario.modo_decisao` do idoso dono do vínculo, mesma regra de `/aprovar` e
+`/recusar`, via `resolverEstadoModoDecisao` e `familiarTemVinculoAprovado`: com
+`modo_decisao` diferente de `'familiar'` só o idoso contesta; com `'familiar'` o idoso
+recebe 403 e só familiar com vínculo aprovado contesta. Contestar o próprio vínculo
+(chamador igual a `vinculado_id`) retorna 403, porque isso seria desvincular, outro
+requisito.
+
+Efeito: `status='recusado'`, `aprovador_id` de quem contestou e `data_resposta`, os
+mesmos campos que `/recusar` grava. Nos vínculos automáticos `data_resposta` era `NULL`,
+então a data da contestação fica registrada (corrige a premissa inicial da tarefa, que
+assumia o contrário). Sem migration e sem coluna nova.
+
+Transferência de `modo_decisao` em curso (item 2.9): `resolverEstadoModoDecisao` não
+revalida o vínculo do solicitante nem do segundo confirmador na efetivação, então a rota
+trata esse caso. Se o vínculo contestado é do solicitante
+(`modo_decisao_solicitado_por_id`), cancela a solicitação inteira (6 campos); se é do
+segundo confirmador (`modo_decisao_segunda_confirmacao_id`), zera só esse campo. A
+mudança de status e o ajuste em `Usuario` vão juntos em `prisma.$transaction([...])`, na
+forma em array (nenhuma rota usava `$transaction` antes). `CANCELAMENTO_SOLICITACAO`
+passou a ser exportada de `vinculo.ts` e importada por `usuario.ts`, na direção de import
+que já existia (o contrário seria circular). Ainda restam duas cópias inline da mesma
+lista de 6 campos: `backend/src/routes/auth.ts:101-106` (login do idoso em `POST
+/auth/sync`) e `backend/src/routes/vinculo.ts:352-357` (lapso por expiração em
+`resolverEstadoModoDecisao`).
+
+`Vinculo.notificado_em` continua não escrito por nenhum código. Não existe canal de
+notificação, então gravar a data afirmaria um aviso que nunca foi enviado. A contestação
+não depende do campo e não tem prazo. `docs/Elder Web - Modelagem ER.md` ganhou a nota na
+seção 3 e a REV.16, que registra que o campo fica reservado para quando houver canal
+real de notificação.
+
+Testes, escritos antes da implementação (RED confirmado, 18 falhas com a rota
+inexistente): 20 novos (166 contra 146 da linha de base), sendo 19 em `vinculo.test.ts` e
+1 em `auth.test.ts`, contados pelas linhas `it(` e `it.each` adicionadas em `25f557f`.
+Cobrem sucesso por idoso e por familiar aprovado, 403 nos dois modos, 403 do idoso com
+`modo_decisao='familiar'`, 403 no próprio vínculo, 401, 400, 404, 409, vínculo contestado
+deixando de passar em `requireVinculoAprovado` (com estado em memória), os casos de
+transferência em curso e, em `auth.test.ts`, o login do familiar contestado não
+reativando o vínculo `recusado`. Suíte do backend: 6 arquivos, 166 testes. Frontend: 2
+suítes, 4 testes, sem regressão. Seção "Contestar vínculo automático de familiar" em
+`frontend/src/pages/Vinculos.tsx`, esqueleto cru.
+
+**Verificação no banco (`backend/scripts/verify-constraints.ts`):** os casos 5 a 7
+(`CK_Vinculo_tipo_vinculo`, `CK_Vinculo_origem`, `CK_Vinculo_status`) foram reescritos com
+controle positivo (o mesmo insert com valor válido é aceito) e com a exigência de que o
+erro do banco cite o nome da constraint. Os casos novos 14 e 14b cobrem o índice único
+filtrado `Vinculo_idoso_id_vinculado_id_tipo_vinculo_key`: duplicata ativa rejeitada
+citando o índice, e vários `recusado` mais um ativo do mesmo par aceitos. Rodado uma vez
+contra o Azure, com autorização explícita: 22/22 PASS. Cada caso roda numa
+`$transaction` cujo callback sempre lança `ForceRollback`, e o Prisma reverte em qualquer
+exceção. `COUNT(*)` antes e depois: `Usuario` 3 e `Vinculo` 0, iguais.
+
+**Limitações conhecidas (não mitigadas):** (a) contestar não é reversível pelo mesmo
+caminho: o familiar contestado precisa de nova solicitação pelo Fluxo B (item 2.6), que
+não alcança idoso sem e-mail; (b) vínculo aprovado com `origem='solicitacao_familiar'`
+não é contestável por esta rota; (c) um vínculo automático contestado e um recusado ainda
+pendente podem ficar indistinguíveis quando `confirmado_em` é nulo, porque `/aprovar` não
+o preenche; (d) `POST /vinculo/:id/aprovar` aprova vínculos `convite_idoso` e
+`cadastro_familiar` pendentes sem exigir `confirmado_em` (`vinculo.ts:377`, `382`, `403`),
+pergunta aberta com o grupo, e as decisões dos itens 2.2 e 2.7 não foram reabertas; (e)
+sem o item 2.11 (listagem de vínculos), a contestação só é exercitável por id no
+esqueleto.
