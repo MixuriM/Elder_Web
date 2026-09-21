@@ -890,3 +890,64 @@ tabela de histórico.
 Fora de escopo desta tarefa (não implementado, por instrução explícita): reabertura do
 mecanismo da 2.9 (RF-033), contestação de vínculo via `notificado_em`, job agendado, envio
 de e-mail.
+
+**Item 3.1 da Fase 3 (RF-030) implementado — Familiar cadastra conta de Idoso (2026-09-21,
+PR #70, mergeado em `main` por rebase: `a85d67d` implementação, `679c716` script de
+verificação; hashes finais diferentes dos commits locais `b80ba02`/`c6148d1`, mesmo padrão
+dos PRs anteriores):**
+
+`POST /usuario/cadastrar-idoso`, em `backend/src/routes/usuario.ts`, atrás de
+`requireAuth`. Só `tipo_perfil='familiar'` chama (403 caso contrário). Do body só são
+lidos `nome` (obrigatório, até 150), `email` (opcional, `isValidEmailFormat`, até 255),
+`telefone` (opcional, até 20) e `aceita_termo_responsabilidade` (precisa ser o booleano
+`true`; ausente, `false` ou string dá 400). Pelo menos um entre `email` e `telefone` é
+validado na aplicação antes do insert. `tipo_perfil`, `cadastrado_por_id`, `firebase_uid`,
+`modo_decisao`, `email_convite_familiar` e o timestamp do aceite nunca vêm do body.
+
+Um único `prisma.usuario.create` com escrita aninhada (`vinculos_como_idoso`), sem
+`$transaction`. Usuario: `tipo_perfil='idoso'`, `firebase_uid` NULL,
+`cadastrado_por_id` do Familiar, `termo_responsabilidade_aceito_em` gerado no servidor,
+`modo_decisao='familiar'` (`modo_decisao_alterado_*` ficam NULL). Vinculo:
+`tipo_vinculo='familiar'`, `origem='cadastro_familiar'`, `aprovador_id` e `notificado_em`
+NULL. Status `aprovado` (com `confirmado_em`) se o e-mail do Familiar já está verificado
+no token, senão `pendente`. Para isso `requireAuth` passou a expor `req.emailVerificado`
+(false quando ausente, declarado em `types/express.d.ts`). E-mail duplicado: 409 com
+mensagem genérica via `isDuplicateEmail`, sem dado de outra conta (mensagem específica é
+o item 3.2).
+
+`POST /auth/sync`: o `updateMany` do branch de login do Familiar passou a usar
+`origem: { in: ["convite_idoso", "cadastro_familiar"] }`. `solicitacao_familiar` continua
+de fora (aprovação manual).
+
+Nenhuma migration na tarefa em si. 26 testes novos (22 em `usuario.test.ts`, 1 em
+`auth.test.ts`, 3 em `requireAuth.test.ts`) mais o ajuste do teste existente do `where`
+do `updateMany`. Suíte do backend: 6 arquivos, 146 testes (era 120). Frontend: seção
+"Cadastrar idoso (só familiar)" em `Vinculos.tsx`, esqueleto cru (texto do termo
+provisório; texto final e layout são de Laureane e Jennifer); suíte frontend sem
+regressão (2 suítes/4 testes).
+
+`backend/scripts/verify-cadastrar-idoso.ts` confirma no banco real (transação sempre
+revertida, 3/3 PASS): create aninhado válido aceito, erro real de e-mail duplicado
+reconhecido por `isDuplicateEmail`, nenhum Vinculo órfão. Rodar de novo:
+`npx tsx scripts/verify-cadastrar-idoso.ts` (dentro de `backend/`).
+
+CHECK `CK_Usuario_termo_cadastrado_por` (`termo_responsabilidade_aceito_em IS NULL OR
+cadastrado_por_id IS NOT NULL`) trava a regra a nível de banco. Migration
+`20260921090000_add_check_termo_cadastrado_por` escrita à mão (coluna já existia desde
+`20260831005102_init_schema`), PR #71, mergeado em `main` (`d8be21f`). Aplicada no Azure
+via `npx prisma migrate deploy` (autorização explícita de Marcos, rodada por ele mesmo;
+a trava geral do CLAUDE.md continua valendo). `backend/scripts/verify-constraints.ts`
+ganhou o caso 13 pra essa CHECK: 16/17 antes do deploy (caso novo falhando, como
+esperado), 17/17 PASS depois, confirmados de verdade no banco.
+
+**Limitações conhecidas (não mitigadas):** o idoso cadastrado não tem `firebase_uid` nem
+conta Firebase, então não consegue logar, e nada da 3.1 cobre como ele assume a conta
+(proposta: item 3.3, não implementado, aguardando decisão de Marcos); idoso só com
+telefone não loga (Firebase do projeto só tem e-mail/senha e Google); o e-mail informado
+pelo Familiar não é verificado e pode ocupar o e-mail de terceiro (lacuna de colisão de
+e-mail já registrada acima); sem deduplicação nem limite de cadastros por Familiar; texto
+do termo sem versionamento.
+
+Fora de escopo desta tarefa (não implementado, por instrução explícita): item 3.2,
+fluxo de o idoso cadastrado assumir a conta, mitigação da janela de autoridade vazia,
+contestação de vínculo via `notificado_em`, envio de e-mail, job agendado.
