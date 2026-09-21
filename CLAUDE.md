@@ -1026,18 +1026,17 @@ o preenche; (d) `POST /vinculo/:id/aprovar` aprova vínculos `convite_idoso` e
 decidido pelo grupo em 21/09/2026 (opção C: permitido, sem mudança de código), sem reabrir
 as decisões dos itens 2.2 e 2.7 (ver a entrada "Decisão do P1 (21/09/2026)" no fim deste
 arquivo); (e)
-sem o item 2.11 (listagem de vínculos), a contestação só é exercitável por id no
-esqueleto.
+antes do item 2.11 a contestação só era exercitável por id no esqueleto; `GET /vinculo`
+(item 2.11) já lista os vínculos.
 
-**Recomendação pendente de decisão do grupo (limitação (d)):** manter a aprovação manual
-de `POST /vinculo/:id/aprovar` como assinatura do titular de `Usuario.modo_decisao`, sem
-exigir `confirmado_em`, e implementar antes o item 2.11 (listagem de vínculos), para o
-titular ver quem é o familiar antes de aprovar. Motivo: não exige migration nem mudança de
-código, não reabre as decisões dos itens 2.2 e 2.7, e a autoridade de aprovar é a mesma que
-contesta depois. Exigir `confirmado_em` (409) seria a alternativa mais restritiva, mas
-bloquearia vínculo cujo e-mail de confirmação nunca chega. Gravar `confirmado_em` na
-aprovação manual está descartado, porque afirmaria uma posse de e-mail que não houve.
-Nenhum código ou teste foi alterado por causa desta recomendação.
+**Decisão sobre a limitação (d) (21/09/2026, opção C):** a aprovação manual de
+`POST /vinculo/:id/aprovar` continua como assinatura do titular de `Usuario.modo_decisao`, sem
+exigir `confirmado_em`. Não exigiu migration nem mudança de código, não reabriu as decisões
+dos itens 2.2 e 2.7, e a autoridade de aprovar é a mesma que contesta depois. Exigir
+`confirmado_em` (409) foi descartado por bloquear vínculo cujo e-mail de confirmação nunca
+chega. Gravar `confirmado_em` na aprovação manual também está descartado, porque afirmaria uma
+posse de e-mail que não houve. Detalhes na entrada "Decisão do P1 (21/09/2026)" no fim deste
+arquivo.
 
 **Verificação de tipos do script:** o `tsc` avulso sobre
 `backend/scripts/verify-constraints.ts` acusava `cadastrado_por_id` desconhecido. Causa: o
