@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
+import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
 import {
   isTipoPerfil,
+  isDuplicateEmail,
   isDuplicateFirebaseUid,
   isValidEmailFormat,
   verifyFirebaseToken,
@@ -164,6 +166,28 @@ router.post("/sync", async (req, res, next) => {
       emailConviteFamiliar = emailConviteFamiliarRaw.trim();
     }
 
+    // RNF-011: valida o e-mail ANTES do INSERT. A mensagem específica só sai quando
+    // o e-mail já vem verificado, o perfil pedido é idoso e a linha foi cadastrada por
+    // Familiar (sem firebase_uid) — qualquer outro caso recebe o corpo genérico, idêntico,
+    // pra não revelar a natureza da conta que ocupa o e-mail. O catch abaixo continua
+    // como rede de segurança pra corrida.
+    if (decoded.email) {
+      const existente = await prisma.usuario.findFirst({
+        where: { email: decoded.email },
+        select: { id: true, firebase_uid: true, cadastrado_por_id: true },
+      });
+      if (existente) {
+        const cadastradoPorFamiliar =
+          decoded.email_verified === true &&
+          tipoPerfil === "idoso" &&
+          existente.firebase_uid === null &&
+          existente.cadastrado_por_id !== null;
+        return res
+          .status(409)
+          .json(cadastradoPorFamiliar ? CONFLITO_EMAIL.EMAIL_CADASTRADO_POR_FAMILIAR : CONFLITO_EMAIL.EMAIL_JA_EM_USO);
+      }
+    }
+
     try {
       const usuario = await prisma.usuario.create({
         data: {
@@ -195,6 +219,9 @@ router.post("/sync", async (req, res, next) => {
         if (usuario) {
           return res.status(200).json({ criado: false, usuario });
         }
+      }
+      if (isDuplicateEmail(e)) {
+        return res.status(409).json(CONFLITO_EMAIL.EMAIL_JA_EM_USO);
       }
       return next(e);
     }
