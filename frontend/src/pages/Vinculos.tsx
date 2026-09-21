@@ -106,7 +106,12 @@ async function chamarApi(path: string, options: RequestInit = {}) {
     },
   })
   const corpo = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(corpo?.error ?? `Falha na requisição: status ${res.status}`)
+  if (!res.ok) {
+    // proximo_passo (409 de conflito de e-mail, item 3.2) viaja junto do erro.
+    throw Object.assign(new Error(corpo?.error ?? `Falha na requisição: status ${res.status}`), {
+      proximo_passo: typeof corpo?.proximo_passo === 'string' ? corpo.proximo_passo : undefined,
+    })
+  }
   return corpo
 }
 
@@ -167,6 +172,7 @@ function Vinculos() {
   const [carregandoCadastroIdoso, setCarregandoCadastroIdoso] = useState(false)
   const [resultadoCadastroIdoso, setResultadoCadastroIdoso] = useState<IdosoCadastrado | null>(null)
   const [erroCadastroIdoso, setErroCadastroIdoso] = useState<string | null>(null)
+  const [proximoPassoCadastroIdoso, setProximoPassoCadastroIdoso] = useState<string | null>(null)
 
   const [filtroStatusListar, setFiltroStatusListar] = useState('')
   const [carregandoListar, setCarregandoListar] = useState(false)
@@ -209,6 +215,7 @@ function Vinculos() {
   async function handleCadastrarIdoso(e: FormEvent) {
     e.preventDefault()
     setErroCadastroIdoso(null)
+    setProximoPassoCadastroIdoso(null)
     setResultadoCadastroIdoso(null)
     setCarregandoCadastroIdoso(true)
     try {
@@ -225,6 +232,7 @@ function Vinculos() {
     } catch (err) {
       console.error('Falha ao cadastrar idoso:', err)
       setErroCadastroIdoso(err instanceof Error ? err.message : 'Falha ao cadastrar idoso.')
+      setProximoPassoCadastroIdoso((err as { proximo_passo?: string }).proximo_passo ?? null)
     } finally {
       setCarregandoCadastroIdoso(false)
     }
@@ -845,6 +853,11 @@ function Vinculos() {
         {erroCadastroIdoso && (
           <p role="alert" className="text-lg text-red-700">
             {erroCadastroIdoso}
+          </p>
+        )}
+        {proximoPassoCadastroIdoso && (
+          <p role="alert" className="text-lg text-red-700">
+            {proximoPassoCadastroIdoso}
           </p>
         )}
         {resultadoCadastroIdoso && (

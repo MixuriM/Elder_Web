@@ -76,6 +76,23 @@ export type TipoPerfil = "idoso" | "cuidador" | "familiar";
 // sem expor o erro transitório como se fosse e-mail/senha errados.
 const SYNC_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 8000];
 
+// Erro de /auth/sync com status e corpo estruturados (codigo/proximo_passo vêm dos 409 de
+// conflito de e-mail, item 3.2) — as mensagens de login/cadastro ramificam por estes
+// campos, não por substring da mensagem.
+export class SyncError extends Error {
+  status: number
+  codigo?: string
+  proximoPasso?: string
+
+  constructor(status: number, message: string, codigo?: string, proximoPasso?: string) {
+    super(message)
+    this.name = 'SyncError'
+    this.status = status
+    this.codigo = codigo
+    this.proximoPasso = proximoPasso
+  }
+}
+
 export async function syncUser(dados?: {
   tipoPerfil?: TipoPerfil;
   nome?: string;
@@ -100,9 +117,17 @@ export async function syncUser(dados?: {
       });
 
       if (!res.ok) {
-        const corpo = await res.text().catch(() => "");
-        const erro = new Error(
-          `Falha em /auth/sync: status ${res.status}${corpo ? ` — ${corpo}` : ""}`
+        let corpo: { error?: unknown; codigo?: unknown; proximo_passo?: unknown } | null = null;
+        try {
+          corpo = await res.json();
+        } catch {
+          // corpo ausente ou não-JSON: segue só com o status
+        }
+        const erro = new SyncError(
+          res.status,
+          typeof corpo?.error === "string" ? corpo.error : `Falha em /auth/sync: status ${res.status}`,
+          typeof corpo?.codigo === "string" ? corpo.codigo : undefined,
+          typeof corpo?.proximo_passo === "string" ? corpo.proximo_passo : undefined
         );
         // 4xx é erro real (token inválido, dado inválido) — não adianta tentar de novo.
         if (res.status < 500 || tentativa === SYNC_RETRY_DELAYS_MS.length) {
@@ -127,14 +152,23 @@ export async function syncUser(dados?: {
 }
 
 // Diferencia "senha/e-mail errados" (erro do Firebase Auth) de "/auth/sync falhou
-// mesmo depois do login funcionar" (backend hibernado no Render demorando pra
-// acordar) — sem isso o usuário lê "confira seu e-mail e senha" quando a conta
-// está certa e o problema é só o servidor ainda subindo.
+// mesmo depois do login funcionar". Por SyncError.status: 5xx = backend hibernado no
+// Render demorando pra acordar; 4xx com codigo = conflito com orientação própria (409
+// de e-mail, item 3.2); 4xx sem codigo = erro real de sync, sem culpar o servidor.
+function mensagemSyncError(err: unknown, mensagem5xx: string): string | null {
+  if (!(err instanceof SyncError)) return null;
+  if (err.codigo && err.proximoPasso) return `${err.message} ${err.proximoPasso}`;
+  if (err.status >= 500) return mensagem5xx;
+  return "Falha ao sincronizar sua conta com o servidor. Confira os dados e tente novamente.";
+}
+
 export function mensagemErroLogin(err: unknown): string {
-  if (err instanceof Error && err.message.includes("/auth/sync")) {
-    return "Login validado, mas o servidor está iniciando. Aguarde alguns segundos e tente de novo.";
-  }
-  return "Não foi possível entrar. Confira seu e-mail e senha.";
+  return (
+    mensagemSyncError(
+      err,
+      "Login validado, mas o servidor está iniciando. Aguarde alguns segundos e tente de novo."
+    ) ?? "Não foi possível entrar. Confira seu e-mail e senha."
+  );
 }
 
 // Mesma ideia que mensagemErroLogin: se registerUser/loginWithGoogle já criou a
@@ -142,8 +176,10 @@ export function mensagemErroLogin(err: unknown): string {
 // em "e-mail já cadastrado" no Firebase — orientar login em vez de tentar cadastrar
 // de novo.
 export function mensagemErroCadastro(err: unknown): string {
-  if (err instanceof Error && err.message.includes("/auth/sync")) {
-    return "Conta criada, mas o servidor está iniciando. Aguarde alguns segundos e faça login normalmente (não tente cadastrar de novo).";
-  }
-  return "Não foi possível criar a conta. Confira os dados e tente novamente.";
+  return (
+    mensagemSyncError(
+      err,
+      "Conta criada, mas o servidor está iniciando. Aguarde alguns segundos e faça login normalmente (não tente cadastrar de novo)."
+    ) ?? "Não foi possível criar a conta. Confira os dados e tente novamente."
+  );
 }
