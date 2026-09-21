@@ -3,7 +3,8 @@ import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
 import { isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
-import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT, CANCELAMENTO_SOLICITACAO } from "./vinculo";
+import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
+import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 
 const router = Router();
 
