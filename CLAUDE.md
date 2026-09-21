@@ -1023,8 +1023,9 @@ não é contestável por esta rota; (c) um vínculo automático contestado e um 
 pendente podem ficar indistinguíveis quando `confirmado_em` é nulo, porque `/aprovar` não
 o preenche; (d) `POST /vinculo/:id/aprovar` aprova vínculos `convite_idoso` e
 `cadastro_familiar` pendentes sem exigir `confirmado_em` (`vinculo.ts:377`, `382`, `403`),
-pergunta aberta com o grupo, e as decisões dos itens 2.2 e 2.7 não foram reabertas (ver
-"Recomendação pendente de decisão do grupo" abaixo); (e)
+decidido pelo grupo em 21/09/2026 (opção C: permitido, sem mudança de código), sem reabrir
+as decisões dos itens 2.2 e 2.7 (ver a entrada "Decisão do P1 (21/09/2026)" no fim deste
+arquivo); (e)
 sem o item 2.11 (listagem de vínculos), a contestação só é exercitável por id no
 esqueleto.
 
@@ -1096,5 +1097,27 @@ do idoso (D7), titular com vínculo pendente ou recusado e titular sem filtro po
 PR #77 (`backend`, `frontend`, Vercel) e o CI de `main` no commit de merge passaram.
 
 A dependência do P1 (`/aprovar` sem exigir `confirmado_em`) do item 2.11 foi cumprida: o titular
-já vê quem é o familiar antes de aprovar. O P1 segue aberto, pendente da decisão do grupo, e
-nada em `/aprovar` foi alterado.
+já vê quem é o familiar antes de aprovar. O P1 foi decidido pelo grupo em 21/09/2026 (opção C, ver a
+entrada "Decisão do P1 (21/09/2026)" no fim deste arquivo), e nada em `/aprovar` foi alterado.
+
+**Decisão do P1 (21/09/2026): aprovação manual de vínculo automático.**
+
+`POST /vinculo/:id/aprovar` continua aprovando vínculos pendentes de origem `convite_idoso` e
+`cadastro_familiar` sem exigir `confirmado_em` (opção C, confirmada pelo grupo). O backend não
+muda. Quem tem autoridade para aprovar continua sendo definido por `Usuario.modo_decisao`.
+
+Contrato para o frontend: `GET /vinculo` já devolve `confirmado_em` em cada item. O aviso "e-mail
+ainda não confirmado" deve ser exibido antes de o titular aprovar, e vale só quando `origem` é
+`convite_idoso` ou `cadastro_familiar`, `status` é `pendente` e `confirmado_em` é nulo. Vínculos
+manuais (`solicitacao_cuidador` e `solicitacao_familiar`) têm `confirmado_em` sempre nulo por
+construção e NÃO devem exibir esse aviso.
+
+Risco aceito conscientemente: um e-mail de familiar digitado errado por um idoso pode ser
+aprovado à mão sem verificação de posse do e-mail. A mitigação escolhida é informativa (aviso na
+tela), não bloqueante.
+
+Teste de caracterização: `backend/src/routes/vinculoListar.test.ts` ganhou o bloco "contrato de
+`confirmado_em`", com 3 casos (dono, vinculado e titular) que afirmam o valor quando preenchido e
+`null` quando nulo. O teste passa sem mudança de código, porque o comportamento já existia. Removendo
+`confirmado_em` do item da resposta em `vinculo.ts`, os 3 casos falham (mutação temporária, revertida,
+nunca commitada). Suíte do backend: 8 arquivos, 198 testes. Nenhuma linha de código de produção mudou.
