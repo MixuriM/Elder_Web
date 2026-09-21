@@ -981,12 +981,13 @@ trata esse caso. Se o vínculo contestado é do solicitante
 (`modo_decisao_solicitado_por_id`), cancela a solicitação inteira (6 campos); se é do
 segundo confirmador (`modo_decisao_segunda_confirmacao_id`), zera só esse campo. A
 mudança de status e o ajuste em `Usuario` vão juntos em `prisma.$transaction([...])`, na
-forma em array (nenhuma rota usava `$transaction` antes). `CANCELAMENTO_SOLICITACAO`
-passou a ser exportada de `vinculo.ts` e importada por `usuario.ts`, na direção de import
-que já existia (o contrário seria circular). Ainda restam duas cópias inline da mesma
-lista de 6 campos: `backend/src/routes/auth.ts:101-106` (login do idoso em `POST
-/auth/sync`) e `backend/src/routes/vinculo.ts:352-357` (lapso por expiração em
-`resolverEstadoModoDecisao`).
+forma em array (nenhuma rota usava `$transaction` antes). A lista dos 6 campos
+de cancelamento vive numa única constante, `CANCELAMENTO_SOLICITACAO`, em
+`backend/src/lib/modoDecisao.ts` (módulo sem imports, usado por `auth.ts`, `vinculo.ts` e
+`usuario.ts`, sem risco de import circular). Na implementação inicial a constante era
+exportada de `vinculo.ts` e ainda restavam duas cópias inline (login do idoso em `POST
+/auth/sync` e lapso por expiração em `resolverEstadoModoDecisao`); o refactor posterior,
+sem mudança de comportamento e sem alterar nenhum teste, consolidou as três.
 
 `Vinculo.notificado_em` continua não escrito por nenhum código. Não existe canal de
 notificação, então gravar a data afirmaria um aviso que nunca foi enviado. A contestação
@@ -1022,6 +1023,23 @@ não é contestável por esta rota; (c) um vínculo automático contestado e um 
 pendente podem ficar indistinguíveis quando `confirmado_em` é nulo, porque `/aprovar` não
 o preenche; (d) `POST /vinculo/:id/aprovar` aprova vínculos `convite_idoso` e
 `cadastro_familiar` pendentes sem exigir `confirmado_em` (`vinculo.ts:377`, `382`, `403`),
-pergunta aberta com o grupo, e as decisões dos itens 2.2 e 2.7 não foram reabertas; (e)
+pergunta aberta com o grupo, e as decisões dos itens 2.2 e 2.7 não foram reabertas (ver
+"Recomendação pendente de decisão do grupo" abaixo); (e)
 sem o item 2.11 (listagem de vínculos), a contestação só é exercitável por id no
 esqueleto.
+
+**Recomendação pendente de decisão do grupo (limitação (d)):** manter a aprovação manual
+de `POST /vinculo/:id/aprovar` como assinatura do titular de `Usuario.modo_decisao`, sem
+exigir `confirmado_em`, e implementar antes o item 2.11 (listagem de vínculos), para o
+titular ver quem é o familiar antes de aprovar. Motivo: não exige migration nem mudança de
+código, não reabre as decisões dos itens 2.2 e 2.7, e a autoridade de aprovar é a mesma que
+contesta depois. Exigir `confirmado_em` (409) seria a alternativa mais restritiva, mas
+bloquearia vínculo cujo e-mail de confirmação nunca chega. Gravar `confirmado_em` na
+aprovação manual está descartado, porque afirmaria uma posse de e-mail que não houve.
+Nenhum código ou teste foi alterado por causa desta recomendação.
+
+**Verificação de tipos do script:** o `tsc` avulso sobre
+`backend/scripts/verify-constraints.ts` acusava `cadastrado_por_id` desconhecido. Causa: o
+script fica fora do `include` do `tsconfig.json` (só `src`), e `baseUsuario` era tipada com
+`Prisma.UsuarioCreateInput`, que só aceita a relação `cadastrado_por`; o Prisma Client não
+estava desatualizado. Corrigido trocando o tipo para `Prisma.UsuarioUncheckedCreateInput`.
