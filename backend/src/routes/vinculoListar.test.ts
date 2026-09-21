@@ -162,6 +162,7 @@ type Item = {
   id: number;
   papel_do_chamador: string;
   status: string;
+  confirmado_em: string | null;
   idoso: { id: number | null; nome: string | null; email_mascarado: string | null };
   vinculado: { id: number; nome: string; email_mascarado: string | null };
 };
@@ -357,4 +358,32 @@ describe("GET /vinculo", () => {
       expect(item.vinculado.email_mascarado).toBe("c***@exemplo.com");
     });
   });
+
+  describe("contrato de confirmado_em (base do aviso 'e-mail ainda não confirmado' no frontend)", () => {
+    const confirmadoEm = new Date(Date.UTC(2026, 0, 10));
+
+    beforeEach(() => {
+      vinculos.find((v) => v.id === 3)!.confirmado_em = confirmadoEm;
+    });
+
+    it("dono: expõe o valor quando preenchido e null quando nulo", async () => {
+      const res = await listarOk(A);
+      expect(itemPorId(res, 3).confirmado_em).toBe(confirmadoEm.toISOString());
+      expect(itemPorId(res, 1).confirmado_em).toBeNull();
+    });
+
+    it("vinculado: expõe o valor quando preenchido e null quando nulo", async () => {
+      const res = await listarOk(F2);
+      expect(itemPorId(res, 3).confirmado_em).toBe(confirmadoEm.toISOString());
+      expect(itemPorId(res, 5).confirmado_em).toBeNull();
+    });
+
+    it("titular: expõe o valor quando preenchido e null quando nulo", async () => {
+      usuarios[A].modo_decisao = "familiar";
+      const res = await listarOk(F1);
+      expect(papel(res, 3)).toBe("titular");
+      expect(itemPorId(res, 3).confirmado_em).toBe(confirmadoEm.toISOString());
+      expect(itemPorId(res, 1).confirmado_em).toBeNull();
+    });
+  });
 });
