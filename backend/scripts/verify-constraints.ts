@@ -35,9 +35,12 @@ function isConstraintViolation(e: unknown): boolean {
   return false;
 }
 
+// expectedConstraint (opcional): o erro do banco precisa citar esse nome — sem isso, uma
+// rejeição por outro motivo (ex.: FK inválida) passaria como se a constraint funcionasse.
 async function runExpectingRejection(
   name: string,
   attempt: (tx: Prisma.TransactionClient) => Promise<void>,
+  expectedConstraint?: string,
 ) {
   try {
     await prisma.$transaction(async (tx) => {
@@ -50,6 +53,12 @@ async function runExpectingRejection(
   } catch (e) {
     if (e instanceof ForceRollback) {
       results.push({ name, pass: false, detail: `FAIL: ${e.message}` });
+    } else if (expectedConstraint && !(e as Error).message.includes(expectedConstraint)) {
+      results.push({
+        name,
+        pass: false,
+        detail: `FAIL: erro não cita ${expectedConstraint}: ${(e as Error).message}`,
+      });
     } else if (isConstraintViolation(e)) {
       results.push({ name, pass: true, detail: "PASS: banco rejeitou o insert inválido" });
     } else {
@@ -171,53 +180,37 @@ async function main() {
     });
   });
 
-  // 5. CK_Vinculo_tipo_vinculo
-  await runExpectingRejection("CK_Vinculo_tipo_vinculo", async (tx) => {
+  // 5-7. CHECKs de Vinculo (tipo_vinculo, origem, status). Cada um: FKs válidas (Usuario
+  // criados na própria transação), controle positivo (mesmo insert com valor válido é
+  // aceito) e rejeição do valor inválido citando o nome da constraint.
+  const vinculoValido = {
+    tipo_vinculo: "cuidador",
+    origem: "solicitacao_cuidador",
+    status: "pendente",
+  };
+  async function novoVinculoBase(tx: Prisma.TransactionClient) {
     const idoso = await tx.usuario.create({ data: baseUsuario() });
     const outro = await tx.usuario.create({ data: baseUsuario({ tipo_perfil: "cuidador" }) });
-    await tx.vinculo.create({
-      data: {
-        idoso_id: idoso.id,
-        vinculado_id: outro.id,
-        tipo_vinculo: "invalido",
-        origem: "solicitacao_cuidador",
-        status: "pendente",
-        data_solicitacao: new Date(),
-      },
+    return { idoso_id: idoso.id, vinculado_id: outro.id, data_solicitacao: new Date() };
+  }
+  for (const [n, constraint, campo] of [
+    [5, "CK_Vinculo_tipo_vinculo", "tipo_vinculo"],
+    [6, "CK_Vinculo_origem", "origem"],
+    [7, "CK_Vinculo_status", "status"],
+  ] as const) {
+    await runExpectingSuccess(`${constraint} (controle positivo, caso ${n})`, async (tx) => {
+      await tx.vinculo.create({ data: { ...(await novoVinculoBase(tx)), ...vinculoValido } });
     });
-  });
-
-  // 6. CK_Vinculo_origem
-  await runExpectingRejection("CK_Vinculo_origem", async (tx) => {
-    const idoso = await tx.usuario.create({ data: baseUsuario() });
-    const outro = await tx.usuario.create({ data: baseUsuario({ tipo_perfil: "cuidador" }) });
-    await tx.vinculo.create({
-      data: {
-        idoso_id: idoso.id,
-        vinculado_id: outro.id,
-        tipo_vinculo: "cuidador",
-        origem: "invalido",
-        status: "pendente",
-        data_solicitacao: new Date(),
+    await runExpectingRejection(
+      constraint,
+      async (tx) => {
+        await tx.vinculo.create({
+          data: { ...(await novoVinculoBase(tx)), ...vinculoValido, [campo]: "invalido" },
+        });
       },
-    });
-  });
-
-  // 7. CK_Vinculo_status
-  await runExpectingRejection("CK_Vinculo_status", async (tx) => {
-    const idoso = await tx.usuario.create({ data: baseUsuario() });
-    const outro = await tx.usuario.create({ data: baseUsuario({ tipo_perfil: "cuidador" }) });
-    await tx.vinculo.create({
-      data: {
-        idoso_id: idoso.id,
-        vinculado_id: outro.id,
-        tipo_vinculo: "cuidador",
-        origem: "solicitacao_cuidador",
-        status: "invalido",
-        data_solicitacao: new Date(),
-      },
-    });
-  });
+      constraint,
+    );
+  }
 
   // 8. CK_Usuario_modo_decisao
   await runExpectingRejection("CK_Usuario_modo_decisao", async (tx) => {
@@ -279,6 +272,44 @@ async function main() {
       data: baseUsuario({ termo_responsabilidade_aceito_em: new Date() }),
     });
   });
+
+  // 14. Vinculo_idoso_id_vinculado_id_tipo_vinculo_key (item 2.3, migration
+  // 20260915090000_vinculo_unique_ativo) — índice único filtrado WHERE status IN
+  // ('pendente','aprovado'): mesmo par/tipo com dois vínculos ativos deve ser rejeitado.
+  await runExpectingRejection("Vinculo_idoso_id_vinculado_id_tipo_vinculo_key (duplicata ativa)", async (tx) => {
+    const idoso = await tx.usuario.create({ data: baseUsuario() });
+    const familiar = await tx.usuario.create({ data: baseUsuario({ tipo_perfil: "familiar" }) });
+    const vinculo = {
+      idoso_id: idoso.id,
+      vinculado_id: familiar.id,
+      tipo_vinculo: "familiar",
+      origem: "solicitacao_familiar",
+      data_solicitacao: new Date(),
+    };
+    await tx.vinculo.create({ data: { ...vinculo, status: "pendente" } });
+    await tx.vinculo.create({ data: { ...vinculo, status: "aprovado" } });
+  }, "Vinculo_idoso_id_vinculado_id_tipo_vinculo_key");
+
+  // 14b. Mesmo índice, lado filtrado: vínculos 'recusado' não contam (nova solicitação depois
+  // de recusar/contestar é permitida, e pode haver vários 'recusado' do mesmo par), e um
+  // 'recusado' convive com um ativo.
+  await runExpectingSuccess(
+    "Vinculo_idoso_id_vinculado_id_tipo_vinculo_key ('recusado' fora do índice)",
+    async (tx) => {
+      const idoso = await tx.usuario.create({ data: baseUsuario() });
+      const familiar = await tx.usuario.create({ data: baseUsuario({ tipo_perfil: "familiar" }) });
+      const vinculo = {
+        idoso_id: idoso.id,
+        vinculado_id: familiar.id,
+        tipo_vinculo: "familiar",
+        origem: "solicitacao_familiar",
+        data_solicitacao: new Date(),
+      };
+      await tx.vinculo.create({ data: { ...vinculo, status: "recusado" } });
+      await tx.vinculo.create({ data: { ...vinculo, status: "recusado" } });
+      await tx.vinculo.create({ data: { ...vinculo, status: "pendente" } });
+    },
+  );
 
   console.log("\nConstraint".padEnd(52) + "Resultado");
   console.log("-".repeat(70));
