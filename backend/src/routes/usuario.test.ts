@@ -179,6 +179,42 @@ describe("PATCH /usuario/me", () => {
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/já está em uso/i);
   });
+
+  it("bloqueia nome vazio com mensagem clara, não persiste", async () => {
+    const res = await request(buildApp())
+      .patch("/usuario/me")
+      .set("Authorization", "Bearer x")
+      .send({ nome: "   " });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/nome/i);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("corpo sem campo nenhum: não quebra, chama update sem tocar nada", async () => {
+    update.mockResolvedValue({ id: 42, nome: "Ana", email: "a@a.com", telefone: "123", tipo_perfil: "idoso" });
+
+    const res = await request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send({});
+
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 42 }, data: {} })
+    );
+    expect(findUniqueOrThrow).not.toHaveBeenCalled();
+  });
+
+  it("falha do Firebase em updateUser: não persiste no banco, propaga erro (500)", async () => {
+    findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+    updateUser.mockRejectedValue(new Error("Firebase indisponível"));
+
+    const res = await request(buildApp())
+      .patch("/usuario/me")
+      .set("Authorization", "Bearer x")
+      .send({ email: "novo@a.com" });
+
+    expect(res.status).toBe(500);
+    expect(update).not.toHaveBeenCalled();
+  });
 });
 
 // Item 2.10 (RF-034) — idoso altera Usuario.modo_decisao diretamente, sem janela de

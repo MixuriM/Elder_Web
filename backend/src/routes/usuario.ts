@@ -37,6 +37,9 @@ router.patch("/me", requireAuth, async (req, res, next) => {
 
     const data: { nome?: string; email?: string | null; telefone?: string | null } = {};
     if (nome !== undefined) data.nome = typeof nome === "string" ? nome.trim() : nome;
+    if ("nome" in data && !data.nome) {
+      return res.status(400).json({ error: "Nome não pode ficar vazio." });
+    }
     if (email !== undefined) data.email = typeof email === "string" ? email.trim() || null : email;
     if (telefone !== undefined)
       data.telefone = typeof telefone === "string" ? telefone.trim() || null : telefone;
