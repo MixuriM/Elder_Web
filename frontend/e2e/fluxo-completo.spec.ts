@@ -23,10 +23,9 @@ for (const { tipoPerfil, radio } of PERFIS) {
     await page.goto("/cadastro");
 
     if (radio) {
-      // input é visualmente sr-only (UI custom de radio com ícone por cima) — clique
-      // real do mouse esbarra no ícone; force é o padrão certo pra esse componente,
-      // não workaround de bug.
-      await page.getByRole("radio", { name: radio }).click({ force: true });
+      // Clica no texto visível (dentro do <label> que envolve o input sr-only), como
+      // um usuário real faria — não no input escondido diretamente.
+      await page.getByText(radio, { exact: true }).click();
     }
 
     await page.getByLabel("Nome completo").fill(nome);
