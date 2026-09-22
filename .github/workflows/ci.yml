@@ -38,5 +38,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npx prisma validate
+        env:
+          DATABASE_URL: "sqlserver://localhost:14330;database=elder_web;user=sa;password=fake;encrypt=true;trustServerCertificate=true"
       - run: npm test
       - run: npm run build
