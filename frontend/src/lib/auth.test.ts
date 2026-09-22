@@ -63,7 +63,7 @@ describe('syncUser — retry com backoff', () => {
   })
 
   it('sucesso na primeira tentativa: não espera nem repete', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { criado: false }))
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { criado: false }))
 
     const resultado = await syncUser()
 
@@ -72,7 +72,7 @@ describe('syncUser — retry com backoff', () => {
   })
 
   it('5xx e depois sucesso: repete e espera o delay entre tentativas', async () => {
-    ;(global.fetch as jest.Mock)
+    (global.fetch as jest.Mock)
       .mockResolvedValueOnce(respostaJson(503, { error: 'indisponível' }))
       .mockResolvedValueOnce(respostaJson(200, { criado: false }))
 
@@ -85,7 +85,7 @@ describe('syncUser — retry com backoff', () => {
   })
 
   it('falha de rede (TypeError) e depois sucesso: também repete', async () => {
-    ;(global.fetch as jest.Mock)
+    (global.fetch as jest.Mock)
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValueOnce(respostaJson(200, { criado: false }))
 
@@ -98,14 +98,14 @@ describe('syncUser — retry com backoff', () => {
   })
 
   it('4xx não repete: lança na primeira tentativa', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue(respostaJson(400, { error: 'tipo_perfil obrigatório' }))
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(400, { error: 'tipo_perfil obrigatório' }))
 
     await expect(syncUser()).rejects.toMatchObject({ status: 400 })
     expect(global.fetch).toHaveBeenCalledTimes(1)
   })
 
   it('esgota todas as tentativas em 5xx: lança o último erro', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue(respostaJson(503, { error: 'sempre indisponível' }))
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(503, { error: 'sempre indisponível' }))
 
     const promessa = syncUser()
     promessa.catch(() => {})
