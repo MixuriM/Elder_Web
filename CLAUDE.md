@@ -1198,3 +1198,96 @@ backend.
 Fora de escopo desta tarefa (não implementado, por instrução explícita): tarefa
 3.3 (idoso assume conta cadastrada por Familiar, anexando `firebase_uid`), Phone
 Auth, exclusão da conta Firebase órfã.
+
+**Checklist de testes da Fase 1 fechado — todos os itens ⏳ viraram ✅ (2026-09-22, PR #85,
+mergeado em `main`):**
+
+Fonte de verdade da tarefa: nota "Elder Web - Plano de Desenvolvimento.md" no Obsidian, seção
+"Fase 1 — Autenticação e identidade", bloco "Testes". Baseline antes da tarefa: backend 8
+arquivos/213 testes, frontend 3 suítes/8 testes. Ao final: backend 10 arquivos/262 testes,
+frontend 8 suítes/32 testes, e2e Playwright 3/3 (idoso, cuidador, familiar) — nenhum item
+ficou pendente.
+
+5 commits em `development`, PR #85 mergeado em `main` (commits preservados 1:1 por rebase, não
+squash — hashes finais diferentes dos locais, mesmo padrão de PRs anteriores):
+- `b5b2df8` (local) / `abcd7b0` (main) — `test(backend): completa cobertura da checklist de
+  testes da Fase 1`
+- `bef328a` / `6c5d47f` — `test(frontend): cobre Login/Cadastro/EsqueciSenha/Perfil/Sidebar e
+  retry do syncUser`
+- `d31c02b` / `4e3577f` — `test(e2e): fluxo cadastro→login→perfil→logout via Playwright (3
+  perfis)`
+- `7d28646` / `1e710d9` — `test(e2e): troca clique com force pelo clique no texto visível do
+  rádio`
+- `e167532` / `f39e9b3` — `fix(frontend): remove ponto-e-vírgula solto (no-extra-semi) em
+  auth.test.ts`
+
+**Backend (commit `b5b2df8`):** describe base novo em `auth.test.ts` pra `POST /auth/sync`
+(401 sem token, 401 token inválido, 400 sem `tipo_perfil`, cria idoso/cuidador/familiar,
+login não duplica, corrida de `firebase_uid` duplicado); 503 do Firebase indisponível
+coberto em `auth.test.ts` e `requireAuth.test.ts` (token expirado continua 401);
+`authHelpers.test.ts` novo (Jest puro, sem Supertest, `it.each` pras 5 funções);
+`prisma.test.ts` novo, cobrindo o retry com backoff de `lib/prisma.ts` via fake de
+`PrismaClient.$extends` + `jest.useFakeTimers` (sucesso direto, retry parcial,
+esgotamento das 6 tentativas ~31s, erro que não é `PrismaClientInitializationError`
+passando direto).
+
+**Bug real #1 encontrado e corrigido — `PATCH /usuario/me` aceitava nome em branco:**
+escrevendo o teste de "nome vazio" pedido pelo checklist, ficou confirmado que
+`backend/src/routes/usuario.ts` não tinha nenhuma validação de `nome` (só e-mail/telefone
+tinham o guard de "não pode ficar vazio"). Corrigido com o mesmo padrão 400 já usado ali —
+`nome` vazio/só espaço é rejeitado antes do update.
+
+**Frontend (commit `bef328a`):** testes novos pra `Login.tsx`, `Cadastro.tsx`,
+`EsqueciSenha.tsx`, `Perfil.tsx` e `Sidebar.tsx` (logout) — sucesso, erro com
+`role="alert"`, botão desabilitado durante a chamada, redirecionamento, distinção
+"Firebase falhou" x "`/auth/sync` falhou" onde já existia essa lógica (item 3.2);
+`lib/auth.test.ts` ganhou bloco de retry do `syncUser` (5xx, `TypeError` de rede, 4xx sem
+retry, esgotamento das 5 tentativas) via `jest.useFakeTimers`.
+
+**Bug real #2 encontrado e corrigido — acessibilidade de `CampoLogin.tsx`:** componente
+usado só por `Login.tsx` tinha `<label>` sem `htmlFor` e `<input>` sem `id` — sem
+associação, quebra leitor de tela e `getByLabelText` do Testing Library. Inconsistente com
+`CampoTexto.tsx` (usado no Cadastro), que já seguia o padrão certo. Corrigido com o mesmo
+`id`/`htmlFor`.
+
+**Gap de infra corrigido (mesma classe do TextEncoder de 13/09):** `frontend/jest.config.cjs`
+não tinha `moduleNameMapper` pra imagens — qualquer teste de página que importasse
+`.png`/`.svg` (caso de `Login.tsx`, via `LadoInformativo`) quebrava o parse do Jest.
+`jest.fileMock.cjs` novo resolve isso; `testPathIgnorePatterns` também ganhou `e2e/`, pra o
+Jest não tentar rodar os specs do Playwright como se fossem teste unitário.
+
+**E2E novo (commits `d31c02b` e `7d28646`):** `@playwright/test` instalado só no frontend
+(autorizado explicitamente); `frontend/e2e/fluxo-completo.spec.ts` cobre cadastro→
+login→perfil→logout pra idoso, cuidador e familiar, contra frontend + backend locais de
+verdade, sem mock de rede. Roda contra o SQL Server LOCAL do `docker-compose.yml` (nunca
+o Azure de produção) — o volume `elder_web_mssql_data` já existia com senha antiga de uma
+tentativa anterior, recriado do zero pra esta tarefa. Firebase Auth continua sendo o
+projeto real, porque não existe projeto de teste dedicado — e-mails de teste usam prefixo
+`e2e-` e domínio `.test` (reservado pela IANA) pra ficar marcado como dado fake.
+`playwright.config.ts` sobe frontend/backend via `webServer` com `reuseExistingServer:
+true`; o backend usa `port: 3000`, não `url`, porque nenhuma rota GET dele responde 2xx (só
+POST/PATCH autenticados) e o check por `url` do Playwright exige 2xx-3xx — com `url` ele
+tentava subir um processo novo em cima do que já estava de pé (`EADDRINUSE`).
+
+O primeiro clique no rádio customizado de perfil (`TipoPerfil.tsx`, input `sr-only` coberto
+pelo ícone) usava `.click({ force: true })` direto no input, com o commit `d31c02b`.
+Investigado no commit seguinte (`7d28646`): trocado pra `page.getByText(radio, { exact: true
+}).click()` no texto visível dentro do `<label>`, sem `force` — passou 3/3 sem falha,
+confirmando que a interação do componente está correta (delegação nativa de `<label>` pro
+input) e que o `force: true` anterior mascarava só um seletor de teste ruim, não um bug
+real do componente.
+
+**Bug de CI pego só pelo lint, não localmente (commit `e167532`):** o job `frontend` do PR
+#85 falhou em `npm run lint` — 5 erros `no-extra-semi` em `lib/auth.test.ts` (ponto-e-vírgula
+líder `;(global.fetch as jest.Mock)...`, guard defensivo contra ASI desnecessário porque a
+linha anterior sempre terminava em `{` de abertura de bloco ou estava em branco).
+Reproduzido local com `npx eslint .` antes de corrigir, confirmando que não era flake nem
+diferença de config do runner — só não tinha sido rodado localmente depois de escrever o
+bloco de retry do `syncUser` (rodei `tsc --noEmit` e `npm test`, não `npm run lint`).
+
+Container de teste (`elder_web-db-1`) derrubado com `docker compose down` ao final da
+tarefa — nenhum artefato de teste local ficou de pé.
+
+Fora de escopo (não implementado, por instrução explícita): CI ainda não roda o e2e
+Playwright (sem infraestrutura de banco/Firebase de teste dedicada lá); nenhuma mudança de
+schema ou de migration nesta tarefa.
