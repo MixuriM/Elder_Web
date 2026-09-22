@@ -1,4 +1,5 @@
 type CampoLoginProps = {
+  id: string;
   label: string;
   type: "email" | "password";
   value: string;
@@ -7,6 +8,7 @@ type CampoLoginProps = {
 };
 
 function CampoLogin({
+  id,
   label,
   type,
   value,
@@ -17,6 +19,7 @@ function CampoLogin({
     <div className="w-full">
       {/* Nome do campo */}
       <label
+        htmlFor={id}
         className="
           block
           text-sm
@@ -31,6 +34,7 @@ function CampoLogin({
 
       {/* Campo */}
       <input
+        id={id}
         type={type}
         value={value}
         required
