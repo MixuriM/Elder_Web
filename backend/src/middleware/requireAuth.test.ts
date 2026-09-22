@@ -53,6 +53,15 @@ describe("requireAuth", () => {
     expect(res.status).toBe(401);
   });
 
+  it("retorna 503 quando o Firebase está indisponível (erro sem código auth/*)", async () => {
+    verifyIdToken.mockRejectedValue(new Error("network timeout"));
+
+    const res = await request(buildApp()).get("/protegida").set("Authorization", "Bearer token-qualquer");
+
+    expect(res.status).toBe(503);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
   it("retorna 403 com token válido mas sem Usuario correspondente", async () => {
     verifyIdToken.mockResolvedValue({ uid: "firebase-uid-sem-usuario" });
     findFirst.mockResolvedValue(null);

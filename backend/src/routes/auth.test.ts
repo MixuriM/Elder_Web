@@ -41,6 +41,120 @@ function buildApp() {
   return app;
 }
 
+describe("POST /auth/sync — base (1.2)", () => {
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirst.mockReset();
+    create.mockReset();
+    findManyUsuario.mockReset();
+    findManyUsuario.mockResolvedValue([]); // RF-025: sem idoso à espera desse e-mail
+  });
+
+  it("sem header Authorization: 401, não chama Firebase", async () => {
+    const res = await request(buildApp()).post("/auth/sync").send({});
+
+    expect(res.status).toBe(401);
+    expect(verifyIdToken).not.toHaveBeenCalled();
+  });
+
+  it("token inválido (Firebase rejeita com código auth/*): 401", async () => {
+    verifyIdToken.mockRejectedValue({ code: "auth/argument-error" });
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer token-invalido")
+      .send({});
+
+    expect(res.status).toBe(401);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("Firebase indisponível (erro sem código auth/*): 503, não derruba a API", async () => {
+    verifyIdToken.mockRejectedValue(new Error("network"));
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer token-qualquer")
+      .send({});
+
+    expect(res.status).toBe(503);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("token expirado (código auth/id-token-expired) continua 401, não 503", async () => {
+    verifyIdToken.mockRejectedValue(Object.assign(new Error("expired"), { code: "auth/id-token-expired" }));
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer token-expirado")
+      .send({});
+
+    expect(res.status).toBe(401);
+  });
+
+  it("cadastro sem tipo_perfil: 400, não chama create", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "novo@a.com" });
+    findFirst.mockResolvedValue(null);
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ nome: "Sem Perfil" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/tipo_perfil/i);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each(["idoso", "cuidador", "familiar"] as const)(
+    "cadastro com tipo_perfil=%s cria com o perfil certo",
+    async (tipoPerfil) => {
+      verifyIdToken.mockResolvedValue({ uid: `uid-${tipoPerfil}`, email: `${tipoPerfil}@a.com` });
+      findFirst.mockResolvedValue(null);
+      create.mockResolvedValue({ id: 1, tipo_perfil: tipoPerfil });
+
+      const res = await request(buildApp())
+        .post("/auth/sync")
+        .set("Authorization", "Bearer x")
+        .send({ tipo_perfil: tipoPerfil, nome: "Fulano" });
+
+      expect(res.status).toBe(201);
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ tipo_perfil: tipoPerfil }) })
+      );
+    }
+  );
+
+  it("login de conta já existente (achada por firebase_uid) não chama create", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-existente" });
+    findFirst.mockResolvedValueOnce({ id: 5, tipo_perfil: "idoso", modo_decisao_solicitado: null });
+    updateUsuario.mockResolvedValue({ id: 5, tipo_perfil: "idoso" });
+
+    const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.criado).toBe(false);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("corrida de duas criações do mesmo firebase_uid: segunda recebe 200 com o registro da primeira", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-corrida", email: "corrida@a.com" });
+    findFirst.mockResolvedValueOnce(null); // não é login (busca por firebase_uid)
+    findFirst.mockResolvedValueOnce(null); // pré-checagem de e-mail (RNF-011): livre
+    create.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint 'Usuario_firebase_uid_key'"));
+    findFirst.mockResolvedValueOnce({ id: 42, tipo_perfil: "idoso" }); // achado após a corrida
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "idoso", nome: "Corrida" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.criado).toBe(false);
+    expect(res.body.usuario).toEqual({ id: 42, tipo_perfil: "idoso" });
+  });
+});
+
 describe("POST /auth/sync — email_convite_familiar (RF-024)", () => {
   beforeEach(() => {
     verifyIdToken.mockReset();
