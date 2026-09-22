@@ -98,6 +98,7 @@ function FormularioLogin({
       {/* Campos */}
       <div className="space-y-5">
         <CampoLogin
+          id="login-email"
           label="E-mail:"
           type="email"
           value={email}
@@ -106,6 +107,7 @@ function FormularioLogin({
         />
 
         <CampoLogin
+          id="login-senha"
           label="Senha:"
           type="password"
           value={senha}
