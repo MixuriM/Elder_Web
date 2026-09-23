@@ -22,6 +22,9 @@ import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioCadastro from "../components/cadastro/FormularioCadastro";
 import ControleTema from "../components/layout/ControleTema";
 
+const MENSAGEM_ESCOLHA_PERFIL =
+  "Escolha se você é idoso, cuidador ou familiar.";
+
 // Componente principal da página de cadastro
 function Cadastro() {
   // Estado responsável por armazenar o nome digitado
@@ -39,9 +42,13 @@ function Cadastro() {
   // Estado responsável por armazenar a senha
   const [senha, setSenha] = useState("");
 
-  // Perfil selecionado
+  // Confirmação da senha
+  const [confirmacaoSenha, setConfirmacaoSenha] =
+    useState("");
+
+  // Perfil selecionado (começa sem escolha: o perfil é fixo depois de criado)
   const [tipoPerfil, setTipoPerfil] =
-    useState<TipoPerfil>("idoso");
+    useState<TipoPerfil | null>(null);
 
   // Mensagem de erro
   const [erro, setErro] =
@@ -61,6 +68,17 @@ function Cadastro() {
     e.preventDefault();
 
     setErro(null);
+
+    if (!tipoPerfil) {
+      setErro(MENSAGEM_ESCOLHA_PERFIL);
+      return;
+    }
+
+    if (senha !== confirmacaoSenha) {
+      setErro("As senhas não são iguais. Digite a mesma senha nos dois campos.");
+      return;
+    }
+
     setCarregando(true);
 
     try {
@@ -69,8 +87,9 @@ function Cadastro() {
 
       // Envia confirmação de e-mail para familiar e idoso (RF-025 e RF-030 extensão/3.3
       // dependem de email_verified para o vínculo/anexo automático)
+      let emailEnviado = false;
       if (tipoPerfil === "familiar" || tipoPerfil === "idoso") {
-        await sendEmailVerification();
+        emailEnviado = await sendEmailVerification();
       }
 
       // Sincroniza os dados adicionais
@@ -87,6 +106,7 @@ function Cadastro() {
       navigate("/welcome", {
         state: {
           cadastroSucesso: true,
+          confirmarEmail: emailEnviado,
         },
       });
     } catch (err) {
@@ -104,6 +124,12 @@ function Cadastro() {
   // Cadastro utilizando Google
   async function handleGoogleCadastro() {
     setErro(null);
+
+    if (!tipoPerfil) {
+      setErro(MENSAGEM_ESCOLHA_PERFIL);
+      return;
+    }
+
     setCarregando(true);
 
     try {
@@ -170,7 +196,7 @@ function Cadastro() {
         <div className="h-full">
           <LadoInformativo
             tipo="cadastro"
-            tipoPerfil={tipoPerfil}
+            tipoPerfil={tipoPerfil ?? undefined}
           />
         </div>
 
@@ -223,6 +249,7 @@ function Cadastro() {
               nome={nome}
               email={email}
               senha={senha}
+              confirmacaoSenha={confirmacaoSenha}
               emailConviteFamiliar={
                 emailConviteFamiliar
               }
@@ -232,6 +259,7 @@ function Cadastro() {
               setNome={setNome}
               setEmail={setEmail}
               setSenha={setSenha}
+              setConfirmacaoSenha={setConfirmacaoSenha}
               setEmailConviteFamiliar={
                 setEmailConviteFamiliar
               }

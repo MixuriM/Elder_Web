@@ -16,14 +16,16 @@ type FormularioCadastroProps = {
   nome: string;
   email: string;
   senha: string;
+  confirmacaoSenha: string;
   emailConviteFamiliar: string;
-  tipoPerfil: TipoPerfil;
+  tipoPerfil: TipoPerfil | null;
   erro: string | null;
   carregando: boolean;
 
   setNome: (valor: string) => void;
   setEmail: (valor: string) => void;
   setSenha: (valor: string) => void;
+  setConfirmacaoSenha: (valor: string) => void;
   setEmailConviteFamiliar: (valor: string) => void;
   setTipoPerfil: (tipo: TipoPerfil) => void;
 
@@ -36,6 +38,7 @@ function FormularioCadastro({
   nome,
   email,
   senha,
+  confirmacaoSenha,
   emailConviteFamiliar,
   tipoPerfil,
   erro,
@@ -43,6 +46,7 @@ function FormularioCadastro({
   setNome,
   setEmail,
   setSenha,
+  setConfirmacaoSenha,
   setEmailConviteFamiliar,
   setTipoPerfil,
   onSubmit,
@@ -128,6 +132,8 @@ function FormularioCadastro({
             type="text"
             value={nome}
             onChange={setNome}
+            maxLength={150}
+            autoComplete="name"
           />
 
           {/* E-mail */}
@@ -137,6 +143,8 @@ function FormularioCadastro({
             type="email"
             value={email}
             onChange={setEmail}
+            maxLength={255}
+            autoComplete="email"
           />
 
           {/* Senha */}
@@ -146,6 +154,20 @@ function FormularioCadastro({
             type="password"
             value={senha}
             onChange={setSenha}
+            minLength={6}
+            autoComplete="new-password"
+            hint="Use pelo menos 6 caracteres."
+          />
+
+          {/* Confirmação da senha */}
+          <CampoTexto
+            id="confirmacao_senha"
+            label="Confirmação da senha"
+            type="password"
+            value={confirmacaoSenha}
+            onChange={setConfirmacaoSenha}
+            minLength={6}
+            autoComplete="new-password"
           />
 
           {/* E-mail do familiar - exibido somente para o perfil idoso */}
@@ -157,6 +179,9 @@ function FormularioCadastro({
               value={emailConviteFamiliar}
               onChange={setEmailConviteFamiliar}
               required={false}
+              maxLength={255}
+              autoComplete="off"
+              hint="Se você já tem um familiar no Elder, informe o e-mail dele para ligar as contas."
             />
           )}
         </div>

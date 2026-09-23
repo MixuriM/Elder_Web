@@ -160,6 +160,9 @@ router.post("/sync", async (req, res, next) => {
       if (typeof emailConviteFamiliarRaw !== "string" || !isValidEmailFormat(emailConviteFamiliarRaw.trim())) {
         return res.status(400).json({ error: "email_convite_familiar em formato inválido." });
       }
+      if (emailConviteFamiliarRaw.trim().length > 255) {
+        return res.status(400).json({ error: "email_convite_familiar deve ter até 255 caracteres." });
+      }
       emailConviteFamiliar = emailConviteFamiliarRaw.trim();
     }
 
@@ -202,6 +205,10 @@ router.post("/sync", async (req, res, next) => {
     if (!nome) {
       return res.status(400).json({ error: "nome obrigatório ao criar conta." });
     }
+    // Coluna Usuario.nome é NVarChar(150): acima disso o INSERT estoura e viraria 500.
+    if (nome.length > 150) {
+      return res.status(400).json({ error: "nome deve ter até 150 caracteres." });
+    }
 
     try {
       const usuario = await prisma.usuario.create({
@@ -212,6 +219,8 @@ router.post("/sync", async (req, res, next) => {
           telefone: decoded.phone_number,
           tipo_perfil: tipoPerfil,
           email_convite_familiar: emailConviteFamiliar,
+          // ER: modo_decisao obrigatório para idoso; autocadastro nasce decidindo por si.
+          ...(tipoPerfil === "idoso" && { modo_decisao: "idoso" }),
         },
       });
 
