@@ -67,8 +67,9 @@ function Cadastro() {
       // Registra o usuário
       await registerUser(email, senha);
 
-      // Envia confirmação de e-mail para familiar
-      if (tipoPerfil === "familiar") {
+      // Envia confirmação de e-mail para familiar e idoso (RF-025 e RF-030 extensão/3.3
+      // dependem de email_verified para o vínculo/anexo automático)
+      if (tipoPerfil === "familiar" || tipoPerfil === "idoso") {
         await sendEmailVerification();
       }
 
@@ -109,8 +110,9 @@ function Cadastro() {
       // Autenticação com Google
       await loginWithGoogle();
 
-      // Confirmação do e-mail para familiar
-      if (tipoPerfil === "familiar") {
+      // Confirmação do e-mail para familiar e idoso (RF-025 e RF-030 extensão/3.3
+      // dependem de email_verified para o vínculo/anexo automático)
+      if (tipoPerfil === "familiar" || tipoPerfil === "idoso") {
         await sendEmailVerification();
       }
 

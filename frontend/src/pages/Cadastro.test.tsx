@@ -61,7 +61,7 @@ describe("Cadastro", () => {
     mockNavigate.mockReset();
   });
 
-  it("cadastro (perfil padrão idoso) com sucesso: sincroniza e navega pra /welcome", async () => {
+  it("cadastro (perfil padrão idoso) com sucesso: dispara sendEmailVerification (3.3), sincroniza e navega pra /welcome", async () => {
     mockRegisterUser.mockResolvedValue(undefined);
     mockSyncUser.mockResolvedValue({ criado: true });
     const user = userEvent.setup();
@@ -76,21 +76,40 @@ describe("Cadastro", () => {
     expect(mockSyncUser).toHaveBeenCalledWith(
       expect.objectContaining({ tipoPerfil: "idoso", nome: "Ana Silva" })
     );
-    expect(mockSendEmailVerification).not.toHaveBeenCalled();
+    expect(mockSendEmailVerification).toHaveBeenCalledTimes(1);
   });
 
-  it("perfil familiar: dispara sendEmailVerification antes de sincronizar", async () => {
+  it.each(["familiar", "idoso"])(
+    "perfil %s: dispara sendEmailVerification antes de sincronizar",
+    async (perfil) => {
+      mockRegisterUser.mockResolvedValue(undefined);
+      mockSyncUser.mockResolvedValue({ criado: true });
+      const user = userEvent.setup();
+      renderCadastro();
+
+      if (perfil !== "idoso") {
+        await user.click(screen.getByRole("radio", { name: new RegExp(perfil, "i") }));
+      }
+      await preencherCamposBase(user);
+      await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+
+      await waitFor(() => expect(mockSendEmailVerification).toHaveBeenCalledTimes(1));
+      expect(mockSyncUser).toHaveBeenCalledWith(expect.objectContaining({ tipoPerfil: perfil }));
+    }
+  );
+
+  it("perfil cuidador: NÃO dispara sendEmailVerification", async () => {
     mockRegisterUser.mockResolvedValue(undefined);
     mockSyncUser.mockResolvedValue({ criado: true });
     const user = userEvent.setup();
     renderCadastro();
 
-    await user.click(screen.getByRole("radio", { name: /familiar/i }));
+    await user.click(screen.getByRole("radio", { name: /cuidador/i }));
     await preencherCamposBase(user);
     await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
 
-    await waitFor(() => expect(mockSendEmailVerification).toHaveBeenCalledTimes(1));
-    expect(mockSyncUser).toHaveBeenCalledWith(expect.objectContaining({ tipoPerfil: "familiar" }));
+    await waitFor(() => expect(mockSyncUser).toHaveBeenCalled());
+    expect(mockSendEmailVerification).not.toHaveBeenCalled();
   });
 
   it("Firebase rejeita o cadastro (e-mail já em uso): mostra erro, não chama syncUser", async () => {

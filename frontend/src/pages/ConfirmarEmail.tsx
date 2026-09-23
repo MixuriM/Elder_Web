@@ -22,7 +22,11 @@ function ConfirmarEmail() {
     setErro(null)
     try {
       await getCurrentUserToken(true)
-      await syncUser()
+      // tipoPerfil fixo: só importa quando o backend ainda não acha o firebase_uid
+      // (branch de criação/anexo, item 3.3 — idoso cadastrado por Familiar confirmando
+      // e-mail pra assumir a conta). Pra Familiar (RF-025) o firebase_uid já bate desde
+      // o cadastro, cai direto no branch de login, que ignora esse campo.
+      await syncUser({ tipoPerfil: 'idoso' })
       setStatus('sucesso')
     } catch (err) {
       console.error('Falha ao confirmar e-mail:', err)

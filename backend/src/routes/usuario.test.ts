@@ -580,10 +580,13 @@ describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
       expect(chamadaEmail?.[0]).toEqual({ where: { email: "maria@a.com" }, select: { id: true } });
     });
 
-    it("só telefone: pré-checagem de e-mail é pulada", async () => {
-      await post({ nome: "Seu José", telefone: "11999990000", aceita_termo_responsabilidade: true });
+    // A partir da tarefa 3.3, e-mail é obrigatório: sem ele nem chega na pré-checagem.
+    it("só telefone (sem e-mail): 400, pré-checagem de e-mail nem roda", async () => {
+      const res = await post({ nome: "Seu José", telefone: "11999990000", aceita_termo_responsabilidade: true });
 
+      expect(res.status).toBe(400);
       expect(findFirst.mock.calls.some((c) => c[0].where.email !== undefined)).toBe(false);
+      expect(createUsuario).not.toHaveBeenCalled();
     });
 
     it("corrida: pré-checagem não acha, create rejeita com duplicidade: 409 com o mesmo corpo", async () => {
@@ -677,13 +680,24 @@ describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
     expect(data.email_convite_familiar).toBeUndefined();
   });
 
-  it("201 só com telefone", async () => {
+  // Reabertura da tarefa 3.1 nesta rodada (3.3): e-mail passou a ser obrigatório, "só
+  // telefone" deixou de bastar sozinho. Este teste esperava 201 antes; agora espera 400 —
+  // ver decisão registrada em CLAUDE.md (item 3.3).
+  it("400 só com telefone (sem e-mail) — e-mail agora é obrigatório", async () => {
     const res = await post({ nome: "Seu José", telefone: " 11999990000 ", aceita_termo_responsabilidade: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/e-mail/i);
+    expect(createUsuario).not.toHaveBeenCalled();
+  });
+
+  it("telefone continua opcional e complementar quando e-mail está presente", async () => {
+    const res = await post({ ...BODY_OK, telefone: " 11999990000 " });
 
     expect(res.status).toBe(201);
     const data = createUsuario.mock.calls[0][0].data;
     expect(data.telefone).toBe("11999990000");
-    expect(data.email).toBeUndefined();
+    expect(data.email).toBe("maria@a.com");
   });
 
   it.each(["idoso", "cuidador"])("403 para %s", async (perfil) => {
