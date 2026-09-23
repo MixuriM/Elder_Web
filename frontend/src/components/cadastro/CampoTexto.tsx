@@ -1,3 +1,7 @@
+import { useState } from "react";
+
+import { Eye, EyeOff } from "lucide-react";
+
 // Define as propriedades que o componente CampoTexto deve receber
 type CampoTextoProps = {
   id: string; // Identificador do campo
@@ -6,6 +10,10 @@ type CampoTextoProps = {
   value: string; // Valor atual digitado
   onChange: (valor: string) => void; // Função responsável por atualizar o valor
   required?: boolean; // Se o campo é obrigatório (padrão: true)
+  maxLength?: number; // Limite de caracteres
+  minLength?: number; // Mínimo de caracteres
+  autoComplete?: string; // Dica de preenchimento automático do navegador
+  hint?: string; // Texto de ajuda exibido abaixo do campo
 };
 
 // Componente reutilizável para os campos do formulário
@@ -16,7 +24,16 @@ function CampoTexto({
   value,
   onChange,
   required = true,
+  maxLength,
+  minLength,
+  autoComplete,
+  hint,
 }: CampoTextoProps) {
+  // Campos de senha ganham botão para mostrar/ocultar o que foi digitado
+  const [mostrar, setMostrar] = useState(false);
+  const ehSenha = type === "password";
+  const idHint = hint ? `${id}-hint` : undefined;
+
   return (
     <div>
 
@@ -38,50 +55,98 @@ function CampoTexto({
         {label}
       </label>
 
-      {/* Campo onde o usuário digita as informações */}
-      <input
-        id={id}
-        type={type}
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="
-          mt-1
-          w-full
-          rounded-xl
-          border
+      <div className="relative">
+        {/* Campo onde o usuário digita as informações */}
+        <input
+          id={id}
+          type={ehSenha && mostrar ? "text" : type}
+          required={required}
+          maxLength={maxLength}
+          minLength={minLength}
+          autoComplete={autoComplete}
+          aria-describedby={idHint}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`
+            mt-1
+            w-full
+            rounded-xl
+            border
 
-          border-gray-300
-          bg-white
-          text-[#071A38]
+            border-gray-300
+            bg-white
+            text-[#071A38]
 
-          px-4
-          py-3
-          text-lg
+            px-4
+            py-3
+            text-lg
+            ${ehSenha ? "pr-14" : ""}
 
-          outline-none
-          transition-colors
-          duration-300
+            outline-none
+            transition-colors
+            duration-300
 
-          placeholder:text-gray-400
+            placeholder:text-gray-400
 
-          hover:border-gray-400
+            hover:border-gray-400
 
-          focus:border-[#6C63FF]
-          focus:ring-2
-          focus:ring-[#6C63FF]/20
+            focus:border-[#6C63FF]
+            focus:ring-2
+            focus:ring-[#6C63FF]/20
 
-          dark:border-[#454558]
-          dark:bg-[#181824]
-          dark:text-[#F5F5FA]
-          dark:placeholder:text-[#858594]
+            dark:border-[#454558]
+            dark:bg-[#181824]
+            dark:text-[#F5F5FA]
+            dark:placeholder:text-[#858594]
 
-          dark:hover:border-[#66667A]
+            dark:hover:border-[#66667A]
 
-          dark:focus:border-[#A89FFF]
-          dark:focus:ring-[#A89FFF]/20
-        "
-      />
+            dark:focus:border-[#A89FFF]
+            dark:focus:ring-[#A89FFF]/20
+          `}
+        />
+
+        {ehSenha && (
+          <button
+            type="button"
+            onClick={() => setMostrar((atual) => !atual)}
+            aria-label={`${mostrar ? "Ocultar" : "Mostrar"} ${label.toLowerCase()}`}
+            aria-pressed={mostrar}
+            className="
+              absolute
+              right-2
+              top-1/2
+              -translate-y-1/2
+              mt-0.5
+              rounded-lg
+              p-2
+              text-[#4B5563]
+              hover:text-[#6C63FF]
+              focus:outline-none
+              focus:ring-2
+              focus:ring-[#6C63FF]/40
+              dark:text-[#B9B9C5]
+              dark:hover:text-[#A89FFF]
+            "
+          >
+            {mostrar ? <EyeOff size={22} aria-hidden="true" /> : <Eye size={22} aria-hidden="true" />}
+          </button>
+        )}
+      </div>
+
+      {hint && (
+        <p
+          id={idHint}
+          className="
+            mt-1
+            text-base
+            text-[#4B5563]
+            dark:text-[#B9B9C5]
+          "
+        >
+          {hint}
+        </p>
+      )}
 
     </div>
   );

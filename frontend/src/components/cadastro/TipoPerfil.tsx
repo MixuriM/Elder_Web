@@ -6,7 +6,7 @@ import type { TipoPerfil } from "../../lib/auth";
 
 // Define as propriedades do componente
 type TipoPerfilProps = {
-  tipoPerfil: TipoPerfil;
+  tipoPerfil: TipoPerfil | null; // null = nenhum perfil escolhido ainda
   setTipoPerfil: (tipo: TipoPerfil) => void;
 };
 
@@ -99,6 +99,7 @@ function TipoPerfilCampo({
                 type="radio"
                 name="tipo_perfil"
                 value={opcao.valor}
+                required
                 checked={selecionado}
                 onChange={() => setTipoPerfil(opcao.valor)}
                 className="sr-only"

@@ -50,6 +50,7 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
   await page.getByLabel("Nome completo").fill("E2E Familiar Teste");
   await page.getByLabel("E-mail", { exact: true }).fill(emailFamiliar);
   await page.getByLabel("Senha", { exact: true }).fill(SENHA);
+  await page.getByLabel("Confirmação da senha", { exact: true }).fill(SENHA);
   await page.getByRole("button", { name: /criar minha conta/i }).click();
   await page.waitForURL(/\/welcome$/, { timeout: 20_000 });
 
@@ -70,9 +71,11 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
 
   // --- IDOSO: autocadastro com o MESMO e-mail — ainda não confirmado, não anexa ---
   await page.goto("/cadastro");
+  await page.getByText("Idoso", { exact: true }).click();
   await page.getByLabel("Nome completo").fill("E2E Idoso Teste");
   await page.getByLabel("E-mail", { exact: true }).fill(emailIdoso);
   await page.getByLabel("Senha", { exact: true }).fill(SENHA);
+  await page.getByLabel("Confirmação da senha", { exact: true }).fill(SENHA);
   await page.getByRole("button", { name: /criar minha conta/i }).click();
   await expect(page.getByRole("alert")).toHaveText(/cadastrado por um familiar/i, { timeout: 20_000 });
 

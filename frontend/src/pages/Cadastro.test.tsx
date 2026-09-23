@@ -46,10 +46,15 @@ function renderCadastro() {
   );
 }
 
-async function preencherCamposBase(user: ReturnType<typeof userEvent.setup>) {
+async function preencherCamposBase(
+  user: ReturnType<typeof userEvent.setup>,
+  perfil: "idoso" | "cuidador" | "familiar" | null = "idoso"
+) {
+  if (perfil) await user.click(screen.getByRole("radio", { name: new RegExp(perfil, "i") }));
   await user.type(screen.getByLabelText(/nome completo/i), "Ana Silva");
   await user.type(screen.getByLabelText(/^e-mail$/i), "ana@a.com");
   await user.type(screen.getByLabelText(/^senha$/i), "123456");
+  await user.type(screen.getByLabelText(/^confirmação da senha$/i), "123456");
 }
 
 describe("Cadastro", () => {
@@ -61,8 +66,9 @@ describe("Cadastro", () => {
     mockNavigate.mockReset();
   });
 
-  it("cadastro (perfil padrão idoso) com sucesso: dispara sendEmailVerification (3.3), sincroniza e navega pra /welcome", async () => {
+  it("cadastro de idoso com sucesso: dispara sendEmailVerification (3.3), sincroniza e navega pra /welcome avisando da confirmação", async () => {
     mockRegisterUser.mockResolvedValue(undefined);
+    mockSendEmailVerification.mockResolvedValue(true);
     mockSyncUser.mockResolvedValue({ criado: true });
     const user = userEvent.setup();
     renderCadastro();
@@ -71,7 +77,9 @@ describe("Cadastro", () => {
     await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
 
     await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith("/welcome", { state: { cadastroSucesso: true } })
+      expect(mockNavigate).toHaveBeenCalledWith("/welcome", {
+        state: { cadastroSucesso: true, confirmarEmail: true },
+      })
     );
     expect(mockSyncUser).toHaveBeenCalledWith(
       expect.objectContaining({ tipoPerfil: "idoso", nome: "Ana Silva" })
@@ -87,10 +95,7 @@ describe("Cadastro", () => {
       const user = userEvent.setup();
       renderCadastro();
 
-      if (perfil !== "idoso") {
-        await user.click(screen.getByRole("radio", { name: new RegExp(perfil, "i") }));
-      }
-      await preencherCamposBase(user);
+      await preencherCamposBase(user, perfil as "idoso" | "familiar");
       await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
 
       await waitFor(() => expect(mockSendEmailVerification).toHaveBeenCalledTimes(1));
@@ -104,8 +109,7 @@ describe("Cadastro", () => {
     const user = userEvent.setup();
     renderCadastro();
 
-    await user.click(screen.getByRole("radio", { name: /cuidador/i }));
-    await preencherCamposBase(user);
+    await preencherCamposBase(user, "cuidador");
     await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
 
     await waitFor(() => expect(mockSyncUser).toHaveBeenCalled());
@@ -122,9 +126,58 @@ describe("Cadastro", () => {
     await preencherCamposBase(user);
     await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/criar a conta/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/já existe uma conta com este e-mail/i);
     expect(mockSyncUser).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("sem escolher o perfil: e-mail/senha barrado pelo radio required; Google mostra erro com role=alert", async () => {
+    const user = userEvent.setup();
+    renderCadastro();
+
+    await preencherCamposBase(user, null);
+    // E-mail/senha: o radio é required, o navegador barra o envio antes do handler.
+    await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+    expect(mockRegisterUser).not.toHaveBeenCalled();
+
+    // Google não passa por validação nativa: a checagem do handler mostra o alerta.
+    await user.click(screen.getByRole("button", { name: /google/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/escolha se você é/i);
+    expect(mockLoginWithGoogle).not.toHaveBeenCalled();
+  });
+
+  it("senha e confirmação diferentes: erro com role=alert, não cria conta", async () => {
+    const user = userEvent.setup();
+    renderCadastro();
+
+    await preencherCamposBase(user);
+    await user.clear(screen.getByLabelText(/^confirmação da senha$/i));
+    await user.type(screen.getByLabelText(/^confirmação da senha$/i), "654321");
+    await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/senhas não são iguais/i);
+    expect(mockRegisterUser).not.toHaveBeenCalled();
+  });
+
+  it("botão mostrar/ocultar senha alterna o tipo do campo", async () => {
+    const user = userEvent.setup();
+    renderCadastro();
+
+    const campo = screen.getByLabelText(/^senha$/i);
+    expect(campo).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: /mostrar senha/i }));
+    expect(campo).toHaveAttribute("type", "text");
+    await user.click(screen.getByRole("button", { name: /ocultar senha/i }));
+    expect(campo).toHaveAttribute("type", "password");
+  });
+
+  it("campos com limite de tamanho e autocomplete", () => {
+    renderCadastro();
+
+    expect(screen.getByLabelText(/nome completo/i)).toHaveAttribute("maxlength", "150");
+    expect(screen.getByLabelText(/^e-mail$/i)).toHaveAttribute("maxlength", "255");
+    expect(screen.getByLabelText(/^senha$/i)).toHaveAttribute("autocomplete", "new-password");
+    expect(screen.getByLabelText(/^senha$/i)).toHaveAttribute("minlength", "6");
   });
 
   it("desabilita o botão de criar conta enquanto a requisição está em andamento", async () => {

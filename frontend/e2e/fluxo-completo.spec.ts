@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
 // — ver playwright.config.ts). E-mails com prefixo "e2e-" e domínio ".test" (reservado
 // pela IANA, nunca resolve de verdade) pra deixar claro que são dados fake.
 const PERFIS = [
-  { tipoPerfil: "idoso", radio: null },
+  { tipoPerfil: "idoso", radio: "Idoso" },
   { tipoPerfil: "cuidador", radio: "Cuidador" },
   { tipoPerfil: "familiar", radio: "Familiar" },
 ] as const;
@@ -22,15 +22,14 @@ for (const { tipoPerfil, radio } of PERFIS) {
     // --- CADASTRO ---
     await page.goto("/cadastro");
 
-    if (radio) {
-      // Clica no texto visível (dentro do <label> que envolve o input sr-only), como
-      // um usuário real faria — não no input escondido diretamente.
-      await page.getByText(radio, { exact: true }).click();
-    }
+    // Perfil não vem pré-selecionado: clica no texto visível (dentro do <label> que envolve
+    // o input sr-only), como um usuário real faria — não no input escondido diretamente.
+    await page.getByText(radio, { exact: true }).click();
 
     await page.getByLabel("Nome completo").fill(nome);
     await page.getByLabel("E-mail", { exact: true }).fill(email);
     await page.getByLabel("Senha", { exact: true }).fill(SENHA);
+    await page.getByLabel("Confirmação da senha", { exact: true }).fill(SENHA);
     await page.getByRole("button", { name: /criar minha conta/i }).click();
 
     await page.waitForURL(/\/welcome$/, { timeout: 20_000 });

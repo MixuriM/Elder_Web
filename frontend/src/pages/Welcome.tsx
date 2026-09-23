@@ -9,9 +9,13 @@ function Welcome() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [mostrarSucesso, setMostrarSucesso] = useState(
-    Boolean((location.state as { cadastroSucesso?: boolean } | null)?.cadastroSucesso)
-  );
+  const estado = location.state as { cadastroSucesso?: boolean; confirmarEmail?: boolean } | null;
+
+  const [mostrarSucesso, setMostrarSucesso] = useState(Boolean(estado?.cadastroSucesso));
+
+  // Aviso de e-mail de confirmação: fica na tela (não some sozinho), porque o usuário
+  // precisa abrir a caixa de entrada e clicar no link.
+  const [avisoConfirmarEmail] = useState(Boolean(estado?.confirmarEmail));
 
   // Remove o state da entrada do histórico assim que a página monta, pra
   // F5 ou voltar/avançar no navegador não reexibirem a mensagem.
@@ -88,6 +92,40 @@ function Welcome() {
           "
         >
           Cadastro realizado com sucesso!
+        </p>
+      )}
+
+      {avisoConfirmarEmail && (
+        <p
+          role="status"
+          className="
+            fixed
+            left-1/2
+            top-24
+            z-50
+            w-[calc(100%-3rem)]
+            max-w-xl
+
+            -translate-x-1/2
+
+            rounded-xl
+
+            bg-[#EDE7FF]
+
+            px-6
+            py-4
+
+            text-lg
+            text-[#3A355C]
+
+            shadow-md
+
+            dark:bg-[#3A355C]
+            dark:text-[#F5F5FA]
+          "
+        >
+          Enviamos um e-mail de confirmação para você. Abra a mensagem e clique no link para
+          concluir o cadastro e ativar seus vínculos.
         </p>
       )}
 

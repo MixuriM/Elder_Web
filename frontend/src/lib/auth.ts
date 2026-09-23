@@ -58,12 +58,14 @@ export async function getCurrentUserToken(forceRefresh = false): Promise<string 
 
 // Envia o e-mail de verificação do Firebase Auth (RF-025) — usado no cadastro de
 // Familiar pra permitir vínculo automático com Idoso já confirmado por posse do e-mail.
-export async function sendEmailVerification() {
+// Devolve true quando o e-mail foi de fato enviado (false = nada a confirmar).
+export async function sendEmailVerification(): Promise<boolean> {
   const user = auth.currentUser;
-  if (!user || user.emailVerified) return; // contas Google já chegam verificadas
+  if (!user || user.emailVerified) return false; // contas Google já chegam verificadas
   await firebaseSendEmailVerification(user, {
     url: `${window.location.origin}/confirmar-email`,
   });
+  return true;
 }
 
 export type TipoPerfil = "idoso" | "cuidador" | "familiar";
@@ -180,6 +182,27 @@ export function mensagemErroCadastro(err: unknown): string {
     mensagemSyncError(
       err,
       "Conta criada, mas o servidor está iniciando. Aguarde alguns segundos e faça login normalmente (não tente cadastrar de novo)."
-    ) ?? "Não foi possível criar a conta. Confira os dados e tente novamente."
+    ) ??
+    mensagemErroFirebaseCadastro(err) ??
+    "Não foi possível criar a conta. Confira os dados e tente novamente."
   );
+}
+
+// Erros do Firebase Auth no cadastro que o usuário consegue resolver sozinho.
+function mensagemErroFirebaseCadastro(err: unknown): string | null {
+  const code = (err as { code?: unknown } | null)?.code;
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "Já existe uma conta com este e-mail. Entre com ela ou, se esqueceu a senha, use \"Esqueci minha senha\".";
+    case "auth/weak-password":
+      return "Senha muito fraca. Use pelo menos 6 caracteres.";
+    case "auth/invalid-email":
+      return "E-mail inválido. Confira se digitou corretamente.";
+    case "auth/network-request-failed":
+      return "Sem conexão com a internet. Verifique sua rede e tente novamente.";
+    case "auth/popup-closed-by-user":
+      return "A janela do Google foi fechada antes de terminar. Tente de novo.";
+    default:
+      return null;
+  }
 }

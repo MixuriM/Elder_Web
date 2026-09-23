@@ -92,6 +92,57 @@ describe("POST /auth/sync — base (1.2)", () => {
     expect(res.status).toBe(401);
   });
 
+  it.each(["idoso", "cuidador", "familiar"])("cadastro de %s: modo_decisao gravado só para idoso", async (tipo_perfil) => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "novo@a.com" });
+    findFirst.mockResolvedValue(null);
+    create.mockResolvedValue({ id: 1, tipo_perfil });
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil, nome: "Fulano" });
+
+    expect(res.status).toBe(201);
+    const data = create.mock.calls[0][0].data;
+    if (tipo_perfil === "idoso") expect(data.modo_decisao).toBe("idoso");
+    else expect(data).not.toHaveProperty("modo_decisao");
+  });
+
+  it("nome com 150 caracteres é aceito; com 151, 400 sem chamar create", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "novo@a.com" });
+    findFirst.mockResolvedValue(null);
+    create.mockResolvedValue({ id: 1, tipo_perfil: "cuidador" });
+
+    const ok = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "cuidador", nome: "a".repeat(150) });
+    expect(ok.status).toBe(201);
+
+    create.mockClear();
+    const longo = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "cuidador", nome: "a".repeat(151) });
+    expect(longo.status).toBe(400);
+    expect(longo.body.error).toMatch(/150/);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("email_convite_familiar acima de 255 caracteres: 400 sem chamar create", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "novo@a.com" });
+    findFirst.mockResolvedValue(null);
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "idoso", nome: "Ana", email_convite_familiar: "a".repeat(250) + "@b.com" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/255/);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("cadastro sem tipo_perfil: 400, não chama create", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "novo@a.com" });
     findFirst.mockResolvedValue(null);

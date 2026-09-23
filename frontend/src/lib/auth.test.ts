@@ -116,3 +116,20 @@ describe('syncUser — retry com backoff', () => {
     expect(global.fetch).toHaveBeenCalledTimes(6) // 1 tentativa inicial + 5 retries
   })
 })
+
+describe('mensagemErroCadastro — erros do Firebase que o usuário resolve sozinho', () => {
+  it.each([
+    ['auth/email-already-in-use', /já existe uma conta com este e-mail/i],
+    ['auth/weak-password', /pelo menos 6 caracteres/i],
+    ['auth/invalid-email', /e-mail inválido/i],
+    ['auth/network-request-failed', /sem conexão/i],
+    ['auth/popup-closed-by-user', /janela do google foi fechada/i],
+  ])('%s: mensagem específica', (code, esperado) => {
+    expect(mensagemErroCadastro(Object.assign(new Error('x'), { code }))).toMatch(esperado)
+  })
+
+  it('código desconhecido ou erro sem código: mensagem genérica', () => {
+    expect(mensagemErroCadastro(Object.assign(new Error('x'), { code: 'auth/outra' }))).toMatch(/não foi possível criar a conta/i)
+    expect(mensagemErroCadastro(new Error('x'))).toMatch(/não foi possível criar a conta/i)
+  })
+})
