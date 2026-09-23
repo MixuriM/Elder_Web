@@ -1408,3 +1408,46 @@ Fora de escopo desta tarefa (não implementado, por instrução explícita): cor
 acumuladas nas três rodadas — mesma convenção de limpeza manual já usada na Fase 1); exclusão
 de conta Firebase órfã quando o idoso desiste do autocadastro; normalização de caixa de e-mail
 na pré-checagem (limitação já conhecida desde 3.2).
+
+**Item 4.1 da Fase 4 (RF-007, RNF-006) implementado: idoso registra a própria leitura de saúde (2026-09-23):**
+
+`POST /saude`, em `backend/src/routes/saude.ts` (arquivo novo, montado em `app.ts` com `app.use('/saude', saudeRouter)`), atrás de `requireAuth`. Só `tipo_perfil='idoso'` chama; cuidador e familiar recebem 403 com mensagem genérica, sem explicar regras de `modo_decisao` nem de permissão. O `tipo_perfil` vem de um `findUnique` próprio, no mesmo padrão de `PATCH /usuario/me/modo-decisao`, porque `requireAuth` não o expõe.
+
+Autoria: `idoso_id`, `registrado_por_id` e `editado_por_id` são sempre `req.usuarioId`. Do body só são lidos `tipo_medicao`, `valor_1`, `valor_2`, `unidade`, `data_hora` e `observacoes`; `id`, `idoso_id`, `registrado_por_id`, `editado_por_id`, `created_at` e `updated_at` enviados no body são ignorados, e `created_at`/`updated_at` ficam por conta de `@default(now())`/`@updatedAt`. Resposta 201 com lista explícita de campos.
+
+Validação (400, mensagem fixa por campo, nunca reproduz o valor enviado):
+- `tipo_medicao` e `unidade`: string não vazia após `trim`, até 50 e 20 caracteres. Texto livre, sem enum fechado (o ER não define um). Gravados já com `trim`, sem normalizar caixa.
+- `valor_1` obrigatório e `valor_2` opcional: `typeof number`, finito, não negativo, até 9999.99 (limite de `decimal(6,2)`) e no máximo 2 casas decimais, checado por regex sobre `String(valor)` (não por multiplicação, por causa de ponto flutuante). Sem faixa clínica: leitura não é rejeitada por parecer fisiologicamente absurda. Valor 0 é aceito.
+- `observacoes`: até 300 caracteres medidos depois do `trim`; vazia ou só espaço vira `null`.
+- `data_hora`: ISO 8601 com `Z` ou offset explícito. String sem fuso é rejeitada, porque o servidor roda em UTC e leria a hora local do usuário como UTC, gravando o dado com horas de diferença sem erro. Não pode ser futura além de 5 minutos de tolerância. Se ausente, usa a hora do servidor.
+
+Resposta: `Decimal` do Prisma serializa como string, então `valor_1` e `valor_2` são convertidos para `number`; `valor_2` `null` sai `null`, nunca 0 (`Number(null)` seria 0).
+
+Nenhuma migration, nenhum CHECK novo, `requireVinculoAprovado` não tocado.
+
+Frontend: seção "Registrar leitura de saúde (só idoso)" em `Vinculos.tsx`, esqueleto cru (mesma exceção de divisão de trabalho da seção Workflow). Converte os campos numéricos com `Number()` antes de enviar e o `datetime-local` com `new Date(valor).toISOString()`. O `console.error` registra só a mensagem do erro, nunca o corpo enviado nem valores de saúde. Não existe rota `/saude` de frontend; a tela de verdade é de Laureane e Jennifer.
+
+Testes: `backend/src/routes/saude.test.ts` (novo, 48 testes) cobre sucesso, 401, 403 para cuidador e familiar, body com campos de autoria forjados, `it.each` de 400 por campo, `valor_2` null, `data_hora` (sem fuso, com `Z`, com offset, futuro dentro e além da tolerância), `trim` de `observacoes` antes de medir, conversão de `Decimal` na resposta e privacidade (corpo do 400 sem o valor enviado; `jest.spyOn` em `console.*` sem valores de saúde). Escritos antes da implementação, RED confirmado. Mutações locais, não commitadas, cada uma derrubando pelo menos um teste: `registrado_por_id` lido do body, remoção da checagem de `tipo_perfil`, `editado_por_id` nulo e medir `observacoes` antes do `trim`. `Vinculos.test.tsx` ganhou 6 testes. Suítes ao fim do 4.1: backend 11 arquivos/318 testes (era 10/270), frontend 10 suítes/46 testes (era 10/40).
+
+A regra de que o familiar aprovado lê saúde sempre e só escreve e edita com `modo_decisao='familiar'` foi decidida pelo grupo e fica para os itens 4.2b, 4.3 e 4.4.
+
+`backend/scripts/verify-registro-saude.ts` (smoke test no padrão de `verify-cadastrar-idoso.ts`, transação sempre revertida) confere no banco real: create com e sem `valor_2`, `decimal(6,2)` aceitando 9999.99 e rejeitando 10000.00, FK de `registrado_por_id` inexistente, `data_hora` relida sem deslocamento e `COUNT(*)` igual antes e depois. Rodar: `npx tsx scripts/verify-registro-saude.ts` (dentro de `backend/`, só contra o SQL Server local do `docker-compose.yml`, com `DATABASE_URL` sobrescrita no comando, mesma fórmula do `playwright.config.ts`; nunca contra o Azure). Rodado uma vez no banco local: 7/7 PASS, `COUNT(*)` de `RegistroSaude` 0 antes e 0 depois.
+
+**`errorHandler` de `app.ts` deixou de registrar o erro inteiro (item 4.5, parcial, 2026-09-23):**
+
+O handler fazia `console.error(err)`, e um erro do Prisma carrega os argumentos da query (valores de `RegistroSaude`) em `message`, `stack` e `meta`, o que os levaria ao log do Render. Passou a registrar só `name`, `code` (quando existe, string ou número), `req.method` e `req.path`. Nunca o erro inteiro, `message`, `stack`, `req.body` nem `req.query`. Valor lançado que não é `Error` (string, objeto) não quebra o handler: `name` vira o `typeof` do valor. A resposta HTTP continua `500 {error:'Erro interno.'}`.
+
+Testes em `backend/src/app.errorHandler.test.ts` (arquivo novo; `app.test.ts`, com o teste de `/health`, ficou intacto porque esses testes precisam de outro mock de `firebaseAdmin`): 4 casos novos que forçam um `PrismaClientKnownRequestError` e um `PrismaClientValidationError` com valor de saúde conhecido nos argumentos, mais um `throw` de string e um de objeto que não é `Error`, via `POST /saude`. Confirmam com `jest.spyOn` em todos os `console.*` (inspecionados com `util.inspect`, que inclui `message`, `stack` e `meta`) que o valor não aparece, que o valor de `req.query` não aparece, e que o corpo da resposta não mudou. Escritos antes da implementação, RED confirmado (os 4 falhavam por vazamento do valor no log). Mutação local, não commitada: reintroduzir `console.error(err)` derruba os 4 testes. Suíte do backend depois desta mudança: 12 arquivos/322 testes.
+
+Custo conhecido: o log deixou de ter `message` e `stack`, então depurar um 500 exige reproduzir o caso.
+
+O restante do 4.5 continua pendente: teste de acesso cruzado (idoso A lendo dado do idoso B sem vínculo) e revisão dos demais pontos de log. Pontos encontrados por `grep` em `backend/src` (fora dos testes) que não foram alterados: `index.ts` faz `console.log` só da URL de startup (sem dado); `lib/prisma.ts` instancia `new PrismaClient()` sem opção `log`; quando `res.headersSent` é verdadeiro, o handler chama `next(err)` e o handler padrão do Express pode imprimir o `stack` do erro (caminho não coberto, pendência do 4.5). Os `console.*` de `backend/scripts/*.ts` não rodam em produção.
+
+Log padrão do Prisma, verificado no banco local (Prisma 5.22.0, client criado como em `lib/prisma.ts`, sem `log`): três erros forçados (`PrismaClientValidationError` por campo obrigatório ausente, `PrismaClientUnknownRequestError` por `valor_1` 10000.00 acima de `decimal(6,2)`, `PrismaClientKnownRequestError` P2003 por FK inexistente), com valor de saúde reconhecível nos argumentos. Resultado: stdout e stderr do processo não contêm o valor, então o Prisma não imprime nada por padrão. Já `message` e `stack` do erro contêm o valor (confirmado), o que justifica o `errorHandler` não os registrar. `meta` do P2003 traz só modelo e nome da FK. Com `DEBUG=prisma:*` o valor aparece na saída (12 linhas com o valor); `DEBUG` e `PRISMA_*` não estavam definidos no ambiente local, e o ambiente do Render não foi inspecionado. Conclusão: sem vazamento por padrão, então nenhuma opção `log` foi adicionada. Risco restante: alguém definir `DEBUG=prisma:*` no Render, ou passar `log` ao client no futuro.
+
+**Limitações conhecidas (não mitigadas):**
+- O modelo guarda só o último editor (RNF-006): o valor sobrescrito numa edição se perde. Decisão pendente entre aceitar como risco ou criar auditoria, antes do item 4.3.
+- Uma query extra de `tipo_perfil` por requisição, sem otimização.
+- Sem deduplicação de leituras: o mesmo registro enviado 2 vezes cria 2 linhas.
+
+Fora de escopo desta tarefa (não implementado, por instrução explícita): cuidador com permissão (4.2), familiar escrevendo (4.2b), edição (4.3), histórico (4.4), restante do 4.5 (acesso cruzado e revisão dos demais logs) e qualquer tela real de saúde.
