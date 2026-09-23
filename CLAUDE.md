@@ -1451,3 +1451,27 @@ Log padrão do Prisma, verificado no banco local (Prisma 5.22.0, client criado c
 - Sem deduplicação de leituras: o mesmo registro enviado 2 vezes cria 2 linhas.
 
 Fora de escopo desta tarefa (não implementado, por instrução explícita): cuidador com permissão (4.2), familiar escrevendo (4.2b), edição (4.3), histórico (4.4), restante do 4.5 (acesso cruzado e revisão dos demais logs) e qualquer tela real de saúde.
+
+**Revisão das telas `/cadastro` e `/login` (2026-09-23, PRs #92 a #95, mergeados em `main`; `main` com 150 commits):**
+
+Pedido do grupo: conferir se `/cadastro` e `/login` precisam de algum campo a mais, de acordo com o que o projeto já tem. Conclusão: **nenhum campo obrigatório novo em nenhum dos 3 perfis**; as mudanças foram de validação, mensagens e acessibilidade. Isto é frontend "de verdade" (não esqueleto), feito com o visual existente das telas, por decisão do grupo, em arquivos de Laureane e Jennifer (`Cadastro.tsx`, `Welcome.tsx`, `Login.tsx`, `FormularioCadastro.tsx`, `TipoPerfil.tsx`, `CampoTexto.tsx`, `FormularioLogin.tsx`, `CampoLogin.tsx`): avisar as duas fica com o Marcos.
+
+PRs: #92 (`235da93`) foi revertido pelo #93 (`ddd36ff`) porque mexia em `/vinculos` (formulário "Cadastrar idoso" redesenhado), que não era o pedido; o que valeu foi #94 (`6fbb6af`, `/cadastro` e backend) e #95 (`391a24e`, `/login`). Os hashes de `main` diferem dos commits locais (rebase).
+
+`/cadastro` (#94):
+- `nome`, `email` e `email_convite_familiar` com `maxLength` 150/255/255 e `autoComplete`. `POST /auth/sync` passou a responder 400 para `nome` acima de 150 e `email_convite_familiar` acima de 255 (antes o INSERT estourava a coluna e virava 500).
+- O perfil deixou de vir pré-selecionado, porque `tipo_perfil` é fixo. O radio é `required` (barra o envio por e-mail/senha) e o handler do Google confere `tipoPerfil` (mensagem "Escolha se você é idoso, cuidador ou familiar.").
+- Senha: `minLength` 6 (mínimo do Firebase), dica, botão mostrar/ocultar (`components/common/BotaoMostrarSenha.tsx`, `aria-pressed`) e campo novo "Confirmação da senha", validado no cliente (alerta se divergir).
+- `sendEmailVerification` (`lib/auth.ts`) agora devolve `true` quando enviou e `false` quando não havia nada a confirmar (conta Google já verificada). Cadastro de idoso ou familiar navega para `/welcome` com `state.confirmarEmail`, e `Welcome.tsx` mostra aviso fixo (`role="status"`, não some em 5s) de que é preciso confirmar o e-mail. Sem isso o Familiar não ganha o vínculo automático (RF-025) e o Idoso cadastrado por Familiar não assume a conta (3.3).
+- `mensagemErroCadastro` traduz `auth/email-already-in-use`, `auth/weak-password`, `auth/invalid-email`, `auth/network-request-failed` e `auth/popup-closed-by-user`.
+- `POST /auth/sync` grava `modo_decisao='idoso'` no autocadastro de idoso (o ER exige o campo para idoso; antes ficava `NULL`, tratado como `'idoso'` pelo código). Sem migration. Idosos já existentes com `NULL` continuam funcionando; backfill não feito.
+
+`/login` (#95):
+- Google autenticado sem `Usuario` no Elder (`/auth/sync` 400 por `tipo_perfil`): mensagem "ainda não tem uma conta", link para `/cadastro` e `signOut` do Firebase. O `signOut` é necessário porque `RotaProtegida` só confere sessão Firebase, e sem ele a pessoa entraria em `/Home` sem linha em `Usuario`.
+- Credencial inválida (`auth/invalid-credential`, `auth/user-not-found`, `auth/wrong-password`): orienta o idoso cadastrado por Familiar a criar a conta com o mesmo e-mail e perfil Idoso, com link para o cadastro. O Firebase não distingue e-mail inexistente de senha errada, então a mesma mensagem cobre os dois.
+- `erroSemContaNoLogin` e `mensagemErroLogin` em `lib/auth.ts` concentram essa lógica; também há mensagens para `auth/too-many-requests`, sem rede, `auth/user-disabled` e popup fechado.
+- Acessibilidade: fontes `text-lg` (link "Esqueci minha senha", erros, separador, "Criar conta"), `autoComplete` `username`/`current-password`, `maxLength` 255 no e-mail, mostrar/ocultar senha e labels sem dois-pontos.
+
+Testes: backend 12 arquivos/327 testes (eram 322), frontend 12 suítes/71 testes (eram 11/46). Os specs e2e (`fluxo-completo`, `idoso-assume-conta`) foram ajustados (perfil explícito, "Confirmação da senha", labels exatas por causa do botão "Mostrar senha") mas **não foram executados**. Nada foi testado no navegador.
+
+**Fora de escopo / decisões em aberto (não implementadas):** aceite de termos de uso e política de privacidade no cadastro (nenhum RF do plano especifica; decisão do grupo, dado de saúde é sensível pela LGPD); cadastro com Google sem nome na conta (400 "nome obrigatório", com mensagem genérica, caso raro); dica sobre o campo "e-mail de um familiar"; lembrete e reenvio de confirmação de e-mail no login; backfill de `modo_decisao` para idosos autocadastrados antes desta mudança; `nome` vazio no body de `/auth/sync` vence o `decoded.name` do Google (bug conhecido, não corrigido).
