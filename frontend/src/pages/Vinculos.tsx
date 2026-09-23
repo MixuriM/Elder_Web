@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { getCurrentUserToken } from '../lib/auth'
+import { chamarApi } from '../lib/chamarApi'
 import Spinner from '../components/common/Spinner'
 
 // Esqueleto cru da Fase 2, itens 2.1 (RF-020), 2.2 (RF-021, RF-022), 2.6
@@ -95,26 +95,6 @@ function ResumoModoDecisao({ info }: { info: ModoDecisaoInfo }) {
   )
 }
 
-async function chamarApi(path: string, options: RequestInit = {}) {
-  const token = await getCurrentUserToken()
-  const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  })
-  const corpo = await res.json().catch(() => null)
-  if (!res.ok) {
-    // proximo_passo (409 de conflito de e-mail, item 3.2) viaja junto do erro.
-    throw Object.assign(new Error(corpo?.error ?? `Falha na requisição: status ${res.status}`), {
-      proximo_passo: typeof corpo?.proximo_passo === 'string' ? corpo.proximo_passo : undefined,
-    })
-  }
-  return corpo
-}
-
 function Vinculos() {
   const [email, setEmail] = useState('')
   const [nomeIdoso, setNomeIdoso] = useState('')
@@ -173,16 +153,6 @@ function Vinculos() {
   const [resultadoCadastroIdoso, setResultadoCadastroIdoso] = useState<IdosoCadastrado | null>(null)
   const [erroCadastroIdoso, setErroCadastroIdoso] = useState<string | null>(null)
   const [proximoPassoCadastroIdoso, setProximoPassoCadastroIdoso] = useState<string | null>(null)
-
-  const [tipoMedicao, setTipoMedicao] = useState('')
-  const [valorSaude1, setValorSaude1] = useState('')
-  const [valorSaude2, setValorSaude2] = useState('')
-  const [unidadeSaude, setUnidadeSaude] = useState('')
-  const [dataHoraSaude, setDataHoraSaude] = useState('')
-  const [observacoesSaude, setObservacoesSaude] = useState('')
-  const [carregandoSaude, setCarregandoSaude] = useState(false)
-  const [resultadoSaude, setResultadoSaude] = useState<{ id: number } | null>(null)
-  const [erroSaude, setErroSaude] = useState<string | null>(null)
 
   const [filtroStatusListar, setFiltroStatusListar] = useState('')
   const [carregandoListar, setCarregandoListar] = useState(false)
@@ -245,33 +215,6 @@ function Vinculos() {
       setProximoPassoCadastroIdoso((err as { proximo_passo?: string }).proximo_passo ?? null)
     } finally {
       setCarregandoCadastroIdoso(false)
-    }
-  }
-
-  // Item 4.1 (RF-007). Não loga o corpo enviado nem os valores: dado de saúde é sensível.
-  async function handleRegistrarSaude(e: FormEvent) {
-    e.preventDefault()
-    setErroSaude(null)
-    setResultadoSaude(null)
-    setCarregandoSaude(true)
-    try {
-      const corpo = await chamarApi('/saude', {
-        method: 'POST',
-        body: JSON.stringify({
-          tipo_medicao: tipoMedicao,
-          valor_1: Number(valorSaude1),
-          valor_2: valorSaude2 === '' ? undefined : Number(valorSaude2),
-          unidade: unidadeSaude,
-          data_hora: dataHoraSaude === '' ? undefined : new Date(dataHoraSaude).toISOString(),
-          observacoes: observacoesSaude === '' ? undefined : observacoesSaude,
-        }),
-      })
-      setResultadoSaude(corpo)
-    } catch (err) {
-      console.error('Falha ao registrar leitura de saúde:', err instanceof Error ? err.message : 'erro')
-      setErroSaude(err instanceof Error ? err.message : 'Falha ao registrar leitura de saúde.')
-    } finally {
-      setCarregandoSaude(false)
     }
   }
 
@@ -1011,108 +954,6 @@ function Vinculos() {
             ))}
           </ul>
         )}
-      </section>
-      <section className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Registrar leitura de saúde (só idoso)</h1>
-        <form onSubmit={handleRegistrarSaude} className="space-y-4">
-          <div>
-            <label htmlFor="tipo_medicao_saude" className="block text-lg font-medium text-gray-900">
-              Tipo de medição
-            </label>
-            <input
-              id="tipo_medicao_saude"
-              type="text"
-              required
-              maxLength={50}
-              value={tipoMedicao}
-              onChange={(e) => setTipoMedicao(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="valor_1_saude" className="block text-lg font-medium text-gray-900">
-              Valor 1
-            </label>
-            <input
-              id="valor_1_saude"
-              type="number"
-              required
-              min={0}
-              step="any"
-              value={valorSaude1}
-              onChange={(e) => setValorSaude1(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="valor_2_saude" className="block text-lg font-medium text-gray-900">
-              Valor 2 (opcional)
-            </label>
-            <input
-              id="valor_2_saude"
-              type="number"
-              min={0}
-              step="any"
-              value={valorSaude2}
-              onChange={(e) => setValorSaude2(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="unidade_saude" className="block text-lg font-medium text-gray-900">
-              Unidade
-            </label>
-            <input
-              id="unidade_saude"
-              type="text"
-              required
-              maxLength={20}
-              value={unidadeSaude}
-              onChange={(e) => setUnidadeSaude(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="data_hora_saude" className="block text-lg font-medium text-gray-900">
-              Data e hora (opcional)
-            </label>
-            <input
-              id="data_hora_saude"
-              type="datetime-local"
-              value={dataHoraSaude}
-              onChange={(e) => setDataHoraSaude(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="observacoes_saude" className="block text-lg font-medium text-gray-900">
-              Observações (opcional)
-            </label>
-            <input
-              id="observacoes_saude"
-              type="text"
-              maxLength={300}
-              value={observacoesSaude}
-              onChange={(e) => setObservacoesSaude(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={carregandoSaude}
-            aria-busy={carregandoSaude}
-            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-          >
-            {carregandoSaude && <Spinner />}
-            {carregandoSaude ? 'Registrando...' : 'Registrar leitura'}
-          </button>
-        </form>
-        {erroSaude && (
-          <p role="alert" className="text-lg text-red-700">
-            {erroSaude}
-          </p>
-        )}
-        {resultadoSaude && <p className="text-lg text-gray-900">Leitura registrada (id {resultadoSaude.id}).</p>}
       </section>
     </main>
   )
