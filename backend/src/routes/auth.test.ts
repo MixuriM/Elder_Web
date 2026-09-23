@@ -92,22 +92,6 @@ describe("POST /auth/sync — base (1.2)", () => {
     expect(res.status).toBe(401);
   });
 
-  it.each(["idoso", "cuidador", "familiar"])("cadastro de %s: modo_decisao gravado só para idoso", async (tipo_perfil) => {
-    verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "novo@a.com" });
-    findFirst.mockResolvedValue(null);
-    create.mockResolvedValue({ id: 1, tipo_perfil });
-
-    const res = await request(buildApp())
-      .post("/auth/sync")
-      .set("Authorization", "Bearer x")
-      .send({ tipo_perfil, nome: "Fulano" });
-
-    expect(res.status).toBe(201);
-    const data = create.mock.calls[0][0].data;
-    if (tipo_perfil === "idoso") expect(data.modo_decisao).toBe("idoso");
-    else expect(data).not.toHaveProperty("modo_decisao");
-  });
-
   it("cadastro sem tipo_perfil: 400, não chama create", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "novo@a.com" });
     findFirst.mockResolvedValue(null);

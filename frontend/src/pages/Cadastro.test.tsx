@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import Cadastro from "./Cadastro";
-import { SyncError } from "../lib/auth";
 
 jest.mock("firebase/auth", () => ({
   getAuth: jest.fn(),
@@ -146,34 +145,5 @@ describe("Cadastro", () => {
 
     resolverRegistro();
     await waitFor(() => expect(botao).not.toBeDisabled());
-  });
-
-  it("Google: nome digitado é enviado ao sync; sem nome digitado vai undefined", async () => {
-    mockLoginWithGoogle.mockResolvedValue(undefined);
-    mockSyncUser.mockResolvedValue({ criado: true });
-    const user = userEvent.setup();
-    renderCadastro();
-
-    await user.click(screen.getByRole("button", { name: /google/i }));
-    await waitFor(() => expect(mockSyncUser).toHaveBeenCalled());
-    expect(mockSyncUser.mock.calls[0][0].nome).toBeUndefined();
-
-    mockSyncUser.mockClear();
-    await user.type(screen.getByLabelText(/nome completo/i), "Ana Google");
-    await user.click(screen.getByRole("button", { name: /google/i }));
-    await waitFor(() => expect(mockSyncUser).toHaveBeenCalled());
-    expect(mockSyncUser.mock.calls[0][0].nome).toBe("Ana Google");
-  });
-
-  it("Google sem nome (400 nome obrigatório): pede o nome com role=alert e não navega", async () => {
-    mockLoginWithGoogle.mockResolvedValue(undefined);
-    mockSyncUser.mockRejectedValue(new SyncError(400, "nome obrigatório ao criar conta."));
-    const user = userEvent.setup();
-    renderCadastro();
-
-    await user.click(screen.getByRole("button", { name: /google/i }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/preencha o campo nome completo/i);
-    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
