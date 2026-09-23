@@ -39,8 +39,8 @@ for (const { tipoPerfil, radio } of PERFIS) {
     await page.getByRole("button", { name: /já tenho uma conta/i }).click();
     await page.waitForURL(/\/login$/);
 
-    await page.getByLabel(/e-mail/i).fill(email);
-    await page.getByLabel(/senha/i).fill(SENHA);
+    await page.getByLabel(/^e-mail$/i).fill(email);
+    await page.getByLabel(/^senha$/i).fill(SENHA);
     await page.getByRole("button", { name: /^entrar$/i }).click();
 
     await page.waitForURL(/\/Home$/, { timeout: 20_000 });

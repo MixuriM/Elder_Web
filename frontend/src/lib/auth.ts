@@ -164,13 +164,53 @@ function mensagemSyncError(err: unknown, mensagem5xx: string): string | null {
   return "Falha ao sincronizar sua conta com o servidor. Confira os dados e tente novamente.";
 }
 
+const CODIGOS_CREDENCIAL_INVALIDA = [
+  "auth/invalid-credential",
+  "auth/user-not-found",
+  "auth/wrong-password",
+];
+
+// Login sem conta no Elder: o Firebase não conhece o e-mail (idoso cadastrado por um
+// familiar ainda sem conta própria, ou e-mail errado) ou o Google autenticou mas
+// /auth/sync não achou Usuario (400 por falta de tipo_perfil, que só o cadastro envia).
+export function erroSemContaNoLogin(err: unknown): boolean {
+  if (err instanceof SyncError) return err.status === 400 && /tipo_perfil/i.test(err.message);
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === "string" && CODIGOS_CREDENCIAL_INVALIDA.includes(code);
+}
+
 export function mensagemErroLogin(err: unknown): string {
+  if (err instanceof SyncError && erroSemContaNoLogin(err)) {
+    return "Você ainda não tem uma conta no Elder. Crie sua conta no cadastro.";
+  }
   return (
     mensagemSyncError(
       err,
       "Login validado, mas o servidor está iniciando. Aguarde alguns segundos e tente de novo."
-    ) ?? "Não foi possível entrar. Confira seu e-mail e senha."
+    ) ??
+    mensagemErroFirebaseLogin(err) ??
+    "Não foi possível entrar. Confira seu e-mail e senha."
   );
+}
+
+// Erros do Firebase Auth no login que o usuário consegue resolver sozinho.
+function mensagemErroFirebaseLogin(err: unknown): string | null {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (erroSemContaNoLogin(err)) {
+    return "E-mail ou senha incorretos. Se um familiar cadastrou você, crie sua conta no cadastro com o mesmo e-mail e o perfil Idoso.";
+  }
+  switch (code) {
+    case "auth/too-many-requests":
+      return "Muitas tentativas seguidas. Aguarde alguns minutos ou use \"Esqueci minha senha\".";
+    case "auth/network-request-failed":
+      return "Sem conexão com a internet. Verifique sua rede e tente novamente.";
+    case "auth/user-disabled":
+      return "Esta conta foi desativada. Entre em contato com o suporte.";
+    case "auth/popup-closed-by-user":
+      return "A janela do Google foi fechada antes de terminar. Tente de novo.";
+    default:
+      return null;
+  }
 }
 
 // Mesma ideia que mensagemErroLogin: se registerUser/loginWithGoogle já criou a

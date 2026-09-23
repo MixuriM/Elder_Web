@@ -11,13 +11,14 @@ jest.mock("firebase/auth", () => ({
   createUserWithEmailAndPassword: jest.fn(),
   signInWithEmailAndPassword: jest.fn(),
   signInWithPopup: jest.fn(),
-  signOut: jest.fn(),
+  signOut: (...args: unknown[]) => mockSignOut(...args),
   onAuthStateChanged: jest.fn(),
   sendPasswordResetEmail: jest.fn(),
   sendEmailVerification: jest.fn(),
 }));
 jest.mock("../lib/firebase", () => ({ app: {} }));
 
+const mockSignOut = jest.fn();
 const mockLoginUser = jest.fn();
 const mockLoginWithGoogle = jest.fn();
 const mockSyncUser = jest.fn();
@@ -46,8 +47,8 @@ function renderLogin() {
 }
 
 async function preencherEEnviar(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/e-mail/i), "ana@a.com");
-  await user.type(screen.getByLabelText(/senha/i), "123456");
+  await user.type(screen.getByLabelText(/^e-mail$/i), "ana@a.com");
+  await user.type(screen.getByLabelText(/^senha$/i), "123456");
   await user.click(screen.getByRole("button", { name: /^entrar$/i }));
 }
 
@@ -57,6 +58,8 @@ describe("Login", () => {
     mockLoginWithGoogle.mockReset();
     mockSyncUser.mockReset();
     mockNavigate.mockReset();
+    mockSignOut.mockReset();
+    mockSignOut.mockResolvedValue(undefined);
   });
 
   it("login e sync com sucesso: navega pra /Home", async () => {
@@ -71,16 +74,65 @@ describe("Login", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("Firebase rejeita a senha: mostra erro genérico de credencial, não navega, não chama syncUser", async () => {
+  it("Firebase rejeita a senha: mostra erro de credencial com orientação ao idoso cadastrado por familiar e link pro cadastro, não navega, não chama syncUser", async () => {
     mockLoginUser.mockRejectedValue(Object.assign(new Error("senha errada"), { code: "auth/wrong-password" }));
     const user = userEvent.setup();
     renderLogin();
 
     await preencherEEnviar(user);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/e-mail e senha/i);
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent(/e-mail ou senha incorretos/i);
+    expect(alerta).toHaveTextContent(/familiar cadastrou você/i);
+    expect(screen.getByRole("link", { name: /ir para o cadastro/i })).toHaveAttribute("href", "/cadastro");
     expect(mockSyncUser).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("Google autenticou mas sem conta no Elder (400 tipo_perfil): orienta a criar conta, link pro cadastro, encerra a sessão e não navega", async () => {
+    mockLoginWithGoogle.mockResolvedValue(undefined);
+    mockSyncUser.mockRejectedValue(
+      new SyncError(400, "tipo_perfil obrigatório ao criar conta (idoso, cuidador ou familiar).")
+    );
+    const user = userEvent.setup();
+    renderLogin();
+
+    await user.click(screen.getByRole("button", { name: /google/i }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent(/ainda não tem uma conta/i);
+    expect(screen.getByRole("link", { name: /ir para o cadastro/i })).toBeInTheDocument();
+    expect(mockSignOut).toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("erro que não é de conta inexistente (rede): sem link pro cadastro e sem encerrar sessão", async () => {
+    mockLoginUser.mockRejectedValue(Object.assign(new Error("x"), { code: "auth/too-many-requests" }));
+    const user = userEvent.setup();
+    renderLogin();
+
+    await preencherEEnviar(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/muitas tentativas/i);
+    expect(screen.queryByRole("link", { name: /ir para o cadastro/i })).not.toBeInTheDocument();
+    expect(mockSignOut).not.toHaveBeenCalled();
+  });
+
+  it("campos com autocomplete, limite de e-mail e botão mostrar/ocultar senha", async () => {
+    const user = userEvent.setup();
+    renderLogin();
+
+    const email = screen.getByLabelText(/^e-mail$/i);
+    const senha = screen.getByLabelText(/^senha$/i);
+    expect(email).toHaveAttribute("autocomplete", "username");
+    expect(email).toHaveAttribute("maxlength", "255");
+    expect(senha).toHaveAttribute("autocomplete", "current-password");
+
+    expect(senha).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: /mostrar senha/i }));
+    expect(senha).toHaveAttribute("type", "text");
+    await user.click(screen.getByRole("button", { name: /ocultar senha/i }));
+    expect(senha).toHaveAttribute("type", "password");
   });
 
   it("login funciona mas /auth/sync falha com 5xx: mostra mensagem de servidor iniciando, não navega", async () => {
@@ -105,8 +157,8 @@ describe("Login", () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByLabelText(/e-mail/i), "ana@a.com");
-    await user.type(screen.getByLabelText(/senha/i), "123456");
+    await user.type(screen.getByLabelText(/^e-mail$/i), "ana@a.com");
+    await user.type(screen.getByLabelText(/^senha$/i), "123456");
     const botao = screen.getByRole("button", { name: /^entrar$/i });
     await user.click(botao);
 

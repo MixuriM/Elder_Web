@@ -1,9 +1,15 @@
+import { useState } from "react";
+
+import BotaoMostrarSenha from "../common/BotaoMostrarSenha";
+
 type CampoLoginProps = {
   id: string;
   label: string;
   type: "email" | "password";
   value: string;
   placeholder?: string;
+  autoComplete?: string;
+  maxLength?: number;
   onChange: (valor: string) => void;
 };
 
@@ -13,8 +19,14 @@ function CampoLogin({
   type,
   value,
   placeholder,
+  autoComplete,
+  maxLength,
   onChange,
 }: CampoLoginProps) {
+  // Campo de senha ganha botão para mostrar/ocultar o que foi digitado
+  const [mostrar, setMostrar] = useState(false);
+  const ehSenha = type === "password";
+
   return (
     <div className="w-full">
       {/* Nome do campo */}
@@ -22,7 +34,7 @@ function CampoLogin({
         htmlFor={id}
         className="
           block
-          text-sm
+          text-lg
           font-semibold
           text-[#344054]
 
@@ -33,16 +45,19 @@ function CampoLogin({
       </label>
 
       {/* Campo */}
+      <div className="relative">
       <input
         id={id}
-        type={type}
+        type={ehSenha && mostrar ? "text" : type}
         value={value}
         required
+        autoComplete={autoComplete}
+        maxLength={maxLength}
         placeholder={placeholder}
         onChange={(e) =>
           onChange(e.target.value)
         }
-        className="
+        className={`
           mt-2
           w-full
 
@@ -55,8 +70,9 @@ function CampoLogin({
 
           px-4
           py-3.5
+          ${ehSenha ? "pr-14" : ""}
 
-          text-base
+          text-lg
           text-[#101828]
 
           outline-none
@@ -82,8 +98,16 @@ function CampoLogin({
 
           dark:focus:border-[#8B84FF]
           dark:focus:ring-[#8B84FF]/20
-        "
+        `}
       />
+      {ehSenha && (
+        <BotaoMostrarSenha
+          mostrar={mostrar}
+          onToggle={() => setMostrar((atual) => !atual)}
+          campo="senha"
+        />
+      )}
+      </div>
     </div>
   );
 }

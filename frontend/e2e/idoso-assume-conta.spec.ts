@@ -56,8 +56,8 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
 
   await page.getByRole("button", { name: /já tenho uma conta/i }).click();
   await page.waitForURL(/\/login$/);
-  await page.getByLabel(/e-mail/i).fill(emailFamiliar);
-  await page.getByLabel(/senha/i).fill(SENHA);
+  await page.getByLabel(/^e-mail$/i).fill(emailFamiliar);
+  await page.getByLabel(/^senha$/i).fill(SENHA);
   await page.getByRole("button", { name: /^entrar$/i }).click();
   await page.waitForURL(/\/Home$/, { timeout: 20_000 });
 
@@ -89,8 +89,8 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
 
   // --- IDOSO: loga de novo — agora pelo fluxo normal (firebase_uid já bate) ---
   await page.goto("/login");
-  await page.getByLabel(/e-mail/i).fill(emailIdoso);
-  await page.getByLabel(/senha/i).fill(SENHA);
+  await page.getByLabel(/^e-mail$/i).fill(emailIdoso);
+  await page.getByLabel(/^senha$/i).fill(SENHA);
   await page.getByRole("button", { name: /^entrar$/i }).click();
   await page.waitForURL(/\/Home$/, { timeout: 20_000 });
 

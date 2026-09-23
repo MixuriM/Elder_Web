@@ -12,7 +12,9 @@ import {
   loginUser,
   loginWithGoogle,
   syncUser,
+  logoutUser,
   mensagemErroLogin,
+  erroSemContaNoLogin,
 } from "../lib/auth";
 
 // Componentes principais da página
@@ -31,6 +33,10 @@ function Login() {
   const [erro, setErro] =
     useState<string | null>(null);
 
+  // Mostra o link para o cadastro dentro do erro (login sem conta no Elder)
+  const [sugerirCadastro, setSugerirCadastro] =
+    useState(false);
+
   // Indica se uma requisição está acontecendo
   const [carregando, setCarregando] =
     useState(false);
@@ -45,6 +51,7 @@ function Login() {
     e.preventDefault();
 
     setErro(null);
+    setSugerirCadastro(false);
     setCarregando(true);
 
     try {
@@ -62,15 +69,25 @@ function Login() {
         err
       );
 
-      setErro(mensagemErroLogin(err));
+      await tratarErroLogin(err);
     } finally {
       setCarregando(false);
     }
   }
 
+  // Mostra o erro e, se a conta não existe no Elder, encerra a sessão do Firebase
+  // (senão RotaProtegida deixaria entrar sem linha em Usuario).
+  async function tratarErroLogin(err: unknown) {
+    setErro(mensagemErroLogin(err));
+    const semConta = erroSemContaNoLogin(err);
+    setSugerirCadastro(semConta);
+    if (semConta) await logoutUser().catch(() => undefined);
+  }
+
   // Login utilizando Google
   async function handleGoogleLogin() {
     setErro(null);
+    setSugerirCadastro(false);
     setCarregando(true);
 
     try {
@@ -88,7 +105,7 @@ function Login() {
         err
       );
 
-      setErro(mensagemErroLogin(err));
+      await tratarErroLogin(err);
     } finally {
       setCarregando(false);
     }
@@ -171,6 +188,7 @@ function Login() {
               email={email}
               senha={senha}
               erro={erro}
+              sugerirCadastro={sugerirCadastro}
               carregando={carregando}
               setEmail={setEmail}
               setSenha={setSenha}

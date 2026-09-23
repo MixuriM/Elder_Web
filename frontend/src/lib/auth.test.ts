@@ -1,4 +1,4 @@
-import { SyncError, mensagemErroCadastro, mensagemErroLogin, syncUser } from './auth'
+import { SyncError, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, syncUser } from './auth'
 
 // lib/auth.ts inicializa o Firebase de verdade no import; mocks evitam isso (mesmo
 // padrão de Home.test.tsx / RotaProtegida.test.tsx).
@@ -27,7 +27,7 @@ describe('mensagens de erro de /auth/sync (item 3.2)', () => {
   })
 
   it('4xx sem codigo: mensagem genérica de sync, sem culpar o servidor', () => {
-    const err = new SyncError(400, 'tipo_perfil obrigatório ao criar conta (idoso, cuidador ou familiar).')
+    const err = new SyncError(400, 'nome obrigatório ao criar conta.')
 
     for (const msg of [mensagemErroCadastro(err), mensagemErroLogin(err)]) {
       expect(msg).toMatch(/Falha ao sincronizar/)
@@ -131,5 +131,41 @@ describe('mensagemErroCadastro — erros do Firebase que o usuário resolve sozi
   it('código desconhecido ou erro sem código: mensagem genérica', () => {
     expect(mensagemErroCadastro(Object.assign(new Error('x'), { code: 'auth/outra' }))).toMatch(/não foi possível criar a conta/i)
     expect(mensagemErroCadastro(new Error('x'))).toMatch(/não foi possível criar a conta/i)
+  })
+})
+
+describe('mensagemErroLogin / erroSemContaNoLogin', () => {
+  it.each(['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'])(
+    '%s: credencial inválida, orienta idoso cadastrado por familiar e sugere o cadastro',
+    (code) => {
+      const err = Object.assign(new Error('x'), { code })
+
+      expect(mensagemErroLogin(err)).toMatch(/e-mail ou senha incorretos.*familiar cadastrou você/i)
+      expect(erroSemContaNoLogin(err)).toBe(true)
+    }
+  )
+
+  it.each([
+    ['auth/too-many-requests', /muitas tentativas/i],
+    ['auth/network-request-failed', /sem conexão/i],
+    ['auth/user-disabled', /conta foi desativada/i],
+    ['auth/popup-closed-by-user', /janela do google foi fechada/i],
+  ])('%s: mensagem específica, sem sugerir o cadastro', (code, esperado) => {
+    const err = Object.assign(new Error('x'), { code })
+
+    expect(mensagemErroLogin(err)).toMatch(esperado)
+    expect(erroSemContaNoLogin(err)).toBe(false)
+  })
+
+  it('SyncError 400 por falta de tipo_perfil: "ainda não tem uma conta" e sugere o cadastro', () => {
+    const err = new SyncError(400, 'tipo_perfil obrigatório ao criar conta (idoso, cuidador ou familiar).')
+
+    expect(mensagemErroLogin(err)).toMatch(/ainda não tem uma conta/i)
+    expect(erroSemContaNoLogin(err)).toBe(true)
+  })
+
+  it('SyncError 400 de outro motivo não sugere o cadastro; erro desconhecido: mensagem genérica', () => {
+    expect(erroSemContaNoLogin(new SyncError(400, 'nome obrigatório ao criar conta.'))).toBe(false)
+    expect(mensagemErroLogin(new Error('x'))).toMatch(/não foi possível entrar/i)
   })
 })
