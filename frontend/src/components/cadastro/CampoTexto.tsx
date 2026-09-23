@@ -2,11 +2,10 @@
 type CampoTextoProps = {
   id: string; // Identificador do campo
   label: string; // Texto exibido acima do campo
-  type: "text" | "email" | "password" | "tel"; // Tipo do input
+  type: "text" | "email" | "password"; // Tipo do input
   value: string; // Valor atual digitado
   onChange: (valor: string) => void; // Função responsável por atualizar o valor
   required?: boolean; // Se o campo é obrigatório (padrão: true)
-  maxLength?: number; // Limite de caracteres (opcional)
 };
 
 // Componente reutilizável para os campos do formulário
@@ -17,7 +16,6 @@ function CampoTexto({
   value,
   onChange,
   required = true,
-  maxLength,
 }: CampoTextoProps) {
   return (
     <div>
@@ -45,7 +43,6 @@ function CampoTexto({
         id={id}
         type={type}
         required={required}
-        maxLength={maxLength}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="
