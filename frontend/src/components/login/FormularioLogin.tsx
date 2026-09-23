@@ -14,6 +14,7 @@ type FormularioLoginProps = {
   email: string;
   senha: string;
   erro: string | null;
+  sugerirCadastro: boolean; // mostra link para /cadastro dentro do erro
   carregando: boolean;
 
   setEmail: (valor: string) => void;
@@ -28,6 +29,7 @@ function FormularioLogin({
   email,
   senha,
   erro,
+  sugerirCadastro,
   carregando,
   setEmail,
   setSenha,
@@ -99,8 +101,10 @@ function FormularioLogin({
       <div className="space-y-5">
         <CampoLogin
           id="login-email"
-          label="E-mail:"
+          label="E-mail"
           type="email"
+          autoComplete="username"
+          maxLength={255}
           value={email}
           onChange={setEmail}
           placeholder="Digite seu e-mail"
@@ -108,8 +112,9 @@ function FormularioLogin({
 
         <CampoLogin
           id="login-senha"
-          label="Senha:"
+          label="Senha"
           type="password"
+          autoComplete="current-password"
           value={senha}
           onChange={setSenha}
           placeholder="Digite sua senha"
@@ -121,7 +126,7 @@ function FormularioLogin({
         <Link
           to="/esqueci-senha"
           className="
-            text-sm
+            text-lg
             font-semibold
             text-[#6C63FF]
 
@@ -151,7 +156,7 @@ function FormularioLogin({
             px-4
             py-3
 
-            text-sm
+            text-lg
             leading-6
             text-red-700
 
@@ -160,6 +165,14 @@ function FormularioLogin({
           "
         >
           {erro}
+          {sugerirCadastro && (
+            <>
+              {" "}
+              <Link to="/cadastro" className="font-bold underline">
+                Ir para o cadastro
+              </Link>
+            </>
+          )}
         </p>
       )}
 
@@ -225,7 +238,7 @@ function FormularioLogin({
 
         <span
           className="
-            text-sm
+            text-lg
             text-gray-400
 
             dark:text-gray-500
@@ -257,7 +270,7 @@ function FormularioLogin({
           mt-6
           text-center
 
-          text-sm
+          text-lg
           text-gray-500
 
           dark:text-gray-400
