@@ -3,11 +3,12 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Home from './Home'
 
-// Sidebar chama logoutUser de lib/auth.ts, que inicializa o Firebase Auth de
-// verdade no import -- sem env vars de teste isso quebra. Mock evita puxar
-// esse módulo, mesmo padrão usado em RotaProtegida.test.tsx.
+// Sidebar e Header usam funções de auth.ts; o teste precisa mockar o módulo
+// completo para não inicializar Firebase de verdade nem chamar onAuthChange
+// sem implementação.
 jest.mock('../lib/auth', () => ({
   logoutUser: jest.fn(),
+  onAuthChange: jest.fn(() => () => {}),
 }))
 
 // jsdom não implementa matchMedia; Home usa pra detectar tema do sistema.
