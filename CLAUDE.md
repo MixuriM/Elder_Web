@@ -1291,3 +1291,120 @@ tarefa — nenhum artefato de teste local ficou de pé.
 Fora de escopo (não implementado, por instrução explícita): CI ainda não roda o e2e
 Playwright (sem infraestrutura de banco/Firebase de teste dedicada lá); nenhuma mudança de
 schema ou de migration nesta tarefa.
+
+**Item 3.3 da Fase 3 (RF-001, RF-030 extensão) implementado — idoso cadastrado por
+Familiar assume a própria conta, anexando firebase_uid (2026-09-23):**
+
+Em `POST /auth/sync` (`backend/src/routes/auth.ts`), a pré-checagem por e-mail (item 3.2)
+ganhou um terceiro desfecho. Quando a linha encontrada é um idoso cadastrado por Familiar
+(`firebase_uid` NULL, `cadastrado_por_id` preenchido) e `tipo_perfil` pedido é `idoso`:
+- `decoded.email_verified === true` → anexa o `firebase_uid` do token à linha existente via
+  `prisma.usuario.update` (nunca `create`) e responde 200 `{ criado: false, usuario }`, mesmo
+  formato do login.
+- `decoded.email_verified` falso/ausente → 409 `EMAIL_CADASTRADO_POR_FAMILIAR`, agora com texto
+  definitivo orientando a confirmar o e-mail (a mensagem era provisória desde a tarefa 3.2).
+
+Qualquer outro caso (linha já tem `firebase_uid`, ou `tipo_perfil` pedido não é `idoso`)
+continua caindo no 409 `EMAIL_JA_EM_USO` genérico, sem distinguir o tipo da conta — mesmo
+comportamento de antes, não mudou.
+
+**Decisão tomada nesta tarefa (não estava explícita no plano):** a condição
+`email_verified=true` + idoso + `firebase_uid` NULL + `cadastrado_por_id` preenchido, que em
+3.2 disparava o 409 informativo, virou o próprio caminho de sucesso do anexo. O 409
+`EMAIL_CADASTRADO_POR_FAMILIAR` foi realocado para o caso `email_verified=false` da mesma
+linha — é o que o idoso vê no primeiro `/auth/sync` logo após se cadastrar no Firebase, antes
+de confirmar o e-mail; a confirmação leva a uma segunda chamada de `/auth/sync` com
+`email_verified=true`, que anexa sozinha.
+
+**A validação de `nome` obrigatório em `POST /auth/sync` foi reordenada** (mesma tarefa,
+achado ao escrever o e2e ponta a ponta): antes rodava logo depois de `tipo_perfil`, bloqueando
+qualquer chamada sem `nome` — inclusive o caminho de anexo acima, que nunca usa `nome` (a
+linha existente já tem o nome que o Familiar informou). A checagem foi movida pra depois do
+bloco de pré-checagem de e-mail/anexo/conflito, exigida só quando o código vai de fato chamar
+`prisma.usuario.create`. Comportamento de criação de conta nova não mudou — `nome` continua
+obrigatório nesse caso, só a ORDEM em que é checado mudou.
+
+**Reabertura da tarefa 3.1: e-mail agora é obrigatório em `POST /usuario/cadastrar-idoso`.**
+A opção "só telefone" foi removida — telefone continua existindo como campo, mas só como
+complemento opcional ao e-mail, nunca mais suficiente sozinho. Motivo: o anexo de 3.3 depende
+do e-mail como chave de reconhecimento; sem e-mail, o idoso cadastrado por Familiar não tem
+caminho nenhum pra assumir a própria conta. **Aviso pendente para Laureane e Jennifer:** o
+formulário "Cadastrar idoso" (`Vinculos.tsx`, esqueleto cru, linha ~784) ainda mostra o texto
+antigo "informe e-mail ou telefone (pelo menos um)" — precisa virar e-mail obrigatório,
+telefone complementar — [Marcos avisar].
+
+**`frontend/src/pages/Cadastro.tsx` também mudou (achado numa segunda rodada da mesma
+tarefa):** `sendEmailVerification` (Firebase Web SDK) disparava só quando `tipoPerfil ===
+"familiar"` (decisão original da tarefa 2.5). Sem isso, o idoso cadastrado por Familiar que se
+autocadastra nunca recebia o e-mail de confirmação, nunca chegava em `email_verified=true`, e
+o anexo desta tarefa ficava inalcançável na prática — mesmo com o backend correto. Ajuste
+mínimo e cirúrgico nos dois handlers (`handleSubmit` e `handleGoogleCadastro`): condição
+passou a `tipoPerfil === "familiar" || tipoPerfil === "idoso"`, nada mais tocado no arquivo.
+Este é o arquivo "de verdade" de Laureane/Jennifer (ver Workflow) — **avisar as duas** sobre
+essa mudança de comportamento fica com o Marcos, não foi comunicado por conta própria aqui.
+
+**`frontend/src/pages/ConfirmarEmail.tsx` também mudou, mesmo motivo:** essa página (item 2.5)
+chamava `syncUser()` sem argumentos — funcionava pro Familiar (RF-025) porque, nesse caso, o
+`firebase_uid` já bate desde o cadastro e a chamada cai direto no branch de login, que ignora
+`tipo_perfil`/`nome`. Pro idoso do 3.3, é exatamente aqui que o anexo deveria acontecer — e
+`firebase_uid` ainda NÃO bate nesse momento, então a chamada cai no branch de criação, que
+exige `tipo_perfil` (e, antes do ajuste acima, exigia `nome` também). Corrigido enviando
+`syncUser({ tipoPerfil: 'idoso' })` fixo — seguro pro Familiar também, porque nesse caso o
+valor é ignorado (branch de login não lê `tipo_perfil`).
+
+Nenhuma migration em nenhuma das rodadas: nenhum campo/tabela novo, só lógica em cima do
+que já existia desde a tarefa 3.1 (`firebase_uid`, `cadastrado_por_id`, `email`).
+
+**Testes:** `backend/src/routes/auth.test.ts` ganhou o describe "idoso assume conta cadastrada
+por Familiar (3.3)" com 6 casos — anexa com sucesso (`email_verified=true`, verifica `update`
+chamado e `create` NÃO chamado), anexa mesmo sem `nome` no body (achado da 2ª rodada), não
+anexa com `email_verified=false` (409 específico), não anexa quando o e-mail do token é
+diferente (segue `create` normal), não anexa quando a linha já tem `firebase_uid` (409
+genérico), segundo login cai no fluxo normal por `firebase_uid` sem duplicar. Dois testes do
+describe de 3.2 foram reescritos pra refletir a mudança de comportamento (`email_verified=true`
+deixou de ser conflito). `usuario.test.ts`: teste "201 só com telefone" virou "400 só com
+telefone — e-mail agora é obrigatório"; teste novo confirma telefone como complemento opcional.
+
+`frontend/src/pages/Cadastro.test.tsx`: teste de cadastro com perfil padrão (idoso) passou a
+esperar `sendEmailVerification` chamado (antes esperava não-chamado); o teste único de "perfil
+familiar dispara sendEmailVerification" virou `it.each` cobrindo familiar E idoso; teste novo
+confirma que cuidador continua SEM disparar.
+
+**e2e novo:** `frontend/e2e/idoso-assume-conta.spec.ts` cobre o fluxo ponta a ponta — Familiar
+se cadastra e loga, cadastra um Idoso com e-mail via `/vinculos`, Idoso se autocadastra com o
+MESMO e-mail (primeiro `/auth/sync` não anexa, 409 `EMAIL_CADASTRADO_POR_FAMILIAR` visível),
+confirma o e-mail, Idoso loga de novo, e confirma 1 único `Usuario` com `firebase_uid`
+preenchido. A confirmação de e-mail é simulada via Firebase Admin SDK (sem caixa de e-mail real
+em teste) por dois scripts novos, mesma convenção dos `backend/scripts/verify-*.ts`:
+- `backend/scripts/e2e-marcar-email-verificado.ts <email>` — marca `emailVerified=true` no
+  Firebase Auth via Admin SDK.
+- `backend/scripts/e2e-verificar-usuario-unico.ts <email>` — confirma 1 `Usuario` com esse
+  e-mail e `firebase_uid` preenchido.
+
+Chamados pelo e2e via `execFileSync` (Node), `cwd` no backend, `DATABASE_URL` sobrescrita pro
+SQL Server LOCAL (mesma fórmula de `playwright.config.ts`, nunca Azure). e2e: 4/4 (era 3/3).
+
+**Testes de regressão (terceira rodada, mesma tarefa):** dois testes cobrindo achados sem
+teste próprio das rodadas anteriores — confirmados batendo em RED contra o código revertido
+antes de confirmar GREEN, nenhum bug real encontrado. `auth.test.ts` ganhou 2 casos no
+describe base provando que a reordenação de `nome` não vazou: criação nova sem `nome` continua
+400; e-mail em conflito sem `nome` no body responde o 409 do conflito, não 400 de `nome`.
+`frontend/src/pages/ConfirmarEmail.test.tsx` (arquivo novo, página não tinha teste antes) cobre
+3 casos, incluindo a prova de que `syncUser({ tipoPerfil: 'idoso' })` fixo não regride o fluxo
+do Familiar: com sessão ativa e resposta de sucesso do branch de login (`criado:false`), a
+página trata como sucesso normalmente.
+
+Suíte final: backend 10 arquivos/270 testes (era 262 antes da tarefa), frontend 9 arquivos/37
+testes (era 32), e2e 4/4 (era 3/3). `npx tsc --noEmit` e `npm run lint` limpos nos dois
+pacotes em todas as rodadas.
+
+**Achado, não corrigido nesta tarefa — fora do escopo combinado:** a seção "Cadastrar idoso" em
+`Vinculos.tsx` (~linha 784) ainda mostra o texto "informe e-mail ou telefone (pelo menos um)",
+desatualizado desde a reabertura da 3.1 acima — precisa virar e-mail obrigatório. Arquivo de
+Laureane/Jennifer, não tocado; aviso pendente do Marcos.
+
+Fora de escopo desta tarefa (não implementado, por instrução explícita): correção do texto de
+`Vinculos.tsx` acima; limpeza automática de contas Firebase de teste (`e2e-*@e2e.elderweb.test`
+acumuladas nas três rodadas — mesma convenção de limpeza manual já usada na Fase 1); exclusão
+de conta Firebase órfã quando o idoso desiste do autocadastro; normalização de caixa de e-mail
+na pré-checagem (limitação já conhecida desde 3.2).

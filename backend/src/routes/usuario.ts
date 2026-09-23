@@ -177,10 +177,13 @@ router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
     }
     const emailLimpo = typeof email === "string" ? email.trim() : "";
     const telefoneLimpo = typeof telefone === "string" ? telefone.trim() : "";
-    if (!emailLimpo && !telefoneLimpo) {
-      return res.status(400).json({ error: "Informe e-mail ou telefone do idoso." });
+    // 3.3 (RF-001/RF-030 extensão): e-mail obrigatório — é a chave que /auth/sync usa
+    // pra reconhecer o idoso assumindo a própria conta. Telefone continua opcional,
+    // complementar, nunca mais suficiente sozinho.
+    if (!emailLimpo) {
+      return res.status(400).json({ error: "E-mail do idoso é obrigatório." });
     }
-    if (emailLimpo && (emailLimpo.length > 255 || !isValidEmailFormat(emailLimpo))) {
+    if (emailLimpo.length > 255 || !isValidEmailFormat(emailLimpo)) {
       return res.status(400).json({ error: "E-mail inválido." });
     }
     if (telefoneLimpo.length > 20) {
@@ -204,7 +207,7 @@ router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
     const idoso = await prisma.usuario.create({
       data: {
         nome: nomeLimpo,
-        ...(emailLimpo && { email: emailLimpo }),
+        email: emailLimpo,
         ...(telefoneLimpo && { telefone: telefoneLimpo }),
         tipo_perfil: "idoso",
         cadastrado_por_id: req.usuarioId,

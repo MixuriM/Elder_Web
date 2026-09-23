@@ -137,9 +137,6 @@ router.post("/sync", async (req, res, next) => {
     }
 
     const nome = typeof req.body?.nome === "string" ? req.body.nome.trim() : decoded.name;
-    if (!nome) {
-      return res.status(400).json({ error: "nome obrigatório ao criar conta." });
-    }
 
     if (!decoded.email && !decoded.phone_number) {
       return res.status(400).json({ error: "Conta Firebase sem e-mail ou telefone associado." });
@@ -166,26 +163,44 @@ router.post("/sync", async (req, res, next) => {
       emailConviteFamiliar = emailConviteFamiliarRaw.trim();
     }
 
-    // RNF-011: valida o e-mail ANTES do INSERT. A mensagem específica só sai quando
-    // o e-mail já vem verificado, o perfil pedido é idoso e a linha foi cadastrada por
-    // Familiar (sem firebase_uid) — qualquer outro caso recebe o corpo genérico, idêntico,
-    // pra não revelar a natureza da conta que ocupa o e-mail. O catch abaixo continua
-    // como rede de segurança pra corrida.
+    // RNF-011 (3.2) / RF-030 extensão (3.3): valida o e-mail ANTES do INSERT. Quando a
+    // linha encontrada é um idoso cadastrado por Familiar (sem firebase_uid) com o mesmo
+    // e-mail do token: se já verificado, é o próprio idoso assumindo a conta — anexa o
+    // firebase_uid a essa linha em vez de criar outra (nunca create nesse caminho); se
+    // ainda não verificado, devolve orientação específica pra confirmar o e-mail. Em
+    // qualquer outro caso o corpo é o genérico EMAIL_JA_EM_USO, pra não revelar a
+    // natureza da conta que ocupa o e-mail. O catch abaixo continua como rede de
+    // segurança pra corrida.
     if (decoded.email) {
       const existente = await prisma.usuario.findFirst({
         where: { email: decoded.email },
         select: { id: true, firebase_uid: true, cadastrado_por_id: true },
       });
       if (existente) {
-        const cadastradoPorFamiliar =
-          decoded.email_verified === true &&
-          tipoPerfil === "idoso" &&
-          existente.firebase_uid === null &&
-          existente.cadastrado_por_id !== null;
+        const idosoCadastradoPorFamiliar =
+          tipoPerfil === "idoso" && existente.firebase_uid === null && existente.cadastrado_por_id !== null;
+
+        if (idosoCadastradoPorFamiliar && decoded.email_verified === true) {
+          const usuarioAnexado = await prisma.usuario.update({
+            where: { id: existente.id },
+            data: { firebase_uid: decoded.uid },
+          });
+          return res.status(200).json({ criado: false, usuario: usuarioAnexado });
+        }
+
         return res
           .status(409)
-          .json(cadastradoPorFamiliar ? CONFLITO_EMAIL.EMAIL_CADASTRADO_POR_FAMILIAR : CONFLITO_EMAIL.EMAIL_JA_EM_USO);
+          .json(idosoCadastradoPorFamiliar ? CONFLITO_EMAIL.EMAIL_CADASTRADO_POR_FAMILIAR : CONFLITO_EMAIL.EMAIL_JA_EM_USO);
       }
+    }
+
+    // nome só é exigido daqui pra baixo: o caminho de anexo acima nunca chega aqui
+    // (sempre retorna antes) e nunca usa nome — ConfirmarEmail.tsx (item 3.3) não tem
+    // como enviar um nome pra esse caso (idoso logado por e-mail/senha não tem
+    // displayName no Firebase), e não precisa: a linha existente já tem o nome que o
+    // Familiar informou no cadastro.
+    if (!nome) {
+      return res.status(400).json({ error: "nome obrigatório ao criar conta." });
     }
 
     try {
