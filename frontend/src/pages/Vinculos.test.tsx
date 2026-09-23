@@ -32,7 +32,7 @@ describe("Vinculos — Cadastrar idoso (item 3.1)", () => {
     render(<Vinculos />);
     return {
       nome: screen.getByLabelText("Nome do idoso", { exact: true }),
-      email: screen.getByLabelText("E-mail do idoso (opcional se informar telefone)"),
+      email: document.getElementById("email_idoso_cadastro") as HTMLElement,
       aceite: screen.getByLabelText(/declaro que sou responsável/i),
       botao: screen.getByRole("button", { name: /^cadastrar idoso$/i }),
     };
