@@ -106,6 +106,42 @@ describe("POST /auth/sync — base (1.2)", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  // Regressão da reordenação de nome (item 3.3, rodada 1): a checagem de nome
+  // obrigatório saiu de logo após tipo_perfil pra depois da pré-checagem de
+  // e-mail/anexo/conflito — só é exigida quando o código vai de fato chamar create.
+  it("cadastro sem nome e sem conflito de e-mail: 400 nome ausente, não chama create", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-sem-nome", email: "semnome@a.com" });
+    findFirst.mockResolvedValue(null); // nem firebase_uid nem email batem em nada
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "idoso" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/nome/i);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("cadastro sem nome COM e-mail em conflito: 409 do conflito (pré-checagem roda antes), não 400 de nome", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-sem-nome-2", email: "conflito@a.com" });
+    findFirst.mockImplementation((args: { where: { email?: string; firebase_uid?: string } }) =>
+      Promise.resolve(
+        args.where.email !== undefined ? { id: 99, firebase_uid: "uid-outro", cadastrado_por_id: null } : null,
+      ),
+    );
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "idoso" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.codigo).toBe("EMAIL_JA_EM_USO");
+    expect(res.body.error).not.toMatch(/nome/i);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it.each(["idoso", "cuidador", "familiar"] as const)(
     "cadastro com tipo_perfil=%s cria com o perfil certo",
     async (tipoPerfil) => {
@@ -546,6 +582,7 @@ describe("POST /auth/sync — conflito de e-mail no cadastro (3.2)", () => {
     verifyIdToken.mockReset();
     findFirst.mockReset();
     create.mockReset();
+    updateUsuario.mockReset();
     verifyIdToken.mockResolvedValue(TOKEN_BASE);
     linhaPorEmail = null;
     findFirst.mockImplementation((args: { where: { email?: string; firebase_uid?: string } }) =>
@@ -554,18 +591,9 @@ describe("POST /auth/sync — conflito de e-mail no cadastro (3.2)", () => {
     create.mockResolvedValue({ id: 1, tipo_perfil: "idoso" });
   });
 
-  it("email_verified + idoso + linha cadastrada por familiar sem firebase_uid: 409 EMAIL_CADASTRADO_POR_FAMILIAR", async () => {
-    linhaPorEmail = LINHA_DO_FAMILIAR;
-
-    const res = await sync({ tipo_perfil: "idoso", nome: "Ana" });
-
-    expect(res.status).toBe(409);
-    expect(res.body.codigo).toBe("EMAIL_CADASTRADO_POR_FAMILIAR");
-    expect(res.body.proximo_passo).toEqual(expect.any(String));
-    expect(Object.keys(res.body).sort()).toEqual(["codigo", "error", "proximo_passo"]);
-    expect(create).not.toHaveBeenCalled();
-    semDados(res.body);
-  });
+  // A partir da tarefa 3.3, email_verified=true + idoso + linha cadastrada por Familiar
+  // deixa de ser conflito: vira anexação automática do firebase_uid (ver describe
+  // dedicado "idoso assume conta cadastrada por Familiar (3.3)" abaixo).
 
   it("pré-checagem seleciona só id, firebase_uid e cadastrado_por_id", async () => {
     await sync({ tipo_perfil: "idoso", nome: "Ana" });
@@ -576,19 +604,17 @@ describe("POST /auth/sync — conflito de e-mail no cadastro (3.2)", () => {
     });
   });
 
-  it("email_verified=false com a MESMA linha: 409 EMAIL_JA_EM_USO, corpo igual ao da linha comum", async () => {
+  it("email_verified=false com a linha comum (não cadastrada por familiar): 409 EMAIL_JA_EM_USO genérico", async () => {
     verifyIdToken.mockResolvedValue({ ...TOKEN_BASE, email_verified: false });
-    linhaPorEmail = LINHA_DO_FAMILIAR;
-    const daLinhaDoFamiliar = await sync({ tipo_perfil: "idoso", nome: "Ana" });
     linhaPorEmail = LINHA_COMUM;
-    const daLinhaComum = await sync({ tipo_perfil: "idoso", nome: "Ana" });
 
-    expect(daLinhaDoFamiliar.status).toBe(409);
-    expect(daLinhaDoFamiliar.body.codigo).toBe("EMAIL_JA_EM_USO");
-    expect(daLinhaDoFamiliar.status).toBe(daLinhaComum.status);
-    expect(daLinhaDoFamiliar.body).toEqual(daLinhaComum.body);
+    const res = await sync({ tipo_perfil: "idoso", nome: "Ana" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.codigo).toBe("EMAIL_JA_EM_USO");
     expect(create).not.toHaveBeenCalled();
-    semDados(daLinhaDoFamiliar.body);
+    expect(updateUsuario).not.toHaveBeenCalled();
+    semDados(res.body);
   });
 
   it.each(["cuidador", "familiar"])(
@@ -604,7 +630,7 @@ describe("POST /auth/sync — conflito de e-mail no cadastro (3.2)", () => {
     }
   );
 
-  it("email_verified + idoso + linha com firebase_uid preenchido: 409 EMAIL_JA_EM_USO", async () => {
+  it("email_verified + idoso + linha com firebase_uid preenchido: 409 EMAIL_JA_EM_USO, não anexa (evita sobrescrever conta já assumida)", async () => {
     linhaPorEmail = LINHA_COMUM;
 
     const res = await sync({ tipo_perfil: "idoso", nome: "Ana" });
@@ -612,6 +638,7 @@ describe("POST /auth/sync — conflito de e-mail no cadastro (3.2)", () => {
     expect(res.status).toBe(409);
     expect(res.body.codigo).toBe("EMAIL_JA_EM_USO");
     expect(create).not.toHaveBeenCalled();
+    expect(updateUsuario).not.toHaveBeenCalled();
     semDados(res.body);
   });
 
@@ -655,6 +682,131 @@ describe("POST /auth/sync — conflito de e-mail no cadastro (3.2)", () => {
     const res = await sync({});
 
     expect(res.status).toBe(200);
+    expect(findFirst.mock.calls.some((c) => c[0].where.email !== undefined)).toBe(false);
+  });
+});
+
+// Item 3.3 (RF-001, RF-030 extensão) — idoso cadastrado por Familiar (sem firebase_uid)
+// assume a própria conta: anexa firebase_uid à linha existente em vez de criar outra.
+describe("POST /auth/sync — idoso assume conta cadastrada por Familiar (3.3)", () => {
+  const LINHA_DO_FAMILIAR = { id: 55, firebase_uid: null, cadastrado_por_id: 9 };
+  const LINHA_COMUM = { id: 56, firebase_uid: "uid-outro", cadastrado_por_id: null };
+  let linhaPorEmail: unknown;
+
+  function sync(body: object, token: Record<string, unknown>) {
+    verifyIdToken.mockResolvedValue(token);
+    return request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send(body);
+  }
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    findFirst.mockReset();
+    create.mockReset();
+    updateUsuario.mockReset();
+    linhaPorEmail = null;
+    findFirst.mockImplementation((args: { where: { email?: string; firebase_uid?: string } }) =>
+      Promise.resolve(args.where.email !== undefined ? linhaPorEmail : null)
+    );
+    create.mockResolvedValue({ id: 1, tipo_perfil: "idoso" });
+    updateUsuario.mockImplementation((args: { where: { id: number }; data: Record<string, unknown> }) => ({
+      id: args.where.id,
+      ...args.data,
+    }));
+  });
+
+  it("anexa mesmo sem nome no body (ConfirmarEmail.tsx não envia — a linha existente já tem nome)", async () => {
+    linhaPorEmail = LINHA_DO_FAMILIAR;
+
+    const res = await sync(
+      { tipo_perfil: "idoso" },
+      { uid: "uid-novo-do-idoso", email: "idoso@a.com", email_verified: true },
+    );
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 55 },
+      data: { firebase_uid: "uid-novo-do-idoso" },
+    });
+  });
+
+  it("anexa firebase_uid quando email_verified=true, email bate, firebase_uid NULL, cadastrado_por_id preenchido", async () => {
+    linhaPorEmail = LINHA_DO_FAMILIAR;
+
+    const res = await sync(
+      { tipo_perfil: "idoso", nome: "Ana" },
+      { uid: "uid-novo-do-idoso", email: "idoso@a.com", email_verified: true },
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.criado).toBe(false);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 55 },
+      data: { firebase_uid: "uid-novo-do-idoso" },
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("NÃO anexa quando email_verified=false: 409 EMAIL_CADASTRADO_POR_FAMILIAR, sem create nem update", async () => {
+    linhaPorEmail = LINHA_DO_FAMILIAR;
+
+    const res = await sync(
+      { tipo_perfil: "idoso", nome: "Ana" },
+      { uid: "uid-novo-do-idoso", email: "idoso@a.com", email_verified: false },
+    );
+
+    expect(res.status).toBe(409);
+    expect(res.body.codigo).toBe("EMAIL_CADASTRADO_POR_FAMILIAR");
+    expect(create).not.toHaveBeenCalled();
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("NÃO anexa quando o e-mail do token é diferente do da linha (mesmo que exista alguém cadastrado por Familiar)", async () => {
+    // Nenhuma linha bate esse e-mail — findFirst por email devolve null (linhaPorEmail
+    // continua null do beforeEach), independente de existir LINHA_DO_FAMILIAR pra outro e-mail.
+    const res = await sync(
+      { tipo_perfil: "idoso", nome: "Ana" },
+      { uid: "uid-novo-do-idoso", email: "outro-email@a.com", email_verified: true },
+    );
+
+    expect(res.status).toBe(201);
+    expect(updateUsuario).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalled();
+  });
+
+  it("NÃO anexa se a linha já tem firebase_uid preenchido (evita sobrescrever conta já assumida)", async () => {
+    linhaPorEmail = LINHA_COMUM;
+
+    const res = await sync(
+      { tipo_perfil: "idoso", nome: "Ana" },
+      { uid: "uid-novo-do-idoso", email: "idoso@a.com", email_verified: true },
+    );
+
+    expect(res.status).toBe(409);
+    expect(res.body.codigo).toBe("EMAIL_JA_EM_USO");
+    expect(create).not.toHaveBeenCalled();
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("segundo login (depois de já anexado) cai no fluxo normal de login por firebase_uid, sem duplicar nem tentar anexar de novo", async () => {
+    // Depois do anexo, o firebase_uid já bate na busca de login (topo da rota) — a
+    // pré-checagem por e-mail nem roda.
+    findFirst.mockImplementation((args: { where: { email?: string; firebase_uid?: string } }) =>
+      Promise.resolve(
+        args.where.firebase_uid !== undefined
+          ? { id: 55, tipo_perfil: "idoso", modo_decisao_solicitado: null }
+          : LINHA_DO_FAMILIAR,
+      ),
+    );
+
+    const res = await sync({}, { uid: "uid-novo-do-idoso", email: "idoso@a.com", email_verified: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.criado).toBe(false);
+    expect(create).not.toHaveBeenCalled();
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: 55 },
+      data: { ultimo_login_em: expect.any(Date) },
+    });
     expect(findFirst.mock.calls.some((c) => c[0].where.email !== undefined)).toBe(false);
   });
 });
