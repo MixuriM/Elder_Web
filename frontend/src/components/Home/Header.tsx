@@ -4,14 +4,52 @@ import {
   Menu,
   Search,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import BotaoTema from "../layout/BotaoTema";
+import { useAuthUser } from "../../hooks/useAuthUser";
+import { buscarPerfil } from "../../services/perfilService";
 
 type HeaderProps = {
   abrirSidebar: () => void;
 };
 
+function obterIniciais(nome: string) {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+
+  return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
+}
+
 function Header({ abrirSidebar }: HeaderProps) {
+  const { usuario } = useAuthUser();
+  const [nome, setNome] = useState("");
+
+  useEffect(() => {
+    let ativo = true;
+
+    if (!usuario) {
+      setNome("");
+      return () => {
+        ativo = false;
+      };
+    }
+
+    setNome(usuario.displayName ?? usuario.email ?? "");
+
+    buscarPerfil()
+      .then((perfil) => {
+        if (ativo) setNome(perfil.nome);
+      })
+      .catch(() => {});
+
+    return () => {
+      ativo = false;
+    };
+  }, [usuario]);
+
   return (
     <header
       className="
@@ -210,7 +248,7 @@ function Header({ abrirSidebar }: HeaderProps) {
               sm:w-10
             "
           >
-            LV
+            {obterIniciais(nome)}
           </div>
 
           <ChevronDown
