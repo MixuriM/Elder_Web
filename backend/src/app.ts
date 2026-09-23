@@ -20,8 +20,18 @@ app.use('/usuario', usuarioRouter)
 app.use('/vinculo', vinculoRouter)
 app.use('/saude', saudeRouter)
 
-const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
-  console.error(err)
+// Item 4.5 (parcial): loga só name, code, método e path. Nunca o erro inteiro, message,
+// stack (começa pela message) nem req.body/req.query: um erro do Prisma carrega os args da
+// query, ou seja, valores de RegistroSaude (LGPD Art. 5º, XI). Custo: sem message/stack no
+// log, depurar um 500 exige reproduzir o caso.
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  const info = typeof err === 'object' && err !== null ? (err as { name?: unknown; code?: unknown }) : {}
+  console.error('Erro não tratado', {
+    name: err instanceof Error && typeof info.name === 'string' ? info.name : typeof err,
+    code: typeof info.code === 'string' || typeof info.code === 'number' ? info.code : undefined,
+    method: req.method,
+    path: req.path,
+  })
   if (res.headersSent) {
     return next(err)
   }
