@@ -14,6 +14,7 @@ import {
   syncUser,
   sendEmailVerification,
   mensagemErroCadastro,
+  SyncError,
   type TipoPerfil,
 } from "../lib/auth";
 
@@ -119,6 +120,8 @@ function Cadastro() {
       // Sincroniza o perfil escolhido
       await syncUser({
         tipoPerfil,
+        // Nome digitado só vale se a conta Google não trouxer um (backend prefere o do formulário)
+        nome: nome.trim() || undefined,
         emailConviteFamiliar:
           tipoPerfil === "idoso"
             ? emailConviteFamiliar
@@ -137,7 +140,12 @@ function Cadastro() {
         err
       );
 
-      setErro(mensagemErroCadastro(err));
+      // Conta Google sem nome: /auth/sync recusa (400). Pede o nome e deixa tentar de novo.
+      setErro(
+        err instanceof SyncError && err.status === 400 && /nome/i.test(err.message)
+          ? "Sua conta Google não informou o nome. Preencha o campo Nome completo e clique em continuar com o Google de novo."
+          : mensagemErroCadastro(err)
+      );
     } finally {
       setCarregando(false);
     }
