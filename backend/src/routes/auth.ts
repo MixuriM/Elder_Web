@@ -136,7 +136,7 @@ router.post("/sync", async (req, res, next) => {
         .json({ error: "tipo_perfil obrigatório ao criar conta (idoso, cuidador ou familiar)." });
     }
 
-    const nome = (typeof req.body?.nome === "string" ? req.body.nome.trim() : "") || decoded.name;
+    const nome = typeof req.body?.nome === "string" ? req.body.nome.trim() : decoded.name;
 
     if (!decoded.email && !decoded.phone_number) {
       return res.status(400).json({ error: "Conta Firebase sem e-mail ou telefone associado." });
@@ -212,8 +212,6 @@ router.post("/sync", async (req, res, next) => {
           telefone: decoded.phone_number,
           tipo_perfil: tipoPerfil,
           email_convite_familiar: emailConviteFamiliar,
-          // ER: modo_decisao obrigatório para idoso; autocadastro nasce decidindo por si.
-          ...(tipoPerfil === "idoso" && { modo_decisao: "idoso" }),
         },
       });
 
