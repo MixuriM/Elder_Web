@@ -10,10 +10,12 @@ import {
 
 type BotaoTemaProps = {
   compacto?: boolean;
+  responsivo?: boolean;
 };
 
 function BotaoTema({
   compacto = false,
+  responsivo = false,
 }: BotaoTemaProps) {
   const [escuro, setEscuro] = useState(false);
 
@@ -32,7 +34,6 @@ function BotaoTema({
     );
   }, []);
 
-  // Alterna entre tema claro e escuro
   function alterarTema() {
     const novoTemaEscuro = !escuro;
 
@@ -74,24 +75,53 @@ function BotaoTema({
         focus-visible:ring-2
         focus-visible:ring-[#6C63FF]/30
 
-        ${
-          compacto
-            ? `
-              h-10
-              w-10
+        ${compacto || responsivo
+          ? `
+            h-10
+            w-10
 
-              rounded-full
+            rounded-full
 
-              bg-transparent
-              text-[#6C63FF]
+            bg-transparent
+            text-[#6C63FF]
 
-              hover:bg-[#F3F0FF]
+            hover:bg-[#F3F0FF]
 
-              dark:bg-transparent
-              dark:text-[#A89FFF]
-              dark:hover:bg-[#2B2C3B]
-            `
-            : `
+            dark:bg-transparent
+            dark:text-[#A89FFF]
+            dark:hover:bg-[#2B2C3B]
+
+            ${
+              responsivo && !compacto
+                ? `
+                  lg:h-11
+                  lg:w-fit
+                  lg:gap-2
+                  lg:rounded-xl
+                  lg:border
+                  lg:border-gray-300
+                  lg:bg-white
+                  lg:px-4
+                  lg:text-sm
+                  lg:font-semibold
+                  lg:text-[#071A38]
+                  lg:shadow-sm
+
+                  lg:hover:border-[#A18BFF]
+                  lg:hover:bg-[#F3F0FF]
+                  lg:hover:text-[#6C63FF]
+
+                  lg:dark:border-[#454558]
+                  lg:dark:bg-[#2B2C3B]
+                  lg:dark:text-[#F5F5FA]
+                  lg:dark:hover:border-[#66667A]
+                  lg:dark:hover:bg-[#373849]
+                  lg:dark:hover:text-[#A89FFF]
+                `
+                : ""
+            }
+          `
+          : `
               h-11
               w-fit
 
@@ -131,18 +161,18 @@ function BotaoTema({
         <Sun
           size={compacto ? 20 : 17}
           strokeWidth={2}
-          className="shrink-0"
+          className={`shrink-0 ${responsivo ? "h-5 w-5 lg:h-[17px] lg:w-[17px]" : ""}`}
         />
       ) : (
         <Moon
           size={compacto ? 20 : 17}
           strokeWidth={2}
-          className="shrink-0"
+          className={`shrink-0 ${responsivo ? "h-5 w-5 lg:h-[17px] lg:w-[17px]" : ""}`}
         />
       )}
 
       {!compacto && (
-        <span className="whitespace-nowrap">
+          <span className={`whitespace-nowrap ${responsivo ? "hidden lg:inline" : ""}`}>
           {escuro
             ? "Modo claro"
             : "Modo escuro"}

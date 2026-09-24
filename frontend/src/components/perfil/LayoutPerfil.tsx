@@ -87,15 +87,15 @@ function LayoutPerfil({
       <div
         className="
           absolute
-          right-5
-          top-5
+          right-3
+          top-3
           z-20
 
-          sm:right-8
-          sm:top-8
+          lg:right-8
+          lg:top-8
         "
       >
-        <ControleTema />
+        <ControleTema responsivo />
       </div>
 
 
