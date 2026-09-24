@@ -6,102 +6,206 @@ function LandingWelcome() {
     <section
       className="
         relative
+
         flex
-        min-h-screen
+        w-full
+
         items-center
         justify-center
+
         bg-white
-        dark:bg-[#101018]
-        px-8
+
+        px-4
         py-10
+
         transition-colors
         duration-300
-        lg:px-14
-        xl:px-20
+
+        sm:px-6
+        sm:py-12
+
+        md:min-h-screen
+        md:px-6
+
+        lg:px-10
+
+        xl:px-14
+
+        2xl:px-20
+
+        dark:bg-[#101018]
       "
     >
-      {/* Botão para alterar o tema */}
+      {/* =====================================================
+          BOTÃO DE TEMA - TABLET / DESKTOP
+
+          No celular o botão compacto fica no Welcome.tsx.
+      ====================================================== */}
+
       <div
         className="
           absolute
-          top-6
-          right-6
+          right-5
+          top-5
           z-50
+
+          hidden
+          md:block
+
+          lg:right-6
+          lg:top-6
         "
       >
         <BotaoTema />
       </div>
 
-      {/* Card principal */}
+      {/* =====================================================
+          CARD PRINCIPAL
+      ====================================================== */}
+
       <div
         className="
           w-full
           max-w-[590px]
-          rounded-[28px]
+
+          rounded-[20px]
+
           border
           border-[#DDE1E8]
+
           bg-white
-          dark:border-[#343445]
-          dark:bg-[#181824]
-          px-10
-          py-12
+
+          px-5
+          py-8
+
           text-center
+
           shadow-[0_10px_35px_rgba(30,40,80,0.05)]
-          dark:shadow-[0_10px_35px_rgba(0,0,0,0.25)]
+
           transition-colors
           duration-300
-          sm:px-12
+
+          min-[375px]:px-6
+
+          sm:rounded-[24px]
+          sm:px-7
+          sm:py-10
+
+          md:px-7
+
+          lg:rounded-[28px]
+          lg:px-9
+          lg:py-11
+
+          xl:px-10
+          xl:py-12
+
+          2xl:px-12
+
+          dark:border-[#343445]
+          dark:bg-[#181824]
+          dark:shadow-[0_10px_35px_rgba(0,0,0,0.25)]
         "
       >
-        {/* Texto superior */}
+        {/* ===================================================
+            TEXTO SUPERIOR
+        ==================================================== */}
+
         <p
           className="
-            text-base
+            text-xs
             font-bold
             uppercase
-            tracking-[0.25em]
+
+            tracking-[0.18em]
+
             text-[#6C63FF]
+
+            min-[375px]:text-sm
+            min-[375px]:tracking-[0.22em]
+
+            lg:text-base
+            lg:tracking-[0.25em]
+
             dark:text-[#A89FFF]
           "
         >
           Bem-vindo(a) ao
         </p>
 
-        {/* Nome */}
+        {/* ===================================================
+            NOME
+        ==================================================== */}
+
         <h2
           className="
             mt-2
-            text-5xl
+
+            text-3xl
             font-bold
+
             text-[#071A38]
+
+            min-[375px]:text-4xl
+
+            lg:text-5xl
+
             dark:text-[#F5F5FA]
           "
         >
           Elder
         </h2>
 
-        {/* Slogan */}
+        {/* ===================================================
+            SLOGAN
+        ==================================================== */}
+
         <p
           className="
-            mt-4
-            text-2xl
+            mt-3
+
+            text-lg
             font-medium
+
             text-[#40506A]
+
+            min-[375px]:text-xl
+
+            sm:mt-4
+
+            lg:text-2xl
+
             dark:text-[#D6D6DF]
           "
         >
           Cuidado que conecta
         </p>
 
-        {/* Texto explicativo */}
+        {/* ===================================================
+            DESCRIÇÃO
+        ==================================================== */}
+
         <p
           className="
             mx-auto
-            mt-6
+
+            mt-4
             max-w-md
-            text-lg
-            leading-8
+
+            text-sm
+            leading-6
+
             text-[#56657D]
+
+            min-[375px]:text-base
+            min-[375px]:leading-7
+
+            sm:mt-5
+
+            lg:mt-6
+            lg:text-lg
+            lg:leading-8
+
             dark:text-[#B9B9C5]
           "
         >
@@ -109,7 +213,10 @@ function LandingWelcome() {
           da pessoa idosa de forma simples e organizada.
         </p>
 
-        {/* Botões */}
+        {/* ===================================================
+            BOTÕES
+        ==================================================== */}
+
         <WelcomeBotoes />
       </div>
     </section>
