@@ -16,15 +16,14 @@ function CardAjuda() {
 
         p-5
 
-        shadow-lg
-        shadow-black/5
+        shadow-[0_18px_32px_rgba(17,24,39,0.06)]
 
         transition-colors
         duration-300
 
-        dark:border-[#454558]
-        dark:bg-[#2B2C3B]
-        dark:shadow-black/20
+        dark:border-[#454A63]
+        dark:bg-[#1F2130]
+        dark:shadow-[0_20px_40px_rgba(2,6,23,0.45)]
 
         sm:p-6
       "

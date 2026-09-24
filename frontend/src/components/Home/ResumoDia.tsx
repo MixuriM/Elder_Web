@@ -17,7 +17,7 @@ function ResumoDia() {
 
     p-4
 
-    shadow-sm
+    shadow-[0_12px_30px_rgba(15,23,42,0.04)]
 
     cursor-pointer
 
@@ -30,16 +30,15 @@ function ResumoDia() {
     hover:border-[#6C63FF]/40
     hover:bg-[#F8F7FF]
 
-    hover:shadow-xl
-    hover:shadow-[#6C63FF]/10
+    hover:shadow-[0_18px_38px_rgba(108,99,255,0.12)]
 
-    dark:border-[#454558]
-    dark:bg-[#2B2C3B]
+    dark:border-[#454A63]
+    dark:bg-[#1F2130]
 
-    dark:hover:border-[#A89FFF]/40
-    dark:hover:bg-[#373849]
+    dark:hover:border-[#A89FFF]/50
+    dark:hover:bg-[#262A3B]
 
-    dark:hover:shadow-black/20
+    dark:hover:shadow-[0_18px_40px_rgba(2,6,23,0.5)]
 
     sm:p-5
   `;
