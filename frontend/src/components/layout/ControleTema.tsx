@@ -1,11 +1,15 @@
 // Importa o componente responsável por alterar o tema
 import BotaoTema from "./BotaoTema";
 
+type ControleTemaProps = {
+  responsivo?: boolean;
+};
+
 // Componente responsável por exibir o botão de tema
-function ControleTema() {
+function ControleTema({ responsivo = false }: ControleTemaProps) {
   return (
     <>
-      <BotaoTema />
+      <BotaoTema responsivo={responsivo} />
     </>
   );
 }
