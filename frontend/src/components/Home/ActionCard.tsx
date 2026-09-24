@@ -26,12 +26,14 @@ function ActionCard({
 
         rounded-2xl
 
+        border
+        border-white/10
+
         p-5
 
         text-left
 
-        shadow-lg
-        shadow-black/10
+        shadow-[0_18px_40px_rgba(15,23,42,0.12)]
 
         ring-1
         ring-black/5
@@ -41,17 +43,18 @@ function ActionCard({
 
         hover:-translate-y-1
 
-        hover:shadow-2xl
-        hover:shadow-black/15
+        hover:shadow-[0_22px_48px_rgba(15,23,42,0.18)]
 
         focus:outline-none
         focus:ring-2
         focus:ring-[#6C63FF]/60
 
-        dark:shadow-black/25
+        dark:border-white/10
+        dark:bg-[#1F2130]/70
+        dark:shadow-[0_22px_55px_rgba(2,6,23,0.55)]
         dark:ring-white/5
 
-        dark:hover:shadow-black/35
+        dark:hover:shadow-[0_26px_60px_rgba(2,6,23,0.6)]
 
         dark:focus:ring-[#A89FFF]/70
 
@@ -62,6 +65,21 @@ function ActionCard({
         ${color}
       `}
     >
+      <div
+        className="
+          absolute
+          inset-0
+
+          bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),_transparent_45%)]
+
+          opacity-80
+          transition-opacity
+          duration-300
+
+          group-hover:opacity-100
+        "
+      />
+
       {/* Detalhe decorativo */}
       <div
         className="

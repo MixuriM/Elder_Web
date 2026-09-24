@@ -15,20 +15,21 @@ function BannerSaude() {
 
         bg-gradient-to-r
         from-[#6C63FF]
+        via-[#756DFF]
         to-[#8B83FF]
 
         p-5
 
-        shadow-lg
-        shadow-[#6C63FF]/10
+        shadow-[0_18px_38px_rgba(108,99,255,0.18)]
 
         transition-colors
         duration-300
 
-        dark:border-[#454558]
-        dark:from-[#373849]
-        dark:to-[#2B2C3B]
-        dark:shadow-black/20
+        dark:border-[#4D5174]
+        dark:from-[#2A2D42]
+        dark:via-[#222639]
+        dark:to-[#171B2B]
+        dark:shadow-[0_20px_45px_rgba(2,6,23,0.45)]
 
         sm:p-6
       "

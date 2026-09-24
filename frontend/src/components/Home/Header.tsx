@@ -5,6 +5,7 @@ import {
   Search,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
 import { useAuthUser } from "../../hooks/useAuthUser";
@@ -24,6 +25,7 @@ function obterIniciais(nome: string) {
 }
 
 function Header({ abrirSidebar }: HeaderProps) {
+  const navigate = useNavigate();
   const { usuario } = useAuthUser();
   const [nome, setNome] = useState("");
 
@@ -209,6 +211,7 @@ function Header({ abrirSidebar }: HeaderProps) {
         <button
           type="button"
           aria-label="Abrir perfil"
+          onClick={() => navigate("/perfil")}
           className="
             flex
             items-center
