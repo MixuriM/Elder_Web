@@ -17,7 +17,7 @@ function Home() {
       className="
         min-h-screen
 
-        bg-[#FAFAFF]
+        bg-[#F5F7FF]
         text-[#071A38]
 
         antialiased
@@ -25,7 +25,7 @@ function Home() {
         transition-colors
         duration-300
 
-        dark:bg-[#181824]
+        dark:bg-[radial-gradient(circle_at_top,_#272A3D_0%,_#1C1E2A_30%,_#11141D_100%)]
         dark:text-[#F5F5FA]
       "
     >
