@@ -1,5 +1,3 @@
-// Importa o useState para criar os estados da página
-// e FormEvent para definir o tipo do evento do formulário
 import {
   useState,
   type FormEvent,
@@ -7,7 +5,6 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
-// Importa as funções relacionadas à autenticação
 import {
   registerUser,
   loginWithGoogle,
@@ -17,51 +14,48 @@ import {
   type TipoPerfil,
 } from "../lib/auth";
 
-// Importa os componentes principais da página
 import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioCadastro from "../components/cadastro/FormularioCadastro";
-import ControleTema from "../components/layout/ControleTema";
+import BotaoTema from "../components/layout/BotaoTema";
 
 const MENSAGEM_ESCOLHA_PERFIL =
   "Escolha se você é idoso, cuidador ou familiar.";
 
-// Componente principal da página de cadastro
 function Cadastro() {
-  // Estado responsável por armazenar o nome digitado
-  const [nome, setNome] = useState("");
+  // =========================================================
+  // ESTADOS
+  // =========================================================
 
-  // Estado responsável por armazenar o e-mail digitado
+  const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
 
-  // E-mail do familiar convidado
   const [
     emailConviteFamiliar,
     setEmailConviteFamiliar,
   ] = useState("");
 
-  // Estado responsável por armazenar a senha
   const [senha, setSenha] = useState("");
 
-  // Confirmação da senha
-  const [confirmacaoSenha, setConfirmacaoSenha] =
-    useState("");
+  const [
+    confirmacaoSenha,
+    setConfirmacaoSenha,
+  ] = useState("");
 
-  // Perfil selecionado (começa sem escolha: o perfil é fixo depois de criado)
   const [tipoPerfil, setTipoPerfil] =
     useState<TipoPerfil | null>(null);
 
-  // Mensagem de erro
   const [erro, setErro] =
     useState<string | null>(null);
 
-  // Indica se uma requisição está em andamento
   const [carregando, setCarregando] =
     useState(false);
 
-  // Responsável pela navegação
   const navigate = useNavigate();
 
-  // Cadastro utilizando e-mail e senha
+  // =========================================================
+  // CADASTRO COM E-MAIL E SENHA
+  // =========================================================
+
   async function handleSubmit(
     e: FormEvent
   ) {
@@ -75,7 +69,10 @@ function Cadastro() {
     }
 
     if (senha !== confirmacaoSenha) {
-      setErro("As senhas não são iguais. Digite a mesma senha nos dois campos.");
+      setErro(
+        "As senhas não são iguais. Digite a mesma senha nos dois campos."
+      );
+
       return;
     }
 
@@ -83,26 +80,34 @@ function Cadastro() {
 
     try {
       // Registra o usuário
-      await registerUser(email, senha);
+      await registerUser(
+        email,
+        senha
+      );
 
-      // Envia confirmação de e-mail para familiar e idoso (RF-025 e RF-030 extensão/3.3
-      // dependem de email_verified para o vínculo/anexo automático)
       let emailEnviado = false;
-      if (tipoPerfil === "familiar" || tipoPerfil === "idoso") {
-        emailEnviado = await sendEmailVerification();
+
+      // Envia confirmação de e-mail
+      if (
+        tipoPerfil === "familiar" ||
+        tipoPerfil === "idoso"
+      ) {
+        emailEnviado =
+          await sendEmailVerification();
       }
 
       // Sincroniza os dados adicionais
       await syncUser({
         tipoPerfil,
         nome,
+
         emailConviteFamiliar:
           tipoPerfil === "idoso"
             ? emailConviteFamiliar
             : undefined,
       });
 
-      // Navega para a página de boas-vindas
+      // Vai para a Welcome
       navigate("/welcome", {
         state: {
           cadastroSucesso: true,
@@ -115,13 +120,18 @@ function Cadastro() {
         err
       );
 
-      setErro(mensagemErroCadastro(err));
+      setErro(
+        mensagemErroCadastro(err)
+      );
     } finally {
       setCarregando(false);
     }
   }
 
-  // Cadastro utilizando Google
+  // =========================================================
+  // CADASTRO COM GOOGLE
+  // =========================================================
+
   async function handleGoogleCadastro() {
     setErro(null);
 
@@ -133,25 +143,28 @@ function Cadastro() {
     setCarregando(true);
 
     try {
-      // Autenticação com Google
+      // Login/cadastro com Google
       await loginWithGoogle();
 
-      // Confirmação do e-mail para familiar e idoso (RF-025 e RF-030 extensão/3.3
-      // dependem de email_verified para o vínculo/anexo automático)
-      if (tipoPerfil === "familiar" || tipoPerfil === "idoso") {
+      // Confirmação de e-mail
+      if (
+        tipoPerfil === "familiar" ||
+        tipoPerfil === "idoso"
+      ) {
         await sendEmailVerification();
       }
 
       // Sincroniza o perfil escolhido
       await syncUser({
         tipoPerfil,
+
         emailConviteFamiliar:
           tipoPerfil === "idoso"
             ? emailConviteFamiliar
             : undefined,
       });
 
-      // Navega para a página de boas-vindas
+      // Vai para a Welcome
       navigate("/welcome", {
         state: {
           cadastroSucesso: true,
@@ -163,118 +176,237 @@ function Cadastro() {
         err
       );
 
-      setErro(mensagemErroCadastro(err));
+      setErro(
+        mensagemErroCadastro(err)
+      );
     } finally {
       setCarregando(false);
     }
   }
 
   return (
-    <main
-      className="
-        min-h-screen
-        bg-white
-        font-['Atkinson_Hyperlegible']
+    <>
+      {/* =====================================================
+          BOTÃO DE TEMA - MOBILE / TABLET
 
-        transition-colors
-        duration-300
+          IMPORTANTE:
+          Está FORA do <main>.
 
-        dark:bg-[#101018]
-      "
-    >
-      {/* Estrutura principal */}
+          Assim ele não pertence ao conteúdo da página
+          que está sendo rolado.
+      ====================================================== */}
+<div
+  className="
+    absolute
+    right-4
+    top-4
+    z-50
+
+    sm:right-5
+    sm:top-5
+
+    lg:hidden
+  "
+>
+  <BotaoTema compacto />
+</div>
+
+      {/* =====================================================
+          BOTÃO DE TEMA - DESKTOP
+      ====================================================== */}
+
       <div
         className="
-          grid
-          min-h-screen
-          items-stretch
+          fixed
+          right-6
+          top-6
+          z-[99999]
 
-          lg:grid-cols-2
+          hidden
+          lg:block
+        "
+        style={{
+          position: "fixed",
+          zIndex: 99999,
+        }}
+      >
+        <BotaoTema />
+      </div>
+
+      {/* =====================================================
+          PÁGINA
+      ====================================================== */}
+
+      <main
+        className="
+          min-h-screen
+          w-full
+
+          overflow-x-hidden
+
+          bg-white
+
+          font-['Atkinson_Hyperlegible']
+
+          transition-colors
+          duration-300
+
+          dark:bg-[#101018]
         "
       >
-        {/* LADO ESQUERDO */}
-        <div className="h-full">
-          <LadoInformativo
-            tipo="cadastro"
-            tipoPerfil={tipoPerfil ?? undefined}
-          />
-        </div>
+        {/* ===================================================
+            ESTRUTURA PRINCIPAL
 
-        {/* LADO DIREITO */}
-        <section
+            MOBILE:
+            LadoInformativo
+            ↓
+            Formulário
+
+            DESKTOP:
+            LadoInformativo | Formulário
+        ==================================================== */}
+
+        <div
           className="
-            relative
-
             flex
-            min-h-screen
-            items-center
-            justify-center
+            w-full
+            flex-col
 
-            bg-white
-
-            px-6
-            py-20
-
-            transition-colors
-            duration-300
-
-            dark:bg-[#101018]
+            lg:grid
+            lg:min-h-screen
+            lg:grid-cols-2
+            lg:items-stretch
           "
         >
-          {/* CONTROLE DE TEMA */}
+          {/* =================================================
+              LADO INFORMATIVO
+          ================================================== */}
+
           <div
             className="
-              absolute
-              right-6
-              top-5
-              z-20
-
-              sm:right-8
-              sm:top-6
-            "
-          >
-            <ControleTema />
-          </div>
-
-          {/* FORMULÁRIO */}
-          <div
-            className="
-              flex
               w-full
-              items-center
-              justify-center
+              min-w-0
+
+              lg:h-full
             "
           >
-            <FormularioCadastro
-              nome={nome}
-              email={email}
-              senha={senha}
-              confirmacaoSenha={confirmacaoSenha}
-              emailConviteFamiliar={
-                emailConviteFamiliar
-              }
-              tipoPerfil={tipoPerfil}
-              erro={erro}
-              carregando={carregando}
-              setNome={setNome}
-              setEmail={setEmail}
-              setSenha={setSenha}
-              setConfirmacaoSenha={setConfirmacaoSenha}
-              setEmailConviteFamiliar={
-                setEmailConviteFamiliar
-              }
-              setTipoPerfil={setTipoPerfil}
-              onSubmit={handleSubmit}
-              onGoogleCadastro={
-                handleGoogleCadastro
+            <LadoInformativo
+              tipo="cadastro"
+              tipoPerfil={
+                tipoPerfil ?? undefined
               }
             />
           </div>
-        </section>
-      </div>
-    </main>
+
+          {/* =================================================
+              FORMULÁRIO
+          ================================================== */}
+
+          <section
+            className="
+              flex
+              w-full
+              min-w-0
+              flex-1
+
+              items-start
+              justify-center
+
+              bg-white
+
+              px-4
+              pb-10
+              pt-8
+
+              transition-colors
+              duration-300
+
+              min-[375px]:px-5
+
+              sm:px-6
+              sm:pb-12
+              sm:pt-10
+
+              md:px-8
+              md:pb-14
+              md:pt-12
+
+              lg:h-full
+              lg:items-center
+              lg:px-8
+              lg:py-12
+
+              xl:px-12
+              xl:py-14
+
+              dark:bg-[#101018]
+            "
+          >
+            {/* ===============================================
+                CONTAINER DO FORMULÁRIO
+            ================================================ */}
+
+            <div
+              className="
+                mx-auto
+
+                flex
+                w-full
+                min-w-0
+                max-w-xl
+
+                items-center
+                justify-center
+              "
+            >
+              <FormularioCadastro
+                nome={nome}
+                email={email}
+                senha={senha}
+                confirmacaoSenha={
+                  confirmacaoSenha
+                }
+                emailConviteFamiliar={
+                  emailConviteFamiliar
+                }
+                tipoPerfil={
+                  tipoPerfil
+                }
+                erro={erro}
+                carregando={
+                  carregando
+                }
+                setNome={
+                  setNome
+                }
+                setEmail={
+                  setEmail
+                }
+                setSenha={
+                  setSenha
+                }
+                setConfirmacaoSenha={
+                  setConfirmacaoSenha
+                }
+                setEmailConviteFamiliar={
+                  setEmailConviteFamiliar
+                }
+                setTipoPerfil={
+                  setTipoPerfil
+                }
+                onSubmit={
+                  handleSubmit
+                }
+                onGoogleCadastro={
+                  handleGoogleCadastro
+                }
+              />
+            </div>
+          </section>
+        </div>
+      </main>
+    </>
   );
 }
 
-// Exporta a página Cadastro
 export default Cadastro;

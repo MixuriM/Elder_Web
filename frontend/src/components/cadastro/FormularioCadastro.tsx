@@ -1,17 +1,19 @@
-
 // Importa o tipo utilizado pelo evento de envio do formulário
 import type { FormEvent } from "react";
 
 // Importa o tipo dos perfis disponíveis
 import type { TipoPerfil } from "../../lib/auth";
 
-// Importa os componentes utilizados no formulário
+// Componentes
 import CampoTexto from "./CampoTexto";
 import TipoPerfilCampo from "./TipoPerfil";
 import BotaoGoogle from "./BotaoGoogle";
 import Spinner from "../common/Spinner";
 
-// Define as propriedades recebidas pelo formulário
+// =========================================================
+// PROPS
+// =========================================================
+
 type FormularioCadastroProps = {
   nome: string;
   email: string;
@@ -33,7 +35,10 @@ type FormularioCadastroProps = {
   onGoogleCadastro: () => void;
 };
 
-// Componente responsável pelo formulário de cadastro
+// =========================================================
+// COMPONENTE
+// =========================================================
+
 function FormularioCadastro({
   nome,
   email,
@@ -56,76 +61,164 @@ function FormularioCadastro({
     <section
       className="
         flex
-        min-h-screen
+        w-full
+        min-w-0
         items-center
         justify-center
+
         bg-white
-        px-6
-        py-10
+
         transition-colors
         duration-300
+
         dark:bg-[#101018]
       "
     >
-      {/* Formulário principal */}
+      {/* =====================================================
+          FORMULÁRIO
+      ====================================================== */}
+
       <form
         onSubmit={onSubmit}
         className="
           w-full
+          min-w-0
           max-w-xl
-          rounded-3xl
+
+          rounded-[20px]
+
           border
           border-gray-200
+
           bg-white
-          px-10
-          py-8
+
+          px-4
+          py-6
+
           shadow-sm
+
           transition-colors
           duration-300
+
+          min-[375px]:px-5
+          min-[375px]:py-7
+
+          sm:rounded-3xl
+          sm:px-7
+          sm:py-8
+
+          md:px-8
+
+          lg:px-8
+
+          xl:px-10
+
           dark:border-[#343445]
           dark:bg-[#181824]
           dark:shadow-[0_10px_35px_rgba(0,0,0,0.25)]
         "
       >
-        {/* Título */}
+        {/* ===================================================
+            TÍTULO
+        ==================================================== */}
+
         <h1
           className="
             text-center
-            text-4xl
+
+            text-[1.75rem]
             font-bold
+            leading-tight
+
             text-[#111827]
+
             transition-colors
             duration-300
+
+            min-[375px]:text-3xl
+
+            sm:text-[2rem]
+
+            lg:text-4xl
+
             dark:text-[#F5F5FA]
           "
         >
           Criar conta
         </h1>
 
-        {/* Descrição */}
+        {/* ===================================================
+            DESCRIÇÃO
+        ==================================================== */}
+
         <p
           className="
-            mt-3
+            mx-auto
+            mt-2
+
+            max-w-sm
+
+            px-2
+
             text-center
-            text-2xl
+            text-base
+            leading-6
+
             text-[#4B5563]
+
             transition-colors
             duration-300
+
+            min-[375px]:text-[1.05rem]
+
+            sm:mt-3
+            sm:text-lg
+            sm:leading-7
+
+            lg:text-xl
+
             dark:text-[#B9B9C5]
           "
         >
           Cadastre-se de forma rápida e simples.
         </p>
 
-        {/* Tipo de perfil */}
-        <TipoPerfilCampo
-          tipoPerfil={tipoPerfil}
-          setTipoPerfil={setTipoPerfil}
-        />
+        {/* ===================================================
+            TIPO DE PERFIL
+        ==================================================== */}
 
-        {/* Campos do formulário */}
-        <div className="mt-8 space-y-5">
+        <div
+          className="
+            mt-5
+            w-full
+            min-w-0
+
+            sm:mt-6
+          "
+        >
+          <TipoPerfilCampo
+            tipoPerfil={tipoPerfil}
+            setTipoPerfil={setTipoPerfil}
+          />
+        </div>
+
+        {/* ===================================================
+            CAMPOS
+        ==================================================== */}
+
+        <div
+          className="
+            mt-6
+            space-y-4
+
+            sm:mt-7
+            sm:space-y-5
+
+            lg:mt-8
+          "
+        >
           {/* Nome completo */}
+
           <CampoTexto
             id="nome"
             label="Nome completo"
@@ -137,6 +230,7 @@ function FormularioCadastro({
           />
 
           {/* E-mail */}
+
           <CampoTexto
             id="email"
             label="E-mail"
@@ -148,6 +242,7 @@ function FormularioCadastro({
           />
 
           {/* Senha */}
+
           <CampoTexto
             id="senha"
             label="Senha"
@@ -160,6 +255,7 @@ function FormularioCadastro({
           />
 
           {/* Confirmação da senha */}
+
           <CampoTexto
             id="confirmacao_senha"
             label="Confirmação da senha"
@@ -170,7 +266,8 @@ function FormularioCadastro({
             autoComplete="new-password"
           />
 
-          {/* E-mail do familiar - exibido somente para o perfil idoso */}
+          {/* E-mail do familiar */}
+
           {tipoPerfil === "idoso" && (
             <CampoTexto
               id="email_convite_familiar"
@@ -186,19 +283,33 @@ function FormularioCadastro({
           )}
         </div>
 
-        {/* Mensagem de erro */}
+        {/* ===================================================
+            ERRO
+        ==================================================== */}
+
         {erro && (
           <p
             role="alert"
             className="
-              mt-5
+              mt-4
+
               rounded-xl
+
               bg-red-50
-              p-4
-              text-lg
+
+              p-3
+
+              text-sm
+              leading-5
               text-red-700
+
               transition-colors
               duration-300
+
+              sm:mt-5
+              sm:p-4
+              sm:text-base
+
               dark:bg-red-950/40
               dark:text-red-300
             "
@@ -207,33 +318,55 @@ function FormularioCadastro({
           </p>
         )}
 
-        {/* Botão para criar a conta */}
+        {/* ===================================================
+            BOTÃO CRIAR CONTA
+        ==================================================== */}
+
         <button
           type="submit"
           disabled={carregando}
           aria-busy={carregando}
           className="
-            mt-7
+            mt-6
+
             flex
             w-full
+
             items-center
             justify-center
-            gap-3
-            rounded-2xl
+
+            gap-2
+
+            rounded-xl
+
             bg-[#6C63FF]
-            px-6
-            py-4
-            text-lg
+
+            px-4
+            py-3
+
+            text-base
             font-bold
+
             text-white
+
             transition
             duration-300
+
             hover:bg-[#5B54E8]
+
             focus:outline-none
             focus:ring-4
             focus:ring-[#EDE7FF]
+
             disabled:cursor-not-allowed
             disabled:opacity-70
+
+            sm:mt-7
+            sm:rounded-2xl
+            sm:px-6
+            sm:py-4
+            sm:text-lg
+
             dark:bg-[#6C63FF]
             dark:hover:bg-[#7C74FF]
             dark:focus:ring-[#3A355C]
@@ -241,24 +374,47 @@ function FormularioCadastro({
         >
           {carregando && <Spinner />}
 
-          {carregando ? "Criando conta" : "Criar minha conta"}
+          {carregando
+            ? "Criando conta"
+            : "Criar minha conta"}
         </button>
 
-        {/* Divisor */}
-        <div className="my-6 flex items-center gap-4">
+        {/* ===================================================
+            DIVISOR
+        ==================================================== */}
+
+        <div
+          className="
+            my-5
+
+            flex
+            items-center
+
+            gap-3
+
+            sm:my-6
+            sm:gap-4
+          "
+        >
           <div
             className="
               h-px
               flex-1
+
               bg-gray-200
+
               dark:bg-[#343445]
             "
           />
 
           <span
             className="
-              text-lg
+              text-sm
+
               text-gray-500
+
+              sm:text-base
+
               dark:text-[#B9B9C5]
             "
           >
@@ -269,27 +425,47 @@ function FormularioCadastro({
             className="
               h-px
               flex-1
+
               bg-gray-200
+
               dark:bg-[#343445]
             "
           />
         </div>
 
-        {/* Cadastro utilizando Google */}
+        {/* ===================================================
+            GOOGLE
+        ==================================================== */}
+
         <BotaoGoogle
           onClick={onGoogleCadastro}
           disabled={carregando}
         />
 
-        {/* Link para a página de login */}
+        {/* ===================================================
+            LOGIN
+        ==================================================== */}
+
         <p
           className="
-            mt-6
+            mt-5
+
+            px-1
+
             text-center
-            text-lg
+            text-sm
+            leading-6
+
             text-[#4B5563]
+
             transition-colors
             duration-300
+
+            sm:mt-6
+            sm:text-base
+
+            lg:text-lg
+
             dark:text-[#B9B9C5]
           "
         >
@@ -299,11 +475,15 @@ function FormularioCadastro({
             href="/login"
             className="
               font-bold
+
               text-[#6C63FF]
+
               hover:underline
+
               focus:outline-none
               focus:ring-2
               focus:ring-[#6C63FF]/40
+
               dark:text-[#A89FFF]
             "
           >
@@ -315,5 +495,4 @@ function FormularioCadastro({
   );
 }
 
-// Exporta o componente
 export default FormularioCadastro;
