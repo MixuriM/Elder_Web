@@ -8,8 +8,13 @@ import {
 // Importa as funções responsáveis pela comunicação com a API
 import {
   buscarPerfil,
+  enviarFotoPerfil,
+  removerFotoPerfil,
   salvarPerfil,
 } from "../services/perfilService";
+
+// Foto compartilhada com o Header (/home) sem reload
+import { useFotoPerfil } from "../contexts/FotoPerfilContext";
 
 // Importa o formulário do perfil
 import FormularioPerfil from "../components/perfil/FormularioPerfil";
@@ -23,9 +28,13 @@ function Perfil() {
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
 
-  // Foto de perfil
-  // Por enquanto guarda apenas a URL temporária da imagem selecionada
-  const [foto, setFoto] = useState<string | null>(null);
+  // Foto de perfil (fica no contexto, pra refletir na hora no Header)
+  const { fotoPerfilUrl, definirFotoPerfil } = useFotoPerfil();
+
+  // Estado do envio/remoção da foto (mensagens separadas das do formulário)
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [erroFoto, setErroFoto] = useState<string | null>(null);
+  const [sucessoFoto, setSucessoFoto] = useState<string | null>(null);
 
   // Controla o carregamento inicial da página
   const [carregando, setCarregando] = useState(true);
@@ -60,6 +69,53 @@ function Perfil() {
         setCarregando(false);
       });
   }, []);
+
+  // Envia a foto escolhida e atualiza o contexto (Header)
+  async function handleEnviarFoto(arquivo: File) {
+    setErroFoto(null);
+    setSucessoFoto(null);
+    setEnviandoFoto(true);
+
+    try {
+      definirFotoPerfil(await enviarFotoPerfil(arquivo));
+      setSucessoFoto("Foto de perfil atualizada.");
+    } catch (err) {
+      // Só a mensagem: nunca o arquivo nem a data URI
+      console.error(
+        "Falha ao enviar foto de perfil:",
+        err instanceof Error ? err.message : "erro desconhecido"
+      );
+
+      setErroFoto(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível enviar a foto. Tente novamente."
+      );
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
+
+  // Remove a foto e zera o contexto
+  async function handleRemoverFoto() {
+    setErroFoto(null);
+    setSucessoFoto(null);
+    setEnviandoFoto(true);
+
+    try {
+      definirFotoPerfil(await removerFotoPerfil());
+      setSucessoFoto("Foto de perfil removida.");
+    } catch (err) {
+      console.error(
+        "Falha ao remover foto de perfil:",
+        err instanceof Error ? err.message : "erro desconhecido"
+      );
+
+      setErroFoto("Não foi possível remover a foto. Tente novamente.");
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
 
   // Função executada quando o usuário salva as alterações
   async function handleSubmit(e: FormEvent) {
@@ -127,7 +183,10 @@ function Perfil() {
         nome={nome}
         email={email}
         telefone={telefone}
-        foto={foto}
+        foto={fotoPerfilUrl}
+        enviandoFoto={enviandoFoto}
+        erroFoto={erroFoto}
+        sucessoFoto={sucessoFoto}
 
         // Mensagens
         erro={erro}
@@ -137,7 +196,8 @@ function Perfil() {
         setNome={setNome}
         setEmail={setEmail}
         setTelefone={setTelefone}
-        setFoto={setFoto}
+        onEnviarFoto={handleEnviarFoto}
+        onRemoverFoto={handleRemoverFoto}
 
         // Envio do formulário
         onSubmit={handleSubmit}

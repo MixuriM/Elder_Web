@@ -19,11 +19,15 @@ type FormularioPerfilProps = {
   erro: string | null;
   sucesso: boolean;
   foto: string | null;
+  enviandoFoto: boolean;
+  erroFoto: string | null;
+  sucessoFoto: string | null;
 
   setNome: (valor: string) => void;
   setEmail: (valor: string) => void;
   setTelefone: (valor: string) => void;
-  setFoto: (valor: string | null) => void;
+  onEnviarFoto: (arquivo: File) => void;
+  onRemoverFoto: () => void;
 
   onSubmit: (e: FormEvent) => void;
 };
@@ -35,10 +39,14 @@ function FormularioPerfil({
   erro,
   sucesso,
   foto,
+  enviandoFoto,
+  erroFoto,
+  sucessoFoto,
   setNome,
   setEmail,
   setTelefone,
-  setFoto,
+  onEnviarFoto,
+  onRemoverFoto,
   onSubmit,
 }: FormularioPerfilProps) {
 
@@ -49,18 +57,18 @@ function FormularioPerfil({
   const inputFotoRef =
     useRef<HTMLInputElement>(null);
 
-  // Seleciona a foto e cria uma pré-visualização
+  // Seleciona a foto e envia pro servidor (o contexto atualiza a imagem)
   function handleFoto(
     e: ChangeEvent<HTMLInputElement>
   ) {
     const arquivo = e.target.files?.[0];
 
+    // Permite escolher o mesmo arquivo de novo depois
+    e.target.value = "";
+
     if (!arquivo) return;
 
-    const urlTemporaria =
-      URL.createObjectURL(arquivo);
-
-    setFoto(urlTemporaria);
+    onEnviarFoto(arquivo);
   }
 
   return (
@@ -215,6 +223,7 @@ function FormularioPerfil({
               inputFotoRef.current?.click()
             }
             aria-label="Alterar foto de perfil"
+            disabled={enviandoFoto}
             className="
               absolute
               bottom-1
@@ -255,8 +264,10 @@ function FormularioPerfil({
         {/* Input escondido */}
         <input
           ref={inputFotoRef}
+          id="foto-perfil"
           type="file"
-          accept="image/png, image/jpeg, image/webp"
+          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+          aria-label="Escolher foto de perfil (JPEG ou PNG, até 2 MB)"
           onChange={handleFoto}
           className="hidden"
         />
@@ -268,6 +279,7 @@ function FormularioPerfil({
           onClick={() =>
             inputFotoRef.current?.click()
           }
+          disabled={enviandoFoto}
           className="
             mt-3
 
@@ -287,6 +299,99 @@ function FormularioPerfil({
             ? "Alterar foto"
             : "Adicionar foto"}
         </button>
+
+        {/* Remover foto: só aparece quando há foto */}
+        {foto && (
+          <button
+            type="button"
+            onClick={onRemoverFoto}
+            disabled={enviandoFoto}
+            className="
+              mt-2
+
+              text-sm
+              font-semibold
+              text-red-600
+
+              transition
+
+              hover:text-red-700
+
+              dark:text-red-400
+              dark:hover:text-red-300
+            "
+          >
+            Remover foto de perfil
+          </button>
+        )}
+
+        <p
+          className="
+            mt-2
+            text-sm
+            text-gray-600
+            dark:text-gray-300
+          "
+        >
+          JPEG ou PNG, até 2 MB.
+        </p>
+
+        {/* Feedback da foto */}
+        {erroFoto && (
+          <div
+            role="alert"
+            className="
+              mt-3
+
+              rounded-xl
+
+              border
+              border-red-200
+
+              bg-red-50
+
+              px-4
+              py-3
+
+              text-sm
+              text-red-700
+
+              dark:border-red-900/60
+              dark:bg-red-950/30
+              dark:text-red-300
+            "
+          >
+            {erroFoto}
+          </div>
+        )}
+
+        {sucessoFoto && (
+          <div
+            role="status"
+            className="
+              mt-3
+
+              rounded-xl
+
+              border
+              border-green-200
+
+              bg-green-50
+
+              px-4
+              py-3
+
+              text-sm
+              text-green-700
+
+              dark:border-green-900/60
+              dark:bg-green-950/30
+              dark:text-green-300
+            "
+          >
+            {sucessoFoto}
+          </div>
+        )}
 
       </div>
 
