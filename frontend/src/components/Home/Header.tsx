@@ -29,7 +29,7 @@ function Header({ abrirSidebar }: HeaderProps) {
   const navigate = useNavigate();
   const { usuario } = useAuthUser();
   const [nome, setNome] = useState("");
-  const { fotoPerfilUrl } = useFotoPerfil();
+  const { fotoPerfilUrl, carregandoFoto } = useFotoPerfil();
 
   useEffect(() => {
     let ativo = true;
@@ -261,7 +261,7 @@ function Header({ abrirSidebar }: HeaderProps) {
                 alt=""
                 className="h-full w-full object-cover"
               />
-            ) : (
+            ) : carregandoFoto ? null : (
               obterIniciais(nome)
             )}
           </div>

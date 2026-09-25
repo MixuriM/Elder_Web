@@ -25,10 +25,10 @@ beforeAll(() => {
   })) as unknown as typeof window.matchMedia;
 });
 
-function renderHeader(fotoPerfilUrl: string | null) {
+function renderHeader(fotoPerfilUrl: string | null, carregandoFoto = false) {
   return render(
     <MemoryRouter>
-      <FotoPerfilContext.Provider value={{ fotoPerfilUrl, definirFotoPerfil: () => {} }}>
+      <FotoPerfilContext.Provider value={{ fotoPerfilUrl, carregandoFoto, definirFotoPerfil: () => {} }}>
         <Header abrirSidebar={() => {}} />
       </FotoPerfilContext.Provider>
     </MemoryRouter>
@@ -44,6 +44,13 @@ describe("Header — avatar", () => {
     renderHeader(null);
     expect(await screen.findByText("MC")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /abrir perfil/i }).querySelector("img")).toBeNull();
+  });
+
+  it("carregando a foto: não mostra iniciais nem imagem (evita o flash no F5)", async () => {
+    renderHeader(null, true);
+    const botao = screen.getByRole("button", { name: /abrir perfil/i });
+    expect(screen.queryByText("MC")).not.toBeInTheDocument();
+    expect(botao.querySelector("img")).toBeNull();
   });
 
   it("com foto: mostra a imagem e não as iniciais", async () => {
