@@ -7,6 +7,8 @@ import Spinner from '../components/common/Spinner'
 // Sem listagem, sem edição e sem polish visual: layout final é de Laureane/Jennifer.
 // Item 4.2 (RF-008): segunda seção, cuidador registra leitura de um idoso vinculado
 // (POST /saude/idoso/:idosoId), também esqueleto cru.
+// Item 4.2b (RF-007, RF-009): a mesma seção serve o familiar (só com modo_decisao='familiar'
+// no idoso; senão o backend responde 403 e a mensagem aparece em role="alert").
 
 const LEITURA_VAZIA = {
   idosoId: '',
@@ -199,7 +201,7 @@ function Saude() {
       </section>
 
       <section className="w-full max-w-sm space-y-4">
-        <h2 className="text-2xl font-bold text-gray-900">Registrar leitura de saúde de um idoso (cuidador)</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Registrar leitura de saúde de um idoso (cuidador ou familiar)</h2>
         <form onSubmit={handleRegistrarSaudeCuidador} className="space-y-4">
           {(
             [
