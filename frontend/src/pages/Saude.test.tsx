@@ -221,3 +221,43 @@ describe("Saude: registrar leitura de um idoso (cuidador, item 4.2)", () => {
     }
   });
 });
+
+// Item 4.2b (RF-007, RF-009): a seção "de um idoso" também serve o familiar.
+describe("Saude: registrar leitura de um idoso (familiar, item 4.2b)", () => {
+  beforeEach(() => {
+    mockGetCurrentUserToken.mockReset();
+    mockGetCurrentUserToken.mockResolvedValue("token-fake");
+    global.fetch = jest.fn();
+  });
+
+  async function enviar(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText("Id do idoso", { exact: true }), "5");
+    await user.type(screen.getByLabelText("Tipo de medição (cuidador)", { exact: true }), "pressao");
+    await user.type(screen.getByLabelText("Valor 1 (cuidador)", { exact: true }), "120");
+    await user.type(screen.getByLabelText("Unidade (cuidador)", { exact: true }), "mmHg");
+    await user.click(screen.getByRole("button", { name: /^registrar leitura do idoso$/i }));
+  }
+
+  it("o título da seção indica cuidador ou familiar", () => {
+    render(<Saude />);
+    expect(screen.getByRole("heading", { name: /idoso \(cuidador ou familiar\)/i })).toBeInTheDocument();
+  });
+
+  it("sucesso do familiar: envia para /saude/idoso/:id e mostra o id registrado", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 42, registrado_por_id: 20 }));
+    render(<Saude />);
+    await enviar(userEvent.setup());
+    expect(await screen.findByText(/Leitura do idoso registrada \(id 42\)/)).toBeInTheDocument();
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toMatch(/\/saude\/idoso\/5$/);
+  });
+
+  it("403 (idoso com autoridade) aparece com role=alert, sem sucesso na tela", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(403, { error: "Sem permissão para registrar leitura de saúde." }),
+    );
+    render(<Saude />);
+    await enviar(userEvent.setup());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sem permissão para registrar leitura de saúde.");
+    expect(screen.queryByText(/Leitura do idoso registrada/)).not.toBeInTheDocument();
+  });
+});
