@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
 import { useAuthUser } from "../../hooks/useAuthUser";
-import { useFotoPerfil } from "../../contexts/FotoPerfilContext";
+import { useFotoPerfil } from "../../contexts/useFotoPerfil";
 import { buscarPerfil } from "../../services/perfilService";
 
 type HeaderProps = {

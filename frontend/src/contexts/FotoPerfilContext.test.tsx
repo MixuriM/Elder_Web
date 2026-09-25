@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { FotoPerfilProvider, useFotoPerfil } from "./FotoPerfilContext";
+import { FotoPerfilProvider } from "./FotoPerfilContext";
+import { useFotoPerfil } from "./useFotoPerfil";
 
 const mockBuscarFoto = jest.fn();
 let mockUsuario: object | null = null;
