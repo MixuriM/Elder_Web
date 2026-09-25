@@ -170,4 +170,108 @@ router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), a
   }
 });
 
+// Autoridade de EDIÇÃO (item 4.3). Separada de podeEscreverSaude porque o cuidador só edita
+// registro que ele mesmo criou, e só enquanto permite_registrar_saude estiver ativa (regra do
+// grupo). Familiar: mesma regra de escrita (modo_decisao efetivo 'familiar'), sem checar autoria.
+async function podeEditarSaude(v: Vinculo, registro: { registrado_por_id: number }): Promise<boolean> {
+  if (v.tipo_vinculo === "cuidador") {
+    return v.permite_registrar_saude === true && registro.registrado_por_id === v.vinculado_id;
+  }
+  return (await resolverModoDecisao(v.idoso_id)) === "familiar";
+}
+
+const MSG_403_EDICAO = "Sem permissão para editar registro de saúde.";
+const ID_MAX = 2147483647; // int do SQL Server: acima disso o Prisma erraria com 500
+
+// Só inteiro decimal positivo: "abc", "1.5", "-3", "0" e "1e3" viram null (400, sem consultar o banco).
+function parseIdRegistro(v: string): number | null {
+  if (!/^\d+$/.test(v)) return null;
+  const n = Number(v);
+  return n >= 1 && n <= ID_MAX ? n : null;
+}
+
+const CAMPOS_LEITURA = ["tipo_medicao", "valor_1", "valor_2", "unidade", "data_hora", "observacoes"] as const;
+
+// Edição parcial (padrão de PATCH /usuario/me): campo ausente (undefined) mantém o valor atual do
+// registro; valor_2/observacoes null explícito limpam. Monta o corpo completo a partir do registro
+// e revalida com validarCorpoLeitura, então regras e mensagens são as mesmas do POST.
+function validarCorpoEdicao(body: unknown, atual: RegistroCriado): { erro: string } | { dados: DadosLeitura } {
+  const enviado = (body ?? {}) as Record<string, unknown>;
+  if (CAMPOS_LEITURA.every((c) => enviado[c] === undefined)) {
+    return { erro: "Nenhum campo de leitura informado." };
+  }
+  const mesclado: Record<string, unknown> = {
+    tipo_medicao: atual.tipo_medicao,
+    valor_1: Number(atual.valor_1),
+    valor_2: atual.valor_2 === null ? null : Number(atual.valor_2),
+    unidade: atual.unidade,
+    data_hora: atual.data_hora.toISOString(),
+    observacoes: atual.observacoes,
+  };
+  for (const c of CAMPOS_LEITURA) if (enviado[c] !== undefined) mesclado[c] = enviado[c];
+  return validarCorpoLeitura(mesclado);
+}
+
+// RNF-006: o modelo guarda só o ÚLTIMO editor (editado_por_id); o valor sobrescrito numa edição
+// se perde. Decisão do grupo: aceito como risco por ora, sem tabela de auditoria.
+// Edição é parcial (validarCorpoEdicao): ao menos um campo de leitura é obrigatório.
+
+// Item 4.3 (RF-009, RNF-006): idoso edita o próprio registro. Ordem: 401, 400 (id), 404 (inexistente OU
+// de outro idoso), 400 (corpo). Dono = registro.idoso_id igual a req.usuarioId; sem vínculo, sem tipo_perfil.
+router.patch("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+
+    const registro = await prisma.registroSaude.findUnique({ where: { id } });
+    // Inexistente e "de outro idoso" colapsam no mesmo 404: 403 vazaria que o id existe.
+    if (!registro || registro.idoso_id !== req.usuarioId) {
+      return res.status(404).json({ error: "Registro não encontrado." });
+    }
+
+    const validado = validarCorpoEdicao(req.body, registro);
+    if ("erro" in validado) return res.status(400).json({ error: validado.erro });
+
+    // idoso_id e registrado_por_id nunca entram no update; editado_por_id sempre do token.
+    const r = await prisma.registroSaude.update({
+      where: { id },
+      data: { ...validado.dados, editado_por_id: req.usuarioId },
+    });
+    res.json(serializarRegistro(r));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Item 4.3: cuidador ou familiar edita registro de um idoso vinculado. Ordem: 401, 400 (idosoId),
+// 403 (vínculo), 400 (id), 404 (inexistente OU de outro idoso, mesma mensagem), 403 (autoridade), 400 (corpo).
+router.patch("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EDICAO });
+
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+
+    const registro = await prisma.registroSaude.findUnique({ where: { id } });
+    if (!registro || registro.idoso_id !== vinculo.idoso_id) {
+      return res.status(404).json({ error: "Registro não encontrado." });
+    }
+    if (!(await podeEditarSaude(vinculo, registro))) {
+      return res.status(403).json({ error: MSG_403_EDICAO });
+    }
+
+    const validado = validarCorpoEdicao(req.body, registro);
+    if ("erro" in validado) return res.status(400).json({ error: validado.erro });
+
+    const r = await prisma.registroSaude.update({
+      where: { id },
+      data: { ...validado.dados, editado_por_id: req.usuarioId },
+    });
+    res.json(serializarRegistro(r));
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;
