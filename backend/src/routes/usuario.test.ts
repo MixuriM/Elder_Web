@@ -112,8 +112,8 @@ describe("GET /usuario/me", () => {
         ...MODO_DECISAO_NEUTRO,
         modo_decisao_solicitado: "familiar",
         modo_decisao_solicitado_por_id: 7,
-        modo_decisao_solicitado_em: new Date("2026-09-18T00:00:00Z"),
-        modo_decisao_expira_em: new Date("2026-09-25T00:00:00Z"),
+        modo_decisao_solicitado_em: new Date(Date.now() - 86400000),
+        modo_decisao_expira_em: new Date(Date.now() + 6 * 86400000),
         modo_decisao_motivo: "Facilita o dia a dia",
       })
       .mockResolvedValueOnce({ id: 42, nome: "Ana", email: "a@a.com", telefone: "123", tipo_perfil: "idoso" });
