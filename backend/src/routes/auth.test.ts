@@ -575,6 +575,7 @@ describe("POST /auth/sync — login sempre cancela transferência de modo_decisa
         modo_decisao_segunda_confirmacao_id: null,
         modo_decisao_motivo: null,
       },
+      select: expect.any(Object),
     });
   });
 
@@ -588,6 +589,7 @@ describe("POST /auth/sync — login sempre cancela transferência de modo_decisa
     expect(updateUsuario).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { ultimo_login_em: expect.any(Date) },
+      select: expect.any(Object),
     });
   });
 
@@ -605,6 +607,7 @@ describe("POST /auth/sync — login sempre cancela transferência de modo_decisa
     expect(updateUsuario).toHaveBeenCalledWith({
       where: { id: 10 },
       data: { ultimo_login_em: expect.any(Date) },
+      select: expect.any(Object),
     });
   });
 });
@@ -777,6 +780,7 @@ describe("POST /auth/sync — idoso assume conta cadastrada por Familiar (3.3)",
     expect(updateUsuario).toHaveBeenCalledWith({
       where: { id: 55 },
       data: { firebase_uid: "uid-novo-do-idoso" },
+      select: expect.any(Object),
     });
   });
 
@@ -793,6 +797,7 @@ describe("POST /auth/sync — idoso assume conta cadastrada por Familiar (3.3)",
     expect(updateUsuario).toHaveBeenCalledWith({
       where: { id: 55 },
       data: { firebase_uid: "uid-novo-do-idoso" },
+      select: expect.any(Object),
     });
     expect(create).not.toHaveBeenCalled();
   });
@@ -857,6 +862,7 @@ describe("POST /auth/sync — idoso assume conta cadastrada por Familiar (3.3)",
     expect(updateUsuario).toHaveBeenCalledWith({
       where: { id: 55 },
       data: { ultimo_login_em: expect.any(Date) },
+      select: expect.any(Object),
     });
     expect(findFirst.mock.calls.some((c) => c[0].where.email !== undefined)).toBe(false);
   });

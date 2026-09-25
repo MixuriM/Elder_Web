@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
+import { baixarFotoDoGoogle, semFotoPerfil, USUARIO_SEM_FOTO_SELECT } from "../lib/fotoPerfil";
 import {
   isTipoPerfil,
   isDuplicateEmail,
@@ -89,6 +90,7 @@ router.post("/sync", async (req, res, next) => {
     // é filtrado e manual, ver schema.prisma) — o client não conhece essa constraint.
     const usuarioExistente = await prisma.usuario.findFirst({
       where: { firebase_uid: decoded.uid },
+      select: { id: true, tipo_perfil: true, modo_decisao_solicitado: true },
     });
 
     if (usuarioExistente) {
@@ -106,6 +108,7 @@ router.post("/sync", async (req, res, next) => {
       const usuarioAtualizado = await prisma.usuario.update({
         where: { id: usuarioExistente.id },
         data: dadosLogin,
+        select: USUARIO_SEM_FOTO_SELECT,
       });
 
       // RF-025 (Fluxo A): promove no login do Familiar os vínculos que ficaram
@@ -124,7 +127,7 @@ router.post("/sync", async (req, res, next) => {
           data: { status: "aprovado", confirmado_em: new Date() },
         });
       }
-      return res.status(200).json({ criado: false, usuario: usuarioAtualizado });
+      return res.status(200).json({ criado: false, usuario: semFotoPerfil(usuarioAtualizado) });
     }
 
     // Não achou pelo firebase_uid: é cadastro. tipo_perfil é obrigatório aqui — nunca
@@ -187,8 +190,9 @@ router.post("/sync", async (req, res, next) => {
           const usuarioAnexado = await prisma.usuario.update({
             where: { id: existente.id },
             data: { firebase_uid: decoded.uid },
+            select: USUARIO_SEM_FOTO_SELECT,
           });
-          return res.status(200).json({ criado: false, usuario: usuarioAnexado });
+          return res.status(200).json({ criado: false, usuario: semFotoPerfil(usuarioAnexado) });
         }
 
         return res
@@ -210,6 +214,9 @@ router.post("/sync", async (req, res, next) => {
       return res.status(400).json({ error: "nome deve ter até 150 caracteres." });
     }
 
+    // Seed único da foto do Google, só neste branch de criação (nunca login nem anexo 3.3).
+    const fotoGoogle = decoded.picture ? await baixarFotoDoGoogle(decoded.picture) : null;
+
     try {
       const usuario = await prisma.usuario.create({
         data: {
@@ -221,7 +228,13 @@ router.post("/sync", async (req, res, next) => {
           email_convite_familiar: emailConviteFamiliar,
           // ER: modo_decisao obrigatório para idoso; autocadastro nasce decidindo por si.
           ...(tipoPerfil === "idoso" && { modo_decisao: "idoso" }),
+          ...(fotoGoogle && {
+            foto_perfil: fotoGoogle.foto,
+            foto_perfil_mime_type: fotoGoogle.mimeType,
+            foto_perfil_atualizada_em: new Date(),
+          }),
         },
+        select: USUARIO_SEM_FOTO_SELECT,
       });
 
       // RF-025 (Fluxo A) — as duas direções: Familiar chegando depois do Idoso, ou
@@ -233,15 +246,18 @@ router.post("/sync", async (req, res, next) => {
         await vincularIdosoComFamiliarExistente(usuario.id, emailConviteFamiliar);
       }
 
-      return res.status(201).json({ criado: true, usuario });
+      return res.status(201).json({ criado: true, usuario: semFotoPerfil(usuario) });
     } catch (e) {
       if (isDuplicateFirebaseUid(e)) {
         // Duas requisições de sync simultâneas pro mesmo firebase_uid novo (ex.: dois
         // cliques rápidos) — a constraint do banco rejeitou a segunda criação, devolve
         // o registro que a primeira já criou em vez de estourar 500.
-        const usuario = await prisma.usuario.findFirst({ where: { firebase_uid: decoded.uid } });
+        const usuario = await prisma.usuario.findFirst({
+          where: { firebase_uid: decoded.uid },
+          select: USUARIO_SEM_FOTO_SELECT,
+        });
         if (usuario) {
-          return res.status(200).json({ criado: false, usuario });
+          return res.status(200).json({ criado: false, usuario: semFotoPerfil(usuario) });
         }
       }
       if (isDuplicateEmail(e)) {
