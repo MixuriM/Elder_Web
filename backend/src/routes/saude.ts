@@ -2,6 +2,8 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireVinculoAprovado } from "../middleware/requireVinculoAprovado";
+import { resolverModoDecisao } from "./vinculo";
+import type { Vinculo } from "@prisma/client";
 
 const router = Router();
 
@@ -131,13 +133,22 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-// Item 4.2 (RF-008, RNF-003): cuidador registra leitura do idoso vinculado, só com
-// permite_registrar_saude. Familiar (4.2b, modo_decisao), edição (4.3) e histórico (4.4)
-// ficam de fora: vínculo de familiar recebe 403 aqui. Ordem: 401, 400 (id), 403, 400 (corpo).
+// Autoridade de escrita sobre saúde de um idoso, dado o vínculo aprovado do chamador.
+// Cuidador: flag do vínculo (4.2). Familiar: só quando Usuario.modo_decisao efetivo é
+// 'familiar' (4.2b), via resolver (nunca a coluna direto, para pegar transferência vencida).
+// Reaproveitável pela edição (4.3).
+async function podeEscreverSaude(v: Vinculo): Promise<boolean> {
+  if (v.tipo_vinculo === "cuidador") return v.permite_registrar_saude === true;
+  return (await resolverModoDecisao(v.idoso_id)) === "familiar";
+}
+
+// Itens 4.2 e 4.2b (RF-008, RF-007, RF-009, RNF-003): cuidador (com permite_registrar_saude)
+// ou familiar (com modo_decisao='familiar') registra leitura do idoso vinculado. Edição (4.3)
+// e histórico (4.4) ficam de fora. 403 genérico. Ordem: 401, 400 (id), 403, 400 (corpo).
 router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
   try {
     const vinculo = req.vinculoAprovado;
-    if (!vinculo || vinculo.tipo_vinculo !== "cuidador" || vinculo.permite_registrar_saude !== true) {
+    if (!vinculo || !(await podeEscreverSaude(vinculo))) {
       return res.status(403).json({ error: "Sem permissão para registrar leitura de saúde." });
     }
 
