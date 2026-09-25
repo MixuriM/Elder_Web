@@ -252,6 +252,7 @@ function Sidebar({
                   onClick={() => {
                     setMenuAtivo(item.label);
                     setAberto(false);
+                    if (item.label === "Meu Perfil") navigate("/perfil");
                   }}
                   className={`
                     flex
