@@ -458,12 +458,13 @@ router.post("/:id/contestar", requireAuth, async (req, res, next) => {
     ];
     if (estado.modo_decisao_solicitado === "familiar") {
       if (estado.modo_decisao_solicitado_por_id === vinculo.vinculado_id) {
-        operacoes.push(prisma.usuario.update({ where: { id: vinculo.idoso_id }, data: CANCELAMENTO_SOLICITACAO }));
+        operacoes.push(prisma.usuario.update({ where: { id: vinculo.idoso_id }, data: CANCELAMENTO_SOLICITACAO, select: { id: true } }));
       } else if (estado.modo_decisao_segunda_confirmacao_id === vinculo.vinculado_id) {
         operacoes.push(
           prisma.usuario.update({
             where: { id: vinculo.idoso_id },
             data: { modo_decisao_segunda_confirmacao_id: null },
+            select: { id: true },
           }),
         );
       }
