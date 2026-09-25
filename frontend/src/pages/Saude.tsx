@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
 import { chamarApi } from '../lib/chamarApi'
 import Spinner from '../components/common/Spinner'
 
@@ -9,6 +9,8 @@ import Spinner from '../components/common/Spinner'
 // (POST /saude/idoso/:idosoId), também esqueleto cru.
 // Item 4.2b (RF-007, RF-009): a mesma seção serve o familiar (só com modo_decisao='familiar'
 // no idoso; senão o backend responde 403 e a mensagem aparece em role="alert").
+// Item 4.3 (RF-009, RNF-006): duas seções de edição (PATCH /saude/:id e
+// PATCH /saude/idoso/:idosoId/:id). Edição substitui a leitura inteira, então reenvia todos os campos.
 
 const LEITURA_VAZIA = {
   idosoId: '',
@@ -18,6 +20,111 @@ const LEITURA_VAZIA = {
   unidade: '',
   dataHora: '',
   observacoes: '',
+}
+
+// Item 4.3: seção crua de edição. `comIdoso` escolhe a rota (idoso edita o próprio; cuidador/familiar
+// edita de um idoso vinculado). Nunca loga corpo nem valores de saúde.
+function EdicaoSaude({ titulo, sufixo, comIdoso }: { titulo: string; sufixo: string; comIdoso: boolean }) {
+  const [campos, setCampos] = useState(LEITURA_VAZIA)
+  const [registroId, setRegistroId] = useState('')
+  const [carregando, setCarregando] = useState(false)
+  const [resultado, setResultado] = useState<{ id: number } | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const setCampo = (campo: keyof typeof LEITURA_VAZIA) => (e: ChangeEvent<HTMLInputElement>) =>
+    setCampos((atual) => ({ ...atual, [campo]: e.target.value }))
+
+  async function handleEditar(e: FormEvent) {
+    e.preventDefault()
+    setErro(null)
+    setResultado(null)
+    setCarregando(true)
+    try {
+      const caminho = comIdoso ? `/saude/idoso/${campos.idosoId}/${registroId}` : `/saude/${registroId}`
+      const corpo = await chamarApi(caminho, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          // Edição parcial: campo em branco não é enviado e o backend mantém o valor atual.
+          tipo_medicao: campos.tipoMedicao === '' ? undefined : campos.tipoMedicao,
+          valor_1: campos.valor1 === '' ? undefined : Number(campos.valor1),
+          valor_2: campos.valor2 === '' ? undefined : Number(campos.valor2),
+          unidade: campos.unidade === '' ? undefined : campos.unidade,
+          data_hora: campos.dataHora === '' ? undefined : new Date(campos.dataHora).toISOString(),
+          observacoes: campos.observacoes === '' ? undefined : campos.observacoes,
+        }),
+      })
+      setResultado(corpo)
+    } catch (err) {
+      console.error('Falha ao editar leitura de saúde:', err instanceof Error ? err.message : 'erro')
+      setErro(err instanceof Error ? err.message : 'Falha ao editar leitura de saúde.')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  const slug = comIdoso ? 'ed_idoso' : 'ed_proprio'
+  const classe = 'mt-1 w-full rounded border border-gray-400 p-3 text-lg'
+  const campoTexto = (
+    rotulo: string,
+    id: string,
+    valor: string,
+    aoMudar: (e: ChangeEvent<HTMLInputElement>) => void,
+    atributos: InputHTMLAttributes<HTMLInputElement>,
+  ) => (
+    <div key={id}>
+      <label htmlFor={id} className="block text-lg font-medium text-gray-900">
+        {rotulo}
+      </label>
+      <input id={id} {...atributos} value={valor} onChange={aoMudar} className={classe} />
+    </div>
+  )
+
+  return (
+    <section className="w-full max-w-sm space-y-4">
+      <h2 className="text-2xl font-bold text-gray-900">{titulo}</h2>
+      <form onSubmit={handleEditar} className="space-y-4">
+        {comIdoso &&
+          campoTexto(`Id do idoso (${sufixo})`, `idoso_id_${slug}`, campos.idosoId, setCampo('idosoId'), {
+            type: 'number', required: true, min: 1, step: 1,
+          })}
+        {campoTexto(`Id do registro (${sufixo})`, `registro_id_${slug}`, registroId, (e) => setRegistroId(e.target.value), {
+          type: 'number', required: true, min: 1, step: 1,
+        })}
+        {campoTexto(`Tipo de medição (${sufixo})`, `tipo_medicao_${slug}`, campos.tipoMedicao, setCampo('tipoMedicao'), {
+          type: 'text', maxLength: 50,
+        })}
+        {campoTexto(`Valor 1 (${sufixo})`, `valor_1_${slug}`, campos.valor1, setCampo('valor1'), {
+          type: 'number', min: 0, step: 'any',
+        })}
+        {campoTexto(`Valor 2 (opcional, ${sufixo})`, `valor_2_${slug}`, campos.valor2, setCampo('valor2'), {
+          type: 'number', min: 0, step: 'any',
+        })}
+        {campoTexto(`Unidade (${sufixo})`, `unidade_${slug}`, campos.unidade, setCampo('unidade'), {
+          type: 'text', maxLength: 20,
+        })}
+        {campoTexto(`Data e hora (opcional, ${sufixo})`, `data_hora_${slug}`, campos.dataHora, setCampo('dataHora'), {
+          type: 'datetime-local',
+        })}
+        {campoTexto(`Observações (opcional, ${sufixo})`, `observacoes_${slug}`, campos.observacoes, setCampo('observacoes'), {
+          type: 'text', maxLength: 300,
+        })}
+        <button
+          type="submit"
+          disabled={carregando}
+          aria-busy={carregando}
+          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+        >
+          {carregando && <Spinner />}
+          {carregando ? 'Salvando...' : `Salvar edição (${sufixo})`}
+        </button>
+      </form>
+      {erro && (
+        <p role="alert" className="text-lg text-red-700">
+          {erro}
+        </p>
+      )}
+      {resultado && <p className="text-lg text-gray-900">Registro atualizado (id {resultado.id}).</p>}
+    </section>
+  )
 }
 
 function Saude() {
@@ -238,6 +345,13 @@ function Saude() {
         )}
         {resultadoCuid && <p className="text-lg text-gray-900">Leitura do idoso registrada (id {resultadoCuid.id}).</p>}
       </section>
+
+      <EdicaoSaude titulo="Editar registro de saúde (próprio, idoso)" sufixo="edição" comIdoso={false} />
+      <EdicaoSaude
+        titulo="Editar registro de saúde de um idoso (cuidador ou familiar)"
+        sufixo="edição, idoso vinculado"
+        comIdoso
+      />
     </main>
   )
 }
