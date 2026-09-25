@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { useState, type ReactNode } from "react";
 import Perfil from "./Perfil";
-import { FotoPerfilContext, useFotoPerfil } from "../contexts/FotoPerfilContext";
+import { FotoPerfilContext, useFotoPerfil } from "../contexts/useFotoPerfil";
 
 // O contexto de foto importa useAuthUser (Firebase); o teste não precisa dele.
 jest.mock("../hooks/useAuthUser", () => ({

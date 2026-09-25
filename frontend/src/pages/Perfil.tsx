@@ -14,7 +14,7 @@ import {
 } from "../services/perfilService";
 
 // Foto compartilhada com o Header (/home) sem reload
-import { useFotoPerfil } from "../contexts/FotoPerfilContext";
+import { useFotoPerfil } from "../contexts/useFotoPerfil";
 
 // Importa o formulário do perfil
 import FormularioPerfil from "../components/perfil/FormularioPerfil";

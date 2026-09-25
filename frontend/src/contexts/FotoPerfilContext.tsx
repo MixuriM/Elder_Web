@@ -1,23 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { useAuthUser } from "../hooks/useAuthUser";
 import { buscarFotoPerfil } from "../services/perfilService";
-
-// Só a fatia de estado da foto (não é um AuthContext): mantém /home e /perfil em sincronia
-// sem reload. O valor padrão (sem Provider) é "sem foto", pra telas isoladas e testes.
-type FotoPerfilContextValue = {
-  fotoPerfilUrl: string | null;
-  definirFotoPerfil: (url: string | null) => void;
-};
-
-export const FotoPerfilContext = createContext<FotoPerfilContextValue>({
-  fotoPerfilUrl: null,
-  definirFotoPerfil: () => {},
-});
-
-export function useFotoPerfil() {
-  return useContext(FotoPerfilContext);
-}
+import { FotoPerfilContext } from "./useFotoPerfil";
 
 export function FotoPerfilProvider({ children }: { children: ReactNode }) {
   const { usuario } = useAuthUser();
