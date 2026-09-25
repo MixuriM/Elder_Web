@@ -23,6 +23,11 @@ export function requireVinculoAprovado(paramIdoso: string) {
         return res.status(400).json({ error: "Id de idoso inválido." });
       }
 
+      // Suposição: o tipo_vinculo de qualquer vínculo aprovado de um vinculado_id é único e
+      // consistente com o tipo_perfil fixo da conta, porque toda rota de criação amarra os dois
+      // e nenhuma rota altera tipo_perfil nem tipo_vinculo depois de criado. Quebra se existir
+      // "troca de tipo_perfil" ou um novo fluxo de criação de vínculo sem essa checagem; nesse
+      // caso este findFirst precisa passar a filtrar por tipo_vinculo.
       const vinculo = await prisma.vinculo.findFirst({
         where: { idoso_id: idosoId, vinculado_id: req.usuarioId, status: "aprovado" },
       });

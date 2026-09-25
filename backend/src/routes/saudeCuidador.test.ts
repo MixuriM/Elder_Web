@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 const verifyIdToken = jest.fn();
 const findFirstUsuario = jest.fn();
 const findFirstVinculo = jest.fn();
+const findUniqueUsuario = jest.fn();
 const createRegistro = jest.fn();
 
 jest.mock("../lib/firebaseAdmin", () => ({
@@ -12,7 +13,7 @@ jest.mock("../lib/firebaseAdmin", () => ({
 }));
 jest.mock("../lib/prisma", () => ({
   prisma: {
-    usuario: { findFirst: (...args: unknown[]) => findFirstUsuario(...args), findUnique: jest.fn() },
+    usuario: { findFirst: (...args: unknown[]) => findFirstUsuario(...args), findUnique: (...args: unknown[]) => findUniqueUsuario(...args) },
     vinculo: { findFirst: (...args: unknown[]) => findFirstVinculo(...args) },
     registroSaude: { create: (...args: unknown[]) => createRegistro(...args) },
   },
@@ -101,6 +102,7 @@ beforeEach(() => {
   verifyIdToken.mockReset();
   findFirstUsuario.mockReset();
   findFirstVinculo.mockReset();
+  findUniqueUsuario.mockReset();
   createRegistro.mockReset();
   createRegistro.mockResolvedValue(registroDevolvido());
 });
@@ -181,10 +183,11 @@ describe("POST /saude/idoso/:idosoId (RF-008, item 4.2)", () => {
       expect(res.body).toEqual({ error: MSG_403 });
     });
 
-    it("403 para vínculo aprovado de familiar com a flag verdadeira (dado artificial)", async () => {
-      // A regra do familiar (modo_decisao) é o item 4.2b, não adiantada aqui.
+    it("403 para vínculo aprovado de familiar quando modo_decisao do idoso não é 'familiar' (flag verdadeira é irrelevante)", async () => {
+      // Desde o 4.2b o familiar escreve só com modo_decisao='familiar' (ver saudeFamiliar.test.ts).
       logadoComoCuidador();
       fakeVinculos([vinculo({ tipo_vinculo: "familiar", permite_registrar_saude: true })]);
+      findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso", modo_decisao_solicitado: null, modo_decisao_expira_em: null });
       const res = await post(IDOSO_A);
       expectNaoCriou(res, 403);
       expect(res.body).toEqual({ error: MSG_403 });

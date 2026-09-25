@@ -228,7 +228,7 @@ router.post("/solicitar-familiar", requireAuth, async (req, res, next) => {
 // Resolve quem tem autoridade sobre o idoso (Usuario.modo_decisao) — reaproveitado
 // pela tarefa 2.8 (definir-permissoes) além de responderSolicitacaoVinculo. NULL
 // (nunca setado) tratado como 'idoso', mesma decisão de sempre.
-async function resolverModoDecisao(idosoId: number): Promise<"idoso" | "familiar"> {
+export async function resolverModoDecisao(idosoId: number): Promise<"idoso" | "familiar"> {
   const estado = await resolverEstadoModoDecisao(idosoId);
   return estado.modo_decisao === "familiar" ? "familiar" : "idoso";
 }
