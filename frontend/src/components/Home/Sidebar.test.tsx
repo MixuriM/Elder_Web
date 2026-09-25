@@ -50,4 +50,13 @@ describe("Sidebar — logout", () => {
     expect(mockLogoutUser).toHaveBeenCalledTimes(1);
     expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true });
   });
+
+  it("clicar em 'Meu Perfil' navega para /perfil", async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    await user.click(screen.getByRole("button", { name: /meu perfil/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/perfil");
+  });
 });
