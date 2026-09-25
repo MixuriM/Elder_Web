@@ -34,6 +34,9 @@
 | modo_decisao_alterado_por_id        | int            | FK -> Usuario.id | Não                                           | Quem fez a última mudança efetiva em modo_decisao.                                                                                                                                                                                                                    |
 | modo_decisao_alterado_em            | datetime2      | —                | Não                                           | Quando modo_decisao foi alterado pela última vez.                                                                                                                                                                                                                     |
 | modo_decisao_motivo                 | nvarchar(300)  | —                | Não                                           | Justificativa opcional do Familiar ao alterar modo_decisao. Não validado, é só transparência.                                                                                                                                                                         |
+| foto_perfil                         | varbinary(max) | —                | Não                                           | Foto de perfil (BLOB no próprio SQL Server, sem storage externo). Só image/jpeg ou image/png, até 2 MB. A API devolve sempre data URI, nunca o buffer cru. |
+| foto_perfil_mime_type               | nvarchar(50)   | —                | Não                                           | Mime da foto ('image/jpeg' / 'image/png'). |
+| foto_perfil_atualizada_em           | datetime2      | —                | Não                                           | Quando a foto foi gravada pela última vez. |
 | created_at                          | datetime2      | —                | Sim                                           | —                                                                                                                                                                                                                                                                     |
 | updated_at                          | datetime2      | —                | Sim                                           | —                                                                                                                                                                                                                                                                     |
 
@@ -55,6 +58,14 @@ padrão de índice único filtrado usado para email, acima. CHECK
 autocadastro (sempre via /auth/sync com token Firebase) nunca fica sem
 firebase_uid. Decisão registrada em CLAUDE.md, "firebase_uid nullable" —
 migration 20260902014014_firebase_uid_nullable (2026-09-01).
+
+(4) foto_perfil, foto_perfil_mime_type e foto_perfil_atualizada_em formam um conjunto:
+CHECK CK_Usuario_foto_perfil_conjunto exige os 3 NULL (sem foto) ou os 3 preenchidos,
+mesmo padrão de CK_Usuario_modo_decisao_solicitado_conjunto. Migration
+20260924220000_add_foto_perfil (2026-09-24), aplicada também no Azure. A CHECK vai
+dentro de EXEC('...') na migration porque o SQL Server compila o batch inteiro antes
+de executar e não enxergaria as colunas recém-adicionadas (erro 207). Decisão de
+produto sem RF numerado no plano: nenhum RF nem este ER mencionava foto antes.
 
 ### Vinculo (generalizado — cuidador e familiar)
 
@@ -298,6 +309,7 @@ zerada — na mesma transação da mudança de status.
 | REV.15 | CHECK CK_Usuario_termo_cadastrado_por: termo_responsabilidade_aceito_em IS NULL OR cadastrado_por_id IS NOT NULL (RF-030, item 3.1). Migration 20260921090000_add_check_termo_cadastrado_por, aplicada no Azure em 21/09/2026. |
 | REV.16 | Contestação de vínculo automático de Familiar já 'aprovado' (RF-022, dívida do item 2.5): POST /vinculo/:id/contestar, sem depender de notificado_em (campo reservado, sem canal de notificação) e sem migration. Ver nota após a seção 3 e a linha de notificado_em. |
 | REV.17 | Texto do atributo Vinculo.notificado_em alinhado ao estado real: campo reservado, não escrito por nenhum código, aplicável aos dois fluxos automáticos (convite_idoso e cadastro_familiar), sem relação com a contestação. Referência a notificado_em na seção 3 (autoridade de contestação) ajustada da mesma forma. Sem migration. |
+| REV.18 | Foto de perfil em Usuario: foto_perfil (varbinary(max)), foto_perfil_mime_type e foto_perfil_atualizada_em, com CHECK CK_Usuario_foto_perfil_conjunto (3 NULL ou 3 preenchidos). Migration 20260924220000_add_foto_perfil, aplicada no Azure em 24/09/2026. Sem RF numerado. |
 
 ---
 
