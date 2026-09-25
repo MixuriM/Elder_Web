@@ -4,11 +4,15 @@ import { createContext, useContext } from "react";
 // sem reload. O valor padrão (sem Provider) é "sem foto", pra telas isoladas e testes.
 type FotoPerfilContextValue = {
   fotoPerfilUrl: string | null;
+  // true enquanto ainda não se sabe se há foto (sessão ou GET /usuario/me/foto em andamento):
+  // a UI não deve mostrar iniciais nesse intervalo, senão elas piscam antes da foto.
+  carregandoFoto: boolean;
   definirFotoPerfil: (url: string | null) => void;
 };
 
 export const FotoPerfilContext = createContext<FotoPerfilContextValue>({
   fotoPerfilUrl: null,
+  carregandoFoto: false,
   definirFotoPerfil: () => {},
 });
 

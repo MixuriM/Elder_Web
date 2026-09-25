@@ -100,7 +100,8 @@ describe("POST /auth/sync — foto do Google no cadastro", () => {
 
     expect(res.status).toBe(201);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toBe(PICTURE);
+    // pede versão maior da foto (=s400-c no lugar de =s96-c), mesmo host
+    expect(String(fetchMock.mock.calls[0][0])).toBe(PICTURE.replace("=s96-c", "=s400-c"));
     expect(fetchMock.mock.calls[0][1].signal).toBeDefined();
     const data = create.mock.calls[0][0].data;
     expect(Buffer.from(data.foto_perfil).equals(CONTEUDO)).toBe(true);

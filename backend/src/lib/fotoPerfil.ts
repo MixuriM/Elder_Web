@@ -47,6 +47,8 @@ export async function baixarFotoDoGoogle(
     if (alvo.protocol !== "https:" || !(host === "googleusercontent.com" || host.endsWith(".googleusercontent.com"))) {
       return falhou("host não permitido");
     }
+    // O Google entrega a foto em 96 px (`=s96-c`); pede 400 px pra não ficar pixelada no Perfil e em telas de alta densidade.
+    alvo.pathname = alvo.pathname.replace(/=s\d+(-c)?$/, "=s400-c");
     const res = await fetch(alvo, { signal: AbortSignal.timeout(TIMEOUT_FOTO_GOOGLE_MS), redirect: "manual" });
     if (!res.ok) return falhou("resposta HTTP não-2xx");
 
