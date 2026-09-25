@@ -13,7 +13,13 @@ jest.mock("../hooks/useAuthUser", () => ({
 }));
 
 function Sonda() {
-  return <span data-testid="foto">{useFotoPerfil().fotoPerfilUrl ?? "sem-foto"}</span>;
+  const { fotoPerfilUrl, carregandoFoto } = useFotoPerfil();
+  return (
+    <>
+      <span data-testid="foto">{fotoPerfilUrl ?? "sem-foto"}</span>
+      <span data-testid="carregando">{carregandoFoto ? "sim" : "nao"}</span>
+    </>
+  );
 }
 
 function renderProvider() {
@@ -32,6 +38,16 @@ describe("FotoPerfilProvider", () => {
     mockBuscarFoto.mockResolvedValue("data:image/png;base64,QUJD");
     renderProvider();
     await waitFor(() => expect(screen.getByTestId("foto")).toHaveTextContent("data:image/png;base64,QUJD"));
+  });
+
+  it("logado: carregandoFoto fica true até a busca terminar e volta false depois", async () => {
+    mockUsuario = { uid: "u" };
+    let resolver!: (v: string | null) => void;
+    mockBuscarFoto.mockReturnValue(new Promise((r) => (resolver = r)));
+    renderProvider();
+    expect(screen.getByTestId("carregando")).toHaveTextContent("sim");
+    resolver(null);
+    await waitFor(() => expect(screen.getByTestId("carregando")).toHaveTextContent("nao"));
   });
 
   it("deslogado: não busca nada e fica sem foto", () => {

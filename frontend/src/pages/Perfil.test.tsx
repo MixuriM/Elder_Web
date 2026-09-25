@@ -107,7 +107,7 @@ describe("Perfil", () => {
     function ProviderReal({ children, inicial = null }: { children: ReactNode; inicial?: string | null }) {
       const [fotoPerfilUrl, definirFotoPerfil] = useState<string | null>(inicial);
       return (
-        <FotoPerfilContext.Provider value={{ fotoPerfilUrl, definirFotoPerfil }}>
+        <FotoPerfilContext.Provider value={{ fotoPerfilUrl, carregandoFoto: false, definirFotoPerfil }}>
           {children}
           <span data-testid="contexto">{fotoPerfilUrl ?? "sem-foto"}</span>
         </FotoPerfilContext.Provider>
