@@ -2,7 +2,7 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Header from "./Header";
-import { FotoPerfilContext } from "../../contexts/FotoPerfilContext";
+import { FotoPerfilContext } from "../../contexts/useFotoPerfil";
 
 const mockBuscarPerfil = jest.fn();
 jest.mock("../../services/perfilService", () => ({
