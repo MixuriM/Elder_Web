@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
 import { useAuthUser } from "../../hooks/useAuthUser";
+import { useFotoPerfil } from "../../contexts/FotoPerfilContext";
 import { buscarPerfil } from "../../services/perfilService";
 
 type HeaderProps = {
@@ -28,6 +29,7 @@ function Header({ abrirSidebar }: HeaderProps) {
   const navigate = useNavigate();
   const { usuario } = useAuthUser();
   const [nome, setNome] = useState("");
+  const { fotoPerfilUrl } = useFotoPerfil();
 
   useEffect(() => {
     let ativo = true;
@@ -247,11 +249,21 @@ function Header({ abrirSidebar }: HeaderProps) {
               font-bold
               text-white
 
+              overflow-hidden
+
               sm:h-10
               sm:w-10
             "
           >
-            {obterIniciais(nome)}
+            {fotoPerfilUrl ? (
+              <img
+                src={fotoPerfilUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              obterIniciais(nome)
+            )}
           </div>
 
           <ChevronDown

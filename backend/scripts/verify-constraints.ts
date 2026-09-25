@@ -311,6 +311,26 @@ async function main() {
     },
   );
 
+  // 15. CK_Usuario_foto_perfil_conjunto (foto de perfil, migration
+  // 20260924220000_add_foto_perfil) — foto_perfil preenchida sem mime_type/atualizada_em deve
+  // ser rejeitada; os 3 campos juntos (controle positivo) são aceitos.
+  await runExpectingRejection(
+    "CK_Usuario_foto_perfil_conjunto",
+    async (tx) => {
+      await tx.usuario.create({ data: baseUsuario({ foto_perfil: Buffer.from([0xff, 0xd8, 0xff]) }) });
+    },
+    "CK_Usuario_foto_perfil_conjunto",
+  );
+  await runExpectingSuccess("CK_Usuario_foto_perfil_conjunto (3 campos juntos aceitos)", async (tx) => {
+    await tx.usuario.create({
+      data: baseUsuario({
+        foto_perfil: Buffer.from([0xff, 0xd8, 0xff]),
+        foto_perfil_mime_type: "image/jpeg",
+        foto_perfil_atualizada_em: new Date(),
+      }),
+    });
+  });
+
   console.log("\nConstraint".padEnd(52) + "Resultado");
   console.log("-".repeat(70));
   for (const r of results) {
