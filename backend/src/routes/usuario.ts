@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import multer from "multer";
 import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
@@ -6,6 +7,7 @@ import { isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
+import { FOTO_LIMITE_BYTES, FOTO_MIME_PERMITIDOS, montarFotoPerfilUrl } from "../lib/fotoPerfil";
 
 const router = Router();
 
@@ -26,6 +28,84 @@ router.get("/me", requireAuth, async (req, res, next) => {
       select: { id: true, nome: true, email: true, telefone: true, tipo_perfil: true },
     });
     res.json({ ...usuario, ...modoDecisao });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Foto de perfil — qualquer tipo_perfil, sempre no próprio usuário autenticado. memoryStorage
+// (nunca disco: o filesystem do Render é efêmero). Só o Content-Type declarado é conferido;
+// os bytes não são validados nem redimensionados.
+const MSG_FOTO_SEM_ARQUIVO = "Nenhuma foto enviada.";
+const MSG_FOTO_TIPO = "Formato de foto não suportado. Envie JPEG ou PNG.";
+const MSG_FOTO_TAMANHO = "Foto acima do limite de 2 MB.";
+const FOTO_TIPO_INVALIDO = "FOTO_TIPO_INVALIDO";
+
+const uploadFoto = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: FOTO_LIMITE_BYTES, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (FOTO_MIME_PERMITIDOS.includes(file.mimetype)) return cb(null, true);
+    cb(new Error(FOTO_TIPO_INVALIDO));
+  },
+}).single("foto");
+
+function receberFoto(req: Request, res: Response, next: NextFunction) {
+  uploadFoto(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: MSG_FOTO_TAMANHO });
+    }
+    if (err instanceof multer.MulterError && err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({ error: MSG_FOTO_SEM_ARQUIVO });
+    }
+    if (err instanceof Error && err.message === FOTO_TIPO_INVALIDO) {
+      return res.status(400).json({ error: MSG_FOTO_TIPO });
+    }
+    next(err);
+  });
+}
+
+// Rota separada de GET /usuario/me de propósito: a foto é o payload pesado (até ~2,7 MB em
+// base64) e só quem exibe a foto precisa dela.
+router.get("/me/foto", requireAuth, async (req, res, next) => {
+  try {
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { foto_perfil: true, foto_perfil_mime_type: true },
+    });
+    res.json({ foto_perfil_url: montarFotoPerfilUrl(usuario?.foto_perfil, usuario?.foto_perfil_mime_type) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/me/foto", requireAuth, receberFoto, async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: MSG_FOTO_SEM_ARQUIVO });
+    await prisma.usuario.update({
+      where: { id: req.usuarioId },
+      data: {
+        foto_perfil: req.file.buffer,
+        foto_perfil_mime_type: req.file.mimetype,
+        foto_perfil_atualizada_em: new Date(),
+      },
+      select: { id: true },
+    });
+    res.status(200).json({ foto_perfil_url: montarFotoPerfilUrl(req.file.buffer, req.file.mimetype) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/me/foto", requireAuth, async (req, res, next) => {
+  try {
+    await prisma.usuario.update({
+      where: { id: req.usuarioId },
+      data: { foto_perfil: null, foto_perfil_mime_type: null, foto_perfil_atualizada_em: null },
+      select: { id: true },
+    });
+    res.status(200).json({ foto_perfil_url: null });
   } catch (e) {
     next(e);
   }

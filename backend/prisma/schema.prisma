@@ -63,6 +63,13 @@ model Usuario {
   modo_decisao_alterado_por_id        Int?
   modo_decisao_alterado_em            DateTime? @db.DateTime2
   modo_decisao_motivo                 String?   @db.NVarChar(300)
+  // Foto de perfil (BLOB no próprio SQL Server, VARBINARY(MAX)). Os 3 campos andam juntos.
+  // TODO (manual na migration): CHECK conjunto — foto_perfil, foto_perfil_mime_type e
+  // foto_perfil_atualizada_em só podem estar todos NULL ou todos preenchidos
+  // (CK_Usuario_foto_perfil_conjunto).
+  foto_perfil                         Bytes?
+  foto_perfil_mime_type               String?   @db.NVarChar(50)
+  foto_perfil_atualizada_em           DateTime? @db.DateTime2
   created_at                          DateTime  @default(now()) @db.DateTime2
   updated_at                          DateTime  @updatedAt @db.DateTime2
 

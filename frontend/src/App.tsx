@@ -10,9 +10,11 @@ import Perfil from './pages/Perfil'
 import Vinculos from './pages/Vinculos'
 import Saude from './pages/Saude'
 import RotaProtegida from './components/RotaProtegida'
+import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 
 function App() {
   return (
+    <FotoPerfilProvider>
     <Routes>
       <Route path="/" element={<LandingPage/>} />
       <Route
@@ -53,6 +55,7 @@ function App() {
         }
       />
     </Routes>
+    </FotoPerfilProvider>
   )
 }
 
