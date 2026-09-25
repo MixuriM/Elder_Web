@@ -24,6 +24,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     // filtrado e manual, ver schema.prisma) — mesmo padrão usado em /auth/sync.
     const usuario = await prisma.usuario.findFirst({
       where: { firebase_uid: resultado.decoded.uid },
+      select: { id: true }, // sem select traria o BLOB da foto a cada requisição autenticada
     });
 
     if (!usuario) {

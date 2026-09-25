@@ -1244,6 +1244,7 @@ describe("POST /vinculo/:id/contestar", () => {
           modo_decisao_segunda_confirmacao_id: null,
           modo_decisao_motivo: null,
         },
+        select: { id: true },
       });
     });
 
@@ -1261,6 +1262,7 @@ describe("POST /vinculo/:id/contestar", () => {
       expect(updateUsuario).toHaveBeenCalledWith({
         where: { id: 10 },
         data: { modo_decisao_segunda_confirmacao_id: null },
+        select: { id: true },
       });
     });
 
