@@ -1571,3 +1571,23 @@ Frontend: duas seções novas em `frontend/src/pages/Saude.tsx`, esqueleto cru (
 **Limitações conhecidas (não mitigadas):** sem histórico do valor sobrescrito (ver decisão acima); `GET /vinculo` continua sem expor `permite_*`, então a tela do cuidador só descobre que não pode editar recebendo 403; sem e2e e nada visto no navegador; a listagem e o `GET` de saúde (item 4.4) e o restante do 4.5 (acesso cruzado de leitura e revisão dos demais logs) seguem pendentes; o 403 uniforme não distingue o motivo (flag, autoria ou `modo_decisao`).
 
 Fora de escopo (não implementado): histórico e `GET` de saúde (4.4), restante do 4.5, exclusão de registro, auditoria do valor sobrescrito.
+
+**Item 4.4 da Fase 4 (RF-010, RNF-003) implementado: histórico de saúde (2026-09-28, sem commit ainda):**
+
+Duas rotas de leitura em `backend/src/routes/saude.ts`, depois das PATCH: `GET /saude` (idoso lê o próprio histórico) e `GET /saude/idoso/:idosoId` (cuidador ou familiar com vínculo aprovado). Ambas respondem 200 `{ registros: [...] }`, ordenado por `data_hora` decrescente e sem paginação (mesma convenção de `GET /vinculo`), com `serializarRegistro` reaproveitada. Nenhuma migration, dependência nova ou `console.*` novo; `serializarRegistro`, `requireAuth` e `requireVinculoAprovado` não foram tocados.
+
+`GET /saude`: `requireAuth`, depois `findUnique` de `tipo_perfil` (mesmo padrão de `POST /`). Quem não é idoso recebe 403 com mensagem própria de leitura ("Sem permissão para visualizar histórico de saúde."), diferente da mensagem de escrita. O filtro é sempre `idoso_id = req.usuarioId`. Ordem: 401, 403. O familiar lê pela outra rota, então `GET /saude` devolve 403 a ele mesmo com vínculo aprovado.
+
+`GET /saude/idoso/:idosoId`: `requireAuth` e `requireVinculoAprovado("idosoId")`, sem nenhuma checagem além do middleware. Leitura não depende de `permite_registrar_saude` (cuidador) nem de `modo_decisao` (familiar): só escrita e edição dependem. `resolverModoDecisao` nem é chamada. O `idoso_id` da consulta vem de `req.vinculoAprovado.idoso_id`, nunca do path. Ordem: 401, 400 (`idosoId` não numérico, do middleware), 403 (sem vínculo aprovado).
+
+**Decisão tomada ao montar a tarefa (não fechada pelo grupo):** o cuidador com vínculo aprovado lê sempre, mesmo sem a flag `permite_registrar_saude`. Se o grupo preferir exigir a flag também para leitura, é mudança pequena nesta rota mais um teste, e precisa ser avisada antes de dar o item por aceito.
+
+Testes: `backend/src/routes/saudeHistorico.test.ts` (novo, 18 testes), escritos antes da implementação (RED confirmado: 17 de 18 falhavam). Fake de `vinculo.findFirst` que filtra de verdade pelo `where`, e fake de `registroSaude.findMany` que filtra por `where.idoso_id` e ordena por `orderBy`, para o acesso cruzado e a ordenação não passarem por vacuidade. Cobrem: idoso vê só os próprios registros em ordem decrescente, 401 nas duas rotas, 403 de cuidador e familiar em `GET /saude`, cuidador lendo sem a flag, familiar lendo com `modo_decisao='idoso'` (resolver mockado e nunca chamado), familiar vendo o mesmo conjunto que o idoso, `idoso_id` vindo do vínculo (mock que ignora o `where`), vínculo pendente, recusado e inexistente, acesso cruzado com controle positivo, 400 de id, e privacidade (corpo de 403 e `console.*` sem valor de saúde, 500 genérico sem valor no log). Mutações locais, não commitadas, cada uma derrubando pelo menos um teste: remover o filtro por `idoso_id` (4 falhas), `idoso_id` do path (1), remover a checagem de `tipo_perfil` (3), ordenar crescente (3) e exigir a flag do cuidador na leitura (1).
+
+Suítes: backend 18 arquivos/504 testes (era 17/486), frontend 14 suítes/113 testes (era 14/109). `tsc --noEmit` e `npm run lint` limpos nos dois pacotes.
+
+Frontend: seção nova "Ver histórico de saúde" em `frontend/src/pages/Saude.tsx` (componente `HistoricoSaude`), esqueleto cru (mesma exceção de divisão de trabalho da seção Workflow). Id do idoso em branco chama `GET /saude`; preenchido, `GET /saude/idoso/:id`. Lista simples de texto, erro em `role="alert"`, sem rota de navegação nova e sem tocar `Home.tsx`. 3 testes novos em `Saude.test.tsx`.
+
+**Limitações conhecidas (não mitigadas):** sem paginação, então o histórico cresce sem limite; sem filtro por período ou tipo de medição; o registro não informa quem é o autor por nome (só `registrado_por_id` e `editado_por_id`); sem e2e e nada visto no navegador; o 403 de `GET /saude/idoso/:idosoId` vem do middleware e não distingue o motivo.
+
+Fora de escopo (não implementado): restante do 4.5 (teste explícito de acesso cruzado como dado sensível e revisão dos demais pontos de log), download do histórico, exclusão de registro, auditoria do valor sobrescrito.
