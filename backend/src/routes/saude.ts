@@ -274,4 +274,46 @@ router.patch("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId
   }
 });
 
+const MSG_403_LEITURA = "Sem permissão para visualizar histórico de saúde.";
+
+// Item 4.4 (RF-010, RNF-003): idoso lê o próprio histórico. Ordem: 401, 403 (não é idoso).
+// Sem paginação (mesma decisão de GET /vinculo). Envelope { registros } e data_hora decrescente.
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    if (chamador?.tipo_perfil !== "idoso") {
+      return res.status(403).json({ error: MSG_403_LEITURA });
+    }
+
+    const registros = await prisma.registroSaude.findMany({
+      where: { idoso_id: req.usuarioId },
+      orderBy: { data_hora: "desc" },
+    });
+    res.json({ registros: registros.map(serializarRegistro) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Item 4.4: cuidador ou familiar com vínculo aprovado lê o histórico do idoso. Ordem: 401, 400 (idosoId),
+// 403 (vínculo). Nenhuma checagem além do middleware, de propósito: leitura não depende de
+// permite_registrar_saude nem de modo_decisao (só escrita e edição dependem). idoso_id vem do vínculo.
+router.get("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_LEITURA });
+
+    const registros = await prisma.registroSaude.findMany({
+      where: { idoso_id: vinculo.idoso_id },
+      orderBy: { data_hora: "desc" },
+    });
+    res.json({ registros: registros.map(serializarRegistro) });
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;
