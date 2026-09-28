@@ -1572,7 +1572,7 @@ Frontend: duas seções novas em `frontend/src/pages/Saude.tsx`, esqueleto cru (
 
 Fora de escopo (não implementado): histórico e `GET` de saúde (4.4), restante do 4.5, exclusão de registro, auditoria do valor sobrescrito.
 
-**Item 4.4 da Fase 4 (RF-010, RNF-003) implementado: histórico de saúde (2026-09-28, sem commit ainda):**
+**Item 4.4 da Fase 4 (RF-010, RNF-003) implementado: histórico de saúde (2026-09-28, PR #114, mergeado em `main` por rebase: `88080b2` rotas, `79150a7` esqueleto de frontend, `fb8d3c7` docs; hashes finais diferentes dos commits locais `974b26d`/`1c3f93b`/`e3ca51b`, mesmo padrão dos PRs anteriores):**
 
 Duas rotas de leitura em `backend/src/routes/saude.ts`, depois das PATCH: `GET /saude` (idoso lê o próprio histórico) e `GET /saude/idoso/:idosoId` (cuidador ou familiar com vínculo aprovado). Ambas respondem 200 `{ registros: [...] }`, ordenado por `data_hora` decrescente e sem paginação (mesma convenção de `GET /vinculo`), com `serializarRegistro` reaproveitada. Nenhuma migration, dependência nova ou `console.*` novo; `serializarRegistro`, `requireAuth` e `requireVinculoAprovado` não foram tocados.
 
@@ -1584,7 +1584,7 @@ Duas rotas de leitura em `backend/src/routes/saude.ts`, depois das PATCH: `GET /
 
 Testes: `backend/src/routes/saudeHistorico.test.ts` (novo, 18 testes), escritos antes da implementação (RED confirmado: 17 de 18 falhavam). Fake de `vinculo.findFirst` que filtra de verdade pelo `where`, e fake de `registroSaude.findMany` que filtra por `where.idoso_id` e ordena por `orderBy`, para o acesso cruzado e a ordenação não passarem por vacuidade. Cobrem: idoso vê só os próprios registros em ordem decrescente, 401 nas duas rotas, 403 de cuidador e familiar em `GET /saude`, cuidador lendo sem a flag, familiar lendo com `modo_decisao='idoso'` (resolver mockado e nunca chamado), familiar vendo o mesmo conjunto que o idoso, `idoso_id` vindo do vínculo (mock que ignora o `where`), vínculo pendente, recusado e inexistente, acesso cruzado com controle positivo, 400 de id, e privacidade (corpo de 403 e `console.*` sem valor de saúde, 500 genérico sem valor no log). Mutações locais, não commitadas, cada uma derrubando pelo menos um teste: remover o filtro por `idoso_id` (4 falhas), `idoso_id` do path (1), remover a checagem de `tipo_perfil` (3), ordenar crescente (3) e exigir a flag do cuidador na leitura (1).
 
-Suítes: backend 18 arquivos/504 testes (era 17/486), frontend 14 suítes/113 testes (era 14/109). `tsc --noEmit` e `npm run lint` limpos nos dois pacotes.
+Suítes: backend 18 arquivos/504 testes (era 17/486), frontend 14 suítes/113 testes (era 14/109). `tsc --noEmit` e `npm run lint` limpos nos dois pacotes. CI do PR #114 (backend, frontend, Vercel) passou. Nenhuma migration nesta tarefa.
 
 Frontend: seção nova "Ver histórico de saúde" em `frontend/src/pages/Saude.tsx` (componente `HistoricoSaude`), esqueleto cru (mesma exceção de divisão de trabalho da seção Workflow). Id do idoso em branco chama `GET /saude`; preenchido, `GET /saude/idoso/:id`. Lista simples de texto, erro em `role="alert"`, sem rota de navegação nova e sem tocar `Home.tsx`. 3 testes novos em `Saude.test.tsx`.
 
