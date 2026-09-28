@@ -127,6 +127,80 @@ function EdicaoSaude({ titulo, sufixo, comIdoso }: { titulo: string; sufixo: str
   )
 }
 
+type RegistroLista = { id: number; tipo_medicao: string; valor_1: number; valor_2: number | null; unidade: string; data_hora: string }
+
+// Item 4.4 (RF-010): seção crua de histórico. Id do idoso em branco = idoso lê o próprio (GET /saude);
+// preenchido = cuidador/familiar (GET /saude/idoso/:id). Nunca loga corpo nem valores de saúde.
+function HistoricoSaude() {
+  const [idosoId, setIdosoId] = useState('')
+  const [carregando, setCarregando] = useState(false)
+  const [registros, setRegistros] = useState<RegistroLista[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function handleVer(e: FormEvent) {
+    e.preventDefault()
+    setErro(null)
+    setRegistros(null)
+    setCarregando(true)
+    try {
+      const corpo = await chamarApi(idosoId === '' ? '/saude' : `/saude/idoso/${idosoId}`, { method: 'GET' })
+      setRegistros(corpo.registros)
+    } catch (err) {
+      console.error('Falha ao carregar histórico de saúde:', err instanceof Error ? err.message : 'erro')
+      setErro(err instanceof Error ? err.message : 'Falha ao carregar histórico de saúde.')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  return (
+    <section className="w-full max-w-sm space-y-4">
+      <h2 className="text-2xl font-bold text-gray-900">Ver histórico de saúde</h2>
+      <form onSubmit={handleVer} className="space-y-4">
+        <div>
+          <label htmlFor="idoso_id_historico" className="block text-lg font-medium text-gray-900">
+            Id do idoso (vazio = meu histórico)
+          </label>
+          <input
+            id="idoso_id_historico"
+            type="number"
+            min={1}
+            step={1}
+            value={idosoId}
+            onChange={(e) => setIdosoId(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={carregando}
+          aria-busy={carregando}
+          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+        >
+          {carregando && <Spinner />}
+          {carregando ? 'Carregando...' : 'Ver histórico'}
+        </button>
+      </form>
+      {erro && (
+        <p role="alert" className="text-lg text-red-700">
+          {erro}
+        </p>
+      )}
+      {registros && registros.length === 0 && <p className="text-lg text-gray-900">Nenhum registro.</p>}
+      {registros && registros.length > 0 && (
+        <ul className="space-y-2 text-lg text-gray-900">
+          {registros.map((r) => (
+            <li key={r.id}>
+              #{r.id} {r.tipo_medicao}: {r.valor_1}
+              {r.valor_2 !== null ? `/${r.valor_2}` : ''} {r.unidade} ({new Date(r.data_hora).toLocaleString('pt-BR')})
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 function Saude() {
   const [tipoMedicao, setTipoMedicao] = useState('')
   const [valorSaude1, setValorSaude1] = useState('')
@@ -352,6 +426,7 @@ function Saude() {
         sufixo="edição, idoso vinculado"
         comIdoso
       />
+      <HistoricoSaude />
     </main>
   )
 }
