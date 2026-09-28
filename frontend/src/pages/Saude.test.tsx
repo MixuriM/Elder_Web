@@ -404,3 +404,55 @@ describe.each([
     }
   });
 });
+
+// Item 4.4 (RF-010): esqueleto cru "Ver histórico de saúde".
+describe("Saude: ver histórico de saúde (item 4.4)", () => {
+  beforeEach(() => {
+    mockGetCurrentUserToken.mockReset();
+    mockGetCurrentUserToken.mockResolvedValue("token-fake");
+    global.fetch = jest.fn();
+  });
+
+  const botao = () => screen.getByRole("button", { name: /^ver histórico$/i });
+
+  it("id em branco chama GET /saude e lista os registros", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, {
+        registros: [
+          { id: 7, tipo_medicao: "pressao", valor_1: 120, valor_2: 80, unidade: "mmHg", data_hora: "2026-09-24T12:00:00.000Z" },
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Saude />);
+    await user.click(botao());
+
+    expect(await screen.findByText(/#7 pressao: 120\/80 mmHg/)).toBeInTheDocument();
+    const [url, opcoes] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toMatch(/\/saude$/);
+    expect(opcoes.method).toBe("GET");
+    expect(opcoes.headers.Authorization).toBe("Bearer token-fake");
+  });
+
+  it("id preenchido chama GET /saude/idoso/:id", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
+    const user = userEvent.setup();
+    render(<Saude />);
+    await user.type(screen.getByLabelText(/^Id do idoso \(vazio/), "5");
+    await user.click(botao());
+
+    expect(await screen.findByText("Nenhum registro.")).toBeInTheDocument();
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toMatch(/\/saude\/idoso\/5$/);
+  });
+
+  it("erro 403 aparece com role=alert", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(403, { error: "Sem permissão para visualizar histórico de saúde." }),
+    );
+    const user = userEvent.setup();
+    render(<Saude />);
+    await user.click(botao());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sem permissão para visualizar histórico de saúde.");
+  });
+});
