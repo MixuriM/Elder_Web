@@ -455,4 +455,42 @@ describe("Saude: ver histórico de saúde (item 4.4)", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Sem permissão para visualizar histórico de saúde.");
   });
+
+  // Item 4.5 (RNF-001): nem o sucesso nem o erro do histórico levam valor de saúde a console.*.
+  describe("privacidade (item 4.5)", () => {
+    const CONSOLES = ["log", "info", "warn", "error", "debug"] as const;
+    const SENTINELA = "sentinela-clinica-ficticia";
+
+    async function verHistorico(resposta: Response) {
+      (global.fetch as jest.Mock).mockResolvedValue(resposta);
+      const espioes = CONSOLES.map((m) => jest.spyOn(console, m).mockImplementation(() => undefined));
+      try {
+        const user = userEvent.setup();
+        render(<Saude />);
+        await user.click(botao());
+        await waitFor(() => expect(botao()).not.toBeDisabled());
+        return JSON.stringify(espioes.flatMap((s) => s.mock.calls.map((a) => a.map((x) => (x instanceof Error ? x.message : x)))));
+      } finally {
+        espioes.forEach((s) => s.mockRestore());
+      }
+    }
+
+    it("sucesso: nenhum console.* recebe os registros lidos", async () => {
+      const registro = { id: 7, tipo_medicao: SENTINELA, valor_1: 4321.09, valor_2: null, unidade: "u", data_hora: "2026-09-24T12:00:00.000Z" };
+      const logado = await verHistorico(respostaJson(200, { registros: [registro] }));
+      expect(await screen.findByText(new RegExp(SENTINELA))).toBeInTheDocument(); // o dado chegou à tela
+      expect(logado).not.toContain(SENTINELA);
+      expect(logado).not.toContain("4321.09");
+    });
+
+    it("erro: console.error registra só a mensagem do backend, nunca campos extras do corpo", async () => {
+      const logado = await verHistorico(
+        respostaJson(500, { error: "Erro interno.", detalhe: SENTINELA, registros: [{ valor_1: 4321.09 }] }),
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent("Erro interno.");
+      expect(logado).toContain("Erro interno.");
+      expect(logado).not.toContain(SENTINELA);
+      expect(logado).not.toContain("4321.09");
+    });
+  });
 });
