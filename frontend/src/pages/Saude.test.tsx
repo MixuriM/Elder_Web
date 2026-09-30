@@ -2,6 +2,22 @@ import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Saude from "./Saude";
+import * as permissoesSaude from "../lib/permissoesSaude";
+
+// A ocultação das seções (item 4.x) depende de GET /vinculo ao montar. Nos testes antigos o hook
+// é trocado por um valor síncrono permissivo (seções visíveis, nenhum fetch extra), para não
+// alterar as asserções nem o índice de global.fetch.mock.calls. O describe de ocultação usa o
+// hook real.
+jest.mock("../lib/permissoesSaude", () => ({
+  ...jest.requireActual("../lib/permissoesSaude"),
+  usePermissoesSaude: jest.fn(),
+}));
+const mockUsePermissoes = permissoesSaude.usePermissoesSaude as jest.Mock;
+const { usePermissoesSaude: usePermissoesReal } = jest.requireActual("../lib/permissoesSaude");
+
+beforeEach(() => {
+  mockUsePermissoes.mockReturnValue({ estado: "ok", escrita: true, avisoSemFlag: false });
+});
 
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
@@ -492,5 +508,164 @@ describe("Saude: ver histórico de saúde (item 4.4)", () => {
       expect(logado).not.toContain(SENTINELA);
       expect(logado).not.toContain("4321.09");
     });
+  });
+});
+
+// Item 4.x: ocultação das duas seções que escrevem em nome de outro idoso. Só UX: o backend
+// continua validando (403). Usa o hook real e responde GET /vinculo?status=aprovado pelo fetch.
+describe("Saude — ocultação por permissão (item 4.x)", () => {
+  const TITULO_REGISTRAR = /Registrar leitura de saúde de um idoso/;
+  const TITULO_EDITAR = /Editar registro de saúde de um idoso/;
+  const AVISO = "Seu vínculo de cuidador não tem a permissão de registrar saúde ativada. Você ainda pode ver o histórico.";
+  const ALERTA =
+    "Não foi possível verificar suas permissões. O servidor continua validando cada ação.";
+
+  const flags = (registrar: boolean, dose = false) => ({
+    permite_registrar_saude: registrar,
+    permite_marcar_dose: dose,
+    permite_criar_evento_cuidado: false,
+  });
+  const item = (extra: Record<string, unknown>) => ({
+    tipo_vinculo: "cuidador",
+    status: "aprovado",
+    papel_do_chamador: "vinculado",
+    permissoes: null,
+    ...extra,
+  });
+
+  beforeEach(() => {
+    mockUsePermissoes.mockImplementation(usePermissoesReal);
+    mockGetCurrentUserToken.mockReset();
+    mockGetCurrentUserToken.mockResolvedValue("token-fake");
+    global.fetch = jest.fn();
+  });
+
+  function comVinculos(vinculos: unknown[]) {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { vinculos }));
+  }
+
+  async function renderizar() {
+    render(<Saude />);
+    // Espera a busca terminar (o indicador de carregamento some).
+    await waitFor(() => expect(screen.queryByText(/verificando permissões/i)).not.toBeInTheDocument());
+  }
+
+  function semprePresentes() {
+    expect(screen.getByRole("heading", { name: /Registrar leitura de saúde \(só idoso\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Editar registro de saúde \(próprio, idoso\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ver histórico de saúde" })).toBeInTheDocument();
+  }
+
+  it("busca só vínculos aprovados, com GET e token", async () => {
+    comVinculos([]);
+    await renderizar();
+    const [url, opcoes] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toMatch(/\/vinculo\?status=aprovado$/);
+    expect(opcoes.method).toBe("GET");
+    expect(opcoes.headers.Authorization).toBe("Bearer token-fake");
+  });
+
+  it("cuidador com permite_registrar_saude vê as duas seções, sem aviso", async () => {
+    comVinculos([item({ permissoes: flags(true) })]);
+    await renderizar();
+    expect(screen.getByRole("heading", { name: TITULO_REGISTRAR })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: TITULO_EDITAR })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("cuidador sem a flag: seções NÃO renderizadas e aviso com role=status", async () => {
+    comVinculos([item({ permissoes: flags(false) })]);
+    await renderizar();
+    expect(screen.queryByRole("heading", { name: TITULO_REGISTRAR })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: TITULO_EDITAR })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Id do idoso/)).toBeInTheDocument(); // só o do histórico
+    expect(screen.queryByRole("button", { name: /Registrar leitura do idoso/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(AVISO);
+    semprePresentes();
+  });
+
+  it("vínculo aprovado só com permite_marcar_dose NÃO habilita", async () => {
+    comVinculos([item({ permissoes: flags(false, true) })]);
+    await renderizar();
+    expect(screen.queryByRole("heading", { name: TITULO_REGISTRAR })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(AVISO);
+  });
+
+  it("região viva role=status é o mesmo nó do primeiro render ao aviso (anúncio por mudança de conteúdo)", async () => {
+    comVinculos([item({ permissoes: flags(false) })]);
+    render(<Saude />);
+    const regiao = screen.getByRole("status"); // já montada durante o carregamento
+    expect(regiao).toHaveTextContent(/verificando permissões/i);
+    await waitFor(() => expect(regiao).toHaveTextContent(AVISO));
+    expect(screen.getByRole("status")).toBe(regiao);
+  });
+
+  it("familiar aprovado vê as duas seções", async () => {
+    comVinculos([item({ tipo_vinculo: "familiar" })]);
+    await renderizar();
+    expect(screen.getByRole("heading", { name: TITULO_REGISTRAR })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: TITULO_EDITAR })).toBeInTheDocument();
+  });
+
+  it("sem vínculo nenhum: oculta as duas seções e não mostra mensagem", async () => {
+    comVinculos([]);
+    await renderizar();
+    expect(screen.queryByRole("heading", { name: TITULO_REGISTRAR })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: TITULO_EDITAR })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    semprePresentes();
+  });
+
+  it.each([
+    ["dono com cuidador e flag", [item({ papel_do_chamador: "dono", permissoes: flags(true) })]],
+    ["titular familiar", [item({ tipo_vinculo: "familiar", papel_do_chamador: "titular" })]],
+    ["titular cuidador com flag", [item({ papel_do_chamador: "titular", permissoes: flags(true) })]],
+  ])("papel %s não conta: seções ocultas e sem aviso", async (_rotulo, vinculos) => {
+    comVinculos(vinculos);
+    await renderizar();
+    expect(screen.queryByRole("heading", { name: TITULO_REGISTRAR })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: TITULO_EDITAR })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("carregando: indicador no lugar das duas seções; o resto já aparece", async () => {
+    let liberar: (r: Response) => void = () => undefined;
+    (global.fetch as jest.Mock).mockReturnValue(new Promise<Response>((res) => (liberar = res)));
+    render(<Saude />);
+    expect(await screen.findByText(/verificando permissões/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: TITULO_REGISTRAR })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: TITULO_EDITAR })).not.toBeInTheDocument();
+    semprePresentes();
+    liberar(respostaJson(200, { vinculos: [item({ tipo_vinculo: "familiar" })] }));
+    expect(await screen.findByRole("heading", { name: TITULO_REGISTRAR })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["rede", () => (global.fetch as jest.Mock).mockRejectedValue(new TypeError("rede"))],
+    ["500", () => (global.fetch as jest.Mock).mockResolvedValue(respostaJson(500, { error: "Erro interno." }))],
+  ])("erro de busca (%s): seções continuam visíveis e aparece role=alert", async (_rotulo, preparar) => {
+    preparar();
+    render(<Saude />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(ALERTA);
+    expect(screen.getByRole("heading", { name: TITULO_REGISTRAR })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: TITULO_EDITAR })).toBeInTheDocument();
+    semprePresentes();
+  });
+
+  it("erro de busca não loga corpo nem detalhes do erro em console.*", async () => {
+    const spies = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
+      jest.spyOn(console, m).mockImplementation(() => undefined),
+    );
+    try {
+      (global.fetch as jest.Mock).mockResolvedValue(respostaJson(500, { error: "Erro interno.", detalhe: "sentinela-falso-xyz" }));
+      render(<Saude />);
+      await screen.findByRole("alert");
+      const tudo = JSON.stringify(spies.flatMap((s) => s.mock.calls.map((c) => c.map((a) => (a instanceof Error ? a.message : a)))));
+      expect(tudo).not.toContain("sentinela-falso-xyz");
+    } finally {
+      spies.forEach((s) => s.mockRestore());
+    }
   });
 });

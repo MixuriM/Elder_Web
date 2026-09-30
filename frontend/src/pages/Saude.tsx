@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
 import { chamarApi } from '../lib/chamarApi'
 import Spinner from '../components/common/Spinner'
+import { usePermissoesSaude } from '../lib/permissoesSaude'
 
 // Esqueleto cru da Fase 4, item 4.1 (RF-007): só o formulário de registro de leitura de
 // saúde do idoso (POST /saude), pra exercitar o endpoint sem depender do front delas.
@@ -11,6 +12,8 @@ import Spinner from '../components/common/Spinner'
 // no idoso; senão o backend responde 403 e a mensagem aparece em role="alert").
 // Item 4.3 (RF-009, RNF-006): duas seções de edição (PATCH /saude/:id e
 // PATCH /saude/idoso/:idosoId/:id). Edição substitui a leitura inteira, então reenvia todos os campos.
+// Item 4.x: as duas seções que escrevem em nome de outro idoso só aparecem para familiar vinculado ou
+// cuidador com permite_registrar_saude (lib/permissoesSaude.ts). É só UX: o backend continua validando.
 
 const LEITURA_VAZIA = {
   idosoId: '',
@@ -202,6 +205,7 @@ function HistoricoSaude() {
 }
 
 function Saude() {
+  const permissoes = usePermissoesSaude()
   const [tipoMedicao, setTipoMedicao] = useState('')
   const [valorSaude1, setValorSaude1] = useState('')
   const [valorSaude2, setValorSaude2] = useState('')
@@ -273,6 +277,8 @@ function Saude() {
     }
   }
 
+  // Oculto = não renderizado. Erro ao verificar mantém visível (o backend valida de qualquer jeito).
+  const mostrarEscritaDeTerceiros = permissoes.estado === 'erro' || permissoes.escrita
   const campoClasse = 'mt-1 w-full rounded border border-gray-400 p-3 text-lg'
   const rotuloClasse = 'block text-lg font-medium text-gray-900'
 
@@ -381,51 +387,73 @@ function Saude() {
         {resultadoSaude && <p className="text-lg text-gray-900">Leitura registrada (id {resultadoSaude.id}).</p>}
       </section>
 
-      <section className="w-full max-w-sm space-y-4">
-        <h2 className="text-2xl font-bold text-gray-900">Registrar leitura de saúde de um idoso (cuidador ou familiar)</h2>
-        <form onSubmit={handleRegistrarSaudeCuidador} className="space-y-4">
-          {(
-            [
-              ['idosoId', 'Id do idoso', 'idoso_id_cuid', { type: 'number', required: true, min: 1, step: 1 }],
-              ['tipoMedicao', 'Tipo de medição (cuidador)', 'tipo_medicao_cuid', { type: 'text', required: true, maxLength: 50 }],
-              ['valor1', 'Valor 1 (cuidador)', 'valor_1_cuid', { type: 'number', required: true, min: 0, step: 'any' }],
-              ['valor2', 'Valor 2 (opcional, cuidador)', 'valor_2_cuid', { type: 'number', min: 0, step: 'any' }],
-              ['unidade', 'Unidade (cuidador)', 'unidade_cuid', { type: 'text', required: true, maxLength: 20 }],
-              ['dataHora', 'Data e hora (opcional, cuidador)', 'data_hora_cuid', { type: 'datetime-local' }],
-              ['observacoes', 'Observações (opcional, cuidador)', 'observacoes_cuid', { type: 'text', maxLength: 300 }],
-            ] as const
-          ).map(([campo, rotulo, id, atributos]) => (
-            <div key={id}>
-              <label htmlFor={id} className={rotuloClasse}>
-                {rotulo}
-              </label>
-              <input id={id} {...atributos} value={cuid[campo]} onChange={setCampoCuid(campo)} className={campoClasse} />
-            </div>
-          ))}
-          <button
-            type="submit"
-            disabled={carregandoCuid}
-            aria-busy={carregandoCuid}
-            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-          >
-            {carregandoCuid && <Spinner />}
-            {carregandoCuid ? 'Registrando...' : 'Registrar leitura do idoso'}
-          </button>
-        </form>
-        {erroCuid && (
-          <p role="alert" className="text-lg text-red-700">
-            {erroCuid}
-          </p>
+      {/* Região viva persistente (sempre montada): o aviso de cuidador sem permissão chega depois, como
+          mudança de conteúdo, o que o leitor de tela anuncia; região inserida já com texto nem sempre é. */}
+      <div role="status" className="w-full max-w-sm text-lg text-gray-900 empty:-mb-10">
+        {permissoes.estado === 'carregando' && (
+          <span className="flex items-center gap-2">
+            <Spinner />
+            <span>Verificando permissões...</span>
+          </span>
         )}
-        {resultadoCuid && <p className="text-lg text-gray-900">Leitura do idoso registrada (id {resultadoCuid.id}).</p>}
-      </section>
+        {permissoes.avisoSemFlag &&
+          'Seu vínculo de cuidador não tem a permissão de registrar saúde ativada. Você ainda pode ver o histórico.'}
+      </div>
+      {permissoes.estado === 'erro' && (
+        <p role="alert" className="w-full max-w-sm text-lg text-red-700">
+          Não foi possível verificar suas permissões. O servidor continua validando cada ação.
+        </p>
+      )}
+
+      {mostrarEscritaDeTerceiros && (
+        <section className="w-full max-w-sm space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">Registrar leitura de saúde de um idoso (cuidador ou familiar)</h2>
+          <form onSubmit={handleRegistrarSaudeCuidador} className="space-y-4">
+            {(
+              [
+                ['idosoId', 'Id do idoso', 'idoso_id_cuid', { type: 'number', required: true, min: 1, step: 1 }],
+                ['tipoMedicao', 'Tipo de medição (cuidador)', 'tipo_medicao_cuid', { type: 'text', required: true, maxLength: 50 }],
+                ['valor1', 'Valor 1 (cuidador)', 'valor_1_cuid', { type: 'number', required: true, min: 0, step: 'any' }],
+                ['valor2', 'Valor 2 (opcional, cuidador)', 'valor_2_cuid', { type: 'number', min: 0, step: 'any' }],
+                ['unidade', 'Unidade (cuidador)', 'unidade_cuid', { type: 'text', required: true, maxLength: 20 }],
+                ['dataHora', 'Data e hora (opcional, cuidador)', 'data_hora_cuid', { type: 'datetime-local' }],
+                ['observacoes', 'Observações (opcional, cuidador)', 'observacoes_cuid', { type: 'text', maxLength: 300 }],
+              ] as const
+            ).map(([campo, rotulo, id, atributos]) => (
+              <div key={id}>
+                <label htmlFor={id} className={rotuloClasse}>
+                  {rotulo}
+                </label>
+                <input id={id} {...atributos} value={cuid[campo]} onChange={setCampoCuid(campo)} className={campoClasse} />
+              </div>
+            ))}
+            <button
+              type="submit"
+              disabled={carregandoCuid}
+              aria-busy={carregandoCuid}
+              className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+            >
+              {carregandoCuid && <Spinner />}
+              {carregandoCuid ? 'Registrando...' : 'Registrar leitura do idoso'}
+            </button>
+          </form>
+          {erroCuid && (
+            <p role="alert" className="text-lg text-red-700">
+              {erroCuid}
+            </p>
+          )}
+          {resultadoCuid && <p className="text-lg text-gray-900">Leitura do idoso registrada (id {resultadoCuid.id}).</p>}
+        </section>
+      )}
 
       <EdicaoSaude titulo="Editar registro de saúde (próprio, idoso)" sufixo="edição" comIdoso={false} />
-      <EdicaoSaude
-        titulo="Editar registro de saúde de um idoso (cuidador ou familiar)"
-        sufixo="edição, idoso vinculado"
-        comIdoso
-      />
+      {mostrarEscritaDeTerceiros && (
+        <EdicaoSaude
+          titulo="Editar registro de saúde de um idoso (cuidador ou familiar)"
+          sufixo="edição, idoso vinculado"
+          comIdoso
+        />
+      )}
       <HistoricoSaude />
     </main>
   )
