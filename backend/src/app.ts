@@ -24,7 +24,8 @@ app.use('/saude', saudeRouter)
 // stack (começa pela message) nem req.body/req.query: um erro do Prisma carrega os args da
 // query, ou seja, valores de RegistroSaude (LGPD Art. 5º, XI). Custo: sem message/stack no
 // log, depurar um 500 exige reproduzir o caso.
-const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+// Quarto parâmetro (_next) é obrigatório: o Express só reconhece handler de erro por aridade 4.
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   const info = typeof err === 'object' && err !== null ? (err as { name?: unknown; code?: unknown }) : {}
   console.error('Erro não tratado', {
     name: err instanceof Error && typeof info.name === 'string' ? info.name : typeof err,
@@ -33,7 +34,11 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     path: req.path,
   })
   if (res.headersSent) {
-    return next(err)
+    // Não delega ao handler padrão do Express: o logerror dele imprime err.stack (que começa pela
+    // message, com os args da query do Prisma) em qualquer NODE_ENV diferente de 'test'.
+    // Derrubar o socket é o que o handler padrão faz, sem o log.
+    req.socket.destroy()
+    return
   }
   res.status(500).json({ error: 'Erro interno.' })
 }

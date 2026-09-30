@@ -20,7 +20,7 @@ jest.mock("./lib/prisma", () => ({
   },
 }));
 
-import app from "./app";
+import app, { errorHandler } from "./app";
 
 // Valores de saúde conhecidos: nenhum pode aparecer em NENHUMA chamada a console.*.
 const VALOR = "123.45";
@@ -117,5 +117,42 @@ describe("errorHandler (item 4.5, parcial): não registra o erro inteiro", () =>
     expect(tudo).not.toContain(VALOR);
     expect(tudo).not.toContain(SEGREDO);
     expect(chamadasError).toHaveLength(1);
+  });
+});
+
+describe("errorHandler com headers já enviados (item 4.5)", () => {
+  // O handler padrão do Express (next(err)) imprime err.stack em qualquer NODE_ENV diferente de
+  // 'test', e o stack começa pela message, que num erro do Prisma carrega os args da query.
+  it("derruba o socket, não chama next e não escreve message nem stack; o log sanitizado sai", async () => {
+    const erro = Object.assign(new Error(`Invalid invocation: valor_1: ${VALOR}, observacoes: '${SEGREDO}'`), {
+      code: "P2002",
+    });
+    const destroy = jest.fn();
+    const next = jest.fn();
+    const status = jest.fn();
+    const req = { method: "PATCH", path: "/saude/1", socket: { destroy } };
+    const res = { headersSent: true, status };
+
+    const { tudo, erros } = await comConsoleEspiado(async () => {
+      const out = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+      const err = jest.spyOn(process.stderr, "write").mockImplementation(() => true);
+      try {
+        errorHandler(erro, req as never, res as never, next);
+        expect(inspect([out.mock.calls, err.mock.calls], { depth: 8 })).not.toContain(SEGREDO);
+      } finally {
+        out.mockRestore();
+        err.mockRestore();
+      }
+    });
+
+    expect(next).not.toHaveBeenCalled();
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(status).not.toHaveBeenCalled();
+    expect(tudo).not.toContain(VALOR);
+    expect(tudo).not.toContain(SEGREDO);
+    expect(tudo).not.toContain("Invalid invocation");
+    expect(erros).toHaveLength(1);
+    const registrado = inspect(erros[0], { depth: 8 });
+    for (const parte of ["Error", "P2002", "PATCH", "/saude/1"]) expect(registrado).toContain(parte);
   });
 });
