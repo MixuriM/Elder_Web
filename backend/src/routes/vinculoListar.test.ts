@@ -34,6 +34,9 @@ type VinculoFake = {
   confirmado_em: Date | null;
   aprovador_id: number | null;
   notificado_em: Date | null;
+  permite_registrar_saude: boolean;
+  permite_marcar_dose: boolean;
+  permite_criar_evento_cuidado: boolean;
 };
 
 type WhereVinculo = {
@@ -127,6 +130,9 @@ function vinculo(
     confirmado_em: null,
     aprovador_id: null,
     notificado_em: null,
+    permite_registrar_saude: false,
+    permite_marcar_dose: false,
+    permite_criar_evento_cuidado: false,
   };
 }
 
@@ -163,6 +169,7 @@ type Item = {
   papel_do_chamador: string;
   status: string;
   confirmado_em: string | null;
+  permissoes: { permite_registrar_saude: boolean; permite_marcar_dose: boolean; permite_criar_evento_cuidado: boolean } | null;
   idoso: { id: number | null; nome: string | null; email_mascarado: string | null };
   vinculado: { id: number; nome: string; email_mascarado: string | null };
 };
@@ -386,4 +393,85 @@ describe("GET /vinculo", () => {
       expect(itemPorId(res, 1).confirmado_em).toBeNull();
     });
   });
+
+  // Contrato novo (item 4.x): `permissoes` só para cuidador aprovado, null em qualquer outro caso.
+  // Os vínculos que devem dar null recebem as 3 flags verdadeiras de propósito, para provar que a
+  // rota suprime o valor e não que ele calhou de ser falso.
+  describe("permissoes (flags do cuidador)", () => {
+    const FLAGS = ["permite_registrar_saude", "permite_marcar_dose", "permite_criar_evento_cuidado"] as const;
+    const todasVerdadeiras = { permite_registrar_saude: true, permite_marcar_dose: true, permite_criar_evento_cuidado: true };
+    const permissoesDe = (res: request.Response, id: number) => itemPorId(res, id).permissoes;
+
+    beforeEach(() => {
+      for (const id of [2, 3, 4, 6]) Object.assign(vinculos.find((v) => v.id === id)!, todasVerdadeiras);
+    });
+
+    it.each(FLAGS)("cuidador aprovado: só %s verdadeira aparece como verdadeira (pega troca de campo)", async (flag) => {
+      Object.assign(vinculos.find((v) => v.id === 1)!, { [flag]: true });
+      const esperado = { permite_registrar_saude: false, permite_marcar_dose: false, permite_criar_evento_cuidado: false, [flag]: true };
+      usuarios[A].modo_decisao = "familiar";
+      expect(permissoesDe(await listarOk(C1), 1)).toEqual(esperado); // vinculado
+      expect(permissoesDe(await listarOk(A), 1)).toEqual(esperado); // dono
+      expect(permissoesDe(await listarOk(F1), 1)).toEqual(esperado); // titular
+    });
+
+    it("cuidador aprovado com as três falsas devolve objeto com três false, não null", async () => {
+      expect(permissoesDe(await listarOk(C1), 1)).toEqual({
+        permite_registrar_saude: false,
+        permite_marcar_dose: false,
+        permite_criar_evento_cuidado: false,
+      });
+    });
+
+    // [rótulo, id do vínculo, quem enxerga o item]
+    it.each([
+      ["familiar aprovado (solicitacao_familiar)", 2, [A, F1]],
+      ["familiar aprovado (convite_idoso)", 3, [A, F2, F1]],
+      ["cuidador pendente", 4, [B, C2]],
+      ["cuidador recusado", 6, [A, C2]],
+    ] as [string, number, number[]][])("%s: permissoes null mesmo com flags verdadeiras no banco", async (_rotulo, id, quem) => {
+      usuarios[A].modo_decisao = "familiar";
+      for (const q of quem) expect(permissoesDe(await listarOk(q), id)).toBeNull();
+    });
+
+    it("quem é só vinculado de vínculo pendente ou recusado também recebe null", async () => {
+      const res = await listarOk(C2);
+      expect(permissoesDe(res, 4)).toBeNull();
+      expect(permissoesDe(res, 6)).toBeNull();
+    });
+
+    it("formato exato do item: nenhum campo além de permissoes foi acrescentado", async () => {
+      usuarios[A].modo_decisao = "familiar";
+      for (const quem of [A, C1, F1]) {
+        const res = await listarOk(quem);
+        for (const item of res.body.vinculos as Item[]) {
+          expect(Object.keys(item).sort()).toEqual(
+            [
+              "confirmado_em",
+              "data_resposta",
+              "data_solicitacao",
+              "id",
+              "idoso",
+              "origem",
+              "papel_do_chamador",
+              "permissoes",
+              "status",
+              "tipo_vinculo",
+              "vinculado",
+            ].sort(),
+          );
+          if (item.permissoes) expect(Object.keys(item.permissoes).sort()).toEqual([...FLAGS].sort());
+        }
+      }
+    });
+
+    it("?status continua filtrando e traz permissoes", async () => {
+      const res = await listarOk(A, "?status=aprovado");
+      expect(ids(res)).toEqual([1, 2, 3]);
+      expect(permissoesDe(res, 1)).not.toBeNull();
+      expect(permissoesDe(res, 2)).toBeNull();
+      const pend = await listarOk(A, "?status=pendente");
+      expect(ids(pend)).toEqual([]);
+    });
+  });
 });
