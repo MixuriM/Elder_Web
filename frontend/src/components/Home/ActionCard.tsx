@@ -117,71 +117,66 @@ function ActionCard({
         "
       />
 
-      {/* Texto */}
-      <div className="relative">
-        <h3
-          className="
-            text-[17px]
-            font-bold
-            text-white
+      {/* Texto e seta */}
+      <div className="relative flex min-w-0 items-end justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3
+            className="
+              text-[17px]
+              font-bold
+              text-white
 
-            sm:text-[18px]
+              sm:text-[18px]
+            "
+          >
+            {title}
+          </h3>
+
+          <p
+            className="
+              mt-1
+
+              max-w-[230px]
+
+              text-[12px]
+              leading-4
+
+              text-white/80
+
+              sm:text-[13px]
+            "
+          >
+            {description}
+          </p>
+        </div>
+
+        <span
+          className="
+            flex
+            h-9
+            w-9
+            shrink-0
+            items-center
+            justify-center
+
+            rounded-full
+
+            bg-white
+
+            text-[#071A38]
+
+            shadow-md
+
+            transition-all
+            duration-300
+
+            group-hover:translate-x-1
+            group-hover:scale-105
           "
         >
-          {title}
-        </h3>
-
-        <p
-          className="
-            mt-1
-
-            max-w-[230px]
-
-            text-[12px]
-            leading-4
-
-            text-white/80
-
-            sm:text-[13px]
-          "
-        >
-          {description}
-        </p>
+          <ChevronRight size={17} />
+        </span>
       </div>
-
-      {/* Seta */}
-      <span
-        className="
-          absolute
-          bottom-4
-          right-4
-
-          flex
-          h-9
-          w-9
-          items-center
-          justify-center
-
-          rounded-full
-
-          bg-white
-
-          text-[#071A38]
-
-          shadow-md
-
-          transition-all
-          duration-300
-
-          group-hover:translate-x-1
-          group-hover:scale-105
-
-          sm:bottom-5
-          sm:right-5
-        "
-      >
-        <ChevronRight size={17} />
-      </span>
     </button>
   );
 }
