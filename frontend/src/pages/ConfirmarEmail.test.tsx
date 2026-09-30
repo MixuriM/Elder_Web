@@ -40,7 +40,7 @@ describe("ConfirmarEmail", () => {
 
     render(<ConfirmarEmail />);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /^confirmar$/i }));
+    await user.click(await screen.findByRole("button", { name: /^confirmar e-mail$/i }));
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/confirmado com sucesso/i));
 
@@ -71,7 +71,7 @@ describe("ConfirmarEmail", () => {
 
     render(<ConfirmarEmail />);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: /^confirmar$/i }));
+    await user.click(await screen.findByRole("button", { name: /^confirmar e-mail$/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/falha de rede/i);
   });
