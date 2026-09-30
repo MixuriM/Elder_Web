@@ -78,7 +78,7 @@ function BannerSaude() {
 
             rounded-full
 
-            bg-white/15
+            bg-[#5149D8]
 
             text-white
 
