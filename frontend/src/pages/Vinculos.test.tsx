@@ -21,7 +21,12 @@ function respostaJson(status: number, corpo: unknown) {
 // (checkbox de aceite obrigatório, erro com role="alert", botão desabilitado durante a
 // chamada). Esqueleto é descartável (layout final é de Laureane/Jennifer), então o teste
 // é mínimo, sem cobrir listagem/estilo.
-describe("Vinculos — Cadastrar idoso (item 3.1)", () => {
+//
+// SKIP: o novo layout de Vinculos.tsx (PR #116) removeu o esqueleto "Cadastrar idoso";
+// components/Vinculos/CadastrarIdoso.tsx ainda é um placeholder vazio. Reativar (trocar
+// describe.skip por describe) e adaptar os seletores quando o componente real existir.
+// A rota POST /usuario/cadastrar-idoso segue coberta pelos testes do backend.
+describe.skip("Vinculos — Cadastrar idoso (item 3.1)", () => {
   beforeEach(() => {
     mockGetCurrentUserToken.mockReset();
     mockGetCurrentUserToken.mockResolvedValue("token-fake");
