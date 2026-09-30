@@ -763,6 +763,9 @@ router.get("/", requireAuth, async (req, res, next) => {
         // Fail-closed: quem é só o vinculado não lê nome/e-mail do idoso antes de 'aprovado'
         // (senão qualquer conta leria o nome de um idoso solicitando vínculo pelo e-mail).
         const escondeIdoso = papel === "vinculado" && v.status !== "aprovado";
+        // Flags só existem em vínculo de cuidador já aprovado (mesma regra de /definir-permissoes);
+        // fora disso null, sem nunca repassar o valor do banco.
+        const expoePermissoes = v.tipo_vinculo === "cuidador" && v.status === "aprovado";
         return {
           id: v.id,
           tipo_vinculo: v.tipo_vinculo,
@@ -772,6 +775,13 @@ router.get("/", requireAuth, async (req, res, next) => {
           data_resposta: v.data_resposta,
           confirmado_em: v.confirmado_em,
           papel_do_chamador: papel,
+          permissoes: expoePermissoes
+            ? {
+                permite_registrar_saude: v.permite_registrar_saude,
+                permite_marcar_dose: v.permite_marcar_dose,
+                permite_criar_evento_cuidado: v.permite_criar_evento_cuidado,
+              }
+            : null,
           idoso: {
             id: escondeIdoso ? null : v.idoso.id,
             nome: escondeIdoso ? null : v.idoso.nome,
