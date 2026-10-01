@@ -284,7 +284,7 @@ const MODO_DECISAO_NEUTRO: ModoDecisaoEstado = {
 // autoridade (resolverModoDecisao acima) e nas duas rotas novas desta tarefa. NÃO cobre
 // login do idoso: cancelamento por login é tratado separadamente em POST /auth/sync,
 // porque login sempre cancela a solicitação primeiro, com prioridade sobre a expiração
-// (mesmo se os dois acontecerem "ao mesmo tempo") — ver CLAUDE.md, limitação aceita desta
+// (mesmo se os dois acontecerem "ao mesmo tempo") — ver docs/historico-implementacao.md, entrada do item 2.9, limitação aceita desta
 // tarefa: sem job agendado, uma linha pode ficar com modo_decisao_solicitado* preenchido
 // além do prazo até o próximo ponto de leitura relevante rodar esta função.
 export async function resolverEstadoModoDecisao(idosoId: number): Promise<ModoDecisaoEstado> {

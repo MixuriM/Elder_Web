@@ -29,7 +29,7 @@ model Usuario {
   // (UNIQUE WHERE firebase_uid IS NOT NULL) — @@unique do Prisma não aceita WHERE.
   // Nullable porque idoso cadastrado por familiar (RF-030) pode não ter login Firebase
   // próprio ainda — mesmo padrão já usado para email abaixo. Decisão fechada em
-  // CLAUDE.md, "firebase_uid nullable" (2026-09-01).
+  // CLAUDE.md, "Arquitetura de autenticação (Firebase Auth + SQL Server)" (2026-09-01).
   firebase_uid                        String?   @db.NVarChar(128)
   nome                                String    @db.NVarChar(150)
   // TODO (manual na migration): índice único de email precisa ser FILTRADO

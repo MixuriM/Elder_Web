@@ -682,7 +682,7 @@ describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
 
   // Reabertura da tarefa 3.1 nesta rodada (3.3): e-mail passou a ser obrigatório, "só
   // telefone" deixou de bastar sozinho. Este teste esperava 201 antes; agora espera 400 —
-  // ver decisão registrada em CLAUDE.md (item 3.3).
+  // ver docs/historico-implementacao.md, entrada do item 3.3 (reabertura da 3.1).
   it("400 só com telefone (sem e-mail) — e-mail agora é obrigatório", async () => {
     const res = await post({ nome: "Seu José", telefone: " 11999990000 ", aceita_termo_responsabilidade: true });
 

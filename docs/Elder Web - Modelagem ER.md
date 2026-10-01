@@ -56,7 +56,7 @@ cadastrado pelo familiar via RF-030, sem login Firebase próprio ainda) — mesm
 padrão de índice único filtrado usado para email, acima. CHECK
 (firebase_uid IS NOT NULL OR cadastrado_por_id IS NOT NULL) garante que
 autocadastro (sempre via /auth/sync com token Firebase) nunca fica sem
-firebase_uid. Decisão registrada em CLAUDE.md, "firebase_uid nullable" —
+firebase_uid. Decisão registrada em CLAUDE.md, "Arquitetura de autenticação (Firebase Auth + SQL Server)" —
 migration 20260902014014_firebase_uid_nullable (2026-09-01).
 
 (4) foto_perfil, foto_perfil_mime_type e foto_perfil_atualizada_em formam um conjunto:
