@@ -1392,7 +1392,7 @@ Fecha o achado do item 4.2 (`GET /vinculo` sem `permite_*`) e a última linha da
 
 **Mudança de contrato a avisar (fica com o Marcos):** `GET /vinculo` agora devolve `permissoes` em cada item; Laureane e Jennifer podem usar o campo nas telas de cuidador.
 
-**Item 5.1 da Fase 5 (RF-011) implementado: cadastro de medicamento por idoso ou familiar, nunca cuidador (2026-10-01, sem PR ainda, commits locais pendentes de confirmação):**
+**Item 5.1 da Fase 5 (RF-011) implementado: cadastro de medicamento por idoso ou familiar, nunca cuidador (2026-10-01, PR #123, mergeado em `main` em 2026-10-01T21:04:14Z por rebase: `3ab7cc5` rotas, testes e script, `2a5a2bf` esqueleto de frontend, `f0a2daa` docs; hashes finais diferentes dos commits locais `08eca50`, `6b94463` e `a5d1210`, mesmo padrão dos PRs anteriores):**
 
 Primeiro item da Fase 5. Nenhuma migration, CHECK, dependência nova nem mudança em `saude.ts`, nos middlewares ou em `vinculo.ts`: o modelo `Medicamento` já existia no `schema.prisma`. Código novo em `backend/src/routes/remedios.ts`, montado em `app.ts` com `app.use('/remedios', remediosRouter)`.
 
