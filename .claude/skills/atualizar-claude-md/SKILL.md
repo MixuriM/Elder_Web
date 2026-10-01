@@ -1,10 +1,17 @@
 ---
 name: atualizar-claude-md
-description: Use esta skill sempre que um item do plano de desenvolvimento do Elder Web (ex: Fase 2, item 2.4) tiver sido implementado E mergeado em main, para registrar o "Detalhe da implementação X.Y" no CLAUDE.md deste repositório, seguindo exatamente o formato das entradas já existentes (2.1, 2.2, 2.3, fluxo auth/sync, fix de CORS, etc). Aciona quando o usuário disser algo como "documenta isso no CLAUDE.md", "registra a implementação do item X.Y", "atualiza o CLAUDE.md com o que a gente acabou de mergear", ou mencionar explicitamente que um PR foi mergeado e pedir pra deixar isso registrado. NÃO usar antes do PR estar de fato mergeado em main — dados como número de PR, hash de commit e nome de migration precisam ser reais, nunca inventados nem deixados como placeholder. Se o merge ainda não aconteceu, informe isso ao usuário e não escreva a entrada.
+description: Use esta skill sempre que um item do plano de desenvolvimento do Elder Web (ex: Fase 2, item 2.4) tiver sido implementado E mergeado em main, para registrar o "Detalhe da implementação X.Y" em docs/historico-implementacao.md, seguindo o formato das entradas já existentes lá. O CLAUDE.md só recebe regra durável, decisão fechada ou pendência em aberto, em 1 a 3 linhas. Aciona quando o usuário disser algo como "documenta isso no CLAUDE.md", "registra a implementação do item X.Y", "atualiza o CLAUDE.md com o que a gente acabou de mergear", ou mencionar explicitamente que um PR foi mergeado e pedir pra deixar isso registrado. NÃO usar antes do PR estar de fato mergeado em main — dados como número de PR, hash de commit e nome de migration precisam ser reais, nunca inventados nem deixados como placeholder. Se o merge ainda não aconteceu, informe isso ao usuário e não escreva a entrada.
 allowed-tools: Read, Grep, Bash, Edit
 ---
 
-# Atualizar CLAUDE.md — Detalhe de implementação de item do plano
+# Registrar implementação de item do plano (histórico + CLAUDE.md)
+
+## Destino
+- Resumo da tarefa concluída vai para `docs/historico-implementacao.md`, nunca para o CLAUDE.md.
+- Não leia o histórico inteiro (~139k). Use Grep pelo item (ex: "Item 2.9") ou pela feature
+  e leia só as entradas relevantes (Read com offset/limit), inclusive para copiar o formato.
+- CLAUDE.md só recebe regra durável (seção "Convenções e regras técnicas estabelecidas"),
+  decisão fechada ou pendência em aberto, em 1 a 3 linhas.
 
 ## Quando NÃO agir
 Se o usuário pedir isso mas o PR relevante ainda não foi mergeado em `main` (confira com
@@ -37,24 +44,27 @@ aparecem em mensagem de commit nem em código de forma óbvia (ex: "por que opto
 CHECK constraint aqui"), e qualquer coisa que pareça ambígua ou incompleta.
 
 ## Passo 3 — Escrever a entrada
-Leia o CLAUDE.md inteiro primeiro (não edite às cegas) e identifique:
-1. Onde fica a tabela/lista "Decisões fechadas" — se o item concluído estiver listado lá como
-   pendente ou não mencionado, atualize a linha correspondente.
-2. O padrão exato dos parágrafos "Detalhe da implementação X.Y (data)" já existentes — mesmo
+Identifique via Grep (sem ler arquivos inteiros):
+1. Se o item mudou uma "Decisão fechada" ou pendência no CLAUDE.md — leia só essa seção e,
+   se o item concluído estiver listado como pendente ou não mencionado, atualize a linha
+   correspondente (1 a 3 linhas).
+2. O padrão dos parágrafos "Item X.Y ... implementado" já existentes no histórico — mesmo
    nível de detalhe técnico, mesmo estilo de escrita (direto, com nomes de arquivo e função
    reais entre crases, sem adjetivo vago tipo "implementação robusta").
 
 Escreva a entrada nova nesse mesmo formato e nível de detalhe. Não resuma demais — números
 concretos (contagem de testes, nome exato de migration, hash) são o ponto principal da
 entrada, não um detalhe dispensável. Não reescreva, reformate ou encurte nenhuma entrada
-existente — só adicione a nova, no lugar certo (ordem cronológica/lógica das seções já
-existentes).
+existente — só adicione a nova ao final do histórico (ordem cronológica).
 
 ## Passo 4 — Confirmar antes de gravar
 Mostre o texto final da entrada pro usuário antes de gravar no arquivo, especialmente se
 algum dos dados do Passo 2 ficou incompleto, teve que ser assumido, ou pareceu inconsistente
-com algo já escrito no CLAUDE.md (ex: uma decisão anterior documentada que parece conflitar
-com o que foi implementado agora). Só grave depois da confirmação.
+com algo já escrito no histórico ou no CLAUDE.md (ex: uma decisão anterior documentada que
+parece conflitar com o que foi implementado agora). Só grave depois da confirmação.
+
+## Passo 5 — Checar tamanho (obrigatório ao final de todo uso)
+Rode `wc -c CLAUDE.md`. Se passar de 30.000 bytes, avise o Marcos explicitamente.
 
 ## Regras fixas (não reabrir)
 - Nunca invente número de PR, hash de commit, nome de migration ou contagem de testes — se
@@ -63,3 +73,4 @@ com o que foi implementado agora). Só grave depois da confirmação.
   mergeado em `main`.
 - Esta skill só documenta o que já foi implementado — não implementa, não sugere código, não
   reabre decisão de produto já fechada.
+- Nunca copie o diário do histórico para o CLAUDE.md nem para a memória.
