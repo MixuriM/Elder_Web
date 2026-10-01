@@ -5,6 +5,7 @@ import authRouter from './routes/auth'
 import usuarioRouter from './routes/usuario'
 import vinculoRouter from './routes/vinculo'
 import saudeRouter from './routes/saude'
+import remediosRouter from './routes/remedios'
 
 const app = express()
 
@@ -19,6 +20,7 @@ app.use('/auth', authRouter)
 app.use('/usuario', usuarioRouter)
 app.use('/vinculo', vinculoRouter)
 app.use('/saude', saudeRouter)
+app.use('/remedios', remediosRouter)
 
 // Item 4.5 (parcial): loga só name, code, método e path. Nunca o erro inteiro, message,
 // stack (começa pela message) nem req.body/req.query: um erro do Prisma carrega os args da
