@@ -289,6 +289,9 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Foto de perfil é BLOB no SQL Server. `GET /usuario/me` não devolve foto (há
   `GET /usuario/me/foto` separado). Respostas de `/auth/sync` passam por `semFotoPerfil`
   e `requireAuth` usa `select` mínimo, para não carregar o BLOB à toa.
+- Medicamento também é dado sensível (mesmas regras de log de `RegistroSaude`). Cuidador
+  nunca cria medicamento (regra fixa de ator, independe das flags `permite_*`). Familiar só
+  cria com `modo_decisao` efetivo `'familiar'` (via `resolverModoDecisao`).
 
 **Testes**
 - TDD: escrever o teste antes, confirmar RED, depois implementar. Fakes de Prisma devem
