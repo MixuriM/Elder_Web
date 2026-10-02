@@ -50,3 +50,14 @@ export function usePermissoesSaude(): Estado {
 
   return resultado
 }
+
+// Item 5.2 (RF-012): mesma ideia de decidirVisibilidade, para marcar dose em nome de outro idoso.
+// Familiar aprovado sempre (o backend não consulta modo_decisao nesta rota); cuidador aprovado só com
+// permite_marcar_dose. Papéis dono e titular não contam. Só conveniência de UX: o 403 do backend manda.
+export function decidirVisibilidadeDose(vinculos: VinculoMinimo[]) {
+  const meus = vinculos.filter((v) => v.status === 'aprovado' && v.papel_do_chamador === 'vinculado')
+  const escrita = meus.some(
+    (v) => v.tipo_vinculo === 'familiar' || (v.tipo_vinculo === 'cuidador' && v.permissoes?.permite_marcar_dose === true),
+  )
+  return { escrita, avisoSemFlag: !escrita && meus.length > 0 }
+}

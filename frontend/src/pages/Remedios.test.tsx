@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Remedios from "./Remedios";
 
@@ -7,6 +7,31 @@ const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
   getCurrentUserToken: (...args: unknown[]) => mockGetCurrentUserToken(...args),
 }));
+
+// Item 5.2: a página passou a consultar os vínculos (GET /vinculo) ao montar. Aqui a consulta é mockada
+// (default: familiar aprovado) para não entrar na contagem de fetch dos testes do 5.1, que seguem iguais.
+const mockBuscarPermissoes = jest.fn();
+jest.mock("../lib/permissoesSaude", () => ({
+  ...jest.requireActual("../lib/permissoesSaude"),
+  buscarPermissoesSaude: (...args: unknown[]) => mockBuscarPermissoes(...args),
+}));
+
+type VinculoFake = {
+  tipo_vinculo: "cuidador" | "familiar";
+  status: string;
+  papel_do_chamador: "dono" | "vinculado" | "titular";
+  permissoes: { permite_registrar_saude: boolean; permite_marcar_dose: boolean; permite_criar_evento_cuidado: boolean } | null;
+};
+const FAMILIAR_APROVADO: VinculoFake = { tipo_vinculo: "familiar", status: "aprovado", papel_do_chamador: "vinculado", permissoes: null };
+function cuidador(over: Partial<VinculoFake["permissoes"] & object> = {}, extra: Partial<VinculoFake> = {}): VinculoFake {
+  return {
+    tipo_vinculo: "cuidador",
+    status: "aprovado",
+    papel_do_chamador: "vinculado",
+    permissoes: { permite_registrar_saude: false, permite_marcar_dose: false, permite_criar_evento_cuidado: false, ...over },
+    ...extra,
+  };
+}
 
 function respostaJson(status: number, corpo: unknown) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response;
@@ -20,6 +45,8 @@ beforeEach(() => {
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
   global.fetch = jest.fn();
+  mockBuscarPermissoes.mockReset();
+  mockBuscarPermissoes.mockResolvedValue([FAMILIAR_APROVADO]);
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -152,5 +179,190 @@ describe("Remedios (item 5.1)", () => {
     expect(ocupado).toHaveAttribute("aria-busy", "true");
     await user.click(ocupado);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Item 5.2 (RF-012): seções "Marcar dose". Valores abaixo são obviamente falsos, só para teste.
+const OBS_SIGILOSA = "obs-dose-falsa-sigilosa";
+
+function secaoDose(sufixo: "idoso" | "vinculado") {
+  return {
+    idosoId: sufixo === "vinculado" ? screen.getByLabelText("Id do idoso (dose, vinculado)", { exact: true }) : null,
+    medicamentoId: screen.getByLabelText(`Id do medicamento (dose, ${sufixo})`, { exact: true }),
+    status: screen.getByLabelText(`Situação da dose (${sufixo})`, { exact: true }),
+    dataHora: screen.getByLabelText(`Data e hora (opcional, ${sufixo})`, { exact: true }),
+    obs: screen.getByLabelText(`Observações da dose (opcional, ${sufixo})`, { exact: true }),
+    botao: screen.getByRole("button", { name: new RegExp(`^marcar dose \\(${sufixo}\\)$`, "i") }),
+  };
+}
+
+async function renderComSecaoVinculado() {
+  render(<Remedios />);
+  await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
+}
+
+describe("Remedios (item 5.2): marcar dose", () => {
+  it("a seção do idoso renderiza sempre, com campos acessíveis por label", async () => {
+    mockBuscarPermissoes.mockResolvedValue([]);
+    render(<Remedios />);
+    await act(async () => {});
+    expect(screen.getByRole("heading", { name: "Marcar dose (só idoso)" })).toBeInTheDocument();
+    Object.values(secaoDose("idoso")).forEach((el) => el && expect(el).toBeInTheDocument());
+    expect(secaoDose("idoso").status).toHaveValue("administrado");
+  });
+
+  it("idoso: POST /remedios/{id}/doses com Authorization e confirmação em role=status", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 55 }));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await act(async () => {});
+    const c = secaoDose("idoso");
+    await user.type(c.medicamentoId, "9");
+    await user.selectOptions(c.status, "pulado");
+    await user.click(c.botao);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Dose registrada (id 55).");
+    const { url, init, corpo } = chamada();
+    expect(url).toMatch(/\/remedios\/9\/doses$/);
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer token-fake");
+    expect(corpo).toEqual({ status_administracao: "pulado" });
+  });
+
+  it("data e hora digitadas viram ISO com Z; observações preenchidas são enviadas", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 56 }));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await act(async () => {});
+    const c = secaoDose("idoso");
+    await user.type(c.medicamentoId, "9");
+    fireEvent.change(c.dataHora, { target: { value: "2026-10-02T08:30" } });
+    await user.type(c.obs, "obs falsa");
+    await user.click(c.botao);
+
+    await screen.findByRole("status");
+    const { corpo } = chamada();
+    expect(corpo.data_hora_administracao).toBe(new Date("2026-10-02T08:30").toISOString());
+    expect(corpo.observacoes).toBe("obs falsa");
+  });
+
+  it("vinculado (familiar aprovado): POST /remedios/idoso/{id}/{med}/doses com os ids digitados", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 57 }));
+    const user = userEvent.setup();
+    await renderComSecaoVinculado();
+    const c = secaoDose("vinculado");
+    await user.type(c.idosoId!, "7");
+    await user.type(c.medicamentoId, "9");
+    await user.click(c.botao);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Dose registrada (id 57).");
+    const { url, corpo } = chamada();
+    expect(url).toMatch(/\/remedios\/idoso\/7\/9\/doses$/);
+    expect(corpo).not.toHaveProperty("idoso_id");
+    expect(corpo).not.toHaveProperty("registrado_por_id");
+  });
+
+  describe("visibilidade da seção do vinculado", () => {
+    it("aparece para cuidador aprovado com permite_marcar_dose, sem aviso", async () => {
+      mockBuscarPermissoes.mockResolvedValue([cuidador({ permite_marcar_dose: true })]);
+      await renderComSecaoVinculado();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("não aparece para cuidador aprovado só com as outras flags e mostra aviso em role=status", async () => {
+      mockBuscarPermissoes.mockResolvedValue([cuidador({ permite_registrar_saude: true, permite_criar_evento_cuidado: true })]);
+      render(<Remedios />);
+      expect(await screen.findByRole("status")).toHaveTextContent(/não tem permissão para marcar dose/i);
+      expect(screen.queryByRole("heading", { name: "Marcar dose de um idoso vinculado" })).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Marcar dose (só idoso)" })).toBeInTheDocument();
+    });
+
+    it("não aparece para cuidador com a flag mas vínculo pendente", async () => {
+      mockBuscarPermissoes.mockResolvedValue([cuidador({ permite_marcar_dose: true }, { status: "pendente" })]);
+      render(<Remedios />);
+      await waitFor(() => expect(mockBuscarPermissoes).toHaveBeenCalled());
+      await act(async () => {});
+      expect(screen.queryByRole("heading", { name: "Marcar dose de um idoso vinculado" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it.each(["dono", "titular"] as const)("papel %s não conta, mesmo aprovado e com a flag", async (papel) => {
+      mockBuscarPermissoes.mockResolvedValue([
+        { ...cuidador({ permite_marcar_dose: true }), papel_do_chamador: papel },
+        { ...FAMILIAR_APROVADO, papel_do_chamador: papel },
+      ]);
+      render(<Remedios />);
+      await waitFor(() => expect(mockBuscarPermissoes).toHaveBeenCalled());
+      await act(async () => {});
+      expect(screen.queryByRole("heading", { name: "Marcar dose de um idoso vinculado" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("sem nenhum vínculo: sem seção e sem aviso", async () => {
+      mockBuscarPermissoes.mockResolvedValue([]);
+      render(<Remedios />);
+      await act(async () => {});
+      expect(screen.queryByRole("heading", { name: "Marcar dose de um idoso vinculado" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("se a consulta de vínculos falhar, a seção aparece e o 403 do backend decide", async () => {
+      mockBuscarPermissoes.mockRejectedValue(new Error("falha"));
+      await renderComSecaoVinculado();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+  });
+
+  describe.each(["idoso", "vinculado"] as const)("seção %s", (sufixo) => {
+    async function preparar() {
+      const user = userEvent.setup();
+      await renderComSecaoVinculado();
+      const c = secaoDose(sufixo);
+      if (c.idosoId) await user.type(c.idosoId, "7");
+      await user.type(c.medicamentoId, "9");
+      await user.type(c.obs, OBS_SIGILOSA);
+      return { user, c };
+    }
+
+    it.each([
+      [403, "Sem permissão para registrar dose."],
+      [400, "status_administracao inválido."],
+      [404, "Medicamento não encontrado."],
+      [409, "Medicamento inativo."],
+    ])("%i aparece em role=alert, sem sucesso e sem ecoar o que foi digitado", async (status, mensagem) => {
+      (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: mensagem }));
+      const espiao = jest.spyOn(console, "error").mockImplementation(() => undefined);
+      const { user, c } = await preparar();
+      await user.click(c.botao);
+
+      const alerta = await screen.findByRole("alert");
+      expect(alerta).toHaveTextContent(mensagem);
+      expect(alerta).not.toHaveTextContent(OBS_SIGILOSA);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(JSON.stringify(espiao.mock.calls)).not.toContain(OBS_SIGILOSA);
+    });
+
+    it("durante o envio o botão fica indisponível e não há duplo envio", async () => {
+      (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
+      const { user, c } = await preparar();
+      await user.click(c.botao);
+
+      const ocupado = await screen.findByRole("button", { name: /marcando/i });
+      expect(ocupado).toBeDisabled();
+      expect(ocupado).toHaveAttribute("aria-busy", "true");
+      await user.click(ocupado);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("não escreve nada em console.* nem com sucesso", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 58 }));
+      const espioes = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
+        jest.spyOn(console, m).mockImplementation(() => undefined),
+      );
+      const { user, c } = await preparar();
+      await user.click(c.botao);
+      await screen.findByRole("status");
+      expect(JSON.stringify(espioes.flatMap((e) => e.mock.calls))).not.toContain(OBS_SIGILOSA);
+    });
   });
 });

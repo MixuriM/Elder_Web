@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe, toHaveNoViolations } from "jest-axe";
 import Remedios from "./Remedios";
@@ -22,6 +22,15 @@ jest.mock("../lib/auth", () => ({
   getCurrentUserToken: (...args: unknown[]) => mockGetCurrentUserToken(...args),
 }));
 
+// Item 5.2: a página consulta os vínculos ao montar; a consulta é mockada (default: familiar aprovado)
+// para as seções do 5.1 seguirem sem fetch extra.
+const mockBuscarPermissoes = jest.fn();
+jest.mock("../lib/permissoesSaude", () => ({
+  ...jest.requireActual("../lib/permissoesSaude"),
+  buscarPermissoesSaude: (...args: unknown[]) => mockBuscarPermissoes(...args),
+}));
+const FAMILIAR_APROVADO = { tipo_vinculo: "familiar", status: "aprovado", papel_do_chamador: "vinculado", permissoes: null };
+
 function respostaJson(status: number, corpo: unknown) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response;
 }
@@ -30,6 +39,8 @@ beforeEach(() => {
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
   global.fetch = jest.fn();
+  mockBuscarPermissoes.mockReset();
+  mockBuscarPermissoes.mockResolvedValue([FAMILIAR_APROVADO]);
   // O esqueleto registra a mensagem do erro em console.error; é esperado no caso de erro.
   jest.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -73,6 +84,77 @@ describe("Remedios: acessibilidade", () => {
     it("com erro em role=alert visível", async () => {
       const { container } = await enviar(respostaJson(400, { error: "Mensagem de erro de teste." }));
       expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
+      expect(await axe(container, AXE)).toHaveNoViolations();
+    });
+  });
+});
+
+// Item 5.2: seções "Marcar dose" em todos os estados. Mesmo limite: contraste de cor não é verificado em jsdom.
+describe("Remedios: acessibilidade das seções de dose (item 5.2)", () => {
+  it("estado inicial com as quatro seções (familiar aprovado)", async () => {
+    const { container } = render(<Remedios />);
+    await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("estado inicial só com a seção de dose do idoso (sem vínculo)", async () => {
+    mockBuscarPermissoes.mockResolvedValue([]);
+    const { container } = render(<Remedios />);
+    await act(async () => {});
+    expect(screen.queryByRole("heading", { name: "Marcar dose de um idoso vinculado" })).not.toBeInTheDocument();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("cuidador aprovado sem a flag: aviso em role=status", async () => {
+    mockBuscarPermissoes.mockResolvedValue([
+      {
+        tipo_vinculo: "cuidador",
+        status: "aprovado",
+        papel_do_chamador: "vinculado",
+        permissoes: { permite_registrar_saude: true, permite_marcar_dose: false, permite_criar_evento_cuidado: true },
+      },
+    ]);
+    const { container } = render(<Remedios />);
+    expect(await screen.findByRole("status")).toHaveTextContent(/não tem permissão para marcar dose/i);
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  describe.each(["idoso", "vinculado"] as const)("seção %s", (sufixo) => {
+    async function enviar(resposta: Response) {
+      (global.fetch as jest.Mock).mockResolvedValue(resposta);
+      const user = userEvent.setup();
+      const utils = render(<Remedios />);
+      await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
+      if (sufixo === "vinculado") await user.type(screen.getByLabelText("Id do idoso (dose, vinculado)", { exact: true }), "1");
+      await user.type(screen.getByLabelText(`Id do medicamento (dose, ${sufixo})`, { exact: true }), "2");
+      await user.selectOptions(screen.getByLabelText(`Situação da dose (${sufixo})`, { exact: true }), "atrasado");
+      fireEvent.change(screen.getByLabelText(`Data e hora (opcional, ${sufixo})`, { exact: true }), { target: { value: "2026-10-02T08:30" } });
+      await user.type(screen.getByLabelText(`Observações da dose (opcional, ${sufixo})`, { exact: true }), "obs falsa");
+      await user.click(screen.getByRole("button", { name: new RegExp(`^marcar dose \\(${sufixo}\\)$`, "i") }));
+      return utils;
+    }
+
+    it("com sucesso em role=status visível", async () => {
+      const { container } = await enviar(respostaJson(201, { id: 61 }));
+      expect(await screen.findByRole("status")).toHaveTextContent("Dose registrada (id 61).");
+      expect(await axe(container, AXE)).toHaveNoViolations();
+    });
+
+    it.each([403, 400, 404, 409])("com erro %i em role=alert visível", async (status) => {
+      const { container } = await enviar(respostaJson(status, { error: "Mensagem de erro de teste." }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
+      expect(await axe(container, AXE)).toHaveNoViolations();
+    });
+
+    it("durante o envio (botão ocupado)", async () => {
+      (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
+      const user = userEvent.setup();
+      const { container } = render(<Remedios />);
+      await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
+      if (sufixo === "vinculado") await user.type(screen.getByLabelText("Id do idoso (dose, vinculado)", { exact: true }), "1");
+      await user.type(screen.getByLabelText(`Id do medicamento (dose, ${sufixo})`, { exact: true }), "2");
+      await user.click(screen.getByRole("button", { name: new RegExp(`^marcar dose \\(${sufixo}\\)$`, "i") }));
+      expect(await screen.findByRole("button", { name: /marcando/i })).toBeDisabled();
       expect(await axe(container, AXE)).toHaveNoViolations();
     });
   });
