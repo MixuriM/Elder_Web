@@ -1450,7 +1450,7 @@ Nenhuma migration, dependência nova nem mudança em `saude.ts`, nos middlewares
 
 **Mudança de contrato a avisar (fica com o Marcos):** rotas novas `POST /remedios/:medicamentoId/doses` e `POST /remedios/idoso/:idosoId/:medicamentoId/doses`; Laureane e Jennifer podem usá-las na tela final. A linha "5.x Frontend /remedios" da tabela de testes do plano segue sem fechar: faltam a listagem e o PDF.
 
-**Item 5.3 da Fase 5 (RF-013, RNF-003) implementado: histórico de remédios (prescrições + doses) (2026-10-02, ainda sem PR; hashes de commit locais não valem como definitivos, o merge por rebase os muda):**
+**Item 5.3 da Fase 5 (RF-013, RNF-003) implementado: histórico de remédios (prescrições + doses) (2026-10-02, PR #127, mergeado em `main` em 2026-10-02T16:37:20Z por rebase: `a40431d` rotas, testes, matriz e `verify-rotas-historico-remedios.ts`, `0d36e8b` esqueleto de frontend, `af3b7d6` docs; hashes finais diferentes dos commits locais `48921de`, `6d818fd` e `df0c516`, mesmo padrão dos PRs anteriores; CI backend, frontend e Vercel verdes; `main` com 210 commits):**
 
 Nenhuma migration, dependência nova nem mudança em `saude.ts`, nos middlewares, em `vinculo.ts`, em `GET /vinculo` ou no `errorHandler`. Código novo em `backend/src/routes/remedios.ts` (duas rotas GET e a função `historicoDoIdoso`, que reaproveita `serializarMedicamento` e `serializarDose`).
 
