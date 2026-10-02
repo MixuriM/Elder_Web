@@ -331,6 +331,11 @@ Não decidir sozinho. Perguntar ao grupo.
   o token Firebase é substituído em runtime) NÃO reverte por transação: exceção deliberada aos `verify-*`,
   limpa no `finally` e recusa rodar fora de `localhost`; o prefixo `verify-dose-` no `firebase_uid` marca
   conta residual se o processo for morto no meio.
+- Item 5.3 (histórico de remédios, RF-013, RNF-003) implementado e mergeado em `main` (PR #127, 2026-10-02T16:37:20Z, rebase; hashes finais e resumo no histórico).
+  `GET /remedios` e `GET /remedios/idoso/:idosoId`: vínculo aprovado basta, sem `permite_*` nem `modo_decisao`.
+  Pendências: sem paginação, filtro nem nome de autor; `backend/scripts/verify-rotas-historico-remedios.ts`
+  (18/18 PASS no SQL Server local) também NÃO reverte por transação: limpa por sentinela única no `finally`
+  e recusa rodar fora de `localhost`.
 - Pequenos itens conhecidos: backfill de `modo_decisao` para idosos autocadastrados antes
   da mudança; `nome` vazio em `/auth/sync` vence o `decoded.name` do Google; JSON
   malformado cai no `errorHandler` (500, não 400); seed da foto do Google não se aplica
