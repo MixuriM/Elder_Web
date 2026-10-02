@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireVinculoAprovado } from "../middleware/requireVinculoAprovado";
@@ -154,6 +154,141 @@ router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), a
     });
 
     res.status(201).json(serializarMedicamento(m));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Item 5.2 (RF-012): marcar dose administrada. Dose e medicamento são dado sensível (RNF-001):
+// mensagens fixas, nunca com o valor enviado, e nenhum console.* aqui.
+// ---------------------------------------------------------------------------------------------
+const MSG_403_DOSE = "Sem permissão para registrar dose.";
+const STATUS_DOSE = ["administrado", "pulado", "atrasado"] as const;
+const TOLERANCIA_FUTURO_MS = 5 * 60 * 1000;
+// Mesma regra de data_hora de saude.ts (replicada de propósito, sem refatorar saude.ts): ISO 8601 com
+// Z ou offset explícito, porque sem fuso o servidor (UTC) leria a hora local como UTC.
+const ISO_COM_FUSO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+const INT32_MAX = 2147483647;
+
+// Só dígitos: rejeita "1e2", "1.5", "-1", " " e "0x10", que Number() aceitaria.
+function idPositivo(v: string): number | null {
+  if (!/^\d+$/.test(v)) return null;
+  const n = Number(v);
+  return n >= 1 && n <= INT32_MAX ? n : null;
+}
+
+type DadosDose = { status_administracao: string; data_hora_administracao: Date; observacoes: string | null };
+
+function validarCorpoDose(body: unknown): { erro: string } | { dados: DadosDose } {
+  const { status_administracao, data_hora_administracao, observacoes } = (body ?? {}) as Record<string, unknown>;
+
+  if (typeof status_administracao !== "string" || !(STATUS_DOSE as readonly string[]).includes(status_administracao)) {
+    return { erro: "status_administracao inválido." };
+  }
+
+  let dataHora = new Date();
+  if (data_hora_administracao !== undefined) {
+    const d =
+      typeof data_hora_administracao === "string" && ISO_COM_FUSO.test(data_hora_administracao)
+        ? new Date(data_hora_administracao)
+        : null;
+    if (!d || Number.isNaN(d.getTime()) || d.getTime() > Date.now() + TOLERANCIA_FUTURO_MS) {
+      return { erro: "data_hora_administracao inválida." };
+    }
+    dataHora = d;
+  }
+
+  let obs: string | null = null;
+  if (observacoes !== undefined && observacoes !== null) {
+    if (typeof observacoes !== "string" || observacoes.trim().length > 300) {
+      return { erro: "observacoes inválidas." };
+    }
+    obs = observacoes.trim() || null;
+  }
+
+  return { dados: { status_administracao, data_hora_administracao: dataHora, observacoes: obs } };
+}
+
+type DoseCriada = Awaited<ReturnType<typeof prisma.registroDoseMedicamento.create>>;
+
+function serializarDose(d: DoseCriada) {
+  return {
+    id: d.id,
+    medicamento_id: d.medicamento_id,
+    registrado_por_id: d.registrado_por_id,
+    data_hora_administracao: d.data_hora_administracao.toISOString(),
+    status_administracao: d.status_administracao,
+    observacoes: d.observacoes,
+    created_at: d.created_at,
+  };
+}
+
+// Parte comum às duas rotas, depois da autorização: 400 (medicamentoId), 400 (corpo), 404, 409, 201.
+// O medicamento é buscado com o idoso alvo no próprio where: inexistente e de outro idoso colapsam no
+// mesmo 404 (um 403 separado vazaria que o id existe). Autoria é sempre req.usuarioId.
+// Sem idempotência: duas doses idênticas seguidas são aceitas (limitação documentada).
+async function registrarDose(req: Request, res: Response, idosoId: number) {
+  const medicamentoId = idPositivo(String(req.params.medicamentoId));
+  if (medicamentoId === null) return res.status(400).json({ error: "Id de medicamento inválido." });
+
+  const validado = validarCorpoDose(req.body);
+  if ("erro" in validado) return res.status(400).json({ error: validado.erro });
+
+  const medicamento = await prisma.medicamento.findFirst({ where: { id: medicamentoId, idoso_id: idosoId } });
+  if (!medicamento) return res.status(404).json({ error: "Medicamento não encontrado." });
+  // ponytail: não valida a janela data_inicio/data_fim (decisão do item 5.2); só o flag ativo.
+  if (!medicamento.ativo) return res.status(409).json({ error: "Medicamento inativo." });
+
+  const dose = await prisma.registroDoseMedicamento.create({
+    data: { medicamento_id: medicamento.id, registrado_por_id: req.usuarioId, ...validado.dados },
+  });
+  return res.status(201).json(serializarDose(dose));
+}
+
+// Item 5.2: o idoso marca dose do próprio medicamento. Qualquer outro perfil recebe 403.
+// Ordem: 401, 403 (perfil), 400 (medicamentoId), 400 (corpo), 404, 409, 201.
+router.post("/:medicamentoId/doses", requireAuth, async (req, res, next) => {
+  try {
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    if (chamador?.tipo_perfil !== "idoso") {
+      return res.status(403).json({ error: MSG_403_DOSE });
+    }
+    await registrarDose(req, res, req.usuarioId);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Item 5.2: cuidador ou familiar marca dose de um idoso vinculado. Cuidador exige tipo_vinculo E
+// tipo_perfil 'cuidador' E permite_marcar_dose === true (as outras flags não abrem esta porta).
+// Familiar exige tipo_vinculo E tipo_perfil 'familiar' E modo_decisao efetivo 'familiar' (sempre via
+// resolverModoDecisao, nunca a coluna; NULL vale 'idoso'), como no 5.1. A checagem de ator vem antes do
+// resolver. Ordem: 401, 400 (idosoId), 403 (vínculo), 403 (ator, flag ou modo_decisao), 400
+// (medicamentoId), 400 (corpo), 404, 409, 201. 403 genérico, sem citar o motivo.
+router.post("/idoso/:idosoId/:medicamentoId/doses", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_DOSE });
+
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    const cuidadorAutorizado =
+      vinculo.tipo_vinculo === "cuidador" &&
+      chamador?.tipo_perfil === "cuidador" &&
+      vinculo.permite_marcar_dose === true;
+    const familiarAutorizado =
+      vinculo.tipo_vinculo === "familiar" &&
+      chamador?.tipo_perfil === "familiar" &&
+      (await resolverModoDecisao(vinculo.idoso_id)) === "familiar";
+    if (!cuidadorAutorizado && !familiarAutorizado) return res.status(403).json({ error: MSG_403_DOSE });
+
+    await registrarDose(req, res, vinculo.idoso_id);
   } catch (e) {
     next(e);
   }
