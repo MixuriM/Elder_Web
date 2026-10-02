@@ -1,6 +1,7 @@
 import { inspect } from "node:util";
 import request from "supertest";
 import { Prisma } from "@prisma/client";
+import { CASOS_ACESSO_LEITURA } from "../testSupport/matrizAcessoLeitura";
 
 const verifyIdToken = jest.fn();
 const findFirstUsuario = jest.fn();
@@ -247,6 +248,46 @@ describe("GET /saude/idoso/:idosoId (cuidador/familiar aprovado lê, item 4.4)",
     const res = await get("abc");
     expect(res.status).toBe(400);
     expect(findManyRegistro).not.toHaveBeenCalled();
+  });
+});
+
+// Matriz compartilhada com o item 5.3 (remediosHistorico.test.ts): mesmo nível de acesso, mesmos casos.
+describe("matriz de acesso compartilhada (idêntica à de GET /remedios)", () => {
+  const ID_ATOR = { idoso: IDOSO_A, cuidador: CUIDADOR, familiar: FAMILIAR } as const;
+
+  it.each(CASOS_ACESSO_LEITURA)("$nome = $esperado", async (caso) => {
+    const id = ID_ATOR[caso.ator];
+    logadoComo(id, caso.ator);
+    const v = caso.vinculo;
+    const flags = v?.flags === true;
+    fakeVinculos(
+      v
+        ? [
+            vinculo({
+              vinculado_id: id,
+              idoso_id: v.idoso === "A" ? IDOSO_A : IDOSO_B,
+              tipo_vinculo: v.tipo_vinculo,
+              status: v.status,
+              permite_registrar_saude: flags,
+              permite_marcar_dose: flags,
+              permite_criar_evento_cuidado: flags,
+            }),
+          ]
+        : [],
+    );
+
+    const res = await auth(request(app).get(caso.rota === "proprio" ? "/saude" : `/saude/idoso/${IDOSO_A}`));
+
+    expect(res.status).toBe(caso.esperado);
+    if (caso.esperado === 200) {
+      const regs = res.body.registros as { id: number; idoso_id: number }[];
+      expect(regs.map((r) => r.id).sort()).toEqual([1, 2, 3]);
+      expect(regs.every((r) => r.idoso_id === IDOSO_A)).toBe(true);
+      expect(JSON.stringify(res.body)).not.toContain(String(VALOR_SIGILOSO));
+    } else {
+      expect(findManyRegistro).not.toHaveBeenCalled();
+      expect(JSON.stringify(res.body)).not.toContain(String(VALOR_SIGILOSO));
+    }
   });
 });
 
