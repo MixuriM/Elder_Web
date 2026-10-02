@@ -193,6 +193,132 @@ function MarcarDose({ titulo, sufixo, comIdoso }: { titulo: string; sufixo: stri
   )
 }
 
+// Item 5.3 (RF-013): histórico de remédios (prescrições + doses). Id do idoso em branco = idoso lê o próprio
+// (GET /remedios); preenchido = cuidador/familiar (GET /remedios/idoso/:id). Sempre visível: leitura não
+// depende de flag nem de modo_decisao. Nunca loga corpo nem valores de medicamento ou dose (sem console.*).
+type DoseLista = { id: number; status_administracao: string; data_hora_administracao: string; observacoes: string | null }
+type MedicamentoLista = {
+  id: number
+  nome: string
+  dosagem: string
+  frequencia: string
+  data_inicio: string
+  data_fim: string | null
+  observacoes: string | null
+  ativo: boolean
+  doses: DoseLista[]
+}
+
+const ROTULO_STATUS_DOSE: Record<string, string> = { administrado: 'Administrado', pulado: 'Pulado', atrasado: 'Atrasado' }
+
+// YYYY-MM-DD vira dd/mm/aaaa por split: new Date() leria a data como UTC e deslocaria o dia.
+const dataBr = (iso: string) => iso.split('-').reverse().join('/')
+
+// Fuso fixo: o resultado não depende do fuso da máquina. hourCycle h23 evita "24:00" à meia-noite.
+const FORMATO_HORA = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
+function dataHoraBr(iso: string) {
+  const p = Object.fromEntries(FORMATO_HORA.formatToParts(new Date(iso)).map((x) => [x.type, x.value]))
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`
+}
+
+function HistoricoRemedios() {
+  const [idosoId, setIdosoId] = useState('')
+  const [carregando, setCarregando] = useState(false)
+  const [medicamentos, setMedicamentos] = useState<MedicamentoLista[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function handleVer(e: FormEvent) {
+    e.preventDefault()
+    setErro(null)
+    setMedicamentos(null)
+    setCarregando(true)
+    try {
+      const corpo = await chamarApi(idosoId === '' ? '/remedios' : `/remedios/idoso/${idosoId}`, { method: 'GET' })
+      setMedicamentos(corpo.medicamentos)
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Falha ao carregar histórico de remédios.')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  return (
+    <section className="w-full max-w-sm space-y-4">
+      <h2 className="text-2xl font-bold text-gray-900">Ver histórico de remédios</h2>
+      <form onSubmit={handleVer} className="space-y-4">
+        <div>
+          <label htmlFor="idoso_id_historico_remedios" className="block text-lg font-medium text-gray-900">
+            Id do idoso (vazio = meu histórico)
+          </label>
+          <input
+            id="idoso_id_historico_remedios"
+            type="number"
+            min={1}
+            step={1}
+            value={idosoId}
+            onChange={(e) => setIdosoId(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={carregando}
+          aria-busy={carregando}
+          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+        >
+          {carregando && <Spinner />}
+          {carregando ? 'Carregando...' : 'Ver histórico'}
+        </button>
+      </form>
+      {erro && (
+        <p role="alert" className="text-lg text-red-700">
+          {erro}
+        </p>
+      )}
+      {medicamentos && (
+        <p role="status" className="text-lg text-gray-900">
+          {medicamentos.length === 0 ? 'Nenhum medicamento cadastrado.' : `${medicamentos.length} medicamento(s) encontrado(s).`}
+        </p>
+      )}
+      {medicamentos && medicamentos.length > 0 && (
+        <ul className="space-y-4 text-lg text-gray-900">
+          {medicamentos.map((m) => (
+            <li key={m.id} className="space-y-1">
+              <h3 className="text-xl font-bold">{m.nome}</h3>
+              <p>Dosagem: {m.dosagem}</p>
+              <p>Frequência: {m.frequencia}</p>
+              <p>Início: {dataBr(m.data_inicio)}</p>
+              <p>{m.data_fim === null ? 'Sem data de término' : `Fim: ${dataBr(m.data_fim)}`}</p>
+              <p>Situação: {m.ativo ? 'Ativo' : 'Inativo'}</p>
+              {m.observacoes && <p>Observações: {m.observacoes}</p>}
+              {m.doses.length === 0 ? (
+                <p>Nenhuma dose registrada.</p>
+              ) : (
+                <ul className="list-disc pl-6">
+                  {m.doses.map((d) => (
+                    <li key={d.id}>
+                      {dataHoraBr(d.data_hora_administracao)}, {ROTULO_STATUS_DOSE[d.status_administracao] ?? d.status_administracao}
+                      {d.observacoes ? ` (Observações: ${d.observacoes})` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 export default function Remedios() {
   const permissoes = usePermissoesDose()
   // Mesma regra de Saude.tsx: se a consulta de vínculos falhar, mostra a seção e o 403 do backend decide.
@@ -210,6 +336,7 @@ export default function Remedios() {
           Você ainda não tem permissão para marcar dose de um idoso vinculado. Peça a quem decide pelo idoso para liberar.
         </p>
       )}
+      <HistoricoRemedios />
     </main>
   )
 }
