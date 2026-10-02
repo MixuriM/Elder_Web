@@ -320,7 +320,7 @@ Não decidir sozinho. Perguntar ao grupo.
   decisão do grupo.
 - Não implementados: download do histórico de saúde, exclusão de registro, paginação e
   filtros do histórico.
-- Item 5.2 (marcar dose, RF-012) implementado em `development`, ainda sem commit (resumo no histórico).
+- Item 5.2 (marcar dose, RF-012) implementado e mergeado em `main` (PR #125, 2026-10-02T11:48:55Z, rebase; hashes finais e resumo no histórico).
   Pendências novas: sem idempotência de dose; sem GET de doses nem de medicamentos (5.3); o CHECK de
   `status_administracao` no banco é case-insensitive (collation), só a rota barra `'ADMINISTRADO'`, e
   torná-lo sensível a caixa exigiria migration com autorização separada. Familiar só marca dose com
