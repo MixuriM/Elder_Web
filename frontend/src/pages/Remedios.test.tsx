@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Remedios from "./Remedios";
 
@@ -364,5 +364,197 @@ describe("Remedios (item 5.2): marcar dose", () => {
       await screen.findByRole("status");
       expect(JSON.stringify(espioes.flatMap((e) => e.mock.calls))).not.toContain(OBS_SIGILOSA);
     });
+  });
+});
+
+
+// Item 5.3 (RF-013): seção crua "Ver histórico de remédios" (GET /remedios e GET /remedios/idoso/:id).
+// Valores abaixo são obviamente falsos, só para teste. Datas YYYY-MM-DD saem por split (sem new Date) e a hora
+// da dose sai em America/Sao_Paulo fixo, para o teste ser determinístico em qualquer fuso da máquina.
+const HISTORICO = {
+  medicamentos: [
+    {
+      id: 1,
+      idoso_id: 5,
+      criado_por_id: 5,
+      nome: "Remedio Historico Um",
+      dosagem: "10 mg",
+      frequencia: "2x ao dia",
+      data_inicio: "2026-03-01",
+      data_fim: null,
+      observacoes: "obs do medicamento falsa",
+      ativo: true,
+      editado_por_id: null,
+      doses: [
+        { id: 3, medicamento_id: 1, registrado_por_id: 5, data_hora_administracao: "2026-09-14T12:30:00.000Z", status_administracao: "administrado", observacoes: "obs da dose falsa" },
+        { id: 2, medicamento_id: 1, registrado_por_id: 5, data_hora_administracao: "2026-09-12T11:00:00.000Z", status_administracao: "pulado", observacoes: null },
+        { id: 1, medicamento_id: 1, registrado_por_id: 5, data_hora_administracao: "2026-09-10T22:15:00.000Z", status_administracao: "atrasado", observacoes: null },
+      ],
+    },
+    {
+      id: 2,
+      idoso_id: 5,
+      criado_por_id: 5,
+      nome: "Remedio Historico Dois",
+      dosagem: "5 ml",
+      frequencia: "1x ao dia",
+      data_inicio: "2026-01-31",
+      data_fim: "2026-12-31",
+      observacoes: null,
+      ativo: false,
+      editado_por_id: null,
+      doses: [],
+    },
+  ],
+};
+
+function secaoHistorico() {
+  return {
+    idoso: screen.getByLabelText("Id do idoso (vazio = meu histórico)", { exact: true }),
+    botao: screen.getByRole("button", { name: /^ver histórico$/i }),
+  };
+}
+
+describe("Remedios: histórico de remédios (item 5.3)", () => {
+  it("seção sempre visível, com título, campo por label e botão (mesmo sem vínculo)", async () => {
+    mockBuscarPermissoes.mockResolvedValue([]);
+    render(<Remedios />);
+    await act(async () => {});
+    expect(screen.getByRole("heading", { name: "Ver histórico de remédios" })).toBeInTheDocument();
+    const s = secaoHistorico();
+    expect(s.idoso).toHaveAttribute("type", "number");
+    expect(s.botao).toBeEnabled();
+  });
+
+  it("id vazio: GET /remedios com Authorization e sem corpo", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, HISTORICO));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("2 medicamento(s) encontrado(s).");
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(String(url)).toMatch(/\/remedios$/);
+    expect(init.method).toBe("GET");
+    expect(init.headers.Authorization).toBe("Bearer token-fake");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("id preenchido: GET /remedios/idoso/:id", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, HISTORICO));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    const s = secaoHistorico();
+    await user.type(s.idoso, "7");
+    await user.click(s.botao);
+
+    await screen.findByRole("status");
+    expect(String((global.fetch as jest.Mock).mock.calls[0][0])).toMatch(/\/remedios\/idoso\/7$/);
+  });
+
+  it("mostra nome, dosagem, frequência, datas sem deslocar o dia, situação e observações", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, HISTORICO));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+    await screen.findByRole("status");
+
+    const um = screen.getByRole("heading", { name: "Remedio Historico Um" }).closest("li") as HTMLElement;
+    expect(um).toHaveTextContent("10 mg");
+    expect(um).toHaveTextContent("2x ao dia");
+    expect(um).toHaveTextContent("Início: 01/03/2026");
+    expect(um).toHaveTextContent("Sem data de término");
+    expect(um).toHaveTextContent("Situação: Ativo");
+    expect(um).toHaveTextContent("obs do medicamento falsa");
+
+    const dois = screen.getByRole("heading", { name: "Remedio Historico Dois" }).closest("li") as HTMLElement;
+    expect(dois).toHaveTextContent("Início: 31/01/2026");
+    expect(dois).toHaveTextContent("Fim: 31/12/2026");
+    expect(dois).not.toHaveTextContent("Sem data de término");
+    expect(dois).toHaveTextContent("Situação: Inativo");
+    expect(dois).not.toHaveTextContent("Observações");
+  });
+
+  it("doses: dd/mm/aaaa HH:mm em America/Sao_Paulo, texto de cada status e observações, na ordem recebida", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, HISTORICO));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+    await screen.findByRole("status");
+
+    const um = screen.getByRole("heading", { name: "Remedio Historico Um" }).closest("li") as HTMLElement;
+    const doses = within(within(um).getByRole("list")).getAllByRole("listitem");
+    expect(doses).toHaveLength(3);
+    expect(doses[0]).toHaveTextContent("14/09/2026 09:30, Administrado");
+    expect(doses[0]).toHaveTextContent("obs da dose falsa");
+    expect(doses[1]).toHaveTextContent("12/09/2026 08:00, Pulado");
+    expect(doses[2]).toHaveTextContent("10/09/2026 19:15, Atrasado");
+  });
+
+  it("medicamento sem doses mostra 'Nenhuma dose registrada.'", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, HISTORICO));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+    await screen.findByRole("status");
+
+    const dois = screen.getByRole("heading", { name: "Remedio Historico Dois" }).closest("li") as HTMLElement;
+    expect(dois).toHaveTextContent("Nenhuma dose registrada.");
+    const um = screen.getByRole("heading", { name: "Remedio Historico Um" }).closest("li") as HTMLElement;
+    expect(um).not.toHaveTextContent("Nenhuma dose registrada.");
+  });
+
+  it("lista vazia: 'Nenhum medicamento cadastrado.' e nenhum item", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { medicamentos: [] }));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Nenhum medicamento cadastrado.");
+    expect(screen.queryByRole("heading", { name: /Remedio Historico/ })).not.toBeInTheDocument();
+  });
+
+  it("erro 403 aparece em role=alert com a mensagem da API e sem resultado", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(403, { error: "Sem permissão para visualizar histórico de remédios." }));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sem permissão para visualizar histórico de remédios.");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("durante a chamada o botão vira 'Carregando...' e fica desabilitado", async () => {
+    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+
+    const ocupado = await screen.findByRole("button", { name: /carregando/i });
+    expect(ocupado).toBeDisabled();
+    expect(ocupado).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("nova busca limpa o resultado anterior", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, HISTORICO)).mockResolvedValueOnce(respostaJson(403, { error: "Negado de teste." }));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+    await screen.findByRole("status");
+    await user.click(secaoHistorico().botao);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Negado de teste.");
+    expect(screen.queryByRole("heading", { name: "Remedio Historico Um" })).not.toBeInTheDocument();
+  });
+
+  it("não escreve em console.* nem no sucesso nem no erro (dado sensível)", async () => {
+    const espioes = (["log", "info", "warn", "error", "debug"] as const).map((m) => jest.spyOn(console, m).mockImplementation(() => undefined));
+    (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, HISTORICO)).mockResolvedValueOnce(respostaJson(500, { error: "Falha de teste." }));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoHistorico().botao);
+    await screen.findByRole("status");
+    await user.click(secaoHistorico().botao);
+    await screen.findByRole("alert");
+    for (const e of espioes) expect(e).not.toHaveBeenCalled();
   });
 });

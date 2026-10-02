@@ -159,3 +159,64 @@ describe("Remedios: acessibilidade das seções de dose (item 5.2)", () => {
     });
   });
 });
+
+
+// Item 5.3: seção "Ver histórico de remédios" em todos os estados. Mesmo limite: contraste de cor não é
+// verificado em jsdom (item 9.1). Dados abaixo são valores obviamente falsos de teste.
+describe("Remedios: acessibilidade da seção de histórico (item 5.3)", () => {
+  const HISTORICO = {
+    medicamentos: [
+      {
+        id: 1, idoso_id: 5, criado_por_id: 5, nome: "Remedio Historico Um", dosagem: "10 mg", frequencia: "2x ao dia",
+        data_inicio: "2026-03-01", data_fim: null, observacoes: "obs falsa", ativo: true, editado_por_id: null,
+        doses: [
+          { id: 2, medicamento_id: 1, registrado_por_id: 5, data_hora_administracao: "2026-09-14T12:30:00.000Z", status_administracao: "administrado", observacoes: "obs dose falsa" },
+          { id: 1, medicamento_id: 1, registrado_por_id: 5, data_hora_administracao: "2026-09-12T11:00:00.000Z", status_administracao: "pulado", observacoes: null },
+        ],
+      },
+      {
+        id: 2, idoso_id: 5, criado_por_id: 5, nome: "Remedio Historico Dois", dosagem: "5 ml", frequencia: "1x ao dia",
+        data_inicio: "2026-01-31", data_fim: "2026-12-31", observacoes: null, ativo: false, editado_por_id: null, doses: [],
+      },
+    ],
+  };
+
+  async function buscar(resposta: Response | Promise<Response>) {
+    (global.fetch as jest.Mock).mockReturnValue(resposta);
+    const user = userEvent.setup();
+    const utils = render(<Remedios />);
+    await user.click(screen.getByRole("button", { name: /^ver histórico$/i }));
+    return utils;
+  }
+
+  it("antes da busca", async () => {
+    const { container } = render(<Remedios />);
+    expect(screen.getByRole("heading", { name: "Ver histórico de remédios" })).toBeInTheDocument();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("carregando (botão ocupado)", async () => {
+    const { container } = await buscar(new Promise(() => undefined));
+    expect(await screen.findByRole("button", { name: /carregando/i })).toBeDisabled();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("com resultados, incluindo doses", async () => {
+    const { container } = await buscar(Promise.resolve(respostaJson(200, HISTORICO)));
+    expect(await screen.findByRole("status")).toHaveTextContent("2 medicamento(s) encontrado(s).");
+    expect(screen.getByText(/14\/09\/2026 09:30, Administrado/)).toBeInTheDocument();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("vazio", async () => {
+    const { container } = await buscar(Promise.resolve(respostaJson(200, { medicamentos: [] })));
+    expect(await screen.findByRole("status")).toHaveTextContent("Nenhum medicamento cadastrado.");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("erro em role=alert", async () => {
+    const { container } = await buscar(Promise.resolve(respostaJson(403, { error: "Mensagem de erro de teste." })));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+});
