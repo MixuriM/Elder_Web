@@ -300,6 +300,8 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   falhar, reverter).
 - Testes de rota importam de `./app`, nunca de `./index`.
 - `jest-axe` não calcula contraste em jsdom. Contraste de cor segue pendente (item 9.1).
+- A matriz `backend/src/testSupport/matrizAcessoLeitura.ts` é compartilhada por `saudeHistorico` e
+  `remediosHistorico`. Toda nova rota de leitura por vínculo deve entrar nela.
 - O e2e cria contas `e2e-*@e2e.elderweb.test` no Firebase real, sem limpeza automática.
 - Em merge por rebase os hashes de commit mudam. Não tratar hash de commit local como
   definitivo.
@@ -321,7 +323,7 @@ Não decidir sozinho. Perguntar ao grupo.
 - Não implementados: download do histórico de saúde, exclusão de registro, paginação e
   filtros do histórico.
 - Item 5.2 (marcar dose, RF-012) implementado e mergeado em `main` (PR #125, 2026-10-02T11:48:55Z, rebase; hashes finais e resumo no histórico).
-  Pendências novas: sem idempotência de dose; sem GET de doses nem de medicamentos (5.3); o CHECK de
+  Pendências novas: sem idempotência de dose; GET de doses e medicamentos feito no 5.3; o CHECK de
   `status_administracao` no banco é case-insensitive (collation), só a rota barra `'ADMINISTRADO'`, e
   torná-lo sensível a caixa exigiria migration com autorização separada. Familiar só marca dose com
   `modo_decisao` efetivo `'familiar'` (via resolver), como no cadastro de medicamento (5.1).
