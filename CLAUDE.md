@@ -325,6 +325,10 @@ Não decidir sozinho. Perguntar ao grupo.
   `status_administracao` no banco é case-insensitive (collation), só a rota barra `'ADMINISTRADO'`, e
   torná-lo sensível a caixa exigiria migration com autorização separada. Familiar só marca dose com
   `modo_decisao` efetivo `'familiar'` (via resolver), como no cadastro de medicamento (5.1).
+  `backend/scripts/verify-rotas-dose.ts` (14/14 PASS no SQL Server local; rota, Prisma e banco reais, só
+  o token Firebase é substituído em runtime) NÃO reverte por transação: exceção deliberada aos `verify-*`,
+  limpa no `finally` e recusa rodar fora de `localhost`; o prefixo `verify-dose-` no `firebase_uid` marca
+  conta residual se o processo for morto no meio.
 - Pequenos itens conhecidos: backfill de `modo_decisao` para idosos autocadastrados antes
   da mudança; `nome` vazio em `/auth/sync` vence o `decoded.name` do Google; JSON
   malformado cai no `errorHandler` (500, não 400); seed da foto do Google não se aplica
