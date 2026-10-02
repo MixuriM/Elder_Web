@@ -294,4 +294,50 @@ router.post("/idoso/:idosoId/:medicamentoId/doses", requireAuth, requireVinculoA
   }
 });
 
+// ---------------------------------------------------------------------------------------------
+// Item 5.3 (RF-013, RNF-003): histórico de remédios (prescrições + doses). Dado sensível (RNF-001):
+// nenhum console.* aqui. Sem paginação, filtro nem limite (mesma decisão de GET /vinculo e do 4.4).
+// ---------------------------------------------------------------------------------------------
+const MSG_403_LEITURA_REMEDIOS = "Sem permissão para visualizar histórico de remédios.";
+
+// Uma consulta só, filtrada no Medicamento: dose de medicamento de outro idoso nunca entra. Inclui
+// inativos e fora da janela data_inicio/data_fim (é histórico); o campo ativo vai na resposta.
+async function historicoDoIdoso(idosoId: number) {
+  const medicamentos = await prisma.medicamento.findMany({
+    where: { idoso_id: idosoId },
+    orderBy: [{ data_inicio: "desc" }, { id: "desc" }],
+    include: { doses: { orderBy: [{ data_hora_administracao: "desc" }, { id: "desc" }] } },
+  });
+  return { medicamentos: medicamentos.map((m) => ({ ...serializarMedicamento(m), doses: m.doses.map(serializarDose) })) };
+}
+
+// Idoso lê o próprio histórico. Ordem: 401, 403 (não é idoso). Cuidador e familiar leem pela outra rota.
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    if (chamador?.tipo_perfil !== "idoso") {
+      return res.status(403).json({ error: MSG_403_LEITURA_REMEDIOS });
+    }
+    res.json(await historicoDoIdoso(req.usuarioId));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Cuidador ou familiar com vínculo aprovado lê o histórico do idoso. Ordem: 401, 400 (idosoId), 403
+// (vínculo). Nenhuma checagem além do middleware, de propósito: leitura não depende de permite_* nem de
+// modo_decisao (só escrita depende), então resolverModoDecisao não é chamado. idoso_id vem do vínculo.
+router.get("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_LEITURA_REMEDIOS });
+    res.json(await historicoDoIdoso(vinculo.idoso_id));
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;
