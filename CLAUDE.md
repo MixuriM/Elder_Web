@@ -320,6 +320,11 @@ Não decidir sozinho. Perguntar ao grupo.
   decisão do grupo.
 - Não implementados: download do histórico de saúde, exclusão de registro, paginação e
   filtros do histórico.
+- Item 5.2 (marcar dose, RF-012) implementado em `development`, ainda sem commit (resumo no histórico).
+  Pendências novas: sem idempotência de dose; sem GET de doses nem de medicamentos (5.3); o CHECK de
+  `status_administracao` no banco é case-insensitive (collation), só a rota barra `'ADMINISTRADO'`, e
+  torná-lo sensível a caixa exigiria migration com autorização separada. Familiar só marca dose com
+  `modo_decisao` efetivo `'familiar'` (via resolver), como no cadastro de medicamento (5.1).
 - Pequenos itens conhecidos: backfill de `modo_decisao` para idosos autocadastrados antes
   da mudança; `nome` vazio em `/auth/sync` vence o `decoded.name` do Google; JSON
   malformado cai no `errorHandler` (500, não 400); seed da foto do Google não se aplica
