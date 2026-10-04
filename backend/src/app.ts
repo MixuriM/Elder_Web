@@ -30,7 +30,11 @@ app.use('/historico', historicoPdfRouter)
 // log, depurar um 500 exige reproduzir o caso.
 // Quarto parâmetro (_next) é obrigatório: o Express só reconhece handler de erro por aridade 4.
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
-  const info = typeof err === 'object' && err !== null ? (err as { name?: unknown; code?: unknown }) : {}
+  const info = typeof err === 'object' && err !== null ? (err as { name?: unknown; code?: unknown; type?: unknown }) : {}
+  // Erro do body-parser (express.json) é erro do cliente, não do servidor: 4xx fixo, sem eco do corpo (pode
+  // ter dado de saúde) e sem log (o erro carrega o trecho do corpo na message). Vem antes do 500 genérico.
+  if (info.type === 'entity.parse.failed') return res.status(400).json({ error: 'Corpo da requisição inválido.' })
+  if (info.type === 'entity.too.large') return res.status(413).json({ error: 'Corpo da requisição grande demais.' })
   console.error('Erro não tratado', {
     name: err instanceof Error && typeof info.name === 'string' ? info.name : typeof err,
     code: typeof info.code === 'string' || typeof info.code === 'number' ? info.code : undefined,
