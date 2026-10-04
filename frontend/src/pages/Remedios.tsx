@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
 import { chamarApi } from '../lib/chamarApi'
+import { baixarPdf } from '../lib/baixarPdf'
 import Spinner from '../components/common/Spinner'
 import { usePermissoesDose } from '../lib/permissoesDose'
 
@@ -319,6 +320,73 @@ function HistoricoRemedios() {
   )
 }
 
+// Item 5.4 (RF-014): exportar o histórico combinado (remédios + saúde) em um único PDF. Id do idoso em
+// branco = idoso exporta o próprio (GET /historico/pdf); preenchido = cuidador/familiar
+// (GET /historico/idoso/:id/pdf). Sempre visível: leitura não depende de flag nem de modo_decisao. O download
+// fica em lib/baixarPdf (chamarApi força JSON). Sem console.*: dado de saúde (RNF-001).
+function ExportarHistoricoPdf() {
+  const [idosoId, setIdosoId] = useState('')
+  const [carregando, setCarregando] = useState(false)
+  const [sucesso, setSucesso] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function handleBaixar(e: FormEvent) {
+    e.preventDefault()
+    setErro(null)
+    setSucesso(false)
+    setCarregando(true)
+    try {
+      await baixarPdf(idosoId === '' ? '/historico/pdf' : `/historico/idoso/${idosoId}/pdf`)
+      setSucesso(true)
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Falha ao gerar o PDF.')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  return (
+    <section className="w-full max-w-sm space-y-4">
+      <h2 className="text-2xl font-bold text-gray-900">Exportar histórico em PDF</h2>
+      <form onSubmit={handleBaixar} className="space-y-4">
+        <div>
+          <label htmlFor="idoso_id_exportar_pdf" className="block text-lg font-medium text-gray-900">
+            Id do idoso para exportar (vazio = meu histórico)
+          </label>
+          <input
+            id="idoso_id_exportar_pdf"
+            type="number"
+            min={1}
+            step={1}
+            value={idosoId}
+            onChange={(e) => setIdosoId(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={carregando}
+          aria-busy={carregando}
+          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+        >
+          {carregando && <Spinner />}
+          {carregando ? 'Gerando PDF...' : 'Baixar histórico em PDF'}
+        </button>
+      </form>
+      {erro && (
+        <p role="alert" className="text-lg text-red-700">
+          {erro}
+        </p>
+      )}
+      {sucesso && (
+        <p role="status" className="text-lg text-gray-900">
+          PDF gerado. O download começou.
+        </p>
+      )}
+    </section>
+  )
+}
+
 export default function Remedios() {
   const permissoes = usePermissoesDose()
   // Mesma regra de Saude.tsx: se a consulta de vínculos falhar, mostra a seção e o 403 do backend decide.
@@ -337,6 +405,7 @@ export default function Remedios() {
         </p>
       )}
       <HistoricoRemedios />
+      <ExportarHistoricoPdf />
     </main>
   )
 }
