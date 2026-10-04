@@ -16,6 +16,13 @@ jest.mock("../lib/permissoesSaude", () => ({
   buscarPermissoesSaude: (...args: unknown[]) => mockBuscarPermissoes(...args),
 }));
 
+// Item 5.4: o download em si (fetch, Blob, <a download>) é testado em lib/baixarPdf.test.ts; aqui o helper
+// é mockado e se confere o caminho pedido, o estado de carregamento e as mensagens.
+const mockBaixarPdf = jest.fn();
+jest.mock("../lib/baixarPdf", () => ({
+  baixarPdf: (...args: unknown[]) => mockBaixarPdf(...args),
+}));
+
 type VinculoFake = {
   tipo_vinculo: "cuidador" | "familiar";
   status: string;
@@ -47,6 +54,8 @@ beforeEach(() => {
   global.fetch = jest.fn();
   mockBuscarPermissoes.mockReset();
   mockBuscarPermissoes.mockResolvedValue([FAMILIAR_APROVADO]);
+  mockBaixarPdf.mockReset();
+  mockBaixarPdf.mockResolvedValue(undefined);
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -556,5 +565,143 @@ describe("Remedios: histórico de remédios (item 5.3)", () => {
     await user.click(secaoHistorico().botao);
     await screen.findByRole("alert");
     for (const e of espioes) expect(e).not.toHaveBeenCalled();
+  });
+});
+
+// Item 5.4 (RF-014): seção crua "Exportar histórico em PDF". Id do idoso em branco = idoso exporta o próprio
+// (GET /historico/pdf); preenchido = cuidador/familiar (GET /historico/idoso/:id/pdf).
+function secaoExportar() {
+  return {
+    idoso: screen.getByLabelText("Id do idoso para exportar (vazio = meu histórico)", { exact: true }),
+    botao: screen.getByRole("button", { name: /^baixar histórico em pdf$/i }),
+  };
+}
+
+describe("Remedios: exportar histórico em PDF (item 5.4)", () => {
+  it("seção sempre visível, com título, campo por label e botão (mesmo sem vínculo)", async () => {
+    mockBuscarPermissoes.mockResolvedValue([]);
+    render(<Remedios />);
+    await act(async () => {});
+    expect(screen.getByRole("heading", { name: "Exportar histórico em PDF" })).toBeInTheDocument();
+    const c = secaoExportar();
+    expect(c.idoso).toHaveAttribute("type", "number");
+    expect(c.botao).toBeEnabled();
+  });
+
+  it("id vazio: exporta o próprio (/historico/pdf)", async () => {
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoExportar().botao);
+    await screen.findByRole("status");
+    expect(mockBaixarPdf).toHaveBeenCalledTimes(1);
+    expect(mockBaixarPdf).toHaveBeenCalledWith("/historico/pdf");
+  });
+
+  it("id preenchido: exporta do vinculado (/historico/idoso/:id/pdf)", async () => {
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.type(secaoExportar().idoso, "7");
+    await user.click(secaoExportar().botao);
+    await screen.findByRole("status");
+    expect(mockBaixarPdf).toHaveBeenCalledWith("/historico/idoso/7/pdf");
+  });
+
+  it("durante a geração o botão fica indisponível, com aria-busy, e não há duplo envio", async () => {
+    mockBaixarPdf.mockReturnValue(new Promise(() => undefined));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoExportar().botao);
+
+    const ocupado = await screen.findByRole("button", { name: /gerando pdf/i });
+    expect(ocupado).toBeDisabled();
+    expect(ocupado).toHaveAttribute("aria-busy", "true");
+    await user.click(ocupado);
+    expect(mockBaixarPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it("sucesso em role=status e sem alerta", async () => {
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoExportar().botao);
+    expect(await screen.findByRole("status")).toHaveTextContent("PDF gerado. O download começou.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(secaoExportar().botao).toBeEnabled();
+    expect(secaoExportar().botao).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("erro do backend em role=alert com a mensagem dele e sem sucesso", async () => {
+    mockBaixarPdf.mockRejectedValue(new Error("Sem permissão para exportar histórico."));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoExportar().botao);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sem permissão para exportar histórico.");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(secaoExportar().botao).toBeEnabled();
+  });
+
+  it("erro sem mensagem usa texto padrão", async () => {
+    mockBaixarPdf.mockRejectedValue("falha qualquer");
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoExportar().botao);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Falha ao gerar o PDF.");
+  });
+
+  it("reenviar limpa a mensagem anterior (erro some ao reenviar; sucesso some ao reenviar)", async () => {
+    mockBaixarPdf.mockRejectedValueOnce(new Error("Erro de teste.")).mockResolvedValueOnce(undefined).mockReturnValueOnce(new Promise(() => undefined));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoExportar().botao);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    await user.click(secaoExportar().botao); // segundo envio: sucesso
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await user.click(secaoExportar().botao); // terceiro envio: pendente
+    await screen.findByRole("button", { name: /gerando pdf/i });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("não escreve em console.* nem no sucesso nem no erro (dado sensível)", async () => {
+    const espioes = (["log", "info", "warn", "error", "debug"] as const).map((m) => jest.spyOn(console, m).mockImplementation(() => undefined));
+    mockBaixarPdf.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("Falha de teste."));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await user.click(secaoExportar().botao);
+    await screen.findByRole("status");
+    await user.click(secaoExportar().botao);
+    await screen.findByRole("alert");
+    for (const e of espioes) expect(e).not.toHaveBeenCalled();
+  });
+});
+
+// Item 5.x (D12): feedback ao marcar dose. Envio ocupado, sucesso em role=status e erro em role=alert já têm
+// teste no describe do 5.2; faltava a mensagem anterior limpa ao reenviar, nas duas seções.
+describe("Remedios: feedback ao marcar dose, mensagem anterior limpa ao reenviar", () => {
+  it.each(["idoso", "vinculado"] as const)("seção %s: erro e sucesso somem ao reenviar", async (sufixo) => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(respostaJson(409, { error: "Medicamento inativo." }))
+      .mockResolvedValueOnce(respostaJson(201, { id: 77 }))
+      .mockReturnValueOnce(new Promise(() => undefined));
+    const user = userEvent.setup();
+    render(<Remedios />);
+    await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
+    const c = secaoDose(sufixo);
+    if (c.idosoId) await user.type(c.idosoId, "7");
+    await user.type(c.medicamentoId, "9");
+
+    await user.click(c.botao);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Medicamento inativo.");
+
+    await user.click(c.botao);
+    expect(await screen.findByRole("status")).toHaveTextContent("Dose registrada (id 77).");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await user.click(c.botao);
+    expect(await screen.findByRole("button", { name: /marcando/i })).toBeDisabled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
