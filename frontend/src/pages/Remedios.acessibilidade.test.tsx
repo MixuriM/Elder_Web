@@ -31,6 +31,11 @@ jest.mock("../lib/permissoesSaude", () => ({
 }));
 const FAMILIAR_APROVADO = { tipo_vinculo: "familiar", status: "aprovado", papel_do_chamador: "vinculado", permissoes: null };
 
+const mockBaixarPdf = jest.fn();
+jest.mock("../lib/baixarPdf", () => ({
+  baixarPdf: (...args: unknown[]) => mockBaixarPdf(...args),
+}));
+
 function respostaJson(status: number, corpo: unknown) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response;
 }
@@ -41,6 +46,8 @@ beforeEach(() => {
   global.fetch = jest.fn();
   mockBuscarPermissoes.mockReset();
   mockBuscarPermissoes.mockResolvedValue([FAMILIAR_APROVADO]);
+  mockBaixarPdf.mockReset();
+  mockBaixarPdf.mockResolvedValue(undefined);
   // O esqueleto registra a mensagem do erro em console.error; é esperado no caso de erro.
   jest.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -216,6 +223,48 @@ describe("Remedios: acessibilidade da seção de histórico (item 5.3)", () => {
 
   it("erro em role=alert", async () => {
     const { container } = await buscar(Promise.resolve(respostaJson(403, { error: "Mensagem de erro de teste." })));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+});
+
+// Item 5.4: seção "Exportar histórico em PDF" em todos os estados. Mesmo limite: contraste de cor não é
+// verificado em jsdom (item 9.1).
+describe("Remedios: acessibilidade da seção de exportar PDF (item 5.4)", () => {
+  it("controle positivo: axe pega botão sem nome acessível, mesmo com aria-busy", async () => {
+    const { container } = render(<button aria-busy="true" />);
+    const resultado = await axe(container, AXE);
+    expect(resultado.violations.map((v) => v.id)).toContain("button-name");
+  });
+
+  async function exportar(retorno: Promise<void>) {
+    mockBaixarPdf.mockReturnValue(retorno);
+    const user = userEvent.setup();
+    const utils = render(<Remedios />);
+    await user.click(screen.getByRole("button", { name: /^baixar histórico em pdf$/i }));
+    return utils;
+  }
+
+  it("estado inicial", async () => {
+    const { container } = render(<Remedios />);
+    expect(screen.getByRole("heading", { name: "Exportar histórico em PDF" })).toBeInTheDocument();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("carregando (botão ocupado)", async () => {
+    const { container } = await exportar(new Promise(() => undefined));
+    expect(await screen.findByRole("button", { name: /gerando pdf/i })).toBeDisabled();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("sucesso em role=status", async () => {
+    const { container } = await exportar(Promise.resolve());
+    expect(await screen.findByRole("status")).toHaveTextContent("PDF gerado. O download começou.");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("erro em role=alert", async () => {
+    const { container } = await exportar(Promise.reject(new Error("Mensagem de erro de teste.")));
     expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
