@@ -216,11 +216,8 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
 ## Lacunas em aberto — NÃO decidir sozinho, perguntar ao grupo
 - Estrutura de pastas (`frontend/` + `backend/` monorepo) confirmada pelo
   grupo (Marcos, Laureane, Jennifer) — não reabrir.
-- Risco de colisão de e-mail entre contas: sem registro de mitigação
-  encontrado no `Elder Web - Modelagem ER.md` até a REV.9. (O que existe lá é
-  outra coisa: `email` opcional + índice único filtrado, para permitir idoso
-  sem e-mail próprio cadastrado pelo familiar — não trata colisão.) Não
-  presumir resolvido nem tratar como bloqueante sem confirmar com o grupo.
+- Risco de colisão de e-mail entre contas: tratado no código (`/auth/sync` responde 409, item 3.2); registrar
+  no `Elder Web - Modelagem ER.md` (até a REV.9 sem registro) fica com o Marcos, ver Decisões fechadas.
 
 **Riscos aceitos conscientemente (não é pendência técnica):** consentimento
 do idoso quando a conta é criada por um familiar, perda progressiva de
@@ -311,46 +308,52 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   duas fica com o Marcos (lembrar ele ao concluir a tarefa).
 
 ## Decisões em aberto e pendências conhecidas
-Não decidir sozinho. Perguntar ao grupo.
-- Conferir no dashboard do Render (serviço `elder-web-backend`) que `DEBUG` e `PRISMA_*`
-  não estão definidas (pendência manual do Marcos).
-- `backend/Dockerfile` usa `CMD ["npm", "run", "dev"]` (`tsx watch`) e nem ele nem o
-  `render.yaml` definem `NODE_ENV`. Decisão futura e separada.
-- Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem
-  tabela de auditoria. Reabrir só se o grupo decidir.
-- Aceite de termos de uso e política de privacidade no cadastro (LGPD): sem RF no plano,
-  decisão do grupo.
-- Não implementados: exclusão de registro, paginação e filtros do histórico (o download em
-  PDF existe desde o 5.4, sem paginação nem filtro).
-- Item 5.2 (marcar dose, RF-012) implementado e mergeado em `main` (PR #125, 2026-10-02T11:48:55Z, rebase; hashes finais e resumo no histórico).
-  Pendências novas: sem idempotência de dose; GET de doses e medicamentos feito no 5.3; o CHECK de
-  `status_administracao` no banco é case-insensitive (collation), só a rota barra `'ADMINISTRADO'`, e
-  torná-lo sensível a caixa exigiria migration com autorização separada. Familiar só marca dose com
-  `modo_decisao` efetivo `'familiar'` (via resolver), como no cadastro de medicamento (5.1).
-  `backend/scripts/verify-rotas-dose.ts` (14/14 PASS no SQL Server local; rota, Prisma e banco reais, só
-  o token Firebase é substituído em runtime) NÃO reverte por transação: exceção deliberada aos `verify-*`,
-  limpa no `finally` e recusa rodar fora de `localhost`; o prefixo `verify-dose-` no `firebase_uid` marca
-  conta residual se o processo for morto no meio.
-- Item 5.3 (histórico de remédios, RF-013, RNF-003) implementado e mergeado em `main` (PR #127, 2026-10-02T16:37:20Z, rebase; hashes finais e resumo no histórico).
-  `GET /remedios` e `GET /remedios/idoso/:idosoId`: vínculo aprovado basta, sem `permite_*` nem `modo_decisao`.
-  Pendências: sem paginação, filtro nem nome de autor; `backend/scripts/verify-rotas-historico-remedios.ts`
-  (18/18 PASS no SQL Server local) também NÃO reverte por transação: limpa por sentinela única no `finally`
-  e recusa rodar fora de `localhost`.
-- Item 5.4 (exportar histórico em PDF, RF-014) implementado, ainda não mergeado (resumo no histórico).
-  `GET /historico/pdf` e `GET /historico/idoso/:idosoId/pdf`: vínculo aprovado basta, como no 5.3. PDF
-  montado inteiro em memória (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe. Pendências:
-  sem paginação, filtro nem limite (PDF em memória); fontes Helvetica, fora de Latin-1 vira `?`;
-  `pdfjs-dist@3.11.174` (devDependency, só testes) trouxe 3 avisos de `npm audit` aceitos (`pdfjs-dist`, `tar`,
-  `@mapbox/node-pre-gyp`; `--omit=dev` dá 0); revisar com o item 9.3; validar o `npm ci` do Render no 1º
-  deploy (`docker build` local passou); `backend/scripts/verify-rotas-historico-pdf.ts` (21/21 PASS no SQL Server
-  local) também NÃO reverte por transação: limpa por sentinela única no `finally` e recusa rodar fora de `localhost`.
-  O `pdfjs-dist` 3.x puxa o `canvas` como pacote opcional (instalado sem binário: `allowScripts` não o libera).
-- `backend/` não tem `.dockerignore`: o `COPY . .` do Dockerfile copia arquivos locais (inclusive `node_modules`
-  do host) por cima da imagem no build local; no Render não ocorre. Vale resolver, em decisão futura e separada.
-- Pequenos itens conhecidos: backfill de `modo_decisao` para idosos autocadastrados antes
-  da mudança; `nome` vazio em `/auth/sync` vence o `decoded.name` do Google; JSON
-  malformado cai no `errorHandler` (500, não 400); seed da foto do Google não se aplica
-  ao fluxo de anexo do item 3.3 (ninguém decidiu).
+Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita do Marcos em 2026-10-04
+("decisão do grupo"); reabrir só se o grupo mandar. Pendências manuais ficam com o Marcos.
+
+**Pendências manuais (Marcos)**
+- Conferir no dashboard do Render (serviço `elder-web-backend`) que `DEBUG` e `PRISMA_*` não estão definidas
+  (Claude não confere: o Render MCP exige workspace confirmado por ele e a lista de variáveis traz segredos).
+- `NODE_ENV=production` entrou no `render.yaml`; se o serviço do Render não sincroniza o blueprint, definir a
+  variável no dashboard. Conferir o log do `npm ci` e do 1º deploy depois do merge (o `docker build` local passou).
+- Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
+  `frontend/src/lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
+- Contraste de cor segue no item 9.1; revisar `pdfjs-dist` (devDependency, com `canvas` opcional sem binário) e os
+  3 avisos de `npm audit` só de dev (`pdfjs-dist`, `tar`, `@mapbox/node-pre-gyp`; `--omit=dev` dá 0) no item 9.3.
+
+**Decisões fechadas**
+- `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (uso local via `docker-compose.yml`, com volume e
+  `tsx watch`); o Render usa `dockerCommand: npm start` (`render.yaml`). `NODE_ENV=production` definido só no
+  `render.yaml`. `backend/.dockerignore` criado (`node_modules`, `dist`, `.env*` menos `.env.example`): o
+  `COPY . .` não leva mais `.env`, `.env.azure` nem o `node_modules` do host para a imagem.
+- Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem tabela de auditoria.
+- Aceite de termos de uso e política de privacidade no cadastro (LGPD): fora do escopo do TCC (sem RF no plano);
+  registrado como trabalho futuro (exigiria RF, migration e tela).
+- Exclusão de registro, paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC
+  não justifica. O PDF é montado em memória, sem limite (aceito); fora de Latin-1 vira `?` (aceito).
+- Dose (5.2): sem idempotência no servidor (o frontend desabilita o botão durante o envio; duplicata aceita); o
+  CHECK de `status_administracao` é case-insensitive (collation) e só a rota barra `'ADMINISTRADO'`: aceito, sem
+  migration. Histórico de remédios mostra só ids de autor, sem nome (aceito).
+- `modo_decisao` NULL de idosos autocadastrados antes da mudança: sem backfill. O resolver já trata `NULL` como
+  `'idoso'`, então nada muda no comportamento e o backfill exigiria tocar o Azure sem ganho.
+- Foto do Google não é semeada no fluxo de anexo do item 3.3: o idoso anexado por e-mail e senha não tem foto
+  Google; a foto vem só do upload no perfil.
+- Risco de colisão de e-mail entre contas: tratado no código, `/auth/sync` responde 409 (`CONFLITO_EMAIL`, item
+  3.2) quando o e-mail já está em uso. Registrar isso no `Elder Web - Modelagem ER.md` fica com o Marcos.
+- Resolvidos em 2026-10-04: JSON malformado e corpo acima do limite agora respondem 400 e 413 fixos no
+  `errorHandler` (sem eco do corpo, sem log); `nome` em branco no corpo de `/auth/sync` não vence mais o `name` do
+  token do Google (aparado; em branco nos dois dá 400).
+
+**Itens implementados (resumo; detalhes e hashes no histórico)**
+- 5.2 marcar dose (PR #125), 5.3 histórico de remédios (PR #127), 5.4 exportar histórico em PDF (PR #129,
+  mergeado em `main` em 2026-10-04T18:46:01Z, rebase). Familiar só marca dose com `modo_decisao` efetivo
+  `'familiar'` (via resolver), como no cadastro de medicamento (5.1). `GET /remedios` e `GET /remedios/idoso/:idosoId`
+  e as rotas de PDF: vínculo aprovado basta, sem `permite_*` nem `modo_decisao`. PDF montado inteiro em memória
+  (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
+- Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
+  local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
+  sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
+  `verify-pdf-` no `firebase_uid` marca conta residual se o processo for morto no meio.
 
 ## Histórico de implementação
 O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
