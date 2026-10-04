@@ -13,6 +13,11 @@ services:
     dockerCommand: npm start
     healthCheckPath: /health
     envVars:
+      # production: o Express não imprime stack em resposta de erro e libs de produção desligam modos de
+      # desenvolvimento. Seguro porque o Dockerfile compila no build (devDependencies já instaladas) e o
+      # runtime só roda `npm start` (node dist/index.js). Vale só para o serviço do Render.
+      - key: NODE_ENV
+        value: production
       - key: DATABASE_URL
         sync: false
       - key: FIREBASE_PROJECT_ID
