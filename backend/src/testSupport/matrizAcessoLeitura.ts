@@ -1,5 +1,5 @@
-// Matriz de acesso das rotas de LEITURA por vínculo (itens 4.4 e 5.3), compartilhada por
-// saudeHistorico.test.ts e remediosHistorico.test.ts. Só dados: cada suíte monta os próprios fakes.
+// Matriz de acesso das rotas de LEITURA por vínculo (itens 4.4, 5.3 e 5.4), compartilhada por
+// saudeHistorico.test.ts, remediosHistorico.test.ts e historicoPdf.test.ts. Só dados: cada suíte monta os próprios fakes.
 // Toda nova rota de leitura por vínculo deve entrar nesta lista. Ids FICTÍCIOS, só para teste.
 // Fora do build de produção (tsconfig exclui src/testSupport) e não coletada como suíte (sem .test).
 
