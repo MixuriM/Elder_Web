@@ -139,7 +139,10 @@ router.post("/sync", async (req, res, next) => {
         .json({ error: "tipo_perfil obrigatório ao criar conta (idoso, cuidador ou familiar)." });
     }
 
-    const nome = typeof req.body?.nome === "string" ? req.body.nome.trim() : decoded.name;
+    // Nome em branco no corpo (vazio ou só espaços) não conta como informado: vale o do token (Google). Antes,
+    // "" vencia o decoded.name e virava 400 de nome obrigatório mesmo com nome no token.
+    const nomeCorpo = typeof req.body?.nome === "string" ? req.body.nome.trim() : "";
+    const nome = nomeCorpo || (typeof decoded.name === "string" ? decoded.name.trim() : "");
 
     if (!decoded.email && !decoded.phone_number) {
       return res.status(400).json({ error: "Conta Firebase sem e-mail ou telefone associado." });
