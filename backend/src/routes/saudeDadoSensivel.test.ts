@@ -653,8 +653,8 @@ const ROTAS_DE_ESCRITA: [string, "post" | "patch", string, [number, Perfil]][] =
 ];
 
 describe("corpo malformado ou grande demais: sem sentinela na resposta nem nas saídas", () => {
-  // Decisão 5: JSON malformado e corpo grande chegam ao errorHandler e respondem 500 (medido), não 400/413.
-  // Não corrigido de propósito; se o status mudar, este teste deve ser atualizado junto.
+  // Antes (decisão 5 do 4.5) respondiam 500 (medido, não corrigido de propósito). Corrigido em 2026-10-04: o
+  // errorHandler responde 400 e 413 fixos para erro do body-parser; o corpo e o log continuam sem sentinela.
   it.each(ROTAS_DE_ESCRITA)("%s: JSON malformado", async (_n, metodo, caminho, ator) => {
     logadoComo(...ator);
     const { res, saidas } = await capturando(() =>
@@ -663,7 +663,8 @@ describe("corpo malformado ou grande demais: sem sentinela na resposta nem nas s
         .set("Content-Type", "application/json")
         .send(`{"tipo_medicao":"SENT_MALFORMADO","valor_1":987.65,`),
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Corpo da requisição inválido." });
     semSentinelas(visivel(res, saidas), ["SENT_MALFORMADO", "987.65"]);
     expect(createRegistro).not.toHaveBeenCalled();
     expect(updateRegistro).not.toHaveBeenCalled();
@@ -677,7 +678,8 @@ describe("corpo malformado ou grande demais: sem sentinela na resposta nem nas s
         .set("Content-Type", "application/json")
         .send(`{"observacoes":"SENT_GRANDE${"x".repeat(200 * 1024)}"}`),
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(413);
+    expect(res.body).toEqual({ error: "Corpo da requisição grande demais." });
     semSentinelas(visivel(res, saidas), ["SENT_GRANDE"]);
     expect(createRegistro).not.toHaveBeenCalled();
     expect(updateRegistro).not.toHaveBeenCalled();
