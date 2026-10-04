@@ -344,6 +344,9 @@ Não decidir sozinho. Perguntar ao grupo.
   `@mapbox/node-pre-gyp`; `--omit=dev` dá 0); revisar com o item 9.3; validar o `npm ci` do Render no 1º
   deploy (`docker build` local passou); `backend/scripts/verify-rotas-historico-pdf.ts` (21/21 PASS no SQL Server
   local) também NÃO reverte por transação: limpa por sentinela única no `finally` e recusa rodar fora de `localhost`.
+  O `pdfjs-dist` 3.x puxa o `canvas` como pacote opcional (instalado sem binário: `allowScripts` não o libera).
+- `backend/` não tem `.dockerignore`: o `COPY . .` do Dockerfile copia arquivos locais (inclusive `node_modules`
+  do host) por cima da imagem no build local; no Render não ocorre. Vale resolver, em decisão futura e separada.
 - Pequenos itens conhecidos: backfill de `modo_decisao` para idosos autocadastrados antes
   da mudança; `nome` vazio em `/auth/sync` vence o `decoded.name` do Google; JSON
   malformado cai no `errorHandler` (500, não 400); seed da foto do Google não se aplica
