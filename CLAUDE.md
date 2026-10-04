@@ -320,8 +320,8 @@ Não decidir sozinho. Perguntar ao grupo.
   tabela de auditoria. Reabrir só se o grupo decidir.
 - Aceite de termos de uso e política de privacidade no cadastro (LGPD): sem RF no plano,
   decisão do grupo.
-- Não implementados: download do histórico de saúde, exclusão de registro, paginação e
-  filtros do histórico.
+- Não implementados: exclusão de registro, paginação e filtros do histórico (o download em
+  PDF existe desde o 5.4, sem paginação nem filtro).
 - Item 5.2 (marcar dose, RF-012) implementado e mergeado em `main` (PR #125, 2026-10-02T11:48:55Z, rebase; hashes finais e resumo no histórico).
   Pendências novas: sem idempotência de dose; GET de doses e medicamentos feito no 5.3; o CHECK de
   `status_administracao` no banco é case-insensitive (collation), só a rota barra `'ADMINISTRADO'`, e
@@ -336,6 +336,14 @@ Não decidir sozinho. Perguntar ao grupo.
   Pendências: sem paginação, filtro nem nome de autor; `backend/scripts/verify-rotas-historico-remedios.ts`
   (18/18 PASS no SQL Server local) também NÃO reverte por transação: limpa por sentinela única no `finally`
   e recusa rodar fora de `localhost`.
+- Item 5.4 (exportar histórico em PDF, RF-014) implementado, ainda não mergeado (resumo no histórico).
+  `GET /historico/pdf` e `GET /historico/idoso/:idosoId/pdf`: vínculo aprovado basta, como no 5.3. PDF
+  montado inteiro em memória (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe. Pendências:
+  sem paginação, filtro nem limite (PDF em memória); fontes Helvetica, fora de Latin-1 vira `?`;
+  `pdfjs-dist@3.11.174` (devDependency, só testes) trouxe 3 avisos de `npm audit` aceitos (`pdfjs-dist`, `tar`,
+  `@mapbox/node-pre-gyp`; `--omit=dev` dá 0); revisar com o item 9.3; validar o `npm ci` do Render no 1º
+  deploy (`docker build` local passou); `backend/scripts/verify-rotas-historico-pdf.ts` (21/21 PASS no SQL Server
+  local) também NÃO reverte por transação: limpa por sentinela única no `finally` e recusa rodar fora de `localhost`.
 - Pequenos itens conhecidos: backfill de `modo_decisao` para idosos autocadastrados antes
   da mudança; `nome` vazio em `/auth/sync` vence o `decoded.name` do Google; JSON
   malformado cai no `errorHandler` (500, não 400); seed da foto do Google não se aplica
