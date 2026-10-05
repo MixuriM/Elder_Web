@@ -1,11 +1,16 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Alimentacao from "./Alimentacao";
 
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
   getCurrentUserToken: (...args: unknown[]) => mockGetCurrentUserToken(...args),
+}));
+// A página nunca usa chamarApi (força Content-Type JSON e repassa o corpo do erro): se usar, o teste do 7.2 falha.
+const mockChamarApi = jest.fn();
+jest.mock("../lib/chamarApi", () => ({
+  chamarApi: (...args: unknown[]) => mockChamarApi(...args),
 }));
 
 function respostaJson(status: number, corpo: unknown) {
@@ -38,6 +43,7 @@ const MENSAGENS: [number, string][] = [
 beforeEach(() => {
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
+  mockChamarApi.mockReset();
   global.fetch = jest.fn();
 });
 afterEach(() => jest.restoreAllMocks());
@@ -207,5 +213,276 @@ describe("Alimentacao (item 7.1)", () => {
     await preencherEEnviar(user);
     await screen.findByRole("alert");
     expect(JSON.stringify(espioes.map((s) => s.mock.calls))).not.toContain(DESCRICAO);
+  });
+});
+
+// Item 7.2 (RF-019): seção "Ver histórico alimentar". Lista plana na ordem recebida (o backend já ordena), data e
+// hora em São Paulo. Todos os valores abaixo são obviamente falsos, só para teste.
+const SENT_CORPO = "SENT_CORPO_ERRO_FALSO";
+
+function regApi(id: number, refeicao: string, dataHora: string) {
+  return {
+    id,
+    idoso_id: 7,
+    registrado_por_id: 7,
+    refeicao,
+    descricao: `descricao-falsa-${id}`,
+    data_hora: dataHora,
+    editado_por_id: null,
+    created_at: "2026-09-01T10:00:00.000Z",
+    updated_at: "2026-09-01T10:00:00.000Z",
+  };
+}
+
+// Fora de ordem cronológica de propósito: a seção não reordena.
+const REGISTROS_API = [
+  regApi(3, "almoco", "2026-10-05T12:00:00.000Z"),
+  regApi(9, "ceia", "2099-12-31T23:59:59.987Z"),
+  regApi(1, "cafe_manha", "2020-01-01T10:00:00.000Z"),
+];
+
+const MENSAGENS_HISTORICO: [number, string][] = [
+  [400, "Id de idoso inválido."],
+  [401, "Sessão expirada. Entre novamente."],
+  [403, "Você não tem permissão para ver este histórico alimentar."],
+  [404, "Não foi possível carregar o histórico alimentar."],
+  [500, "Não foi possível carregar o histórico alimentar."],
+  [503, "Não foi possível carregar o histórico alimentar."],
+];
+
+function verHistorico() {
+  const regiao = screen.getByRole("region", { name: "Ver histórico alimentar" });
+  return {
+    regiao,
+    campo: within(regiao).getByLabelText("Id do idoso para ver o histórico (vazio = meu histórico)", { exact: true }),
+    botao: within(regiao).getByRole("button", { name: /^ver histórico alimentar$/i }),
+  };
+}
+
+async function pedirHistorico(user: ReturnType<typeof userEvent.setup>, idosoId = "") {
+  if (idosoId) await user.type(verHistorico().campo, idosoId);
+  await user.click(verHistorico().botao);
+}
+
+describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
+  it("H1: a seção existe sempre, com heading, campo por label e botão; só busca ao enviar", () => {
+    render(<Alimentacao />);
+    const h = verHistorico();
+    expect(within(h.regiao).getByRole("heading", { level: 2, name: "Ver histórico alimentar" })).toBeInTheDocument();
+    expect(h.campo).not.toBeRequired();
+    expect(h.botao).toBeEnabled();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("H2: campo vazio chama GET /alimentacao, com Authorization, sem Content-Type e sem corpo", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    await within(verHistorico().regiao).findByText("Nenhuma refeição registrada.");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(String(url)).toMatch(/\/alimentacao$/);
+    expect(init.method).toBe("GET");
+    expect(init.headers).toEqual({ Authorization: "Bearer token-fake" });
+    expect(init.body).toBeUndefined();
+  });
+
+  it("H2: campo preenchido chama GET /alimentacao/idoso/<id>, sem Content-Type", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user, "7");
+    await within(verHistorico().regiao).findByText("Nenhuma refeição registrada.");
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(String(url)).toMatch(/\/alimentacao\/idoso\/7$/);
+    expect(init.headers).toEqual({ Authorization: "Bearer token-fake" });
+  });
+
+  it("H2: usa fetch direto, nunca chamarApi", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: REGISTROS_API }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    await within(verHistorico().regiao).findByText("descricao-falsa-3");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(mockChamarApi).not.toHaveBeenCalled();
+  });
+
+  it("H3: itens na ordem recebida, cada um com rótulo em texto, <time dateTime> em ISO e a descrição", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: REGISTROS_API }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    const { regiao } = verHistorico();
+    expect(await within(regiao).findByRole("status")).toHaveTextContent("3 registro(s) encontrado(s).");
+
+    const itens = within(regiao).getAllByRole("listitem");
+    expect(itens).toHaveLength(3);
+    expect(itens.map((li) => within(li).getByText(/^descricao-falsa-/).textContent)).toEqual([
+      "descricao-falsa-3",
+      "descricao-falsa-9",
+      "descricao-falsa-1",
+    ]);
+
+    const esperado = [
+      ["Almoço", "2026-10-05T12:00:00.000Z", "05/10/2026 09:00"],
+      ["Ceia", "2099-12-31T23:59:59.987Z", "31/12/2099 20:59"],
+      ["Café da manhã", "2020-01-01T10:00:00.000Z", "01/01/2020 07:00"],
+    ];
+    itens.forEach((li, i) => {
+      const [rotulo, iso, texto] = esperado[i];
+      expect(within(li).getByText(rotulo)).toBeInTheDocument();
+      const t = li.querySelector("time") as HTMLTimeElement;
+      expect(t).not.toBeNull();
+      expect(t).toHaveAttribute("datetime", iso);
+      expect(t).toHaveTextContent(texto);
+    });
+    expect(within(regiao).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("H3: os 6 valores de refeição viram rótulo em português, em texto", async () => {
+    const seis = ["cafe_manha", "lanche_manha", "almoco", "lanche_tarde", "jantar", "ceia"].map((r, i) =>
+      regApi(i + 1, r, "2026-10-05T12:00:00.000Z"),
+    );
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: seis }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    const { regiao } = verHistorico();
+    await within(regiao).findByText("descricao-falsa-1");
+    const itens = within(regiao).getAllByRole("listitem");
+    expect(itens.map((li) => li.querySelector("strong")?.textContent)).toEqual(OPCOES.map(([, rotulo]) => rotulo));
+  });
+
+  it("H4: carregando: botão desabilitado com aria-busy, status de carregando, resultado anterior some", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, { registros: REGISTROS_API }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    await within(verHistorico().regiao).findByText("descricao-falsa-3");
+
+    (global.fetch as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
+    await user.click(verHistorico().botao);
+    const regiao = screen.getByRole("region", { name: "Ver histórico alimentar" });
+    const botao = within(regiao).getByRole("button", { name: /carregando/i });
+    expect(botao).toBeDisabled();
+    expect(botao).toHaveAttribute("aria-busy", "true");
+    expect(within(regiao).getByRole("status")).toHaveTextContent("Carregando o histórico alimentar...");
+    expect(within(regiao).queryByText("descricao-falsa-3")).not.toBeInTheDocument();
+    expect(within(regiao).queryAllByRole("listitem")).toHaveLength(0);
+  });
+
+  it("H4: depois da resposta o botão volta ao normal", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    await within(verHistorico().regiao).findByText("Nenhuma refeição registrada.");
+    expect(verHistorico().botao).toBeEnabled();
+    expect(verHistorico().botao).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("H5: lista vazia mostra a mensagem fixa em role=status e nenhum item", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    const { regiao } = verHistorico();
+    expect(await within(regiao).findByRole("status")).toHaveTextContent("Nenhuma refeição registrada.");
+    expect(within(regiao).queryAllByRole("listitem")).toHaveLength(0);
+    expect(within(regiao).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it.each(MENSAGENS_HISTORICO)("H6: erro %i vira mensagem fixa em role=alert, sem ecoar o corpo", async (status, mensagem) => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: SENT_CORPO }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user, "7");
+    const { regiao } = verHistorico();
+    expect(await within(regiao).findByRole("alert")).toHaveTextContent(mensagem);
+    expect(document.body.textContent).not.toContain(SENT_CORPO);
+    expect(within(regiao).queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("H6: falha de rede vira a mensagem genérica, e a mensagem é limpa ao reenviar", async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error(SENT_CORPO));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    expect(await within(verHistorico().regiao).findByRole("alert")).toHaveTextContent(
+      "Não foi possível carregar o histórico alimentar.",
+    );
+    expect(document.body.textContent).not.toContain(SENT_CORPO);
+
+    (global.fetch as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
+    await user.click(verHistorico().botao);
+    expect(within(screen.getByRole("region", { name: "Ver histórico alimentar" })).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("H6: erro limpo ao reenviar com sucesso", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(403, {}));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    await within(verHistorico().regiao).findByRole("alert");
+    (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, { registros: REGISTROS_API }));
+    await user.click(verHistorico().botao);
+    await within(verHistorico().regiao).findByText("descricao-falsa-3");
+    expect(within(verHistorico().regiao).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("H6: 200 sem a lista registros vira erro genérico, nunca tela vazia", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { outra: 1 }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    expect(await within(verHistorico().regiao).findByRole("alert")).toHaveTextContent(
+      "Não foi possível carregar o histórico alimentar.",
+    );
+    expect(within(verHistorico().regiao).queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["refeição desconhecida", regApi(1, "refeicao-sigilosa-falsa", "2026-10-05T12:00:00.000Z"), "refeicao-sigilosa-falsa"],
+    ["data inválida", regApi(1, "almoco", "data-sigilosa-falsa"), "data-sigilosa-falsa"],
+  ])("H7: %s (RangeError) vira 'Não foi possível exibir o histórico alimentar.' sem repetir o valor", async (_nome, reg, valor) => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [reg] }));
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    const { regiao } = verHistorico();
+    expect(await within(regiao).findByRole("alert")).toHaveTextContent("Não foi possível exibir o histórico alimentar.");
+    expect(document.body.textContent).not.toContain(valor);
+    expect(within(regiao).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(regiao).queryAllByRole("listitem")).toHaveLength(0);
+  });
+
+  it("H8: não loga descrição nem corpo em console.*", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: REGISTROS_API }));
+    const espioes = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
+      jest.spyOn(console, m).mockImplementation(() => undefined),
+    );
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    await pedirHistorico(user);
+    await within(verHistorico().regiao).findByText("descricao-falsa-3");
+    expect(JSON.stringify(espioes.flatMap((s) => s.mock.calls))).not.toContain("descricao-falsa");
+  });
+
+  it("H9: a seção de registro do 7.1 segue presente e registrar não recarrega a lista sozinho (D12)", async () => {
+    const user = userEvent.setup();
+    render(<Alimentacao />);
+    expect(screen.getByRole("heading", { level: 2, name: "Registrar refeição" })).toBeInTheDocument();
+    (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, { registros: [] }));
+    await pedirHistorico(user);
+    await within(verHistorico().regiao).findByText("Nenhuma refeição registrada.");
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(201, { id: 50 }));
+    await preencherEEnviar(user);
+    expect(await screen.findByText("Refeição registrada (id 50).")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect((global.fetch as jest.Mock).mock.calls[1][1].method).toBe("POST");
+    expect(within(verHistorico().regiao).getByRole("status")).toHaveTextContent("Nenhuma refeição registrada.");
   });
 });

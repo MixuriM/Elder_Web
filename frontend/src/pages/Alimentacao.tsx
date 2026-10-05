@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import Spinner from '../components/common/Spinner'
 import { getCurrentUserToken } from '../lib/auth'
+import { formatarDataHora, rotuloRefeicao } from '../lib/alimentacaoFormato'
 
 // Esqueleto cru da Fase 7, item 7.1 (RF-018): registrar refeição ou plano alimentar (POST /alimentacao do idoso e
-// POST /alimentacao/idoso/:idosoId do familiar), pra exercitar os endpoints sem depender do front delas. Sem
-// listagem (é o 7.2) e sem polish visual: layout final é de Laureane/Jennifer. O frontend não sabe quem é cuidador:
+// POST /alimentacao/idoso/:idosoId do familiar), pra exercitar os endpoints sem depender do front delas. A
+// listagem (7.2) é a seção "Ver histórico alimentar", mais abaixo. Sem polish visual: layout final é de
+// Laureane/Jennifer. O frontend não sabe quem é cuidador:
 // cuidador nunca cria e o 403 do backend vira mensagem (limitação aceita). Não usa chamarApi (repassa o corpo do
 // erro): as mensagens são fixas por status e nunca ecoam o corpo (a descrição pode revelar dado de saúde, RNF-001).
 // Sem console.*.
@@ -152,6 +154,128 @@ export default function Alimentacao() {
           </p>
         )}
       </section>
+      <VerHistoricoAlimentar />
     </main>
+  )
+}
+
+// Item 7.2 (RF-019): ver o histórico alimentar. Id do idoso em branco = idoso lê o próprio (GET /alimentacao);
+// preenchido = cuidador ou familiar (GET /alimentacao/idoso/:id). Sempre visível: leitura não depende de flag nem de
+// modo_decisao (a autoridade é o 403 do backend). Lista plana na ordem recebida (o backend já ordena). Não atualiza
+// sozinha depois de registrar (aceito). Não usa chamarApi: mensagens fixas por status, sem ecoar o corpo. Sem console.*.
+const MENSAGEM_ERRO_HISTORICO: Record<number, string> = {
+  400: 'Id de idoso inválido.',
+  401: 'Sessão expirada. Entre novamente.',
+  403: 'Você não tem permissão para ver este histórico alimentar.',
+}
+const ERRO_GENERICO_HISTORICO = 'Não foi possível carregar o histórico alimentar.'
+
+// Só este erro tem mensagem exibível: qualquer outro (rede, token) cai na genérica, sem ecoar texto de fora.
+class ErroHistorico extends Error {}
+
+type RegistroApi = { id: number; refeicao: string; descricao: string; data_hora: string }
+type ItemHistorico = { id: number; rotulo: string; iso: string; texto: string; descricao: string }
+
+async function buscarHistorico(path: string): Promise<RegistroApi[]> {
+  const token = await getCurrentUserToken()
+  const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new ErroHistorico(MENSAGEM_ERRO_HISTORICO[res.status] ?? ERRO_GENERICO_HISTORICO)
+  const corpo = await res.json().catch(() => null)
+  if (!Array.isArray(corpo?.registros)) throw new ErroHistorico(ERRO_GENERICO_HISTORICO)
+  return corpo.registros
+}
+
+function VerHistoricoAlimentar() {
+  const [idosoId, setIdosoId] = useState('')
+  const [carregando, setCarregando] = useState(false)
+  const [itens, setItens] = useState<ItemHistorico[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function handleVer(e: FormEvent) {
+    e.preventDefault()
+    setErro(null)
+    setItens(null)
+    setCarregando(true)
+    try {
+      const registros = await buscarHistorico(idosoId === '' ? '/alimentacao' : `/alimentacao/idoso/${idosoId}`)
+      // Formata tudo antes de exibir: um registro inválido vira erro, nunca lista pela metade.
+      setItens(
+        registros.map((r) => ({
+          id: r.id,
+          rotulo: rotuloRefeicao(r.refeicao),
+          iso: r.data_hora,
+          texto: formatarDataHora(r.data_hora),
+          descricao: r.descricao,
+        })),
+      )
+    } catch (err) {
+      if (err instanceof RangeError) setErro('Não foi possível exibir o histórico alimentar.')
+      else setErro(err instanceof ErroHistorico ? err.message : ERRO_GENERICO_HISTORICO)
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  return (
+    <section aria-labelledby="titulo_ver_historico_alimentar" className="w-full max-w-sm space-y-4">
+      <h2 id="titulo_ver_historico_alimentar" className="text-2xl font-bold text-gray-900">
+        Ver histórico alimentar
+      </h2>
+      <form onSubmit={handleVer} className="space-y-4">
+        <div>
+          <label htmlFor="idoso_id_historico_alimentar" className="block text-lg font-medium text-gray-900">
+            Id do idoso para ver o histórico (vazio = meu histórico)
+          </label>
+          <input
+            id="idoso_id_historico_alimentar"
+            type="number"
+            min={1}
+            step={1}
+            value={idosoId}
+            onChange={(e) => setIdosoId(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={carregando}
+          aria-busy={carregando}
+          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+        >
+          {carregando && <Spinner />}
+          {carregando ? 'Carregando...' : 'Ver histórico alimentar'}
+        </button>
+      </form>
+      {erro && (
+        <p role="alert" className="text-lg text-red-700">
+          {erro}
+        </p>
+      )}
+      {carregando && (
+        <p role="status" className="text-lg text-gray-900">
+          Carregando o histórico alimentar...
+        </p>
+      )}
+      {itens && (
+        <p role="status" className="text-lg text-gray-900">
+          {itens.length === 0 ? 'Nenhuma refeição registrada.' : `${itens.length} registro(s) encontrado(s).`}
+        </p>
+      )}
+      {itens && itens.length > 0 && (
+        <ul className="space-y-3 text-lg text-gray-900">
+          {itens.map((i) => (
+            <li key={i.id}>
+              <p>
+                <strong>{i.rotulo}</strong> <time dateTime={i.iso}>{i.texto}</time>
+              </p>
+              <p>{i.descricao}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
