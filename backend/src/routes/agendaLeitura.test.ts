@@ -48,6 +48,20 @@ jest.mock("./vinculo", () => ({
   resolverModoDecisao: (...args: unknown[]) => resolverModoDecisaoMock(...args),
 }));
 
+// Só para o teste do ramo defensivo: por padrão delega ao middleware real; com passa=true segue sem preencher o vínculo.
+const mockStubVinculo = { passa: false };
+jest.mock("../middleware/requireVinculoAprovado", () => {
+  const real = jest.requireActual("../middleware/requireVinculoAprovado");
+  return {
+    __esModule: true,
+    ...real,
+    requireVinculoAprovado: (param: string) => {
+      const mw = real.requireVinculoAprovado(param);
+      return (req: unknown, res: unknown, next: () => void) => (mockStubVinculo.passa ? next() : mw(req, res, next));
+    },
+  };
+});
+
 import app from "../app";
 
 type Perfil = "idoso" | "cuidador" | "familiar";
@@ -195,6 +209,7 @@ beforeEach(() => {
     createEvento, updateEvento, deleteEvento, resolverModoDecisaoMock,
   ].forEach((m) => m.mockReset());
   falhas.clear();
+  mockStubVinculo.passa = false;
   logadoComo(IDOSO_A, "idoso");
   // Idoso A, entrada embaralhada: ids 3 e 2 com o mesmo início (desempate por id), um de cada tipo.
   eventos = [
@@ -494,6 +509,20 @@ describe("ordem de erros e efeitos", () => {
     expect(updateEvento).not.toHaveBeenCalled();
     expect(deleteEvento).not.toHaveBeenCalled();
     expect(findManyEvento).toHaveBeenCalledTimes(2);
+  });
+});
+
+// Ramo defensivo: middleware que passa sem preencher req.vinculoAprovado (inalcançável com o middleware real).
+describe("ramo sem req.vinculoAprovado", () => {
+  it("403 fixo, sem repetir o valor enviado, e evento.findMany nunca é chamado", async () => {
+    mockStubVinculo.passa = true;
+    logadoComo(FAMILIAR, "familiar");
+    vinculos = [vinculo()];
+    const res = await getVinculo("987654");
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: MSG_403_LEITURA });
+    expect(JSON.stringify(res.body)).not.toContain("987654");
+    expect(findManyEvento).not.toHaveBeenCalled();
   });
 });
 

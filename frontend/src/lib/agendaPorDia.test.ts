@@ -1,5 +1,5 @@
 // tsconfig.test.json não carrega @types/node (e ele conflita com test-globals.d.ts): tipos mínimos locais.
-declare const process: { execPath: string; env: Record<string, string | undefined> }
+declare const process: { execPath: string; version: string; env: Record<string, string | undefined> }
 declare const __dirname: string
 const { execFileSync } = jest.requireActual<{
   execFileSync: (cmd: string, args: string[], opts: { env: Record<string, string | undefined>; encoding: 'utf8' }) => string
@@ -59,7 +59,16 @@ console.log(JSON.stringify({
 }))
 `
 
+// Type-stripping de .ts sem flag exige Node 22.18 ou superior. Nunca pula em silêncio: falha com mensagem clara.
+function nodeSuportaTypeStripping() {
+  const [maior, menor] = process.version.replace('v', '').split('.').map(Number)
+  return maior > 22 || (maior === 22 && menor >= 18)
+}
+
 function rodarNoFuso(tz: string) {
+  if (!nodeSuportaTypeStripping()) {
+    throw new Error(`O teste de fuso exige Node 22.18 ou superior (type-stripping de .ts); este é o ${process.version}.`)
+  }
   const saida = execFileSync(process.execPath, ['--input-type=module', '-e', SCRIPT_FILHO], {
     env: { ...process.env, TZ: tz, LIB_URL: pathToFileURL(join(__dirname, 'agendaPorDia.ts')).href },
     encoding: 'utf8',
