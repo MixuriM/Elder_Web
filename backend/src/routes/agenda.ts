@@ -155,4 +155,42 @@ router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), a
   }
 });
 
+// Item 6.3 (RF-017, RNF-003): visualizar a agenda. Todos os atores veem os 3 tipos, sem filtro por tipo nem por autor
+// (risco aceito: cuidador e familiar veem compromissos pessoais). Título 'medico' pode ter dado de saúde (RNF-001):
+// nenhum log aqui. Sem paginação (aceito). Leitura nunca consulta modo_decisao nem permite_*.
+const MSG_403_LEITURA = "Sem permissão para visualizar agenda.";
+
+async function agendaDoIdoso(idosoId: number) {
+  const eventos = await prisma.evento.findMany({
+    where: { idoso_id: idosoId },
+    orderBy: [{ data_hora_inicio: "asc" }, { id: "asc" }],
+  });
+  return { eventos: eventos.map(serializarEvento) };
+}
+
+// Idoso lê a própria agenda. Ordem: 401, 403 (não é idoso), 200.
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    if (chamador?.tipo_perfil !== "idoso") return res.status(403).json({ error: MSG_403_LEITURA });
+    res.json(await agendaDoIdoso(req.usuarioId));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Cuidador ou familiar com vínculo aprovado. Ordem: 401, 400 (idosoId), 403 (vínculo), 200. idoso_id vem do vínculo.
+router.get("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_LEITURA });
+    res.json(await agendaDoIdoso(vinculo.idoso_id));
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;
