@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen } from "@testing-library/react";
+import CardVinculo from "../components/Vinculos/CardVinculo";
+import DetalhesVinculo from "../components/Vinculos/DetalhesVinculo";
 import Vinculos from "./Vinculos";
 
 const mockGetCurrentUserToken = jest.fn();
@@ -16,90 +17,94 @@ function respostaJson(status: number, corpo: unknown) {
   } as Response;
 }
 
-// Último teste pendente da tabela "Testes" da Fase 3 (item 3.1): esqueleto cru de
-// Vinculos.tsx, seção "Cadastrar idoso" — cobre só os 3 pontos listados no plano
-// (checkbox de aceite obrigatório, erro com role="alert", botão desabilitado durante a
-// chamada). Esqueleto é descartável (layout final é de Laureane/Jennifer), então o teste
-// é mínimo, sem cobrir listagem/estilo.
-//
-// SKIP: o novo layout de Vinculos.tsx (PR #116) removeu o esqueleto "Cadastrar idoso";
-// components/Vinculos/CadastrarIdoso.tsx ainda é um placeholder vazio. Reativar (trocar
-// describe.skip por describe) e adaptar os seletores quando o componente real existir.
-// A rota POST /usuario/cadastrar-idoso segue coberta pelos testes do backend.
-describe.skip("Vinculos — Cadastrar idoso (item 3.1)", () => {
+const vinculo = {
+  id: 12,
+  tipo_vinculo: "cuidador",
+  origem: "solicitacao_cuidador",
+  status: "aprovado",
+  data_solicitacao: "2026-10-01T10:00:00.000Z",
+  data_resposta: "2026-10-02T10:00:00.000Z",
+  confirmado_em: "2026-10-02T10:00:00.000Z",
+  papel_do_chamador: "vinculado",
+  idoso: { id: 5, nome: "Maria da Silva", email_mascarado: "ma***@mail.com" },
+  vinculado: { id: 8, nome: "João da Silva", email_mascarado: "jo***@mail.com" },
+};
+
+describe("Vinculos", () => {
   beforeEach(() => {
     mockGetCurrentUserToken.mockReset();
     mockGetCurrentUserToken.mockResolvedValue("token-fake");
     global.fetch = jest.fn();
   });
 
-  function renderESecionaCadastro() {
-    render(<Vinculos />);
-    return {
-      nome: screen.getByLabelText("Nome do idoso", { exact: true }),
-      email: screen.getByLabelText("E-mail do idoso (opcional se informar telefone)"),
-      aceite: screen.getByLabelText(/declaro que sou responsável/i),
-      botao: screen.getByRole("button", { name: /^cadastrar idoso$/i }),
-    };
-  }
-
-  it("cadastro com sucesso: mostra o resultado, sem erro", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(
-      respostaJson(201, {
-        usuario: { id: 99, nome: "Dona Maria" },
-        vinculo: { id: 7, status: "pendente" },
-      })
-    );
-    const user = userEvent.setup();
-    const { nome, email, aceite, botao } = renderESecionaCadastro();
-
-    await user.type(nome, "Dona Maria");
-    await user.type(email, "maria@a.com");
-    await user.click(aceite);
-    await user.click(botao);
-
-    expect(await screen.findByText(/Dona Maria cadastrado \(id 99\)/)).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  it("sem aceitar o termo: erro do backend (400) aparece com role=\"alert\"", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(
-      respostaJson(400, { error: "É necessário aceitar o termo de responsabilidade." })
-    );
-    const user = userEvent.setup();
-    const { nome, email, botao } = renderESecionaCadastro();
-
-    await user.type(nome, "Dona Maria");
-    await user.type(email, "maria@a.com");
-    // aceite NÃO marcado de propósito
-    await user.click(botao);
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /aceitar o termo de responsabilidade/i
-    );
-  });
-
-  it("botão fica desabilitado (aria-busy) durante a chamada, reabilita depois", async () => {
+  it("mostra carregamento, lista os vínculos e permite abrir os detalhes", async () => {
     let resolverFetch!: (value: Response) => void;
     (global.fetch as jest.Mock).mockReturnValue(
       new Promise<Response>((resolve) => {
         resolverFetch = resolve;
       })
     );
-    const user = userEvent.setup();
-    const { nome, email, aceite, botao } = renderESecionaCadastro();
 
-    await user.type(nome, "Dona Maria");
-    await user.type(email, "maria@a.com");
-    await user.click(aceite);
-    await user.click(botao);
+    render(<Vinculos />);
 
-    expect(botao).toBeDisabled();
-    expect(botao).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByText("Carregando vínculos...")).toBeInTheDocument();
+    resolverFetch(respostaJson(200, { vinculos: [vinculo] }));
 
-    resolverFetch(respostaJson(201, { usuario: { id: 1, nome: "Dona Maria" }, vinculo: { id: 1, status: "pendente" } }));
+    expect(await screen.findByRole("heading", { name: "Pessoas vinculadas" })).toBeInTheDocument();
+    expect(screen.getByText("João da Silva")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /ver detalhes/i }));
+    expect(screen.getByRole("dialog", { name: "Detalhes do vínculo" })).toBeInTheDocument();
+  });
 
-    await waitFor(() => expect(botao).not.toBeDisabled());
-    expect(botao).toHaveAttribute("aria-busy", "false");
+  it("mostra estado vazio quando não há vínculos", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [] })
+    );
+
+    render(<Vinculos />);
+
+    expect(await screen.findByText("Nenhum vínculo encontrado")).toBeInTheDocument();
+  });
+
+  it("mostra uma mensagem acessível quando a API falha", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(500, { error: "Falha ao carregar vínculos." })
+    );
+
+    render(<Vinculos />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Falha ao carregar vínculos."
+    );
+  });
+});
+
+describe("Vinculos — detalhes de vínculo", () => {
+  it("dispara o callback ao selecionar uma pessoa e mostra os dados do vínculo", () => {
+    const onVerDetalhes = jest.fn();
+    render(<CardVinculo vinculo={vinculo} onVerDetalhes={onVerDetalhes} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /ver detalhes/i }));
+
+    expect(onVerDetalhes).toHaveBeenCalledWith(vinculo);
+  });
+
+  it("renderiza um diálogo de detalhes com informações acessíveis", () => {
+    const onFechar = jest.fn();
+    render(<DetalhesVinculo vinculo={vinculo} onFechar={onFechar} />);
+
+    const dialogo = screen.getByRole("dialog", { name: "Detalhes do vínculo" });
+    expect(dialogo).toHaveTextContent("João da Silva");
+    expect(dialogo).toHaveTextContent("Cuidador");
+    expect(dialogo).toHaveTextContent("Aprovado");
+    expect(dialogo).toHaveTextContent("Pessoa que cuida do idoso");
+
+    fireEvent.click(screen.getByRole("button", { name: /fechar detalhes/i }));
+    expect(onFechar).toHaveBeenCalledTimes(1);
   });
 });
