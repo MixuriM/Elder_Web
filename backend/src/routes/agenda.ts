@@ -6,7 +6,7 @@ import { resolverModoDecisao } from "./vinculo";
 
 const router = Router();
 
-// Item 6.1 (RF-015): criar compromisso na agenda. Evento 'medico' pode carregar dado de saúde no título
+// Itens 6.1 (RF-015) e 6.2 (RF-016): criar compromisso na agenda. Evento 'medico' pode carregar dado de saúde no título
 // (RNF-001): mensagens fixas que nunca incluem o valor enviado e nenhum log neste arquivo.
 const MSG_403 = "Sem permissão para criar compromisso.";
 const TIPOS_PERMITIDOS = ["pessoal", "medico"];
@@ -39,13 +39,22 @@ type DadosEvento = {
   data_hora_fim: Date | null;
 };
 
-// Ordem: tipo_evento primeiro ('cuidado' é 403 mesmo com o resto inválido), depois os demais campos.
-function validarCorpoEvento(body: unknown): { status: number; erro: string } | { dados: DadosEvento } {
+// "comum" (idoso e familiar) cria 'pessoal' e 'medico'; "cuidador" cria só 'cuidado' (item 6.2).
+type Ator = "comum" | "cuidador";
+
+// Ordem: tipo_evento primeiro (o tipo que o ator não pode criar é 403 mesmo com o resto inválido; tipo fora da
+// CHECK ou fora do formato é 400), depois os demais campos.
+function validarCorpoEvento(body: unknown, ator: Ator): { status: number; erro: string } | { dados: DadosEvento } {
   const { tipo_evento, titulo, descricao, data_hora_inicio, data_hora_fim } = (body ?? {}) as Record<string, unknown>;
 
-  if (tipo_evento === "cuidado") return { status: 403, erro: MSG_403 };
-  if (typeof tipo_evento !== "string" || !TIPOS_PERMITIDOS.includes(tipo_evento)) {
-    return { status: 400, erro: "tipo_evento inválido." };
+  if (ator === "cuidador") {
+    if (typeof tipo_evento === "string" && TIPOS_PERMITIDOS.includes(tipo_evento)) return { status: 403, erro: MSG_403 };
+    if (tipo_evento !== "cuidado") return { status: 400, erro: "tipo_evento inválido." };
+  } else {
+    if (tipo_evento === "cuidado") return { status: 403, erro: MSG_403 };
+    if (typeof tipo_evento !== "string" || !TIPOS_PERMITIDOS.includes(tipo_evento)) {
+      return { status: 400, erro: "tipo_evento inválido." };
+    }
   }
 
   const tituloValido = textoObrigatorio(titulo, 150);
@@ -91,8 +100,8 @@ function serializarEvento(e: EventoCriado) {
 // Parte comum às duas rotas, depois da autorização. Whitelist: só os 5 campos validados vão ao create;
 // id, timestamps e autoria do corpo nunca chegam aqui. Autoria é sempre req.usuarioId.
 // Sem idempotência nem checagem de sobreposição: aceito (item 6.1).
-async function criarEvento(req: Request, res: Response, idosoId: number) {
-  const validado = validarCorpoEvento(req.body);
+async function criarEvento(req: Request, res: Response, idosoId: number, ator: Ator) {
+  const validado = validarCorpoEvento(req.body, ator);
   if ("erro" in validado) return res.status(validado.status).json({ error: validado.erro });
 
   const e = await prisma.evento.create({
@@ -111,30 +120,36 @@ router.post("/", requireAuth, async (req, res, next) => {
     if (chamador?.tipo_perfil !== "idoso") {
       return res.status(403).json({ error: MSG_403 });
     }
-    await criarEvento(req, res, req.usuarioId);
+    await criarEvento(req, res, req.usuarioId, "comum");
   } catch (e) {
     next(e);
   }
 });
 
-// Familiar cria na agenda do idoso vinculado. Exige tipo_vinculo E tipo_perfil 'familiar' (o middleware não
-// filtra tipo_vinculo) e modo_decisao efetivo 'familiar' (sempre via resolver, nunca a coluna). Cuidador
-// recebe 403 sempre (6.2 trata depois). A checagem de ator vem antes do resolver. Ordem: 401, 400
-// (idosoId), 403 (vínculo), 403 (ator ou modo_decisao), 400 (tipo), 403 ('cuidado'), 400 (campos), 201.
+// Familiar e cuidador criam na agenda do idoso vinculado. O middleware não filtra tipo_vinculo: o ator exige
+// tipo_vinculo E tipo_perfil iguais. Familiar: modo_decisao efetivo 'familiar' (sempre via resolver, nunca a
+// coluna). Cuidador (6.2): permite_criar_evento_cuidado === true lida do banco a cada requisição; as outras
+// flags não abrem esta porta e o resolver NUNCA é consultado para cuidador (curto-circuito). A checagem de ator
+// vem antes do resolver. Ordem: 401, 400 (idosoId), 403 (vínculo), 403 (ator, flag ou modo_decisao), 400 (tipo
+// do cuidador) ou 403 (tipo que o ator não cria), 400 (campos), 201. 403 sempre genérico.
 router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
   try {
     const vinculo = req.vinculoAprovado;
-    if (!vinculo || vinculo.tipo_vinculo !== "familiar") {
-      return res.status(403).json({ error: MSG_403 });
-    }
+    if (!vinculo) return res.status(403).json({ error: MSG_403 });
     const chamador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
       select: { tipo_perfil: true },
     });
-    if (chamador?.tipo_perfil !== "familiar" || (await resolverModoDecisao(vinculo.idoso_id)) !== "familiar") {
-      return res.status(403).json({ error: MSG_403 });
-    }
-    await criarEvento(req, res, vinculo.idoso_id);
+    const cuidadorAutorizado =
+      vinculo.tipo_vinculo === "cuidador" &&
+      chamador?.tipo_perfil === "cuidador" &&
+      vinculo.permite_criar_evento_cuidado === true;
+    const familiarAutorizado =
+      vinculo.tipo_vinculo === "familiar" &&
+      chamador?.tipo_perfil === "familiar" &&
+      (await resolverModoDecisao(vinculo.idoso_id)) === "familiar";
+    if (!cuidadorAutorizado && !familiarAutorizado) return res.status(403).json({ error: MSG_403 });
+    await criarEvento(req, res, vinculo.idoso_id, cuidadorAutorizado ? "cuidador" : "comum");
   } catch (e) {
     next(e);
   }

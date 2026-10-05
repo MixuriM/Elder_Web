@@ -1,4 +1,4 @@
-// Verificação ponta a ponta do item 6.1 (RF-015): rota REAL (app de ./app via Supertest), Prisma REAL e
+// Verificação ponta a ponta dos itens 6.1 (RF-015) e 6.2 (RF-016): rota REAL (app de ./app via Supertest), Prisma REAL e
 // SQL Server LOCAL. Os testes de Jest mockam o Prisma; este script exercita o caminho inteiro junto,
 // inclusive a CHECK CK_Evento_tipo_evento do banco.
 //
@@ -69,7 +69,13 @@ async function main() {
     return { id: u.id, token: uid };
   }
 
-  async function vincular(idosoId: number, vinculadoId: number, tipo: "cuidador" | "familiar", flags = false) {
+  type Flags = { permite_marcar_dose: boolean; permite_registrar_saude: boolean; permite_criar_evento_cuidado: boolean };
+  // flags: boolean liga/desliga as 3; objeto parcial sobrescreve só as citadas (o resto nasce false).
+  async function vincular(idosoId: number, vinculadoId: number, tipo: "cuidador" | "familiar", flags: boolean | Partial<Flags> = false) {
+    const f: Flags =
+      typeof flags === "boolean"
+        ? { permite_marcar_dose: flags, permite_registrar_saude: flags, permite_criar_evento_cuidado: flags }
+        : { permite_marcar_dose: false, permite_registrar_saude: false, permite_criar_evento_cuidado: false, ...flags };
     await prisma.vinculo.create({
       data: {
         idoso_id: idosoId,
@@ -79,9 +85,7 @@ async function main() {
         status: "aprovado",
         aprovador_id: idosoId,
         data_solicitacao: new Date(),
-        permite_marcar_dose: flags,
-        permite_registrar_saude: flags,
-        permite_criar_evento_cuidado: flags,
+        ...f,
       },
     });
   }
@@ -99,6 +103,7 @@ async function main() {
     ...over,
   });
 
+  const vinculosAntes = await prisma.vinculo.count();
   const eventosAntes = await contarEventos();
   const usuariosAntes = await contarUsuarios();
   try {
@@ -107,6 +112,11 @@ async function main() {
     const familiar = await conta("familiar");
     await vincular(idoso.id, cuidador.id, "cuidador", true);
     await vincular(idoso.id, familiar.id, "familiar");
+    // Item 6.2: cuidador sem nenhuma flag e cuidador só com as outras duas flags (nunca abrem a porta do 'cuidado').
+    const cuidadorSem = await conta("cuidador");
+    const cuidadorOutras = await conta("cuidador");
+    await vincular(idoso.id, cuidadorSem.id, "cuidador", false);
+    await vincular(idoso.id, cuidadorOutras.id, "cuidador", { permite_marcar_dose: true, permite_registrar_saude: true });
 
     // 1: idoso cria 'pessoal' e 'medico'.
     const r1 = await post(idoso.token, "/agenda", corpo("pessoal"));
@@ -144,7 +154,41 @@ async function main() {
     const r7 = await post(cuidador.token, rota, corpo("pessoal"));
     ok("familiar com 'cuidado' e cuidador com 3 flags: 403 e nenhuma linha", r6.status === 403 && r7.status === 403 && (await contarEventos()) === n5, `status ${r6.status}/${r7.status}`);
 
-    // 6: INSERT direto com tipo inválido falha pela CHECK do banco (e o 'cuidado' direto é aceito: é do 6.2).
+    // 5b (6.2): cuidador com a flag cria 'cuidado': primeira vez que 'cuidado' passa pela CHECK do banco de verdade.
+    const cuidadoDe = (quem: number) => prisma.evento.findMany({ where: { idoso_id: idoso.id, criado_por_id: quem, tipo_evento: "cuidado" } });
+    const r8 = await post(cuidador.token, rota, corpo("cuidado"));
+    const l8 = await cuidadoDe(cuidador.id);
+    ok(
+      "cuidador com a flag cria 'cuidado': 201, linha com criado_por_id, idoso_id e tipo corretos",
+      r8.status === 201 && l8.length === 1 && l8[0].idoso_id === idoso.id && l8[0].editado_por_id === null && l8[0].tipo_evento === "cuidado",
+      `status ${r8.status}, ${l8.length} linha(s)`,
+    );
+
+    // 5c: sem a flag, 403 e nenhuma linha (3 flags falsas; e só as outras duas verdadeiras).
+    const n9 = await contarEventos();
+    const r9 = await post(cuidadorSem.token, rota, corpo("cuidado"));
+    const r10 = await post(cuidadorOutras.token, rota, corpo("cuidado"));
+    ok("cuidador sem a flag (3 falsas e só as outras duas): 403 e nenhuma linha", r9.status === 403 && r10.status === 403 && (await contarEventos()) === n9, `status ${r9.status}/${r10.status}`);
+
+    // 5d: com a flag, 'pessoal' e 'medico' são 403 e 'Cuidado' (caixa) é 400, sem linha; POST /agenda continua 403.
+    const n11 = await contarEventos();
+    const r11 = await post(cuidador.token, rota, corpo("pessoal"));
+    const r12 = await post(cuidador.token, rota, corpo("medico"));
+    const r13 = await post(cuidador.token, rota, corpo("Cuidado"));
+    const r14 = await post(cuidador.token, "/agenda", corpo("cuidado"));
+    ok(
+      "cuidador com a flag: 'pessoal'/'medico' 403, 'Cuidado' 400, POST /agenda 403, nenhuma linha",
+      r11.status === 403 && r12.status === 403 && r13.status === 400 && r14.status === 403 && (await contarEventos()) === n11,
+      `status ${r11.status}/${r12.status}/${r13.status}/${r14.status}`,
+    );
+
+    // 5e: revogação lida do banco a cada requisição: flag vai a false e a mesma chamada passa a dar 403.
+    await prisma.vinculo.updateMany({ where: { idoso_id: idoso.id, vinculado_id: cuidador.id }, data: { permite_criar_evento_cuidado: false } });
+    const n15 = await contarEventos();
+    const r15 = await post(cuidador.token, rota, corpo("cuidado"));
+    ok("flag revogada no banco: a mesma chamada passa a dar 403 e nenhuma linha", r15.status === 403 && (await contarEventos()) === n15, `status ${r15.status}`);
+
+    // 6: INSERT direto com tipo inválido falha pela CHECK do banco.
     let erroCheck = "";
     try {
       await prisma.evento.create({
@@ -155,9 +199,10 @@ async function main() {
     }
     ok("INSERT direto com tipo_evento inválido falha por CK_Evento_tipo_evento", erroCheck.includes("CK_Evento_tipo_evento"), erroCheck ? "violou a constraint" : "NÃO falhou");
 
-    // 7: contagem durante = antes + 3 eventos criados pelas rotas (idoso: pessoal e medico; familiar: medico).
+    // 7: contagem durante = antes + 4 eventos criados pelas rotas (idoso: pessoal e medico; familiar: medico;
+    // cuidador: cuidado).
     const durante = await contarEventos();
-    ok("COUNT(*) de Evento durante = antes + 3", durante === eventosAntes + 3, `antes ${eventosAntes}, durante ${durante}`);
+    ok("COUNT(*) de Evento durante = antes + 4", durante === eventosAntes + 4, `antes ${eventosAntes}, durante ${durante}`);
   } finally {
     // Ordem de FK: eventos, vínculos, contas.
     await prisma.evento.deleteMany({ where: { OR: [{ idoso_id: { in: usuarios } }, { criado_por_id: { in: usuarios } }] } });
@@ -165,6 +210,8 @@ async function main() {
     await prisma.usuario.deleteMany({ where: { id: { in: usuarios } } });
     ok("COUNT(*) de Evento depois da limpeza = antes", (await contarEventos()) === eventosAntes, `antes ${eventosAntes}`);
     ok("COUNT(*) de Usuario depois da limpeza = antes", (await contarUsuarios()) === usuariosAntes, `antes ${usuariosAntes}`);
+    const vinculosDepois = await prisma.vinculo.count();
+    ok("COUNT(*) de Vinculo depois da limpeza = antes", vinculosDepois === vinculosAntes, `antes ${vinculosAntes}, depois ${vinculosDepois}`);
     const sobras = await prisma.usuario.count({ where: { firebase_uid: { startsWith: `verify-agenda-${tag}` } } });
     ok("nenhuma conta de teste sobrou", sobras === 0, `${sobras} sobra(s)`);
     await prisma.$disconnect();

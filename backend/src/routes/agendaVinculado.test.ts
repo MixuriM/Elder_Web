@@ -11,8 +11,9 @@ import {
 } from "../testSupport/agendaCasosCorpo";
 
 // Item 6.1 (RF-015): POST /agenda/idoso/:idosoId. Familiar só cria com vínculo aprovado E modo_decisao
-// efetivo 'familiar' (via resolver). Cuidador NUNCA cria nesta rota (o 6.2 trata o cuidador depois), com
-// qualquer vínculo e qualquer combinação de flags permite_*. Todos os ids e valores são FICTÍCIOS.
+// efetivo 'familiar' (via resolver). Item 6.2: cuidador só cria 'cuidado', com vínculo aprovado e
+// permite_criar_evento_cuidado === true (matriz completa em agendaCuidador.test.ts); aqui ficam os 403 que
+// seguem valendo para cuidador e um 201 de sanidade. Todos os ids e valores são FICTÍCIOS.
 
 const verifyIdToken = jest.fn();
 const findFirstUsuario = jest.fn();
@@ -316,12 +317,22 @@ describe("POST /agenda/idoso/:idosoId (RF-015, item 6.1)", () => {
     });
   });
 
-  describe("cuidador: nunca cria nesta rota (6.2 trata o cuidador depois)", () => {
+  describe("cuidador: só cria 'cuidado' com a flag (6.2; matriz completa em agendaCuidador.test.ts)", () => {
+    const BODY_CUIDADO = { ...BODY_OK, tipo_evento: "cuidado" };
+
+    it("201 com permite_criar_evento_cuidado true e tipo 'cuidado' (única combinação que passa)", async () => {
+      logadoComo(CUIDADOR, "cuidador");
+      fakeVinculos([vinculoCuidador({ permite_criar_evento_cuidado: true })]);
+      const res = await post(IDOSO_A, BODY_CUIDADO);
+      expect(res.status).toBe(201);
+      expect(dadosDoCreate()).toMatchObject({ idoso_id: IDOSO_A, criado_por_id: CUIDADOR, tipo_evento: "cuidado" });
+    });
+
     it("403 com as 3 flags permite_* falsas", async () => {
       logadoComo(CUIDADOR, "cuidador");
       fakeVinculos([vinculoCuidador()]);
       modoDoIdoso("familiar");
-      const res = await post(IDOSO_A);
+      const res = await post(IDOSO_A, BODY_CUIDADO);
       expectNaoCriou(res, 403);
       expect(res.body).toEqual({ error: MSG_403 });
     });
@@ -330,7 +341,7 @@ describe("POST /agenda/idoso/:idosoId (RF-015, item 6.1)", () => {
       logadoComo(CUIDADOR, "cuidador");
       fakeVinculos([vinculoCuidador({ ...TODAS_FLAGS, permite_criar_evento_cuidado: false })]);
       modoDoIdoso("familiar");
-      expectNaoCriou(await post(IDOSO_A), 403);
+      expectNaoCriou(await post(IDOSO_A, BODY_CUIDADO), 403);
     });
 
     it.each(["pessoal", "medico"])(
@@ -343,33 +354,34 @@ describe("POST /agenda/idoso/:idosoId (RF-015, item 6.1)", () => {
       },
     );
 
-    it.each(Object.keys(TODAS_FLAGS))("403 com só a flag %s verdadeira", async (flag) => {
+    it.each(["permite_registrar_saude", "permite_marcar_dose"])("403 com só a flag %s verdadeira", async (flag) => {
       logadoComo(CUIDADOR, "cuidador");
       fakeVinculos([vinculoCuidador({ [flag]: true })]);
       modoDoIdoso("familiar");
-      expectNaoCriou(await post(IDOSO_A), 403);
+      expectNaoCriou(await post(IDOSO_A, BODY_CUIDADO), 403);
     });
 
     it.each(["pendente", "recusado"] as const)("403 com vínculo %s", async (status) => {
       logadoComo(CUIDADOR, "cuidador");
       fakeVinculos([vinculoCuidador({ ...TODAS_FLAGS, status })]);
       modoDoIdoso("familiar");
-      expectNaoCriou(await post(IDOSO_A), 403);
+      expectNaoCriou(await post(IDOSO_A, BODY_CUIDADO), 403);
     });
 
-    it("a checagem de ator vem antes do resolver: para cuidador o resolver nunca é chamado", async () => {
+    it("a checagem de ator vem antes do resolver: para cuidador o resolver nunca é chamado (201 e 403)", async () => {
       logadoComo(CUIDADOR, "cuidador");
       fakeVinculos([vinculoCuidador(TODAS_FLAGS)]);
       modoDoIdoso("familiar");
       expectNaoCriou(await post(IDOSO_A), 403);
+      expect((await post(IDOSO_A, BODY_CUIDADO)).status).toBe(201);
       expect(resolverModoDecisaoMock).not.toHaveBeenCalled();
     });
 
-    it("403 com modo 'familiar' no idoso: modo_decisao não libera cuidador", async () => {
+    it("403 com modo 'familiar' no idoso e flag falsa: modo_decisao não libera cuidador", async () => {
       logadoComo(CUIDADOR, "cuidador");
-      fakeVinculos([vinculoCuidador(TODAS_FLAGS)]);
+      fakeVinculos([vinculoCuidador({ ...TODAS_FLAGS, permite_criar_evento_cuidado: false })]);
       modoDoIdoso("familiar");
-      expectNaoCriou(await post(IDOSO_A), 403);
+      expectNaoCriou(await post(IDOSO_A, BODY_CUIDADO), 403);
     });
   });
 
@@ -425,9 +437,9 @@ describe("POST /agenda/idoso/:idosoId (RF-015, item 6.1)", () => {
       expectNaoCriou(await post(IDOSO_A, { tipo_evento: "outro" }), 403);
     });
 
-    it("403 antes de 400: cuidador com corpo inválido responde 403", async () => {
+    it("403 antes de 400: cuidador sem a flag e com corpo inválido responde 403", async () => {
       logadoComo(CUIDADOR, "cuidador");
-      fakeVinculos([vinculoCuidador(TODAS_FLAGS)]);
+      fakeVinculos([vinculoCuidador({ ...TODAS_FLAGS, permite_criar_evento_cuidado: false })]);
       expectNaoCriou(await post(IDOSO_A, {}), 403);
     });
 
