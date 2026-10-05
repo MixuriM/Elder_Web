@@ -344,9 +344,16 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `errorHandler` (sem eco do corpo, sem log); `nome` em branco no corpo de `/auth/sync` não vence mais o `name` do
   token do Google (aparado; em branco nos dois dá 400).
 - Agenda (6.1): nenhuma biblioteca de calendário; o 6.3 será lista agrupada por dia. Familiar só cria evento com
-  `modo_decisao` efetivo `'familiar'` (via resolver), como em 5.1 e 5.2. Cuidador não cria evento antes do 6.2
-  (403 sempre em `POST /agenda/idoso/:idosoId`, com qualquer flag). Sem idempotência nem checagem de sobreposição
-  (aceito).
+  `modo_decisao` efetivo `'familiar'` (via resolver), como em 5.1 e 5.2. Sem idempotência nem checagem de
+  sobreposição (aceito).
+- Agenda (6.2, fechadas por Claude sob delegação do Marcos em 2026-10-04): sem rota nova, `POST /agenda/idoso/:idosoId`
+  ganhou o ramo do cuidador; `POST /agenda` (idoso) segue 403 para cuidador. Cuidador cria só `cuidado`, exigindo
+  `tipo_vinculo` E `tipo_perfil` `'cuidador'` E `permite_criar_evento_cuidado === true` (estrito; as outras flags não
+  abrem); `resolverModoDecisao` nunca é chamado para cuidador. `pessoal`/`medico` pelo cuidador dão 403; tipo ausente,
+  não string, caixa diferente ou fora da CHECK dá 400; idoso e familiar seguem sem criar `cuidado` (403). Ordem para
+  cuidador: 403 de vínculo, 403 de ator ou flag, 400 de tipo, 403 de tipo, 400 de campos (sem a flag, corpo inválido
+  dá 403). Campos e limites iguais aos do 6.1 (mesma função de validação, parametrizada por ator). Frontend não sabe
+  se o cuidador tem a flag: a seção do cuidador sempre aparece e o 403 vira mensagem (limitação aceita).
 
 **Itens implementados (resumo; detalhes e hashes no histórico)**
 - 5.2 marcar dose (PR #125), 5.3 histórico de remédios (PR #127), 5.4 exportar histórico em PDF (PR #129,
@@ -358,6 +365,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `routes/agenda.ts`; só `pessoal` e `medico` (`cuidado` dá 403, validado antes dos demais campos); datas ISO com
   fuso, gravadas em UTC. Esqueleto `pages/Agenda.tsx` em `/agenda`. Backend 31 suítes e 1343 testes, frontend 284
   passando; `verify-rotas-agenda.ts` (prefixo `verify-agenda-`) 12/12 PASS no SQL Server local.
+- 6.2 cuidador cria compromisso de cuidado (RF-016, RF-032): ramo do cuidador em `POST /agenda/idoso/:idosoId`
+  (ver decisões do 6.2). Seção "Criar compromisso de cuidado (cuidador)" em `pages/Agenda.tsx`, sem select de tipo.
+  Backend 32 suítes e 1466 testes, frontend 299 passando; `verify-rotas-agenda.ts` 17/17 PASS no SQL Server local.
+  Commits e PR ainda não feitos ao registrar isto (completar hashes e PR no histórico depois do merge).
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
