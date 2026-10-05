@@ -1,6 +1,7 @@
-// Verificação ponta a ponta do item 7.1 (RF-018): rota REAL (app de ./app via Supertest), Prisma REAL e SQL Server
-// LOCAL. Os testes de Jest mockam o Prisma; este script exercita o caminho inteiro junto, inclusive o nvarchar(500)
-// de RegistroAlimentar.descricao com acentos e o datetime2 de data_hora.
+// Verificação ponta a ponta dos itens 7.1 (RF-018, registrar) e 7.2 (RF-019, visualizar histórico): rota REAL (app de
+// ./app via Supertest), Prisma REAL e SQL Server LOCAL. Os testes de Jest mockam o Prisma; este script exercita o
+// caminho inteiro junto, inclusive o nvarchar(500) de RegistroAlimentar.descricao com acentos, o datetime2 de
+// data_hora (milissegundos) e a ordenação e o filtro por idoso_id feitos pelo próprio banco.
 //
 // Firebase: só a validação do ID Token é trocada. auth.verifyIdToken passa a devolver { uid: <token> },
 // então o "token" enviado é o firebase_uid da conta de teste. Nenhum código de produção é alterado e
@@ -194,6 +195,136 @@ async function main() {
     // 8: contagem durante = antes + 3 (idoso: almoco e ceia; familiar: jantar).
     const durante = await contarRegistros();
     ok("COUNT(*) de RegistroAlimentar durante = antes + 3", durante === registrosAntes + 3, `antes ${registrosAntes}, durante ${durante}`);
+
+    // ---- Item 7.2: leitura do histórico. ----
+    // O idoso já tem 3 registros com o MESMO data_hora (12:00Z de 10/10: almoco, ceia e jantar). Entram mais um
+    // passado distante, um plano futuro com milissegundos e um instante com milissegundos; o idoso B tem os dele.
+    const idosoB = await conta("idoso");
+    const idosoVazio = await conta("idoso");
+    const cuidadorSemFlags = await conta("cuidador");
+    const cuidadorPend = await conta("cuidador");
+    await vincular(idoso.id, cuidadorSemFlags.id, "cuidador", false);
+    await vincular(idoso.id, cuidadorPend.id, "cuidador", true, "pendente");
+    const semear = (idosoId: number, refeicao: string, iso: string) =>
+      prisma.registroAlimentar.create({
+        data: {
+          idoso_id: idosoId,
+          registrado_por_id: idosoId,
+          refeicao,
+          descricao: `${sentinela}-${refeicao}`,
+          data_hora: new Date(iso),
+        },
+      });
+    await semear(idoso.id, "cafe_manha", "2020-01-01T10:00:00.000Z");
+    await semear(idoso.id, "lanche_tarde", "2099-12-31T23:59:59.987Z");
+    await semear(idoso.id, "lanche_manha", "2026-10-05T12:34:56.789Z");
+    await semear(idosoB.id, "almoco", "2026-10-07T12:00:00.000Z");
+    await semear(idosoB.id, "jantar", "2026-10-01T22:00:00.000Z");
+    await prisma.usuario.update({ where: { id: idoso.id }, data: { modo_decisao: "idoso" } });
+
+    type Item = { id: number; idoso_id: number; data_hora: string };
+    const get = (token: string, caminho: string) => request(app).get(caminho).set("Authorization", `Bearer ${token}`);
+    const itens = (r: { body: { registros?: Item[] } }) => r.body.registros ?? [];
+    const nLeitura = await contarRegistros();
+
+    // 9: idoso lê o próprio: 200, só os dele, ordem do banco = data_hora desc e id desc (conferida pelas linhas reais).
+    const g1 = await get(idoso.token, "/alimentacao");
+    const linhasA: { id: number; data_hora: Date }[] = await registrosDe(idoso.id);
+    const esperadoA = [...linhasA]
+      .sort((a, b) => b.data_hora.getTime() - a.data_hora.getTime() || b.id - a.id)
+      .map((l) => l.id);
+    ok(
+      "7.2 idoso lê o próprio: 200, 6 registros, só do idoso, ordem data_hora desc e id desc",
+      g1.status === 200 &&
+        itens(g1).length === 6 &&
+        itens(g1).every((i) => i.idoso_id === idoso.id) &&
+        JSON.stringify(itens(g1).map((i) => i.id)) === JSON.stringify(esperadoA),
+      `status ${g1.status}, ${itens(g1).length} item(ns)`,
+    );
+
+    // 10: os 3 registros com o mesmo data_hora vêm consecutivos, por id decrescente, desempatados pelo banco.
+    const empatados = itens(g1).filter((i) => i.data_hora === "2026-10-10T12:00:00.000Z").map((i) => i.id);
+    const idsEmpatadosDesc = linhasA
+      .filter((l) => l.data_hora.toISOString() === "2026-10-10T12:00:00.000Z")
+      .map((l) => l.id)
+      .sort((a, b) => b - a);
+    const posEmpate = itens(g1).findIndex((i) => i.id === empatados[0]);
+    ok(
+      "7.2 mesmo data_hora: 3 registros consecutivos, id decrescente",
+      empatados.length === 3 &&
+        JSON.stringify(empatados) === JSON.stringify(idsEmpatadosDesc) &&
+        JSON.stringify(itens(g1).slice(posEmpate, posEmpate + 3).map((i) => i.id)) === JSON.stringify(idsEmpatadosDesc),
+      `ids ${empatados.join(",")}`,
+    );
+
+    // 11: milissegundos sobrevivem ao datetime2 e voltam no mesmo instante UTC; futuro e passado entram.
+    const datas = itens(g1).map((i) => i.data_hora);
+    ok(
+      "7.2 instantes com milissegundos voltam exatos (datetime2), plano futuro primeiro e passado por último",
+      datas.includes("2026-10-05T12:34:56.789Z") &&
+        datas[0] === "2099-12-31T23:59:59.987Z" &&
+        datas[datas.length - 1] === "2020-01-01T10:00:00.000Z",
+      `primeiro ${datas[0]}, último ${datas[datas.length - 1]}`,
+    );
+
+    // 12: cuidador aprovado com as 3 flags false lê (critério de pronto do 7.2), corpo idêntico ao do idoso.
+    const g2 = await get(cuidadorSemFlags.token, rota);
+    ok(
+      "7.2 cuidador aprovado com as 3 flags false: 200 e corpo idêntico ao do idoso",
+      g2.status === 200 && JSON.stringify(g2.body) === JSON.stringify(g1.body),
+      `status ${g2.status}`,
+    );
+
+    // 13: cuidador pendente: 403 com a mensagem do middleware, sem registro no corpo.
+    const g3 = await get(cuidadorPend.token, rota);
+    ok(
+      "7.2 cuidador pendente: 403 sem registro no corpo",
+      g3.status === 403 && g3.body.registros === undefined && !g3.text.includes(sentinela),
+      `status ${g3.status}`,
+    );
+
+    // 14: familiar aprovado lê com modo_decisao 'idoso' na coluna (leitura não depende de modo_decisao).
+    const g4 = await get(familiar.token, rota);
+    ok(
+      "7.2 familiar aprovado com modo_decisao 'idoso': 200 e corpo idêntico ao do idoso",
+      g4.status === 200 && JSON.stringify(g4.body) === JSON.stringify(g1.body),
+      `status ${g4.status}`,
+    );
+
+    // 15: acesso cruzado: idoso B só vê os dele; os do B não aparecem para A; familiar de A pedindo B leva 403.
+    const g5 = await get(idosoB.token, "/alimentacao");
+    const idsA = new Set(itens(g1).map((i) => i.id));
+    const g6 = await get(familiar.token, `/alimentacao/idoso/${idosoB.id}`);
+    ok(
+      "7.2 acesso cruzado: B vê só os 2 dele, nenhum de A; familiar de A pedindo B: 403",
+      g5.status === 200 &&
+        itens(g5).length === 2 &&
+        itens(g5).every((i) => i.idoso_id === idosoB.id && !idsA.has(i.id)) &&
+        itens(g1).every((i) => i.idoso_id !== idosoB.id) &&
+        g6.status === 403 &&
+        !g6.text.includes(sentinela),
+      `B ${g5.status}/${itens(g5).length}, cruzado ${g6.status}`,
+    );
+
+    // 16: idoso sem registro: 200 { registros: [] }.
+    const g7 = await get(idosoVazio.token, "/alimentacao");
+    ok(
+      "7.2 idoso sem registro: 200 { registros: [] }",
+      g7.status === 200 && JSON.stringify(g7.body) === JSON.stringify({ registros: [] }),
+      `status ${g7.status}`,
+    );
+
+    // 17: cuidador na rota própria: 403 com a mensagem fixa.
+    const g8 = await get(cuidadorSemFlags.token, "/alimentacao");
+    ok(
+      "7.2 cuidador em GET /alimentacao: 403 com a mensagem fixa",
+      g8.status === 403 && g8.body.error === "Sem permissão para visualizar alimentação.",
+      `status ${g8.status}`,
+    );
+
+    // 18: leitura não escreve: contagem igual antes e depois das leituras.
+    const depoisLeitura = await contarRegistros();
+    ok("7.2 leituras não criam nem apagam registro", depoisLeitura === nLeitura, `antes ${nLeitura}, depois ${depoisLeitura}`);
   } finally {
     // Ordem de FK: registros, vínculos, contas.
     await prisma.registroAlimentar.deleteMany({
