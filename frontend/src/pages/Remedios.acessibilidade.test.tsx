@@ -1,271 +1,1255 @@
 import "@testing-library/jest-dom";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+
 import userEvent from "@testing-library/user-event";
-import { axe, toHaveNoViolations } from "jest-axe";
+import { axe } from "jest-axe";
+
 import Remedios from "./Remedios";
 
-expect.extend(toHaveNoViolations);
+/* =========================================================
+   AXE
 
-// Item 5.1: auditoria automática de acessibilidade (jest-axe) sobre o esqueleto de /remedios.
-// LIMITE: jsdom não calcula layout nem cor, então contraste de cor NÃO é verificado aqui
-// (regra color-contrast desligada de propósito, ver AXE). Contraste segue pendente para o item 9.1.
-// Dados abaixo são valores obviamente falsos de teste.
+   O jsdom não calcula contraste visual corretamente.
+   Por isso color-contrast fica desativado neste teste.
+========================================================= */
+
 const AXE = {
   rules: {
-    // jsdom não renderiza estilos computados de cor: a regra não tem como dar resultado confiável.
-    "color-contrast": { enabled: false },
+    "color-contrast": {
+      enabled: false,
+    },
   },
 };
 
-const mockGetCurrentUserToken = jest.fn();
-jest.mock("../lib/auth", () => ({
-  getCurrentUserToken: (...args: unknown[]) => mockGetCurrentUserToken(...args),
-}));
+/* =========================================================
+   FUNÇÃO AUXILIAR
+========================================================= */
 
-// Item 5.2: a página consulta os vínculos ao montar; a consulta é mockada (default: familiar aprovado)
-// para as seções do 5.1 seguirem sem fetch extra.
-const mockBuscarPermissoes = jest.fn();
-jest.mock("../lib/permissoesSaude", () => ({
-  ...jest.requireActual("../lib/permissoesSaude"),
-  buscarPermissoesSaude: (...args: unknown[]) => mockBuscarPermissoes(...args),
-}));
-const FAMILIAR_APROVADO = { tipo_vinculo: "familiar", status: "aprovado", papel_do_chamador: "vinculado", permissoes: null };
+async function esperarSemViolacoes(
+  container: HTMLElement,
+) {
+  const resultado = await axe(
+    container,
+    AXE,
+  );
 
-const mockBaixarPdf = jest.fn();
-jest.mock("../lib/baixarPdf", () => ({
-  baixarPdf: (...args: unknown[]) => mockBaixarPdf(...args),
-}));
-
-function respostaJson(status: number, corpo: unknown) {
-  return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response;
+  expect(
+    resultado.violations,
+  ).toHaveLength(0);
 }
 
+/* =========================================================
+   MOCKS
+========================================================= */
+
+const mockNavigate = jest.fn();
+const mockChamarApi = jest.fn();
+const mockUsePermissoesDose = jest.fn();
+const mockGetCurrentUserToken = jest.fn();
+
+jest.mock("react-router-dom", () => ({
+  ...jest.requireActual("react-router-dom"),
+
+  useNavigate: () => mockNavigate,
+}));
+
+jest.mock("../lib/chamarApi", () => ({
+  chamarApi: (...args: unknown[]) =>
+    mockChamarApi(...args),
+}));
+
+jest.mock("../lib/permissoesDose", () => ({
+  usePermissoesDose: () =>
+    mockUsePermissoesDose(),
+}));
+
+jest.mock("../lib/auth", () => ({
+  getCurrentUserToken: (...args: unknown[]) =>
+    mockGetCurrentUserToken(...args),
+}));
+
+jest.mock(
+  "../components/layout/ControleTema",
+  () => {
+    return function ControleTemaMock() {
+      return (
+        <button
+          type="button"
+          aria-label="Alternar tema"
+        >
+          Modo escuro
+        </button>
+      );
+    };
+  },
+);
+
+jest.mock(
+  "../components/common/Spinner",
+  () => {
+    return function SpinnerMock() {
+      return (
+        <span
+          data-testid="spinner"
+          aria-hidden="true"
+        >
+          Carregando
+        </span>
+      );
+    };
+  },
+);
+
+/* =========================================================
+   DADOS FALSOS
+========================================================= */
+
+const MEDICAMENTO = {
+  id: 1,
+  nome: "Losartana Teste",
+  dosagem: "50 mg",
+  frequencia: "1 vez ao dia",
+  data_inicio: "2026-10-01",
+  data_fim: null,
+  observacoes:
+    "Tomar após o café da manhã.",
+  ativo: true,
+
+  doses: [
+    {
+      id: 10,
+      status_administracao:
+        "administrado",
+      data_hora_administracao:
+        "2026-10-05T12:30:00.000Z",
+      observacoes:
+        "Dose registrada para teste.",
+    },
+
+    {
+      id: 11,
+      status_administracao: "pulado",
+      data_hora_administracao:
+        "2026-10-04T12:30:00.000Z",
+      observacoes: null,
+    },
+  ],
+};
+
+const MEDICAMENTO_SEM_DOSES = {
+  id: 2,
+  nome: "Medicamento Teste Dois",
+  dosagem: "10 mg",
+  frequencia: "2 vezes ao dia",
+  data_inicio: "2026-09-01",
+  data_fim: null,
+  observacoes: null,
+  ativo: true,
+  doses: [],
+};
+
+/* =========================================================
+   CONFIGURAÇÃO
+========================================================= */
+
 beforeEach(() => {
-  mockGetCurrentUserToken.mockReset();
-  mockGetCurrentUserToken.mockResolvedValue("token-fake");
+  jest.clearAllMocks();
+
+  mockGetCurrentUserToken.mockResolvedValue(
+    "token-fake",
+  );
+
+  mockUsePermissoesDose.mockReturnValue({
+    carregando: false,
+    podeMarcarDose: true,
+    possuiVinculo: false,
+    erro: null,
+  });
+
+  mockChamarApi.mockResolvedValue({
+    medicamentos: [],
+  });
+
   global.fetch = jest.fn();
-  mockBuscarPermissoes.mockReset();
-  mockBuscarPermissoes.mockResolvedValue([FAMILIAR_APROVADO]);
-  mockBaixarPdf.mockReset();
-  mockBaixarPdf.mockResolvedValue(undefined);
-  // O esqueleto registra a mensagem do erro em console.error; é esperado no caso de erro.
-  jest.spyOn(console, "error").mockImplementation(() => undefined);
-});
-afterEach(() => jest.restoreAllMocks());
-
-describe("jest-axe: controle positivo", () => {
-  it("detecta violação real (input sem label), então o teste não está vazio", async () => {
-    const { container } = render(<input type="text" />);
-    const resultado = await axe(container, AXE);
-    expect(resultado.violations.map((v) => v.id)).toContain("label");
-    expect(resultado).not.toHaveNoViolations();
-  });
 });
 
-describe("Remedios: acessibilidade", () => {
-  it("estado inicial das duas seções", async () => {
-    const { container } = render(<Remedios />);
-    expect(await axe(container, AXE)).toHaveNoViolations();
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+/* =========================================================
+   CONTROLE DO JEST-AXE
+========================================================= */
+
+describe("jest-axe: controle", () => {
+  it("detecta input sem label", async () => {
+    const { container } = render(
+      <input type="text" />,
+    );
+
+    const resultado = await axe(
+      container,
+      AXE,
+    );
+
+    expect(
+      resultado.violations.map(
+        (violacao) => violacao.id,
+      ),
+    ).toContain("label");
   });
 
-  describe.each(["idoso", "familiar"] as const)("seção %s", (sufixo) => {
-    async function enviar(resposta: Response) {
-      (global.fetch as jest.Mock).mockResolvedValue(resposta);
-      const user = userEvent.setup();
-      const utils = render(<Remedios />);
-      if (sufixo === "familiar") await user.type(screen.getByLabelText("Id do idoso (familiar)", { exact: true }), "1");
-      await user.type(screen.getByLabelText(`Nome (${sufixo})`, { exact: true }), "Remedio Ficticio");
-      await user.type(screen.getByLabelText(`Dosagem (${sufixo})`, { exact: true }), "10 mg");
-      await user.type(screen.getByLabelText(`Frequência (${sufixo})`, { exact: true }), "2x ao dia");
-      fireEvent.change(screen.getByLabelText(`Data de início (${sufixo})`, { exact: true }), { target: { value: "2026-10-01" } });
-      await user.click(screen.getByRole("button", { name: new RegExp(`^cadastrar medicamento \\(${sufixo}\\)$`, "i") }));
-      return utils;
-    }
+  it("detecta botão sem nome acessível", async () => {
+    const { container } = render(
+      <button type="button" />,
+    );
 
-    it("com sucesso em role=status visível", async () => {
-      const { container } = await enviar(respostaJson(201, { id: 41 }));
-      expect(await screen.findByRole("status")).toHaveTextContent("Medicamento cadastrado (id 41).");
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
+    const resultado = await axe(
+      container,
+      AXE,
+    );
 
-    it("com erro em role=alert visível", async () => {
-      const { container } = await enviar(respostaJson(400, { error: "Mensagem de erro de teste." }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
+    expect(
+      resultado.violations.map(
+        (violacao) => violacao.id,
+      ),
+    ).toContain("button-name");
   });
 });
 
-// Item 5.2: seções "Marcar dose" em todos os estados. Mesmo limite: contraste de cor não é verificado em jsdom.
-describe("Remedios: acessibilidade das seções de dose (item 5.2)", () => {
-  it("estado inicial com as quatro seções (familiar aprovado)", async () => {
-    const { container } = render(<Remedios />);
-    await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+/* =========================================================
+   PÁGINA PRINCIPAL
+========================================================= */
 
-  it("estado inicial só com a seção de dose do idoso (sem vínculo)", async () => {
-    mockBuscarPermissoes.mockResolvedValue([]);
-    const { container } = render(<Remedios />);
-    await act(async () => {});
-    expect(screen.queryByRole("heading", { name: "Marcar dose de um idoso vinculado" })).not.toBeInTheDocument();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+describe(
+  "Remedios: acessibilidade da página",
+  () => {
+    it(
+      "estado de carregamento não possui violações",
+      async () => {
+        mockChamarApi.mockReturnValue(
+          new Promise(() => undefined),
+        );
 
-  it("cuidador aprovado sem a flag: aviso em role=status", async () => {
-    mockBuscarPermissoes.mockResolvedValue([
-      {
-        tipo_vinculo: "cuidador",
-        status: "aprovado",
-        papel_do_chamador: "vinculado",
-        permissoes: { permite_registrar_saude: true, permite_marcar_dose: false, permite_criar_evento_cuidado: true },
+        const { container } = render(
+          <Remedios />,
+        );
+
+        expect(
+          screen.getByText(
+            "Carregando medicamentos...",
+          ),
+        ).toBeInTheDocument();
+
+        await esperarSemViolacoes(
+          container,
+        );
       },
-    ]);
-    const { container } = render(<Remedios />);
-    expect(await screen.findByRole("status")).toHaveTextContent(/não tem permissão para marcar dose/i);
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+    );
 
-  describe.each(["idoso", "vinculado"] as const)("seção %s", (sufixo) => {
-    async function enviar(resposta: Response) {
-      (global.fetch as jest.Mock).mockResolvedValue(resposta);
-      const user = userEvent.setup();
-      const utils = render(<Remedios />);
-      await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
-      if (sufixo === "vinculado") await user.type(screen.getByLabelText("Id do idoso (dose, vinculado)", { exact: true }), "1");
-      await user.type(screen.getByLabelText(`Id do medicamento (dose, ${sufixo})`, { exact: true }), "2");
-      await user.selectOptions(screen.getByLabelText(`Situação da dose (${sufixo})`, { exact: true }), "atrasado");
-      fireEvent.change(screen.getByLabelText(`Data e hora (opcional, ${sufixo})`, { exact: true }), { target: { value: "2026-10-02T08:30" } });
-      await user.type(screen.getByLabelText(`Observações da dose (opcional, ${sufixo})`, { exact: true }), "obs falsa");
-      await user.click(screen.getByRole("button", { name: new RegExp(`^marcar dose \\(${sufixo}\\)$`, "i") }));
-      return utils;
+    it(
+      "estado vazio não possui violações",
+      async () => {
+        mockChamarApi.mockResolvedValue({
+          medicamentos: [],
+        });
+
+        const { container } = render(
+          <Remedios />,
+        );
+
+        await screen.findByRole(
+          "heading",
+          {
+            name: "Nenhum medicamento cadastrado",
+          },
+        );
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+
+    it(
+      "estado com medicamentos não possui violações",
+      async () => {
+        mockChamarApi.mockResolvedValue({
+          medicamentos: [
+            MEDICAMENTO,
+            MEDICAMENTO_SEM_DOSES,
+          ],
+        });
+
+        const { container } = render(
+          <Remedios />,
+        );
+
+        await screen.findByRole(
+          "heading",
+          {
+            name: "Losartana Teste",
+          },
+        );
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+
+    it(
+      "estado de erro não possui violações",
+      async () => {
+        mockChamarApi.mockRejectedValueOnce(
+          new Error(
+            "Falha ao carregar medicamentos.",
+          ),
+        );
+
+        const { container } = render(
+          <Remedios />,
+        );
+
+        expect(
+          await screen.findByRole(
+            "alert",
+          ),
+        ).toHaveTextContent(
+          "Falha ao carregar medicamentos.",
+        );
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+
+    it(
+      "botão voltar possui nome acessível",
+      async () => {
+        const { container } = render(
+          <Remedios />,
+        );
+
+        expect(
+          screen.getByRole("button", {
+            name: /voltar/i,
+          }),
+        ).toBeInTheDocument();
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+  },
+);
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+describe(
+  "Remedios: acessibilidade dos cards",
+  () => {
+    it(
+      "card possui ações acessíveis",
+      async () => {
+        mockChamarApi.mockResolvedValue({
+          medicamentos: [MEDICAMENTO],
+        });
+
+        const { container } = render(
+          <Remedios />,
+        );
+
+        const titulo =
+          await screen.findByRole(
+            "heading",
+            {
+              name: "Losartana Teste",
+            },
+          );
+
+        const card =
+          titulo.closest("article");
+
+        expect(card).not.toBeNull();
+
+        if (!card) {
+          throw new Error(
+            "Card do medicamento não encontrado.",
+          );
+        }
+
+        expect(
+          within(card).getByRole(
+            "button",
+            {
+              name: /marcar dose/i,
+            },
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          within(card).getByRole(
+            "button",
+            {
+              name: /ver histórico/i,
+            },
+          ),
+        ).toBeInTheDocument();
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+  },
+);
+
+/* =========================================================
+   MODAL DE CADASTRO
+========================================================= */
+
+describe(
+  "Remedios: acessibilidade do cadastro",
+  () => {
+    async function abrirCadastro() {
+      const user =
+        userEvent.setup();
+
+      const utils = render(
+        <Remedios />,
+      );
+
+      await screen.findByRole(
+        "heading",
+        {
+          name: "Nenhum medicamento cadastrado",
+        },
+      );
+
+      const botoes =
+        screen.getAllByRole(
+          "button",
+          {
+            name: /adicionar medicamento/i,
+          },
+        );
+
+      await user.click(
+        botoes[0],
+      );
+
+      return {
+        ...utils,
+        user,
+      };
     }
 
-    it("com sucesso em role=status visível", async () => {
-      const { container } = await enviar(respostaJson(201, { id: 61 }));
-      expect(await screen.findByRole("status")).toHaveTextContent("Dose registrada (id 61).");
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
+    it(
+      "modal possui estrutura acessível",
+      async () => {
+        const { container } =
+          await abrirCadastro();
 
-    it.each([403, 400, 404, 409])("com erro %i em role=alert visível", async (status) => {
-      const { container } = await enviar(respostaJson(status, { error: "Mensagem de erro de teste." }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
+        const dialog =
+          screen.getByRole("dialog");
 
-    it("durante o envio (botão ocupado)", async () => {
-      (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
-      const user = userEvent.setup();
-      const { container } = render(<Remedios />);
-      await screen.findByRole("heading", { name: "Marcar dose de um idoso vinculado" });
-      if (sufixo === "vinculado") await user.type(screen.getByLabelText("Id do idoso (dose, vinculado)", { exact: true }), "1");
-      await user.type(screen.getByLabelText(`Id do medicamento (dose, ${sufixo})`, { exact: true }), "2");
-      await user.click(screen.getByRole("button", { name: new RegExp(`^marcar dose \\(${sufixo}\\)$`, "i") }));
-      expect(await screen.findByRole("button", { name: /marcando/i })).toBeDisabled();
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
-  });
-});
+        expect(
+          dialog,
+        ).toHaveAttribute(
+          "aria-modal",
+          "true",
+        );
 
+        expect(
+          dialog,
+        ).toHaveAttribute(
+          "aria-labelledby",
+          "titulo-modal-medicamento",
+        );
 
-// Item 5.3: seção "Ver histórico de remédios" em todos os estados. Mesmo limite: contraste de cor não é
-// verificado em jsdom (item 9.1). Dados abaixo são valores obviamente falsos de teste.
-describe("Remedios: acessibilidade da seção de histórico (item 5.3)", () => {
-  const HISTORICO = {
-    medicamentos: [
-      {
-        id: 1, idoso_id: 5, criado_por_id: 5, nome: "Remedio Historico Um", dosagem: "10 mg", frequencia: "2x ao dia",
-        data_inicio: "2026-03-01", data_fim: null, observacoes: "obs falsa", ativo: true, editado_por_id: null,
-        doses: [
-          { id: 2, medicamento_id: 1, registrado_por_id: 5, data_hora_administracao: "2026-09-14T12:30:00.000Z", status_administracao: "administrado", observacoes: "obs dose falsa" },
-          { id: 1, medicamento_id: 1, registrado_por_id: 5, data_hora_administracao: "2026-09-12T11:00:00.000Z", status_administracao: "pulado", observacoes: null },
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+
+    it(
+      "todos os campos possuem labels",
+      async () => {
+        const { container } =
+          await abrirCadastro();
+
+        expect(
+          screen.getByLabelText(
+            "Nome do medicamento",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByLabelText(
+            "Dosagem",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByLabelText(
+            "Frequência",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByLabelText(
+            "Data de início",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByLabelText(
+            "Data de término",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByLabelText(
+            "Observações",
+          ),
+        ).toBeInTheDocument();
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+
+    it(
+      "erro no cadastro continua acessível",
+      async () => {
+        const user =
+          userEvent.setup();
+
+        mockChamarApi
+          .mockResolvedValueOnce({
+            medicamentos: [],
+          })
+          .mockRejectedValueOnce(
+            new Error(
+              "Mensagem de erro de teste.",
+            ),
+          );
+
+        const { container } =
+          render(<Remedios />);
+
+        await screen.findByRole(
+          "heading",
+          {
+            name: "Nenhum medicamento cadastrado",
+          },
+        );
+
+        await user.click(
+          screen.getAllByRole(
+            "button",
+            {
+              name: /adicionar medicamento/i,
+            },
+          )[0],
+        );
+
+        await user.type(
+          screen.getByLabelText(
+            "Nome do medicamento",
+          ),
+          "Medicamento Fictício",
+        );
+
+        await user.type(
+          screen.getByLabelText(
+            "Dosagem",
+          ),
+          "10 mg",
+        );
+
+        await user.type(
+          screen.getByLabelText(
+            "Frequência",
+          ),
+          "1 vez ao dia",
+        );
+
+        fireEvent.change(
+          screen.getByLabelText(
+            "Data de início",
+          ),
+          {
+            target: {
+              value: "2026-10-05",
+            },
+          },
+        );
+
+        const dialog =
+          screen.getByRole(
+            "dialog",
+          );
+
+        await user.click(
+          within(dialog).getByRole(
+            "button",
+            {
+              name: /^adicionar medicamento$/i,
+            },
+          ),
+        );
+
+        expect(
+          await screen.findByRole(
+            "alert",
+          ),
+        ).toHaveTextContent(
+          "Mensagem de erro de teste.",
+        );
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+
+    it(
+      "estado de envio do cadastro continua acessível",
+      async () => {
+        const user =
+          userEvent.setup();
+
+        mockChamarApi
+          .mockResolvedValueOnce({
+            medicamentos: [],
+          })
+          .mockReturnValueOnce(
+            new Promise(
+              () => undefined,
+            ),
+          );
+
+        const { container } =
+          render(<Remedios />);
+
+        await screen.findByRole(
+          "heading",
+          {
+            name: "Nenhum medicamento cadastrado",
+          },
+        );
+
+        await user.click(
+          screen.getAllByRole(
+            "button",
+            {
+              name: /adicionar medicamento/i,
+            },
+          )[0],
+        );
+
+        await user.type(
+          screen.getByLabelText(
+            "Nome do medicamento",
+          ),
+          "Medicamento Fictício",
+        );
+
+        await user.type(
+          screen.getByLabelText(
+            "Dosagem",
+          ),
+          "10 mg",
+        );
+
+        await user.type(
+          screen.getByLabelText(
+            "Frequência",
+          ),
+          "1 vez ao dia",
+        );
+
+        fireEvent.change(
+          screen.getByLabelText(
+            "Data de início",
+          ),
+          {
+            target: {
+              value: "2026-10-05",
+            },
+          },
+        );
+
+        const dialog =
+          screen.getByRole(
+            "dialog",
+          );
+
+        await user.click(
+          within(dialog).getByRole(
+            "button",
+            {
+              name: /^adicionar medicamento$/i,
+            },
+          ),
+        );
+
+        const botao =
+          await screen.findByRole(
+            "button",
+            {
+              name: /adicionando/i,
+            },
+          );
+
+        expect(
+          botao,
+        ).toBeDisabled();
+
+        expect(
+          botao,
+        ).toHaveAttribute(
+          "aria-busy",
+          "true",
+        );
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+  },
+);
+
+/* =========================================================
+   MODAL DE DOSE
+========================================================= */
+
+describe(
+  "Remedios: acessibilidade do modal de dose",
+  () => {
+    async function abrirDose() {
+      mockChamarApi.mockResolvedValue({
+        medicamentos: [
+          MEDICAMENTO,
         ],
+      });
+
+      const user =
+        userEvent.setup();
+
+      const utils = render(
+        <Remedios />,
+      );
+
+      const titulo =
+        await screen.findByRole(
+          "heading",
+          {
+            name: "Losartana Teste",
+          },
+        );
+
+      const card =
+        titulo.closest("article");
+
+      if (!card) {
+        throw new Error(
+          "Card do medicamento não encontrado.",
+        );
+      }
+
+      await user.click(
+        within(card).getByRole(
+          "button",
+          {
+            name: /marcar dose/i,
+          },
+        ),
+      );
+
+      return {
+        ...utils,
+        user,
+      };
+    }
+
+    it(
+      "modal possui estrutura acessível",
+      async () => {
+        const { container } =
+          await abrirDose();
+
+        const dialog =
+          screen.getByRole(
+            "dialog",
+          );
+
+        expect(
+          dialog,
+        ).toHaveAttribute(
+          "aria-modal",
+          "true",
+        );
+
+        expect(
+          dialog,
+        ).toHaveAttribute(
+          "aria-labelledby",
+          "titulo-modal-dose",
+        );
+
+        expect(
+          within(dialog).getByText(
+            "Situação da dose",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          within(dialog).getByLabelText(
+            "Data e hora",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          within(dialog).getByLabelText(
+            "Observações",
+          ),
+        ).toBeInTheDocument();
+
+        await esperarSemViolacoes(
+          container,
+        );
       },
-      {
-        id: 2, idoso_id: 5, criado_por_id: 5, nome: "Remedio Historico Dois", dosagem: "5 ml", frequencia: "1x ao dia",
-        data_inicio: "2026-01-31", data_fim: "2026-12-31", observacoes: null, ativo: false, editado_por_id: null, doses: [],
+    );
+
+    it(
+      "opções possuem aria-pressed",
+      async () => {
+        const {
+          container,
+          user,
+        } = await abrirDose();
+
+        const dialog =
+          screen.getByRole(
+            "dialog",
+          );
+
+        const tomado =
+          within(dialog).getByRole(
+            "button",
+            {
+              name: "Tomado",
+            },
+          );
+
+        const atrasado =
+          within(dialog).getByRole(
+            "button",
+            {
+              name: "Atrasado",
+            },
+          );
+
+        const pulado =
+          within(dialog).getByRole(
+            "button",
+            {
+              name: "Pulado",
+            },
+          );
+
+        expect(
+          tomado,
+        ).toHaveAttribute(
+          "aria-pressed",
+          "true",
+        );
+
+        expect(
+          atrasado,
+        ).toHaveAttribute(
+          "aria-pressed",
+          "false",
+        );
+
+        expect(
+          pulado,
+        ).toHaveAttribute(
+          "aria-pressed",
+          "false",
+        );
+
+        await user.click(
+          atrasado,
+        );
+
+        expect(
+          atrasado,
+        ).toHaveAttribute(
+          "aria-pressed",
+          "true",
+        );
+
+        expect(
+          tomado,
+        ).toHaveAttribute(
+          "aria-pressed",
+          "false",
+        );
+
+        await esperarSemViolacoes(
+          container,
+        );
       },
-    ],
-  };
+    );
 
-  async function buscar(resposta: Response | Promise<Response>) {
-    (global.fetch as jest.Mock).mockReturnValue(resposta);
-    const user = userEvent.setup();
-    const utils = render(<Remedios />);
-    await user.click(screen.getByRole("button", { name: /^ver histórico$/i }));
-    return utils;
-  }
+    it(
+      "erro ao registrar dose continua acessível",
+      async () => {
+        const user =
+          userEvent.setup();
 
-  it("antes da busca", async () => {
-    const { container } = render(<Remedios />);
-    expect(screen.getByRole("heading", { name: "Ver histórico de remédios" })).toBeInTheDocument();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+        mockChamarApi
+          .mockResolvedValueOnce({
+            medicamentos: [
+              MEDICAMENTO,
+            ],
+          })
+          .mockRejectedValueOnce(
+            new Error(
+              "Mensagem de erro de teste.",
+            ),
+          );
 
-  it("carregando (botão ocupado)", async () => {
-    const { container } = await buscar(new Promise(() => undefined));
-    expect(await screen.findByRole("button", { name: /carregando/i })).toBeDisabled();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+        const { container } =
+          render(<Remedios />);
 
-  it("com resultados, incluindo doses", async () => {
-    const { container } = await buscar(Promise.resolve(respostaJson(200, HISTORICO)));
-    expect(await screen.findByRole("status")).toHaveTextContent("2 medicamento(s) encontrado(s).");
-    expect(screen.getByText(/14\/09\/2026 09:30, Administrado/)).toBeInTheDocument();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+        const titulo =
+          await screen.findByRole(
+            "heading",
+            {
+              name: "Losartana Teste",
+            },
+          );
 
-  it("vazio", async () => {
-    const { container } = await buscar(Promise.resolve(respostaJson(200, { medicamentos: [] })));
-    expect(await screen.findByRole("status")).toHaveTextContent("Nenhum medicamento cadastrado.");
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+        const card =
+          titulo.closest(
+            "article",
+          );
 
-  it("erro em role=alert", async () => {
-    const { container } = await buscar(Promise.resolve(respostaJson(403, { error: "Mensagem de erro de teste." })));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
-});
+        if (!card) {
+          throw new Error(
+            "Card não encontrado.",
+          );
+        }
 
-// Item 5.4: seção "Exportar histórico em PDF" em todos os estados. Mesmo limite: contraste de cor não é
-// verificado em jsdom (item 9.1).
-describe("Remedios: acessibilidade da seção de exportar PDF (item 5.4)", () => {
-  it("controle positivo: axe pega botão sem nome acessível, mesmo com aria-busy", async () => {
-    const { container } = render(<button aria-busy="true" />);
-    const resultado = await axe(container, AXE);
-    expect(resultado.violations.map((v) => v.id)).toContain("button-name");
-  });
+        await user.click(
+          within(card).getByRole(
+            "button",
+            {
+              name: /marcar dose/i,
+            },
+          ),
+        );
 
-  async function exportar(retorno: Promise<void>) {
-    mockBaixarPdf.mockReturnValue(retorno);
-    const user = userEvent.setup();
-    const utils = render(<Remedios />);
-    await user.click(screen.getByRole("button", { name: /^baixar histórico em pdf$/i }));
-    return utils;
-  }
+        const dialog =
+          screen.getByRole(
+            "dialog",
+          );
 
-  it("estado inicial", async () => {
-    const { container } = render(<Remedios />);
-    expect(screen.getByRole("heading", { name: "Exportar histórico em PDF" })).toBeInTheDocument();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+        await user.click(
+          within(dialog).getByRole(
+            "button",
+            {
+              name: /^registrar dose$/i,
+            },
+          ),
+        );
 
-  it("carregando (botão ocupado)", async () => {
-    const { container } = await exportar(new Promise(() => undefined));
-    expect(await screen.findByRole("button", { name: /gerando pdf/i })).toBeDisabled();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+        expect(
+          await screen.findByRole(
+            "alert",
+          ),
+        ).toHaveTextContent(
+          "Mensagem de erro de teste.",
+        );
 
-  it("sucesso em role=status", async () => {
-    const { container } = await exportar(Promise.resolve());
-    expect(await screen.findByRole("status")).toHaveTextContent("PDF gerado. O download começou.");
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
 
-  it("erro em role=alert", async () => {
-    const { container } = await exportar(Promise.reject(new Error("Mensagem de erro de teste.")));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
-});
+    it(
+      "estado de envio da dose continua acessível",
+      async () => {
+        const user =
+          userEvent.setup();
+
+        mockChamarApi
+          .mockResolvedValueOnce({
+            medicamentos: [
+              MEDICAMENTO,
+            ],
+          })
+          .mockReturnValueOnce(
+            new Promise(
+              () => undefined,
+            ),
+          );
+
+        const { container } =
+          render(<Remedios />);
+
+        const titulo =
+          await screen.findByRole(
+            "heading",
+            {
+              name: "Losartana Teste",
+            },
+          );
+
+        const card =
+          titulo.closest(
+            "article",
+          );
+
+        if (!card) {
+          throw new Error(
+            "Card não encontrado.",
+          );
+        }
+
+        await user.click(
+          within(card).getByRole(
+            "button",
+            {
+              name: /marcar dose/i,
+            },
+          ),
+        );
+
+        const dialog =
+          screen.getByRole(
+            "dialog",
+          );
+
+        await user.click(
+          within(dialog).getByRole(
+            "button",
+            {
+              name: /^registrar dose$/i,
+            },
+          ),
+        );
+
+        const botao =
+          await screen.findByRole(
+            "button",
+            {
+              name: /registrando/i,
+            },
+          );
+
+        expect(
+          botao,
+        ).toBeDisabled();
+
+        expect(
+          botao,
+        ).toHaveAttribute(
+          "aria-busy",
+          "true",
+        );
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+  },
+);
+
+/* =========================================================
+   HISTÓRICO
+========================================================= */
+
+describe(
+  "Remedios: acessibilidade do histórico",
+  () => {
+    it(
+      "histórico com doses não possui violações",
+      async () => {
+        mockChamarApi.mockResolvedValue({
+          medicamentos: [
+            MEDICAMENTO,
+          ],
+        });
+
+        const user =
+          userEvent.setup();
+
+        const { container } =
+          render(<Remedios />);
+
+        const titulo =
+          await screen.findByRole(
+            "heading",
+            {
+              name: "Losartana Teste",
+            },
+          );
+
+        const card =
+          titulo.closest(
+            "article",
+          );
+
+        if (!card) {
+          throw new Error(
+            "Card não encontrado.",
+          );
+        }
+
+        await user.click(
+          within(card).getByRole(
+            "button",
+            {
+              name: /ver histórico/i,
+            },
+          ),
+        );
+
+        expect(
+          screen.getByText(
+            "Histórico de doses",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByText(
+            "Administrado",
+          ),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByText(
+            "Pulado",
+          ),
+        ).toBeInTheDocument();
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+
+    it(
+      "histórico vazio não possui violações",
+      async () => {
+        mockChamarApi.mockResolvedValue({
+          medicamentos: [
+            MEDICAMENTO_SEM_DOSES,
+          ],
+        });
+
+        const user =
+          userEvent.setup();
+
+        const { container } =
+          render(<Remedios />);
+
+        const titulo =
+          await screen.findByRole(
+            "heading",
+            {
+              name: "Medicamento Teste Dois",
+            },
+          );
+
+        const card =
+          titulo.closest(
+            "article",
+          );
+
+        if (!card) {
+          throw new Error(
+            "Card não encontrado.",
+          );
+        }
+
+        await user.click(
+          within(card).getByRole(
+            "button",
+            {
+              name: /ver histórico/i,
+            },
+          ),
+        );
+
+        expect(
+          screen.getByText(
+            "Nenhuma dose registrada",
+          ),
+        ).toBeInTheDocument();
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+  },
+);
+
+/* =========================================================
+   PERMISSÕES
+========================================================= */
+
+describe(
+  "Remedios: acessibilidade das permissões",
+  () => {
+    it(
+      "aviso de permissão continua acessível",
+      async () => {
+        mockUsePermissoesDose.mockReturnValue({
+          carregando: false,
+          podeMarcarDose: false,
+          possuiVinculo: true,
+          erro: null,
+        });
+
+        const { container } =
+          render(<Remedios />);
+
+        await waitFor(() => {
+          expect(
+            screen.getByRole(
+              "status",
+            ),
+          ).toBeInTheDocument();
+        });
+
+        await esperarSemViolacoes(
+          container,
+        );
+      },
+    );
+  },
+);

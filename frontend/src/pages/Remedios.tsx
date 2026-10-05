@@ -1,411 +1,530 @@
-import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
-import { chamarApi } from '../lib/chamarApi'
-import { baixarPdf } from '../lib/baixarPdf'
-import Spinner from '../components/common/Spinner'
-import { usePermissoesDose } from '../lib/permissoesDose'
+import { useCallback, useEffect, useState } from "react";
 
-// Esqueleto cru da Fase 5, item 5.1 (RF-011): só os formulários de cadastro de medicamento
-// (POST /remedios do idoso e POST /remedios/idoso/:idosoId do familiar), pra exercitar os endpoints
-// sem depender do front delas. Sem listagem, sem ocultação por permissão e sem polish visual:
-// layout final é de Laureane/Jennifer. Nunca loga o corpo enviado nem valores de medicamento.
-//
-// Item 5.2 (RF-012): seções de marcar dose (POST /remedios/:medicamentoId/doses do idoso e
-// POST /remedios/idoso/:idosoId/:medicamentoId/doses de cuidador/familiar). Não existe GET de
-// medicamento ainda: o id do medicamento e o do idoso são digitados. As seções de dose não usam console.*.
+import { ArrowLeft, Pill, Plus, RefreshCw } from "lucide-react";
 
-const VAZIO = { idosoId: '', nome: '', dosagem: '', frequencia: '', dataInicio: '', dataFim: '', observacoes: '' }
+import { useNavigate } from "react-router-dom";
 
-function CadastroMedicamento({ titulo, sufixo, comIdoso }: { titulo: string; sufixo: string; comIdoso: boolean }) {
-  const [campos, setCampos] = useState(VAZIO)
-  const [carregando, setCarregando] = useState(false)
-  const [resultado, setResultado] = useState<{ id: number } | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const setCampo = (campo: keyof typeof VAZIO) => (e: { target: { value: string } }) =>
-    setCampos((atual) => ({ ...atual, [campo]: e.target.value }))
+import { chamarApi } from "../lib/chamarApi";
+import { usePermissoesDose } from "../lib/permissoesDose";
 
-  async function handleCadastrar(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setResultado(null)
-    setCarregando(true)
-    try {
-      const caminho = comIdoso ? `/remedios/idoso/${campos.idosoId}` : '/remedios'
-      const corpo = await chamarApi(caminho, {
-        method: 'POST',
-        body: JSON.stringify({
-          nome: campos.nome,
-          dosagem: campos.dosagem,
-          frequencia: campos.frequencia,
-          // O valor do <input type="date"> já é YYYY-MM-DD: sem toISOString(), que deslocaria o dia.
-          data_inicio: campos.dataInicio,
-          // Opcional em branco não é enviado.
-          data_fim: campos.dataFim === '' ? undefined : campos.dataFim,
-          observacoes: campos.observacoes === '' ? undefined : campos.observacoes,
-        }),
-      })
-      setResultado(corpo)
-    } catch (err) {
-      console.error('Falha ao cadastrar medicamento:', err instanceof Error ? err.message : 'erro')
-      setErro(err instanceof Error ? err.message : 'Falha ao cadastrar medicamento.')
-    } finally {
-      setCarregando(false)
-    }
-  }
+import ControleTema from "../components/layout/ControleTema";
+import Spinner from "../components/common/Spinner";
 
-  const slug = comIdoso ? 'familiar' : 'idoso'
-  const classe = 'mt-1 w-full rounded border border-gray-400 p-3 text-lg'
-  const campo = (
-    rotulo: string,
-    nome: keyof typeof VAZIO,
-    atributos: InputHTMLAttributes<HTMLInputElement>,
-  ) => (
-    <div>
-      <label htmlFor={`${nome}_${slug}`} className="block text-lg font-medium text-gray-900">
-        {rotulo}
-      </label>
-      <input id={`${nome}_${slug}`} {...atributos} value={campos[nome]} onChange={setCampo(nome)} className={classe} />
-    </div>
-  )
+import AvisoPermissaoDose from "../components/Remedios/AvisoPermissaoDose";
 
-  return (
-    <section className="w-full max-w-sm space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">{titulo}</h2>
-      <form onSubmit={handleCadastrar} className="space-y-4">
-        {comIdoso && campo(`Id do idoso (${sufixo})`, 'idosoId', { type: 'number', required: true, min: 1, step: 1 })}
-        {campo(`Nome (${sufixo})`, 'nome', { type: 'text', required: true, maxLength: 150 })}
-        {campo(`Dosagem (${sufixo})`, 'dosagem', { type: 'text', required: true, maxLength: 50 })}
-        {campo(`Frequência (${sufixo})`, 'frequencia', { type: 'text', required: true, maxLength: 100 })}
-        {campo(`Data de início (${sufixo})`, 'dataInicio', { type: 'date', required: true })}
-        {campo(`Data de fim (opcional, ${sufixo})`, 'dataFim', { type: 'date' })}
-        {campo(`Observações (opcional, ${sufixo})`, 'observacoes', { type: 'text', maxLength: 500 })}
-        <button
-          type="submit"
-          disabled={carregando}
-          aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Cadastrando...' : `Cadastrar medicamento (${sufixo})`}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="text-lg text-red-700">
-          {erro}
-        </p>
-      )}
-      {resultado && (
-        <p role="status" className="text-lg text-gray-900">
-          Medicamento cadastrado (id {resultado.id}).
-        </p>
-      )}
-    </section>
-  )
+import CardMedicamento, {
+  type MedicamentoCard,
+} from "../components/Remedios/CardMedicamento";
+
+import ExportarHistorico from "../components/Remedios/ExportarHistorico";
+
+import HistoricoDoses, {
+  type DoseHistorico,
+} from "../components/Remedios/HistoricoDoses";
+
+import ModalMarcarDose from "../components/Remedios/ModalMarcarDose";
+import ModalMedicamento from "../components/Remedios/ModalMedicamento";
+
+interface Medicamento extends MedicamentoCard {
+  doses: DoseHistorico[];
 }
 
-const VAZIO_DOSE = { idosoId: '', medicamentoId: '', status: 'administrado', dataHora: '', observacoes: '' }
-
-// Item 5.2 (RF-012): marcar dose. Sem listagem: o id do medicamento (e o do idoso, na seção do vinculado)
-// é digitado. As mensagens de erro vêm fixas do backend e nunca repetem o que foi digitado.
-function MarcarDose({ titulo, sufixo, comIdoso }: { titulo: string; sufixo: string; comIdoso: boolean }) {
-  const [campos, setCampos] = useState(VAZIO_DOSE)
-  const [carregando, setCarregando] = useState(false)
-  const [resultado, setResultado] = useState<{ id: number } | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const setCampo = (campo: keyof typeof VAZIO_DOSE) => (e: { target: { value: string } }) =>
-    setCampos((atual) => ({ ...atual, [campo]: e.target.value }))
-
-  async function handleMarcar(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setResultado(null)
-    setCarregando(true)
-    try {
-      const caminho = comIdoso
-        ? `/remedios/idoso/${campos.idosoId}/${campos.medicamentoId}/doses`
-        : `/remedios/${campos.medicamentoId}/doses`
-      const corpo = await chamarApi(caminho, {
-        method: 'POST',
-        body: JSON.stringify({
-          status_administracao: campos.status,
-          // datetime-local não traz fuso: toISOString() converte para UTC com Z, que o backend exige.
-          data_hora_administracao: campos.dataHora === '' ? undefined : new Date(campos.dataHora).toISOString(),
-          observacoes: campos.observacoes === '' ? undefined : campos.observacoes,
-        }),
-      })
-      setResultado(corpo)
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Falha ao marcar dose.')
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  const slug = `dose_${sufixo}`
-  const classe = 'mt-1 w-full rounded border border-gray-400 p-3 text-lg'
-  const rotulo = (texto: string, nome: keyof typeof VAZIO_DOSE) => (
-    <label htmlFor={`${nome}_${slug}`} className="block text-lg font-medium text-gray-900">
-      {texto}
-    </label>
-  )
-  const campo = (texto: string, nome: keyof typeof VAZIO_DOSE, atributos: InputHTMLAttributes<HTMLInputElement>) => (
-    <div>
-      {rotulo(texto, nome)}
-      <input id={`${nome}_${slug}`} {...atributos} value={campos[nome]} onChange={setCampo(nome)} className={classe} />
-    </div>
-  )
-
-  return (
-    <section className="w-full max-w-sm space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">{titulo}</h2>
-      <form onSubmit={handleMarcar} className="space-y-4">
-        {comIdoso && campo(`Id do idoso (dose, ${sufixo})`, 'idosoId', { type: 'number', required: true, min: 1, step: 1 })}
-        {campo(`Id do medicamento (dose, ${sufixo})`, 'medicamentoId', { type: 'number', required: true, min: 1, step: 1 })}
-        <div>
-          {rotulo(`Situação da dose (${sufixo})`, 'status')}
-          <select id={`status_${slug}`} value={campos.status} onChange={setCampo('status')} className={classe}>
-            <option value="administrado">Administrado</option>
-            <option value="pulado">Pulado</option>
-            <option value="atrasado">Atrasado</option>
-          </select>
-        </div>
-        {campo(`Data e hora (opcional, ${sufixo})`, 'dataHora', { type: 'datetime-local' })}
-        {campo(`Observações da dose (opcional, ${sufixo})`, 'observacoes', { type: 'text', maxLength: 300 })}
-        <button
-          type="submit"
-          disabled={carregando}
-          aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Marcando...' : `Marcar dose (${sufixo})`}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="text-lg text-red-700">
-          {erro}
-        </p>
-      )}
-      {resultado && (
-        <p role="status" className="text-lg text-gray-900">
-          Dose registrada (id {resultado.id}).
-        </p>
-      )}
-    </section>
-  )
-}
-
-// Item 5.3 (RF-013): histórico de remédios (prescrições + doses). Id do idoso em branco = idoso lê o próprio
-// (GET /remedios); preenchido = cuidador/familiar (GET /remedios/idoso/:id). Sempre visível: leitura não
-// depende de flag nem de modo_decisao. Nunca loga corpo nem valores de medicamento ou dose (sem console.*).
-type DoseLista = { id: number; status_administracao: string; data_hora_administracao: string; observacoes: string | null }
-type MedicamentoLista = {
-  id: number
-  nome: string
-  dosagem: string
-  frequencia: string
-  data_inicio: string
-  data_fim: string | null
-  observacoes: string | null
-  ativo: boolean
-  doses: DoseLista[]
-}
-
-const ROTULO_STATUS_DOSE: Record<string, string> = { administrado: 'Administrado', pulado: 'Pulado', atrasado: 'Atrasado' }
-
-// YYYY-MM-DD vira dd/mm/aaaa por split: new Date() leria a data como UTC e deslocaria o dia.
-const dataBr = (iso: string) => iso.split('-').reverse().join('/')
-
-// Fuso fixo: o resultado não depende do fuso da máquina. hourCycle h23 evita "24:00" à meia-noite.
-const FORMATO_HORA = new Intl.DateTimeFormat('pt-BR', {
-  timeZone: 'America/Sao_Paulo',
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-})
-function dataHoraBr(iso: string) {
-  const p = Object.fromEntries(FORMATO_HORA.formatToParts(new Date(iso)).map((x) => [x.type, x.value]))
-  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`
-}
-
-function HistoricoRemedios() {
-  const [idosoId, setIdosoId] = useState('')
-  const [carregando, setCarregando] = useState(false)
-  const [medicamentos, setMedicamentos] = useState<MedicamentoLista[] | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-
-  async function handleVer(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setMedicamentos(null)
-    setCarregando(true)
-    try {
-      const corpo = await chamarApi(idosoId === '' ? '/remedios' : `/remedios/idoso/${idosoId}`, { method: 'GET' })
-      setMedicamentos(corpo.medicamentos)
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Falha ao carregar histórico de remédios.')
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  return (
-    <section className="w-full max-w-sm space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">Ver histórico de remédios</h2>
-      <form onSubmit={handleVer} className="space-y-4">
-        <div>
-          <label htmlFor="idoso_id_historico_remedios" className="block text-lg font-medium text-gray-900">
-            Id do idoso (vazio = meu histórico)
-          </label>
-          <input
-            id="idoso_id_historico_remedios"
-            type="number"
-            min={1}
-            step={1}
-            value={idosoId}
-            onChange={(e) => setIdosoId(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={carregando}
-          aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Carregando...' : 'Ver histórico'}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="text-lg text-red-700">
-          {erro}
-        </p>
-      )}
-      {medicamentos && (
-        <p role="status" className="text-lg text-gray-900">
-          {medicamentos.length === 0 ? 'Nenhum medicamento cadastrado.' : `${medicamentos.length} medicamento(s) encontrado(s).`}
-        </p>
-      )}
-      {medicamentos && medicamentos.length > 0 && (
-        <ul className="space-y-4 text-lg text-gray-900">
-          {medicamentos.map((m) => (
-            <li key={m.id} className="space-y-1">
-              <h3 className="text-xl font-bold">{m.nome}</h3>
-              <p>Dosagem: {m.dosagem}</p>
-              <p>Frequência: {m.frequencia}</p>
-              <p>Início: {dataBr(m.data_inicio)}</p>
-              <p>{m.data_fim === null ? 'Sem data de término' : `Fim: ${dataBr(m.data_fim)}`}</p>
-              <p>Situação: {m.ativo ? 'Ativo' : 'Inativo'}</p>
-              {m.observacoes && <p>Observações: {m.observacoes}</p>}
-              {m.doses.length === 0 ? (
-                <p>Nenhuma dose registrada.</p>
-              ) : (
-                <ul className="list-disc pl-6">
-                  {m.doses.map((d) => (
-                    <li key={d.id}>
-                      {dataHoraBr(d.data_hora_administracao)}, {ROTULO_STATUS_DOSE[d.status_administracao] ?? d.status_administracao}
-                      {d.observacoes ? ` (Observações: ${d.observacoes})` : ''}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
-
-// Item 5.4 (RF-014): exportar o histórico combinado (remédios + saúde) em um único PDF. Id do idoso em
-// branco = idoso exporta o próprio (GET /historico/pdf); preenchido = cuidador/familiar
-// (GET /historico/idoso/:id/pdf). Sempre visível: leitura não depende de flag nem de modo_decisao. O download
-// fica em lib/baixarPdf (chamarApi força JSON). Sem console.*: dado de saúde (RNF-001).
-function ExportarHistoricoPdf() {
-  const [idosoId, setIdosoId] = useState('')
-  const [carregando, setCarregando] = useState(false)
-  const [sucesso, setSucesso] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
-
-  async function handleBaixar(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setSucesso(false)
-    setCarregando(true)
-    try {
-      await baixarPdf(idosoId === '' ? '/historico/pdf' : `/historico/idoso/${idosoId}/pdf`)
-      setSucesso(true)
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Falha ao gerar o PDF.')
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  return (
-    <section className="w-full max-w-sm space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">Exportar histórico em PDF</h2>
-      <form onSubmit={handleBaixar} className="space-y-4">
-        <div>
-          <label htmlFor="idoso_id_exportar_pdf" className="block text-lg font-medium text-gray-900">
-            Id do idoso para exportar (vazio = meu histórico)
-          </label>
-          <input
-            id="idoso_id_exportar_pdf"
-            type="number"
-            min={1}
-            step={1}
-            value={idosoId}
-            onChange={(e) => setIdosoId(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={carregando}
-          aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Gerando PDF...' : 'Baixar histórico em PDF'}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="text-lg text-red-700">
-          {erro}
-        </p>
-      )}
-      {sucesso && (
-        <p role="status" className="text-lg text-gray-900">
-          PDF gerado. O download começou.
-        </p>
-      )}
-    </section>
-  )
+interface RespostaMedicamentos {
+  medicamentos: Medicamento[];
 }
 
 export default function Remedios() {
-  const permissoes = usePermissoesDose()
-  // Mesma regra de Saude.tsx: se a consulta de vínculos falhar, mostra a seção e o 403 do backend decide.
-  const mostrarDoseVinculado = permissoes.estado === 'erro' || permissoes.escrita
+  const navigate = useNavigate();
+
+  const permissoes = usePermissoesDose();
+
+  const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
+
+  const [carregando, setCarregando] = useState(true);
+
+  const [erro, setErro] = useState<string | null>(null);
+
+  const [modalMedicamentoAberto, setModalMedicamentoAberto] = useState(false);
+
+  const [modalDoseAberto, setModalDoseAberto] = useState(false);
+
+  const [medicamentoSelecionado, setMedicamentoSelecionado] =
+    useState<Medicamento | null>(null);
+
+  const [medicamentoDetalhes, setMedicamentoDetalhes] =
+    useState<Medicamento | null>(null);
+
+  /**
+   * Por enquanto vazio = usuário visualizando
+   * os próprios medicamentos.
+   *
+   * Depois esse ID poderá vir automaticamente
+   * do vínculo selecionado pelo cuidador/familiar.
+   */
+  const idosoId = "";
+
+  const carregarMedicamentos = useCallback(async () => {
+    setErro(null);
+    setCarregando(true);
+
+    try {
+      const caminho = idosoId ? `/remedios/idoso/${idosoId}` : "/remedios";
+
+      const resposta = (await chamarApi(caminho, {
+        method: "GET",
+      })) as RespostaMedicamentos;
+
+      setMedicamentos(resposta.medicamentos ?? []);
+    } catch (err) {
+      setErro(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar os medicamentos.",
+      );
+    } finally {
+      setCarregando(false);
+    }
+  }, [idosoId]);
+
+  useEffect(() => {
+    void carregarMedicamentos();
+  }, [carregarMedicamentos]);
+
+  function abrirDose(medicamento: MedicamentoCard) {
+    const encontrado =
+      medicamentos.find((item) => item.id === medicamento.id) ?? null;
+
+    setMedicamentoSelecionado(encontrado);
+    setModalDoseAberto(true);
+  }
+
+  function fecharDose() {
+    setModalDoseAberto(false);
+    setMedicamentoSelecionado(null);
+  }
+
+  function abrirDetalhes(medicamento: MedicamentoCard) {
+    const encontrado =
+      medicamentos.find((item) => item.id === medicamento.id) ?? null;
+
+    setMedicamentoDetalhes(encontrado);
+  }
+
+  function fecharDetalhes() {
+    setMedicamentoDetalhes(null);
+  }
+
+  async function atualizarDepoisDaDose() {
+    await carregarMedicamentos();
+  }
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-8 p-4">
-      <h1 className="text-3xl font-bold text-gray-900">Medicamentos</h1>
-      <CadastroMedicamento titulo="Cadastrar medicamento (só idoso)" sufixo="idoso" comIdoso={false} />
-      <CadastroMedicamento titulo="Cadastrar medicamento de um idoso (familiar)" sufixo="familiar" comIdoso />
-      <MarcarDose titulo="Marcar dose (só idoso)" sufixo="idoso" comIdoso={false} />
-      {mostrarDoseVinculado && <MarcarDose titulo="Marcar dose de um idoso vinculado" sufixo="vinculado" comIdoso />}
-      {permissoes.avisoSemFlag && (
-        <p role="status" className="w-full max-w-sm text-lg text-gray-900">
-          Você ainda não tem permissão para marcar dose de um idoso vinculado. Peça a quem decide pelo idoso para liberar.
-        </p>
-      )}
-      <HistoricoRemedios />
-      <ExportarHistoricoPdf />
+    <main
+      className="
+        min-h-screen
+        bg-[#F8F9FC]
+        px-4
+        py-6
+        transition-colors
+        duration-200
+
+        dark:bg-[#10101A]
+
+        sm:px-6
+        sm:py-8
+
+        lg:px-8
+      "
+    >
+      <div className="mx-auto w-full max-w-6xl">
+        {/* NAVEGAÇÃO SUPERIOR */}
+
+        <div className="mb-7 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="Voltar para a página anterior"
+            className="
+              inline-flex
+              h-11
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              border
+              border-gray-300
+              bg-white
+              px-4
+              text-sm
+              font-semibold
+              text-[#071A38]
+              shadow-sm
+              transition-all
+              duration-200
+
+              hover:border-[#A18BFF]
+              hover:bg-[#F3F0FF]
+              hover:text-[#6C63FF]
+
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-[#6C63FF]/30
+
+              dark:border-[#454558]
+              dark:bg-[#2B2C3B]
+              dark:text-[#F5F5FA]
+
+              dark:hover:border-[#66667A]
+              dark:hover:bg-[#373849]
+              dark:hover:text-[#A89FFF]
+            "
+          >
+            <ArrowLeft size={18} strokeWidth={2} aria-hidden="true" />
+
+            <span className="hidden sm:inline">Voltar</span>
+          </button>
+
+          <ControleTema responsivo />
+        </div>
+
+        {/* CABEÇALHO */}
+
+        <header className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="font-semibold text-[#6C63FF] dark:text-[#A89FFF]">
+              Cuidado e acompanhamento
+            </p>
+
+            <h1 className="mt-1 text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA] sm:text-4xl">
+              Medicamentos
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-[#56657D] dark:text-[#C7C7D1]">
+              Organize seus medicamentos, registre doses e acompanhe seu
+              histórico.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setModalMedicamentoAberto(true)}
+            className="
+              flex
+              min-h-12
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              bg-[#6C63FF]
+              px-5
+              py-3
+              font-semibold
+              text-white
+              shadow-sm
+              transition
+
+              hover:bg-[#5A52E8]
+
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-[#6C63FF]/40
+              focus-visible:ring-offset-2
+
+              dark:ring-offset-[#10101A]
+            "
+          >
+            <Plus size={20} aria-hidden="true" />
+            Adicionar medicamento
+          </button>
+        </header>
+
+        {/* PERMISSÕES */}
+
+        <div className="mb-6">
+          <AvisoPermissaoDose permissoes={permissoes} />
+        </div>
+
+        {/* ERRO */}
+
+        {erro && (
+          <div
+            role="alert"
+            className="
+              mb-6
+              flex
+              flex-col
+              gap-3
+              rounded-2xl
+              border
+              border-red-200
+              bg-red-50
+              p-4
+              text-red-700
+
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+
+              dark:border-red-900/50
+              dark:bg-red-950/20
+              dark:text-red-300
+            "
+          >
+            <span>{erro}</span>
+
+            <button
+              type="button"
+              onClick={() => void carregarMedicamentos()}
+              className="
+                inline-flex
+                items-center
+                gap-2
+                font-semibold
+                transition
+                hover:opacity-80
+              "
+            >
+              <RefreshCw size={17} aria-hidden="true" />
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {/* CARREGANDO */}
+
+        {carregando && (
+          <div
+            role="status"
+            className="
+              flex
+              min-h-52
+              items-center
+              justify-center
+              gap-3
+              text-[#56657D]
+
+              dark:text-[#C7C7D1]
+            "
+          >
+            <Spinner />
+
+            <span>Carregando medicamentos...</span>
+          </div>
+        )}
+
+        {/* SEM MEDICAMENTOS */}
+
+        {!carregando && !erro && medicamentos.length === 0 && (
+          <section
+            className="
+                rounded-3xl
+                border
+                border-dashed
+                border-[#D9DCE8]
+                bg-white
+                px-6
+                py-12
+                text-center
+                shadow-sm
+                transition-colors
+
+                dark:border-[#393947]
+                dark:bg-[#171721]
+              "
+          >
+            <div
+              className="
+                  mx-auto
+                  flex
+                  h-16
+                  w-16
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  bg-[#F3F0FF]
+                  text-[#6C63FF]
+
+                  dark:bg-[#29243F]
+                  dark:text-[#A89FFF]
+                "
+            >
+              <Pill size={30} aria-hidden="true" />
+            </div>
+
+            <h2 className="mt-5 text-xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
+              Nenhum medicamento cadastrado
+            </h2>
+
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#56657D] dark:text-[#C7C7D1]">
+              Adicione seu primeiro medicamento para começar a acompanhar suas
+              doses.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setModalMedicamentoAberto(true)}
+              className="
+                  mt-6
+                  inline-flex
+                  min-h-12
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-xl
+                  bg-[#6C63FF]
+                  px-5
+                  py-3
+                  font-semibold
+                  text-white
+                  shadow-sm
+                  transition
+
+                  hover:bg-[#5A52E8]
+                "
+            >
+              <Plus size={19} aria-hidden="true" />
+              Adicionar medicamento
+            </button>
+          </section>
+        )}
+
+        {/* LISTA DE MEDICAMENTOS */}
+
+        {!carregando && !erro && medicamentos.length > 0 && (
+          <section aria-labelledby="titulo-meus-medicamentos">
+            <div className="mb-5">
+              <h2
+                id="titulo-meus-medicamentos"
+                className="text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]"
+              >
+                Meus medicamentos
+              </h2>
+
+              <p className="mt-1 text-sm text-[#56657D] dark:text-[#C7C7D1]">
+                {medicamentos.length}{" "}
+                {medicamentos.length === 1
+                  ? "medicamento cadastrado"
+                  : "medicamentos cadastrados"}
+              </p>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {medicamentos.map((medicamento) => (
+                <CardMedicamento
+                  key={medicamento.id}
+                  medicamento={medicamento}
+                  onMarcarDose={abrirDose}
+                  onVerDetalhes={abrirDetalhes}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* HISTÓRICO DO MEDICAMENTO */}
+
+        {medicamentoDetalhes && (
+          <section
+            className="
+              mt-8
+              rounded-3xl
+              border
+              border-[#E7E7EF]
+              bg-white
+              p-5
+              shadow-sm
+              transition-colors
+
+              sm:p-6
+
+              dark:border-[#393947]
+              dark:bg-[#171721]
+            "
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-[#6C63FF] dark:text-[#A89FFF]">
+                  Histórico de doses
+                </p>
+
+                <h2 className="mt-1 text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
+                  {medicamentoDetalhes.nome}
+                </h2>
+
+                <p className="mt-1 text-sm text-[#56657D] dark:text-[#C7C7D1]">
+                  {medicamentoDetalhes.dosagem}
+                  {" • "}
+                  {medicamentoDetalhes.frequencia}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={fecharDetalhes}
+                className="
+                  shrink-0
+                  rounded-xl
+                  border
+                  border-[#D9DCE8]
+                  bg-white
+                  px-4
+                  py-2
+                  text-sm
+                  font-semibold
+                  text-[#56657D]
+                  transition
+
+                  hover:border-[#A18BFF]
+                  hover:bg-[#F3F0FF]
+                  hover:text-[#6C63FF]
+
+                  dark:border-[#454558]
+                  dark:bg-[#20202A]
+                  dark:text-[#C7C7D1]
+
+                  dark:hover:border-[#66667A]
+                  dark:hover:bg-[#292933]
+                  dark:hover:text-[#A89FFF]
+                "
+              >
+                Fechar
+              </button>
+            </div>
+
+            <HistoricoDoses doses={medicamentoDetalhes.doses} />
+          </section>
+        )}
+
+        {/* EXPORTAR PDF */}
+
+        <div className="mt-8">
+          <ExportarHistorico idosoId={idosoId || undefined} />
+        </div>
+      </div>
+
+      {/* MODAL DE CADASTRO */}
+
+      <ModalMedicamento
+        aberto={modalMedicamentoAberto}
+        onFechar={() => {
+          setModalMedicamentoAberto(false);
+
+          void carregarMedicamentos();
+        }}
+        comIdoso={Boolean(idosoId)}
+      />
+
+      {/* MODAL DE DOSE */}
+
+      <ModalMarcarDose
+        aberto={modalDoseAberto}
+        medicamento={medicamentoSelecionado}
+        idosoId={idosoId || undefined}
+        onFechar={fecharDose}
+        onSucesso={() => {
+          void atualizarDepoisDaDose();
+        }}
+      />
     </main>
-  )
+  );
 }
