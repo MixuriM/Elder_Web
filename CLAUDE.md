@@ -346,6 +346,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Agenda (6.1): nenhuma biblioteca de calendário; o 6.3 será lista agrupada por dia. Familiar só cria evento com
   `modo_decisao` efetivo `'familiar'` (via resolver), como em 5.1 e 5.2. Sem idempotência nem checagem de
   sobreposição (aceito).
+- Agenda (6.3): todos os atores veem os 3 tipos, sem filtro por tipo nem autor (cuidador e familiar veem
+  compromissos pessoais, aceito). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone` explícito, nunca o do
+  navegador. Evento aparece uma vez, no dia do início; o fim mostra a data se cair em outro dia. "Ver agenda" sempre
+  visível, `fetch` direto (não `chamarApi`) com mensagens fixas por status; passados em `<details>` fechado.
 - Agenda (6.2, fechadas por Claude sob delegação do Marcos em 2026-10-04): sem rota nova, `POST /agenda/idoso/:idosoId`
   ganhou o ramo do cuidador; `POST /agenda` (idoso) segue 403 para cuidador. Cuidador cria só `cuidado`, exigindo
   `tipo_vinculo` E `tipo_perfil` `'cuidador'` E `permite_criar_evento_cuidado === true` (estrito; as outras flags não
@@ -369,6 +373,11 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   (ver decisões do 6.2). Seção "Criar compromisso de cuidado (cuidador)" em `pages/Agenda.tsx`, sem select de tipo.
   Backend 32 suítes e 1466 testes, frontend 299 passando; `verify-rotas-agenda.ts` 17/17 PASS no SQL Server local.
   Commits e PR ainda não feitos ao registrar isto (completar hashes e PR no histórico depois do merge).
+- 6.3 visualizar agenda (RF-017, RNF-003): `GET /agenda` (idoso) e `GET /agenda/idoso/:idosoId` (vínculo aprovado
+  basta) em `routes/agenda.ts`; `lib/agendaPorDia.ts` e seção "Ver agenda" em `pages/Agenda.tsx`. Backend 33 suítes e
+  1535 testes, frontend 347 passando; `verify-rotas-agenda.ts` 24/24 PASS no SQL Server local. Commits locais
+  ainda sem hash definitivo; PR e hashes a registrar no histórico depois do merge. Teste de fuso por
+  subprocesso `node` com `TZ` real (exige Node 22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
