@@ -111,4 +111,42 @@ router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), a
   }
 });
 
+// Item 7.2 (RF-019): visualizar o histórico alimentar. Alimentação não é configurável por vínculo (ER.md): leitura
+// nunca consulta permite_* nem modo_decisao, vínculo aprovado basta. Descrição é dado sensível: nenhum log aqui.
+// Sem paginação nem filtro (aceito). Passado e futuro (plano) entram.
+const MSG_403_LEITURA = "Sem permissão para visualizar alimentação.";
+
+async function historicoAlimentar(idosoId: number) {
+  const registros = await prisma.registroAlimentar.findMany({
+    where: { idoso_id: idosoId },
+    orderBy: [{ data_hora: "desc" }, { id: "desc" }],
+  });
+  return { registros: registros.map(serializarRegistroAlimentar) };
+}
+
+// Idoso lê o próprio histórico. Ordem: 401, 403 (não é idoso), 200.
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const chamador = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { tipo_perfil: true },
+    });
+    if (chamador?.tipo_perfil !== "idoso") return res.status(403).json({ error: MSG_403_LEITURA });
+    res.json(await historicoAlimentar(req.usuarioId));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Cuidador ou familiar com vínculo aprovado. Ordem: 401, 400 (idosoId), 403 (vínculo), 200. idoso_id vem do vínculo.
+router.get("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_LEITURA });
+    res.json(await historicoAlimentar(vinculo.idoso_id));
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;
