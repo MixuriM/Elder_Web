@@ -343,6 +343,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Resolvidos em 2026-10-04: JSON malformado e corpo acima do limite agora respondem 400 e 413 fixos no
   `errorHandler` (sem eco do corpo, sem log); `nome` em branco no corpo de `/auth/sync` não vence mais o `name` do
   token do Google (aparado; em branco nos dois dá 400).
+- Agenda (6.1): nenhuma biblioteca de calendário; o 6.3 será lista agrupada por dia. Familiar só cria evento com
+  `modo_decisao` efetivo `'familiar'` (via resolver), como em 5.1 e 5.2. Cuidador não cria evento antes do 6.2
+  (403 sempre em `POST /agenda/idoso/:idosoId`, com qualquer flag). Sem idempotência nem checagem de sobreposição
+  (aceito).
 
 **Itens implementados (resumo; detalhes e hashes no histórico)**
 - 5.2 marcar dose (PR #125), 5.3 histórico de remédios (PR #127), 5.4 exportar histórico em PDF (PR #129,
@@ -350,6 +354,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `'familiar'` (via resolver), como no cadastro de medicamento (5.1). `GET /remedios` e `GET /remedios/idoso/:idosoId`
   e as rotas de PDF: vínculo aprovado basta, sem `permite_*` nem `modo_decisao`. PDF montado inteiro em memória
   (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
+- 6.1 criar compromisso (RF-015): `POST /agenda` (idoso) e `POST /agenda/idoso/:idosoId` (familiar) em
+  `routes/agenda.ts`; só `pessoal` e `medico` (`cuidado` dá 403, validado antes dos demais campos); datas ISO com
+  fuso, gravadas em UTC. Esqueleto `pages/Agenda.tsx` em `/agenda`. Backend 31 suítes e 1343 testes, frontend 284
+  passando; `verify-rotas-agenda.ts` (prefixo `verify-agenda-`) 12/12 PASS no SQL Server local.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
