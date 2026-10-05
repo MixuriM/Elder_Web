@@ -90,3 +90,78 @@ describe("Agenda: acessibilidade", () => {
     });
   });
 });
+
+// Item 6.3: seção "Ver agenda". Mesmo limite: contraste de cor segue no item 9.1. Dados obviamente falsos.
+describe("Agenda: acessibilidade da seção Ver agenda", () => {
+  const EV = (id: number, tipo: string, inicio: string, fim: string | null = null) => ({
+    id,
+    idoso_id: 7,
+    criado_por_id: 7,
+    tipo_evento: tipo,
+    titulo: `titulo-falso-${id}`,
+    descricao: id === 2 ? "descricao-falsa-2" : null,
+    data_hora_inicio: inicio,
+    data_hora_fim: fim,
+    editado_por_id: null,
+    created_at: "2026-09-01T10:00:00.000Z",
+    updated_at: "2026-09-01T10:00:00.000Z",
+  });
+  const EVENTOS = [
+    EV(1, "pessoal", "2026-10-03T12:00:00.000Z"),
+    EV(2, "medico", "2026-10-05T12:00:00.000Z", "2026-10-05T13:30:00.000Z"),
+    EV(3, "pessoal", "2026-10-06T02:00:00.000Z", "2026-10-06T05:00:00.000Z"),
+    EV(4, "cuidado", "2026-10-08T15:00:00.000Z"),
+  ];
+
+  async function ver() {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const utils = render(<Agenda />);
+    await user.click(screen.getByRole("button", { name: /^ver agenda$/i }));
+    return { ...utils, user };
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers({
+      now: new Date("2026-10-05T15:00:00.000Z"),
+      doNotFake: [
+        "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame", "cancelAnimationFrame",
+        "requestIdleCallback", "cancelIdleCallback", "setImmediate", "clearImmediate", "setInterval", "clearInterval",
+        "setTimeout", "clearTimeout",
+      ],
+    });
+  });
+  afterEach(() => jest.useRealTimers());
+
+  it("carregando (botão ocupado)", async () => {
+    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    const { container } = await ver();
+    expect(await screen.findByRole("button", { name: /carregando/i })).toHaveAttribute("aria-busy", "true");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("sucesso com hoje e passado, details fechado e aberto", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: EVENTOS }));
+    const { container, user } = await ver();
+    expect(await screen.findByText(/\(hoje\)/)).toBeInTheDocument();
+    const detalhes = container.querySelector("details") as HTMLDetailsElement;
+    expect(detalhes.open).toBe(false);
+    expect(await axe(container, AXE)).toHaveNoViolations();
+    await user.click(screen.getByText("Compromissos anteriores"));
+    expect(detalhes.open).toBe(true);
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("vazio", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: [] }));
+    const { container } = await ver();
+    expect(await screen.findByText("Nenhum compromisso na agenda.")).toBeInTheDocument();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it.each([403, 500])("erro %i em role=alert visível", async (status) => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
+    const { container } = await ver();
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+});
