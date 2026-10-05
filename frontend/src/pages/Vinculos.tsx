@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 import { chamarApi } from "../lib/chamarApi";
 
 import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
+import DetalhesVinculo from "../components/Vinculos/DetalhesVinculo";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
 
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
 
 export default function Vinculos() {
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
+  const [vinculoSelecionado, setVinculoSelecionado] = useState<Vinculo | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -43,8 +45,7 @@ export default function Vinculos() {
   }
 
   function abrirDetalhes(vinculo: Vinculo) {
-    // Depois vamos abrir o modal de detalhes
-    console.log("Vínculo selecionado:", vinculo);
+    setVinculoSelecionado(vinculo);
   }
 
   return (
@@ -69,6 +70,13 @@ export default function Vinculos() {
           onVerDetalhes={abrirDetalhes}
         />
       </div>
+
+      {vinculoSelecionado && (
+        <DetalhesVinculo
+          vinculo={vinculoSelecionado}
+          onFechar={() => setVinculoSelecionado(null)}
+        />
+      )}
     </main>
   );
 }
