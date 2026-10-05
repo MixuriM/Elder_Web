@@ -378,6 +378,13 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   1535 testes, frontend 347 passando; `verify-rotas-agenda.ts` 24/24 PASS no SQL Server local. Commits locais
   ainda sem hash definitivo; PR e hashes a registrar no histórico depois do merge. Teste de fuso por
   subprocesso `node` com `TZ` real (exige Node 22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
+- 7.1 registrar refeição/plano alimentar (RF-018): `POST /alimentacao` (idoso) e `POST /alimentacao/idoso/:idosoId`
+  (familiar com `modo_decisao` efetivo `'familiar'`, via resolver) em `routes/alimentacao.ts`. Cuidador nunca cria:
+  403 com qualquer vínculo e flags, resolver nunca chamado para ele. `refeicao` fechada em 6 valores só na aplicação
+  (sem CHECK), `descricao` obrigatória 1 a 500 (dado sensível, regras de log do RNF-001), `data_hora` ISO com fuso,
+  passado e futuro. Decisões D1 a D12 no histórico. Esqueleto `pages/Alimentacao.tsx` em `/alimentacao`. Backend 35
+  suítes e 1802 testes, frontend 377 passando; `verify-rotas-alimentacao.ts` (prefixo `verify-alim-`) 14/14 PASS no
+  SQL Server local. Commits e PR ainda não feitos ao registrar isto.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
