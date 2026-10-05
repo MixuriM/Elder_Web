@@ -71,6 +71,12 @@ export const CASOS_201: [string, Record<string, unknown>, (d: DadosCreate) => vo
   ],
 ];
 
+// Item 6.2: corpo-base e casos de sucesso para o cuidador, que só cria 'cuidado'. Os dois casos "tipo 'medico'"
+// e "tipo 'pessoal'" ficam de fora só aqui: para o cuidador esses tipos são 403 (têm teste próprio em
+// agendaCuidador.test.ts). Todos os demais casos valem iguais, com o tipo-base trocado para 'cuidado'.
+export const BODY_OK_CUIDADO = { ...BODY_OK, tipo_evento: "cuidado" };
+export const CASOS_201_CUIDADOR = CASOS_201.filter(([rotulo]) => rotulo !== "tipo 'medico'" && rotulo !== "tipo 'pessoal'");
+
 // Tipo fora do CHECK ou fora do formato: 400 (o 'cuidado' é 403 e tem teste próprio).
 export const CASOS_400_TIPO: [string, Record<string, unknown>][] = [
   ["tipo 'outro'", { tipo_evento: "outro" }],
