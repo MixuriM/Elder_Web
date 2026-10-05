@@ -12,8 +12,8 @@ function respostaJson(status: number, corpo: unknown) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response;
 }
 
-// Item 6.1 (RF-015): esqueleto cru da página /agenda, só para exercitar POST /agenda e
-// POST /agenda/idoso/:idosoId. Valores abaixo são obviamente falsos, só para teste.
+// Itens 6.1 (RF-015) e 6.2 (RF-016): esqueleto cru da página /agenda, só para exercitar POST /agenda e
+// POST /agenda/idoso/:idosoId (familiar e cuidador). Valores abaixo são obviamente falsos, só para teste.
 const TITULO = "compromisso-falso-sigiloso";
 const INICIO_LOCAL = "2026-10-10T09:00";
 const FIM_LOCAL = "2026-10-10T10:30";
@@ -205,6 +205,152 @@ describe("Agenda (item 6.1)", () => {
     render(<Agenda />);
     const c = secao("idoso");
     await preencher(c, user, TITULO);
+    await user.click(c.botao);
+    await screen.findByRole("alert");
+    expect(JSON.stringify(espioes.flatMap((s) => s.mock.calls))).not.toContain(TITULO);
+  });
+});
+
+describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
+  function secaoCuidador() {
+    return {
+      idosoId: screen.getByLabelText("Id do idoso (cuidador)", { exact: true }),
+      titulo: screen.getByLabelText("Título (cuidador)", { exact: true }),
+      descricao: screen.getByLabelText("Descrição (opcional, cuidador)", { exact: true }),
+      inicio: screen.getByLabelText("Início (cuidador)", { exact: true }),
+      fim: screen.getByLabelText("Fim (opcional, cuidador)", { exact: true }),
+      botao: screen.getByRole("button", { name: /^criar compromisso \(cuidador\)$/i }),
+    };
+  }
+
+  async function preencherCuidador(c: ReturnType<typeof secaoCuidador>, user: ReturnType<typeof userEvent.setup>) {
+    await user.type(c.idosoId, "7");
+    await user.type(c.titulo, "Banho Ficticio");
+    fireEvent.change(c.inicio, { target: { value: INICIO_LOCAL } });
+  }
+
+  it("renderiza o título da seção e os campos acessíveis por label, sem select de tipo", () => {
+    render(<Agenda />);
+    expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).toBeInTheDocument();
+    Object.values(secaoCuidador()).forEach((el) => expect(el).toBeInTheDocument());
+    expect(screen.queryByLabelText(/Tipo \(cuidador\)/)).not.toBeInTheDocument();
+    // Só as duas seções antigas têm select de tipo.
+    expect(screen.getAllByRole("combobox")).toHaveLength(2);
+  });
+
+  it("campos trazem maxLength 150 (título) e 500 (descrição)", () => {
+    render(<Agenda />);
+    const c = secaoCuidador();
+    expect(c.titulo).toHaveAttribute("maxLength", "150");
+    expect(c.descricao).toHaveAttribute("maxLength", "500");
+  });
+
+  it("POST /agenda/idoso/<id> com tipo_evento 'cuidado' fixo, datas em ISO UTC com Z, id só no caminho", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 51 }));
+    const user = userEvent.setup();
+    render(<Agenda />);
+    const c = secaoCuidador();
+    await preencherCuidador(c, user);
+    await user.type(c.descricao, "Trocar curativo");
+    fireEvent.change(c.fim, { target: { value: FIM_LOCAL } });
+    await user.click(c.botao);
+    await screen.findByRole("status");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const { url, init, corpo } = chamada();
+    expect(url).toMatch(/\/agenda\/idoso\/7$/);
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer token-fake");
+    expect(corpo).toEqual({
+      tipo_evento: "cuidado",
+      titulo: "Banho Ficticio",
+      descricao: "Trocar curativo",
+      data_hora_inicio: new Date(INICIO_LOCAL).toISOString(),
+      data_hora_fim: new Date(FIM_LOCAL).toISOString(),
+    });
+    expect(corpo.data_hora_inicio).toMatch(/Z$/);
+    expect(corpo.data_hora_fim).toMatch(/Z$/);
+    expect(corpo).not.toHaveProperty("idoso_id");
+  });
+
+  it("opcionais em branco não vão no corpo", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 52 }));
+    const user = userEvent.setup();
+    render(<Agenda />);
+    const c = secaoCuidador();
+    await preencherCuidador(c, user);
+    await user.click(c.botao);
+    await screen.findByRole("status");
+    expect(chamada().corpo).toEqual({
+      tipo_evento: "cuidado",
+      titulo: "Banho Ficticio",
+      data_hora_inicio: new Date(INICIO_LOCAL).toISOString(),
+    });
+  });
+
+  it("sucesso em role=status com o id criado", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 53 }));
+    const user = userEvent.setup();
+    render(<Agenda />);
+    const c = secaoCuidador();
+    await preencherCuidador(c, user);
+    await user.click(c.botao);
+    expect(await screen.findByRole("status")).toHaveTextContent("Compromisso criado (id 53).");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it.each([400, 403, 500])("erro %i em role=alert com a mensagem do servidor", async (status) => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
+    const user = userEvent.setup();
+    render(<Agenda />);
+    const c = secaoCuidador();
+    await preencherCuidador(c, user);
+    await user.click(c.botao);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("durante o envio: botão desabilitado e aria-busy", async () => {
+    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    const user = userEvent.setup();
+    render(<Agenda />);
+    const c = secaoCuidador();
+    await preencherCuidador(c, user);
+    await user.click(c.botao);
+    const ocupado = await screen.findByRole("button", { name: /criando/i });
+    expect(ocupado).toBeDisabled();
+    expect(ocupado).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("limpa o erro anterior e o sucesso anterior ao reenviar", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(respostaJson(403, { error: "Mensagem de erro de teste." }))
+      .mockResolvedValueOnce(respostaJson(201, { id: 54 }))
+      .mockReturnValueOnce(new Promise(() => undefined));
+    const user = userEvent.setup();
+    render(<Agenda />);
+    const c = secaoCuidador();
+    await preencherCuidador(c, user);
+    await user.click(c.botao);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await user.click(c.botao);
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(c.botao);
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("nunca loga o título nem o corpo enviado, nem no erro 403", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(403, { error: "Mensagem de erro de teste." }));
+    const espioes = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
+      jest.spyOn(console, m).mockImplementation(() => undefined),
+    );
+    const user = userEvent.setup();
+    render(<Agenda />);
+    const c = secaoCuidador();
+    await user.type(c.idosoId, "7");
+    await user.type(c.titulo, TITULO);
+    fireEvent.change(c.inicio, { target: { value: INICIO_LOCAL } });
     await user.click(c.botao);
     await screen.findByRole("alert");
     expect(JSON.stringify(espioes.flatMap((s) => s.mock.calls))).not.toContain(TITULO);
