@@ -1,10 +1,12 @@
 import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
 import { chamarApi } from '../lib/chamarApi'
 import Spinner from '../components/common/Spinner'
+import { getCurrentUserToken } from '../lib/auth'
+import { agruparEventosPorDia, formatarIntervalo, rotuloTipo, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
 
-// Esqueleto cru da Fase 6, itens 6.1 (RF-015) e 6.2 (RF-016): só os formulários de criar compromisso (POST /agenda do
-// idoso e POST /agenda/idoso/:idosoId do familiar e do cuidador), pra exercitar os endpoints sem depender do
-// front delas. Sem listagem, sem calendário e sem polish visual: layout final é de Laureane/Jennifer. Idoso e
+// Esqueleto cru da Fase 6, itens 6.1 (RF-015), 6.2 (RF-016) e 6.3 (RF-017): os formulários de criar compromisso (POST /agenda
+// do idoso e POST /agenda/idoso/:idosoId do familiar e do cuidador) e a seção "Ver agenda" (GET), pra exercitar os
+// endpoints sem depender do front delas. Sem calendário e sem polish visual: layout final é de Laureane/Jennifer. Idoso e
 // familiar escolhem 'pessoal' ou 'medico' (nunca 'cuidado'); a seção do cuidador não tem select e envia sempre
 // 'cuidado'. O frontend não sabe se o cuidador tem a flag permite_criar_evento_cuidado: a seção sempre
 // aparece e o 403 do backend vira mensagem de erro (limitação aceita). Nunca loga o corpo enviado nem o título.
@@ -110,6 +112,137 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
   )
 }
 
+// Item 6.3 (RF-017): ver a agenda. Id do idoso em branco = idoso lê a própria (GET /agenda); preenchido = cuidador ou
+// familiar (GET /agenda/idoso/:id). Sempre visível: leitura não depende de flag nem de modo_decisao (a autoridade é
+// o 403 do backend). Não usa chamarApi (força Content-Type JSON e repassa o corpo do erro): as mensagens de erro são
+// fixas por status e nunca ecoam o corpo (título 'medico' pode ter dado de saúde, RNF-001). Sem console.*.
+const MENSAGEM_ERRO_AGENDA: Record<number, string> = {
+  400: 'Id de idoso inválido.',
+  401: 'Sessão expirada. Entre novamente.',
+  403: 'Você não tem permissão para ver esta agenda.',
+}
+const ERRO_GENERICO_AGENDA = 'Não foi possível carregar a agenda.'
+
+// Só este erro tem mensagem exibível: qualquer outro (rede, token) cai na genérica, sem ecoar texto de fora.
+class ErroAgenda extends Error {}
+
+async function buscarAgenda(path: string): Promise<EventoAgenda[]> {
+  const token = await getCurrentUserToken()
+  const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new ErroAgenda(MENSAGEM_ERRO_AGENDA[res.status] ?? ERRO_GENERICO_AGENDA)
+  const corpo = await res.json().catch(() => null)
+  if (!Array.isArray(corpo?.eventos)) throw new ErroAgenda(ERRO_GENERICO_AGENDA)
+  return corpo.eventos
+}
+
+function DiaDaAgenda({ grupo }: { grupo: GrupoDia }) {
+  return (
+    <section aria-labelledby={`dia_${grupo.dia}`} className="space-y-2">
+      <h3 id={`dia_${grupo.dia}`} className="text-xl font-bold text-gray-900">
+        {grupo.rotulo}
+        {grupo.hoje ? ' (hoje)' : ''}
+      </h3>
+      <ul className="space-y-2 text-lg text-gray-900">
+        {grupo.eventos.map((e) => (
+          <li key={e.id}>
+            <p>
+              <strong>{rotuloTipo(e.tipo_evento)}</strong>{' '}
+              <time dateTime={e.data_hora_inicio}>{formatarIntervalo(e)}</time>
+            </p>
+            <p>{e.titulo}</p>
+            {e.descricao && <p>{e.descricao}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function VerAgenda() {
+  const [idosoId, setIdosoId] = useState('')
+  const [carregando, setCarregando] = useState(false)
+  const [grupos, setGrupos] = useState<GrupoDia[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function handleVer(e: FormEvent) {
+    e.preventDefault()
+    setErro(null)
+    setGrupos(null)
+    setCarregando(true)
+    try {
+      const eventos = await buscarAgenda(idosoId === '' ? '/agenda' : `/agenda/idoso/${idosoId}`)
+      setGrupos(agruparEventosPorDia(eventos))
+    } catch (err) {
+      if (err instanceof RangeError) setErro('Não foi possível exibir a agenda.')
+      else setErro(err instanceof ErroAgenda ? err.message : ERRO_GENERICO_AGENDA)
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  const passados = grupos?.filter((g) => g.passado) ?? []
+  const proximos = grupos?.filter((g) => !g.passado) ?? []
+
+  return (
+    <section aria-labelledby="titulo_ver_agenda" className="w-full max-w-sm space-y-4">
+      <h2 id="titulo_ver_agenda" className="text-2xl font-bold text-gray-900">
+        Ver agenda
+      </h2>
+      <form onSubmit={handleVer} className="space-y-4">
+        <div>
+          <label htmlFor="idoso_id_ver_agenda" className="block text-lg font-medium text-gray-900">
+            Id do idoso para ver a agenda (vazio = minha agenda)
+          </label>
+          <input
+            id="idoso_id_ver_agenda"
+            type="number"
+            min={1}
+            step={1}
+            value={idosoId}
+            onChange={(e) => setIdosoId(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={carregando}
+          aria-busy={carregando}
+          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+        >
+          {carregando && <Spinner />}
+          {carregando ? 'Carregando...' : 'Ver agenda'}
+        </button>
+      </form>
+      {erro && (
+        <p role="alert" className="text-lg text-red-700">
+          {erro}
+        </p>
+      )}
+      {grupos && (
+        <p role="status" className="text-lg text-gray-900">
+          {grupos.length === 0
+            ? 'Nenhum compromisso na agenda.'
+            : `${grupos.reduce((n, g) => n + g.eventos.length, 0)} compromisso(s) encontrado(s).`}
+        </p>
+      )}
+      {passados.length > 0 && (
+        <details className="space-y-2">
+          <summary className="cursor-pointer text-lg font-medium text-gray-900">Compromissos anteriores</summary>
+          {passados.map((g) => (
+            <DiaDaAgenda key={g.dia} grupo={g} />
+          ))}
+        </details>
+      )}
+      {proximos.map((g) => (
+        <DiaDaAgenda key={g.dia} grupo={g} />
+      ))}
+    </section>
+  )
+}
+
 export default function Agenda() {
   return (
     <main className="flex min-h-screen flex-col items-center gap-10 p-6">
@@ -117,6 +250,7 @@ export default function Agenda() {
       <CriarCompromisso titulo="Criar compromisso" modo="idoso" />
       <CriarCompromisso titulo="Criar compromisso para um idoso vinculado" modo="familiar" />
       <CriarCompromisso titulo="Criar compromisso de cuidado (cuidador)" modo="cuidador" />
+      <VerAgenda />
     </main>
   )
 }
