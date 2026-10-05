@@ -1,460 +1,194 @@
-import { useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
-import { chamarApi } from '../lib/chamarApi'
 import Spinner from '../components/common/Spinner'
+import BotaoTema from '../components/layout/BotaoTema'
+
+import RegistrarMinhaSaude from '../components/Saude/RegistrarMinhaSaude'
+import RegistrarSaudeIdoso from '../components/Saude/RegistrarSaudeIdoso'
+import EditarSaude from '../components/Saude/EditarSaude'
+import HistoricoSaude from '../components/Saude/HistoricoSaude'
+import AvisoPermissaoSaude from '../components/Saude/AvisoPermissaoSaude'
+
 import { usePermissoesSaude } from '../lib/permissoesSaude'
-
-// Esqueleto cru da Fase 4, item 4.1 (RF-007): só o formulário de registro de leitura de
-// saúde do idoso (POST /saude), pra exercitar o endpoint sem depender do front delas.
-// Sem listagem, sem edição e sem polish visual: layout final é de Laureane/Jennifer.
-// Item 4.2 (RF-008): segunda seção, cuidador registra leitura de um idoso vinculado
-// (POST /saude/idoso/:idosoId), também esqueleto cru.
-// Item 4.2b (RF-007, RF-009): a mesma seção serve o familiar (só com modo_decisao='familiar'
-// no idoso; senão o backend responde 403 e a mensagem aparece em role="alert").
-// Item 4.3 (RF-009, RNF-006): duas seções de edição (PATCH /saude/:id e
-// PATCH /saude/idoso/:idosoId/:id). Edição substitui a leitura inteira, então reenvia todos os campos.
-// Item 4.x: as duas seções que escrevem em nome de outro idoso só aparecem para familiar vinculado ou
-// cuidador com permite_registrar_saude (lib/permissoesSaude.ts). É só UX: o backend continua validando.
-
-const LEITURA_VAZIA = {
-  idosoId: '',
-  tipoMedicao: '',
-  valor1: '',
-  valor2: '',
-  unidade: '',
-  dataHora: '',
-  observacoes: '',
-}
-
-// Item 4.3: seção crua de edição. `comIdoso` escolhe a rota (idoso edita o próprio; cuidador/familiar
-// edita de um idoso vinculado). Nunca loga corpo nem valores de saúde.
-function EdicaoSaude({ titulo, sufixo, comIdoso }: { titulo: string; sufixo: string; comIdoso: boolean }) {
-  const [campos, setCampos] = useState(LEITURA_VAZIA)
-  const [registroId, setRegistroId] = useState('')
-  const [carregando, setCarregando] = useState(false)
-  const [resultado, setResultado] = useState<{ id: number } | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const setCampo = (campo: keyof typeof LEITURA_VAZIA) => (e: ChangeEvent<HTMLInputElement>) =>
-    setCampos((atual) => ({ ...atual, [campo]: e.target.value }))
-
-  async function handleEditar(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setResultado(null)
-    setCarregando(true)
-    try {
-      const caminho = comIdoso ? `/saude/idoso/${campos.idosoId}/${registroId}` : `/saude/${registroId}`
-      const corpo = await chamarApi(caminho, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          // Edição parcial: campo em branco não é enviado e o backend mantém o valor atual.
-          tipo_medicao: campos.tipoMedicao === '' ? undefined : campos.tipoMedicao,
-          valor_1: campos.valor1 === '' ? undefined : Number(campos.valor1),
-          valor_2: campos.valor2 === '' ? undefined : Number(campos.valor2),
-          unidade: campos.unidade === '' ? undefined : campos.unidade,
-          data_hora: campos.dataHora === '' ? undefined : new Date(campos.dataHora).toISOString(),
-          observacoes: campos.observacoes === '' ? undefined : campos.observacoes,
-        }),
-      })
-      setResultado(corpo)
-    } catch (err) {
-      console.error('Falha ao editar leitura de saúde:', err instanceof Error ? err.message : 'erro')
-      setErro(err instanceof Error ? err.message : 'Falha ao editar leitura de saúde.')
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  const slug = comIdoso ? 'ed_idoso' : 'ed_proprio'
-  const classe = 'mt-1 w-full rounded border border-gray-400 p-3 text-lg'
-  const campoTexto = (
-    rotulo: string,
-    id: string,
-    valor: string,
-    aoMudar: (e: ChangeEvent<HTMLInputElement>) => void,
-    atributos: InputHTMLAttributes<HTMLInputElement>,
-  ) => (
-    <div key={id}>
-      <label htmlFor={id} className="block text-lg font-medium text-gray-900">
-        {rotulo}
-      </label>
-      <input id={id} {...atributos} value={valor} onChange={aoMudar} className={classe} />
-    </div>
-  )
-
-  return (
-    <section className="w-full max-w-sm space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">{titulo}</h2>
-      <form onSubmit={handleEditar} className="space-y-4">
-        {comIdoso &&
-          campoTexto(`Id do idoso (${sufixo})`, `idoso_id_${slug}`, campos.idosoId, setCampo('idosoId'), {
-            type: 'number', required: true, min: 1, step: 1,
-          })}
-        {campoTexto(`Id do registro (${sufixo})`, `registro_id_${slug}`, registroId, (e) => setRegistroId(e.target.value), {
-          type: 'number', required: true, min: 1, step: 1,
-        })}
-        {campoTexto(`Tipo de medição (${sufixo})`, `tipo_medicao_${slug}`, campos.tipoMedicao, setCampo('tipoMedicao'), {
-          type: 'text', maxLength: 50,
-        })}
-        {campoTexto(`Valor 1 (${sufixo})`, `valor_1_${slug}`, campos.valor1, setCampo('valor1'), {
-          type: 'number', min: 0, step: 'any',
-        })}
-        {campoTexto(`Valor 2 (opcional, ${sufixo})`, `valor_2_${slug}`, campos.valor2, setCampo('valor2'), {
-          type: 'number', min: 0, step: 'any',
-        })}
-        {campoTexto(`Unidade (${sufixo})`, `unidade_${slug}`, campos.unidade, setCampo('unidade'), {
-          type: 'text', maxLength: 20,
-        })}
-        {campoTexto(`Data e hora (opcional, ${sufixo})`, `data_hora_${slug}`, campos.dataHora, setCampo('dataHora'), {
-          type: 'datetime-local',
-        })}
-        {campoTexto(`Observações (opcional, ${sufixo})`, `observacoes_${slug}`, campos.observacoes, setCampo('observacoes'), {
-          type: 'text', maxLength: 300,
-        })}
-        <button
-          type="submit"
-          disabled={carregando}
-          aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Salvando...' : `Salvar edição (${sufixo})`}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="text-lg text-red-700">
-          {erro}
-        </p>
-      )}
-      {resultado && <p className="text-lg text-gray-900">Registro atualizado (id {resultado.id}).</p>}
-    </section>
-  )
-}
-
-type RegistroLista = { id: number; tipo_medicao: string; valor_1: number; valor_2: number | null; unidade: string; data_hora: string }
-
-// Item 4.4 (RF-010): seção crua de histórico. Id do idoso em branco = idoso lê o próprio (GET /saude);
-// preenchido = cuidador/familiar (GET /saude/idoso/:id). Nunca loga corpo nem valores de saúde.
-function HistoricoSaude() {
-  const [idosoId, setIdosoId] = useState('')
-  const [carregando, setCarregando] = useState(false)
-  const [registros, setRegistros] = useState<RegistroLista[] | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-
-  async function handleVer(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setRegistros(null)
-    setCarregando(true)
-    try {
-      const corpo = await chamarApi(idosoId === '' ? '/saude' : `/saude/idoso/${idosoId}`, { method: 'GET' })
-      setRegistros(corpo.registros)
-    } catch (err) {
-      console.error('Falha ao carregar histórico de saúde:', err instanceof Error ? err.message : 'erro')
-      setErro(err instanceof Error ? err.message : 'Falha ao carregar histórico de saúde.')
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  return (
-    <section className="w-full max-w-sm space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">Ver histórico de saúde</h2>
-      <form onSubmit={handleVer} className="space-y-4">
-        <div>
-          <label htmlFor="idoso_id_historico" className="block text-lg font-medium text-gray-900">
-            Id do idoso (vazio = meu histórico)
-          </label>
-          <input
-            id="idoso_id_historico"
-            type="number"
-            min={1}
-            step={1}
-            value={idosoId}
-            onChange={(e) => setIdosoId(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={carregando}
-          aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Carregando...' : 'Ver histórico'}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="text-lg text-red-700">
-          {erro}
-        </p>
-      )}
-      {registros && registros.length === 0 && <p className="text-lg text-gray-900">Nenhum registro.</p>}
-      {registros && registros.length > 0 && (
-        <ul className="space-y-2 text-lg text-gray-900">
-          {registros.map((r) => (
-            <li key={r.id}>
-              #{r.id} {r.tipo_medicao}: {r.valor_1}
-              {r.valor_2 !== null ? `/${r.valor_2}` : ''} {r.unidade} ({new Date(r.data_hora).toLocaleString('pt-BR')})
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
 
 function Saude() {
   const permissoes = usePermissoesSaude()
-  const [tipoMedicao, setTipoMedicao] = useState('')
-  const [valorSaude1, setValorSaude1] = useState('')
-  const [valorSaude2, setValorSaude2] = useState('')
-  const [unidadeSaude, setUnidadeSaude] = useState('')
-  const [dataHoraSaude, setDataHoraSaude] = useState('')
-  const [observacoesSaude, setObservacoesSaude] = useState('')
-  const [carregandoSaude, setCarregandoSaude] = useState(false)
-  const [resultadoSaude, setResultadoSaude] = useState<{ id: number } | null>(null)
-  const [erroSaude, setErroSaude] = useState<string | null>(null)
 
-  // Item 4.1 (RF-007). Não loga o corpo enviado nem os valores: dado de saúde é sensível.
-  async function handleRegistrarSaude(e: FormEvent) {
-    e.preventDefault()
-    setErroSaude(null)
-    setResultadoSaude(null)
-    setCarregandoSaude(true)
-    try {
-      const corpo = await chamarApi('/saude', {
-        method: 'POST',
-        body: JSON.stringify({
-          tipo_medicao: tipoMedicao,
-          valor_1: Number(valorSaude1),
-          valor_2: valorSaude2 === '' ? undefined : Number(valorSaude2),
-          unidade: unidadeSaude,
-          data_hora: dataHoraSaude === '' ? undefined : new Date(dataHoraSaude).toISOString(),
-          observacoes: observacoesSaude === '' ? undefined : observacoesSaude,
-        }),
-      })
-      setResultadoSaude(corpo)
-    } catch (err) {
-      console.error('Falha ao registrar leitura de saúde:', err instanceof Error ? err.message : 'erro')
-      setErroSaude(err instanceof Error ? err.message : 'Falha ao registrar leitura de saúde.')
-    } finally {
-      setCarregandoSaude(false)
-    }
+  const mostrarEscritaDeTerceiros =
+    permissoes.estado === 'erro' ||
+    permissoes.escrita
+
+  function voltarPagina() {
+    window.history.back()
   }
 
-  const [cuid, setCuid] = useState(LEITURA_VAZIA)
-  const [carregandoCuid, setCarregandoCuid] = useState(false)
-  const [resultadoCuid, setResultadoCuid] = useState<{ id: number } | null>(null)
-  const [erroCuid, setErroCuid] = useState<string | null>(null)
-  const setCampoCuid = (campo: keyof typeof LEITURA_VAZIA) => (e: ChangeEvent<HTMLInputElement>) =>
-    setCuid((atual) => ({ ...atual, [campo]: e.target.value }))
+  if (permissoes.estado === 'carregando') {
+    return (
+      <main
+        className="
+          relative
+          flex min-h-screen
+          items-center justify-center
+          bg-[#F8F7FF]
+          px-4
 
-  // Item 4.2 (RF-008). Mesmo cuidado do 4.1: nunca loga corpo nem valores de saúde.
-  async function handleRegistrarSaudeCuidador(e: FormEvent) {
-    e.preventDefault()
-    setErroCuid(null)
-    setResultadoCuid(null)
-    setCarregandoCuid(true)
-    try {
-      const corpo = await chamarApi(`/saude/idoso/${cuid.idosoId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          tipo_medicao: cuid.tipoMedicao,
-          valor_1: Number(cuid.valor1),
-          valor_2: cuid.valor2 === '' ? undefined : Number(cuid.valor2),
-          unidade: cuid.unidade,
-          data_hora: cuid.dataHora === '' ? undefined : new Date(cuid.dataHora).toISOString(),
-          observacoes: cuid.observacoes === '' ? undefined : cuid.observacoes,
-        }),
-      })
-      setResultadoCuid(corpo)
-    } catch (err) {
-      console.error('Falha ao registrar leitura de saúde:', err instanceof Error ? err.message : 'erro')
-      setErroCuid(err instanceof Error ? err.message : 'Falha ao registrar leitura de saúde.')
-    } finally {
-      setCarregandoCuid(false)
-    }
+          dark:bg-[#0F0F17]
+        "
+      >
+        <div className="fixed right-5 top-5 z-50">
+          <BotaoTema />
+        </div>
+
+        <div
+          className="
+            flex flex-col
+            items-center
+            gap-4
+            rounded-2xl
+            border border-[#E5E2F5]
+            bg-white
+            px-10 py-8
+            shadow-sm
+
+            dark:border-[#393947]
+            dark:bg-[#171721]
+          "
+        >
+          <Spinner />
+
+          <p className="text-center font-medium text-[#56657D] dark:text-[#C7C7D1]">
+            Carregando informações de saúde...
+          </p>
+        </div>
+      </main>
+    )
   }
-
-  // Oculto = não renderizado. Erro ao verificar mantém visível (o backend valida de qualquer jeito).
-  const mostrarEscritaDeTerceiros = permissoes.estado === 'erro' || permissoes.escrita
-  const campoClasse = 'mt-1 w-full rounded border border-gray-400 p-3 text-lg'
-  const rotuloClasse = 'block text-lg font-medium text-gray-900'
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-10 p-6">
-      <section className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Registrar leitura de saúde (só idoso)</h1>
-        <form onSubmit={handleRegistrarSaude} className="space-y-4">
-          <div>
-            <label htmlFor="tipo_medicao_saude" className="block text-lg font-medium text-gray-900">
-              Tipo de medição
-            </label>
-            <input
-              id="tipo_medicao_saude"
-              type="text"
-              required
-              maxLength={50}
-              value={tipoMedicao}
-              onChange={(e) => setTipoMedicao(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="valor_1_saude" className="block text-lg font-medium text-gray-900">
-              Valor 1
-            </label>
-            <input
-              id="valor_1_saude"
-              type="number"
-              required
-              min={0}
-              step="any"
-              value={valorSaude1}
-              onChange={(e) => setValorSaude1(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="valor_2_saude" className="block text-lg font-medium text-gray-900">
-              Valor 2 (opcional)
-            </label>
-            <input
-              id="valor_2_saude"
-              type="number"
-              min={0}
-              step="any"
-              value={valorSaude2}
-              onChange={(e) => setValorSaude2(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="unidade_saude" className="block text-lg font-medium text-gray-900">
-              Unidade
-            </label>
-            <input
-              id="unidade_saude"
-              type="text"
-              required
-              maxLength={20}
-              value={unidadeSaude}
-              onChange={(e) => setUnidadeSaude(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="data_hora_saude" className="block text-lg font-medium text-gray-900">
-              Data e hora (opcional)
-            </label>
-            <input
-              id="data_hora_saude"
-              type="datetime-local"
-              value={dataHoraSaude}
-              onChange={(e) => setDataHoraSaude(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
-          <div>
-            <label htmlFor="observacoes_saude" className="block text-lg font-medium text-gray-900">
-              Observações (opcional)
-            </label>
-            <input
-              id="observacoes_saude"
-              type="text"
-              maxLength={300}
-              value={observacoesSaude}
-              onChange={(e) => setObservacoesSaude(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-            />
-          </div>
+    <main
+      className="
+        min-h-screen
+        bg-[#F8F7FF]
+        px-4 py-5
+
+        dark:bg-[#0F0F17]
+
+        sm:px-6
+        lg:px-8
+      "
+    >
+      <div className="mx-auto w-full max-w-7xl">
+        {/* TOPO */}
+
+        <div className="mb-8 flex items-center justify-between gap-4">
           <button
-            type="submit"
-            disabled={carregandoSaude}
-            aria-busy={carregandoSaude}
-            className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+            type="button"
+            onClick={voltarPagina}
+            className="
+              flex min-h-[48px]
+              items-center gap-3
+              rounded-2xl
+              border border-[#DDD9F2]
+              bg-white
+              px-5 py-3
+              font-semibold
+              text-[#071A38]
+              shadow-sm
+              transition
+
+              hover:border-[#6C63FF]
+              hover:text-[#6C63FF]
+
+              dark:border-[#393947]
+              dark:bg-[#171721]
+              dark:text-[#F5F5FA]
+
+              dark:hover:border-[#9B96FF]
+              dark:hover:text-[#9B96FF]
+            "
           >
-            {carregandoSaude && <Spinner />}
-            {carregandoSaude ? 'Registrando...' : 'Registrar leitura'}
-          </button>
-        </form>
-        {erroSaude && (
-          <p role="alert" className="text-lg text-red-700">
-            {erroSaude}
-          </p>
-        )}
-        {resultadoSaude && <p className="text-lg text-gray-900">Leitura registrada (id {resultadoSaude.id}).</p>}
-      </section>
-
-      {/* Região viva persistente (sempre montada): o aviso de cuidador sem permissão chega depois, como
-          mudança de conteúdo, o que o leitor de tela anuncia; região inserida já com texto nem sempre é. */}
-      <div role="status" className="w-full max-w-sm text-lg text-gray-900 empty:-mb-10">
-        {permissoes.estado === 'carregando' && (
-          <span className="flex items-center gap-2">
-            <Spinner />
-            <span>Verificando permissões...</span>
-          </span>
-        )}
-        {permissoes.avisoSemFlag &&
-          'Seu vínculo de cuidador não tem a permissão de registrar saúde ativada. Você ainda pode ver o histórico.'}
-      </div>
-      {permissoes.estado === 'erro' && (
-        <p role="alert" className="w-full max-w-sm text-lg text-red-700">
-          Não foi possível verificar suas permissões. O servidor continua validando cada ação.
-        </p>
-      )}
-
-      {mostrarEscritaDeTerceiros && (
-        <section className="w-full max-w-sm space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900">Registrar leitura de saúde de um idoso (cuidador ou familiar)</h2>
-          <form onSubmit={handleRegistrarSaudeCuidador} className="space-y-4">
-            {(
-              [
-                ['idosoId', 'Id do idoso', 'idoso_id_cuid', { type: 'number', required: true, min: 1, step: 1 }],
-                ['tipoMedicao', 'Tipo de medição (cuidador)', 'tipo_medicao_cuid', { type: 'text', required: true, maxLength: 50 }],
-                ['valor1', 'Valor 1 (cuidador)', 'valor_1_cuid', { type: 'number', required: true, min: 0, step: 'any' }],
-                ['valor2', 'Valor 2 (opcional, cuidador)', 'valor_2_cuid', { type: 'number', min: 0, step: 'any' }],
-                ['unidade', 'Unidade (cuidador)', 'unidade_cuid', { type: 'text', required: true, maxLength: 20 }],
-                ['dataHora', 'Data e hora (opcional, cuidador)', 'data_hora_cuid', { type: 'datetime-local' }],
-                ['observacoes', 'Observações (opcional, cuidador)', 'observacoes_cuid', { type: 'text', maxLength: 300 }],
-              ] as const
-            ).map(([campo, rotulo, id, atributos]) => (
-              <div key={id}>
-                <label htmlFor={id} className={rotuloClasse}>
-                  {rotulo}
-                </label>
-                <input id={id} {...atributos} value={cuid[campo]} onChange={setCampoCuid(campo)} className={campoClasse} />
-              </div>
-            ))}
-            <button
-              type="submit"
-              disabled={carregandoCuid}
-              aria-busy={carregandoCuid}
-              className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+            <span
+              className="text-xl"
+              aria-hidden="true"
             >
-              {carregandoCuid && <Spinner />}
-              {carregandoCuid ? 'Registrando...' : 'Registrar leitura do idoso'}
-            </button>
-          </form>
-          {erroCuid && (
-            <p role="alert" className="text-lg text-red-700">
-              {erroCuid}
-            </p>
-          )}
-          {resultadoCuid && <p className="text-lg text-gray-900">Leitura do idoso registrada (id {resultadoCuid.id}).</p>}
-        </section>
-      )}
+              ←
+            </span>
 
-      <EdicaoSaude titulo="Editar registro de saúde (próprio, idoso)" sufixo="edição" comIdoso={false} />
-      {mostrarEscritaDeTerceiros && (
-        <EdicaoSaude
-          titulo="Editar registro de saúde de um idoso (cuidador ou familiar)"
-          sufixo="edição, idoso vinculado"
-          comIdoso
-        />
-      )}
-      <HistoricoSaude />
+            Voltar
+          </button>
+
+          <BotaoTema />
+        </div>
+
+        {/* CABEÇALHO */}
+
+        <header
+          className="
+            mb-8
+            rounded-3xl
+            border border-[#E5E2F5]
+            bg-white
+            px-6 py-7
+            shadow-sm
+
+            dark:border-[#393947]
+            dark:bg-[#171721]
+
+            md:px-8 md:py-8
+          "
+        >
+          <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#6C63FF] dark:text-[#9B96FF]">
+            Cuidados e bem-estar
+          </span>
+
+          <h1 className="mt-2 text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA] md:text-4xl">
+            Minha Saúde
+          </h1>
+
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1] md:text-lg">
+            Registre, acompanhe e mantenha suas informações
+            de saúde organizadas em um só lugar.
+          </p>
+        </header>
+
+        {/* PERMISSÕES */}
+
+        <div className="mb-6">
+          <AvisoPermissaoSaude
+            permissoes={permissoes}
+          />
+        </div>
+
+        {/* CONTEÚDO */}
+
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+          {/* COLUNA ESQUERDA */}
+
+          <div className="space-y-6">
+            <RegistrarMinhaSaude />
+
+            {mostrarEscritaDeTerceiros && (
+              <RegistrarSaudeIdoso />
+            )}
+          </div>
+
+          {/* COLUNA DIREITA */}
+
+          <div className="space-y-6">
+            <HistoricoSaude />
+
+            <EditarSaude
+              titulo="Editar meu registro"
+              comIdoso={false}
+            />
+
+            {mostrarEscritaDeTerceiros && (
+              <EditarSaude
+                titulo="Editar registro do idoso"
+                comIdoso
+              />
+            )}
+          </div>
+        </div>
+      </div>
     </main>
   )
 }
