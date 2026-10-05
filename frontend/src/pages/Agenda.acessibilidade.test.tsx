@@ -6,7 +6,7 @@ import Agenda from "./Agenda";
 
 expect.extend(toHaveNoViolations);
 
-// Item 6.1: auditoria automática de acessibilidade (jest-axe) sobre o esqueleto de /agenda.
+// Itens 6.1 e 6.2: auditoria automática de acessibilidade (jest-axe) sobre o esqueleto de /agenda.
 // LIMITE: jsdom não calcula layout nem cor, então contraste de cor NÃO é verificado aqui
 // (regra color-contrast desligada de propósito, ver AXE). Contraste segue pendente para o item 9.1.
 // Dados abaixo são valores obviamente falsos de teste.
@@ -52,16 +52,16 @@ describe("jest-axe: controle positivo", () => {
 });
 
 describe("Agenda: acessibilidade", () => {
-  it("estado inicial dos dois formulários", async () => {
+  it("estado inicial dos três formulários", async () => {
     const { container } = render(<Agenda />);
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
 
-  describe.each(["idoso", "familiar"] as const)("formulário %s", (sufixo) => {
+  describe.each(["idoso", "familiar", "cuidador"] as const)("formulário %s", (sufixo) => {
     async function preencherEEnviar() {
       const user = userEvent.setup();
       const utils = render(<Agenda />);
-      if (sufixo === "familiar") await user.type(screen.getByLabelText("Id do idoso (familiar)", { exact: true }), "1");
+      if (sufixo !== "idoso") await user.type(screen.getByLabelText(`Id do idoso (${sufixo})`, { exact: true }), "1");
       await user.type(screen.getByLabelText(`Título (${sufixo})`, { exact: true }), "Consulta Ficticia");
       fireEvent.change(screen.getByLabelText(`Início (${sufixo})`, { exact: true }), { target: { value: "2026-10-10T09:00" } });
       await user.click(screen.getByRole("button", { name: new RegExp(`^criar compromisso \\(${sufixo}\\)$`, "i") }));
