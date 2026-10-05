@@ -1,4 +1,4 @@
-// Verificação ponta a ponta dos itens 6.1 (RF-015) e 6.2 (RF-016): rota REAL (app de ./app via Supertest), Prisma REAL e
+// Verificação ponta a ponta dos itens 6.1 (RF-015), 6.2 (RF-016) e 6.3 (RF-017, leitura): rota REAL (app de ./app via Supertest), Prisma REAL e
 // SQL Server LOCAL. Os testes de Jest mockam o Prisma; este script exercita o caminho inteiro junto,
 // inclusive a CHECK CK_Evento_tipo_evento do banco.
 //
@@ -71,7 +71,13 @@ async function main() {
 
   type Flags = { permite_marcar_dose: boolean; permite_registrar_saude: boolean; permite_criar_evento_cuidado: boolean };
   // flags: boolean liga/desliga as 3; objeto parcial sobrescreve só as citadas (o resto nasce false).
-  async function vincular(idosoId: number, vinculadoId: number, tipo: "cuidador" | "familiar", flags: boolean | Partial<Flags> = false) {
+  async function vincular(
+    idosoId: number,
+    vinculadoId: number,
+    tipo: "cuidador" | "familiar",
+    flags: boolean | Partial<Flags> = false,
+    status: "aprovado" | "pendente" | "recusado" = "aprovado",
+  ) {
     const f: Flags =
       typeof flags === "boolean"
         ? { permite_marcar_dose: flags, permite_registrar_saude: flags, permite_criar_evento_cuidado: flags }
@@ -82,8 +88,8 @@ async function main() {
         vinculado_id: vinculadoId,
         tipo_vinculo: tipo,
         origem: tipo === "cuidador" ? "solicitacao_cuidador" : "solicitacao_familiar",
-        status: "aprovado",
-        aprovador_id: idosoId,
+        status,
+        aprovador_id: status === "pendente" ? null : idosoId,
         data_solicitacao: new Date(),
         ...f,
       },
@@ -203,6 +209,81 @@ async function main() {
     // cuidador: cuidado).
     const durante = await contarEventos();
     ok("COUNT(*) de Evento durante = antes + 4", durante === eventosAntes + 4, `antes ${eventosAntes}, durante ${durante}`);
+
+    // ---- Item 6.3: leitura (GET /agenda e GET /agenda/idoso/:idosoId) ----
+    // Agenda própria de dois idosos, gravada direto no banco com milissegundos (datetime2), fora das rotas de criação.
+    const idosoB = await conta("idoso");
+    const cuidadorPend = await conta("cuidador");
+    const cuidadorRec = await conta("cuidador");
+    const familiarPend = await conta("familiar");
+    const semVinculo = await conta("familiar");
+    await vincular(idosoB.id, cuidadorPend.id, "cuidador", true, "pendente");
+    await vincular(idosoB.id, cuidadorRec.id, "cuidador", true, "recusado");
+    await vincular(idosoB.id, familiarPend.id, "familiar", false, "pendente");
+    const get = (token: string, caminho: string) => request(app).get(caminho).set("Authorization", `Bearer ${token}`);
+    const base = { criado_por_id: idoso.id, editado_por_id: null, descricao: `${sentinela}-descricao` };
+    // Limpa os eventos que as rotas de criação deixaram para o idoso, para a agenda lida ser só a semeada abaixo.
+    await prisma.evento.deleteMany({ where: { idoso_id: idoso.id } });
+    const semeados = [
+      { ...base, idoso_id: idoso.id, tipo_evento: "medico", titulo: `${sentinela}-c`, data_hora_inicio: new Date("2026-10-12T12:00:00.456Z") },
+      { ...base, idoso_id: idoso.id, tipo_evento: "pessoal", titulo: `${sentinela}-a`, data_hora_inicio: new Date("2026-10-12T12:00:00.123Z") },
+      // Atravessa a meia-noite de São Paulo (23:00-03:00 de 11/10 até 02:00-03:00 de 12/10).
+      {
+        ...base,
+        idoso_id: idoso.id,
+        tipo_evento: "cuidado",
+        titulo: `${sentinela}-noite`,
+        data_hora_inicio: new Date("2026-10-12T02:00:00.000Z"),
+        data_hora_fim: new Date("2026-10-12T05:00:00.789Z"),
+      },
+    ];
+    for (const d of semeados) await prisma.evento.create({ data: d });
+    await prisma.evento.create({
+      data: { ...base, idoso_id: idosoB.id, criado_por_id: idosoB.id, tipo_evento: "pessoal", titulo: `${sentinela}-do-B`, data_hora_inicio: new Date("2026-10-12T10:00:00.000Z") },
+    });
+    const esperadoInstantes = ["2026-10-12T02:00:00.000Z", "2026-10-12T12:00:00.123Z", "2026-10-12T12:00:00.456Z"];
+    const instantes = (r: { body: { eventos?: { data_hora_inicio: string }[] } }) => (r.body.eventos ?? []).map((e) => e.data_hora_inicio);
+
+    const g1 = await get(idoso.token, "/agenda");
+    ok(
+      "idoso lê a própria agenda: ordem e instantes exatos (ms) após ida e volta no datetime2",
+      g1.status === 200 && JSON.stringify(instantes(g1)) === JSON.stringify(esperadoInstantes),
+      `status ${g1.status}, ${instantes(g1).length} evento(s)`,
+    );
+    const noite = (g1.body.eventos ?? []).find((e: { tipo_evento: string }) => e.tipo_evento === "cuidado");
+    ok(
+      "evento que atravessa a meia-noite volta com início e fim intactos",
+      noite?.data_hora_inicio === "2026-10-12T02:00:00.000Z" && noite?.data_hora_fim === "2026-10-12T05:00:00.789Z",
+      `${noite?.data_hora_inicio} até ${noite?.data_hora_fim}`,
+    );
+    ok("agenda do idoso traz os 3 tipos e nenhum evento do outro idoso", new Set((g1.body.eventos ?? []).map((e: { tipo_evento: string }) => e.tipo_evento)).size === 3 && (g1.body.eventos ?? []).every((e: { idoso_id: number }) => e.idoso_id === idoso.id), "ok");
+
+    // Leitura não depende de modo_decisao nem de flags: familiar com modo 'idoso' e cuidador sem nenhuma flag leem.
+    await prisma.usuario.update({ where: { id: idoso.id }, data: { modo_decisao: "idoso" } });
+    const g2 = await get(cuidadorSem.token, rota);
+    const g3 = await get(familiar.token, rota);
+    ok(
+      "cuidador aprovado sem nenhuma flag lê; familiar aprovado (modo_decisao 'idoso') lê; corpo igual ao do idoso",
+      g2.status === 200 && g3.status === 200 && JSON.stringify(g2.body) === JSON.stringify(g1.body) && JSON.stringify(g3.body) === JSON.stringify(g1.body),
+      `status ${g2.status}/${g3.status}`,
+    );
+
+    const negados = await Promise.all([
+      get(cuidadorPend.token, `/agenda/idoso/${idosoB.id}`),
+      get(cuidadorRec.token, `/agenda/idoso/${idosoB.id}`),
+      get(familiarPend.token, `/agenda/idoso/${idosoB.id}`),
+      get(semVinculo.token, `/agenda/idoso/${idosoB.id}`),
+    ]);
+    ok("pendente, recusado e sem vínculo recebem 403", negados.every((r) => r.status === 403), `status ${negados.map((r) => r.status).join("/")}`);
+    const g4 = await get(familiar.token, `/agenda/idoso/${idosoB.id}`);
+    const g5 = await get(idosoB.token, "/agenda");
+    ok(
+      "acesso cruzado: vinculado só ao idoso A leva 403 no B; B lê só o evento dele",
+      g4.status === 403 && g5.status === 200 && (g5.body.eventos ?? []).length === 1 && g5.body.eventos[0].idoso_id === idosoB.id,
+      `status ${g4.status}/${g5.status}`,
+    );
+    const g6 = await get(cuidadorSem.token, "/agenda");
+    ok("cuidador em GET /agenda: 403", g6.status === 403, `status ${g6.status}`);
   } finally {
     // Ordem de FK: eventos, vínculos, contas.
     await prisma.evento.deleteMany({ where: { OR: [{ idoso_id: { in: usuarios } }, { criado_por_id: { in: usuarios } }] } });
