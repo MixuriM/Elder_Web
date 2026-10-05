@@ -10,6 +10,7 @@ import Perfil from './pages/Perfil'
 import Vinculos from './pages/Vinculos'
 import Saude from './pages/Saude'
 import Remedios from './pages/Remedios'
+import Agenda from './pages/Agenda'
 import RotaProtegida from './components/RotaProtegida'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 
@@ -60,6 +61,14 @@ function App() {
         element={
           <RotaProtegida>
             <Remedios />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/agenda"
+        element={
+          <RotaProtegida>
+            <Agenda />
           </RotaProtegida>
         }
       />
