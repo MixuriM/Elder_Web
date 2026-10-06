@@ -7,10 +7,12 @@ function ActionCard({
   description,
   icon: Icon,
   color,
+  onClick,
 }: ActionCardProps) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className={`
         group
 
