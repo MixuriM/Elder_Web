@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe, toHaveNoViolations } from "jest-axe";
 import Alimentacao from "./Alimentacao";
@@ -90,5 +90,88 @@ describe("Alimentacao: acessibilidade", () => {
     const { container } = await preencherEEnviar();
     expect(await screen.findByRole("alert")).toBeVisible();
     expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+});
+
+// Item 7.2: seção "Ver histórico alimentar". Mesma limitação de contraste (item 9.1). Valores obviamente falsos.
+describe("Alimentacao: acessibilidade da seção Ver histórico alimentar (item 7.2)", () => {
+  const ROTULO_CAMPO = "Id do idoso para ver o histórico (vazio = meu histórico)";
+  const regiao = () => screen.getByRole("region", { name: "Ver histórico alimentar" });
+
+  const REGISTROS = [
+    {
+      id: 2,
+      idoso_id: 7,
+      registrado_por_id: 7,
+      refeicao: "almoco",
+      descricao: "Descricao Ficticia 2",
+      data_hora: "2026-10-05T12:00:00.000Z",
+      editado_por_id: null,
+      created_at: "2026-09-01T10:00:00.000Z",
+      updated_at: "2026-09-01T10:00:00.000Z",
+    },
+    {
+      id: 1,
+      idoso_id: 7,
+      registrado_por_id: 7,
+      refeicao: "cafe_manha",
+      descricao: "Descricao Ficticia 1",
+      data_hora: "2026-10-04T11:00:00.000Z",
+      editado_por_id: null,
+      created_at: "2026-09-01T10:00:00.000Z",
+      updated_at: "2026-09-01T10:00:00.000Z",
+    },
+  ];
+
+  async function pedir() {
+    const user = userEvent.setup();
+    const utils = render(<Alimentacao />);
+    await user.click(within(regiao()).getByRole("button", { name: /^ver histórico alimentar$/i }));
+    return utils;
+  }
+
+  it("estado inicial com a seção presente", async () => {
+    const { container } = render(<Alimentacao />);
+    expect(within(regiao()).getByLabelText(ROTULO_CAMPO, { exact: true })).toBeInTheDocument();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("carregando (botão ocupado e status de carregando)", async () => {
+    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    const { container } = await pedir();
+    expect(await within(regiao()).findByRole("button", { name: /carregando/i })).toHaveAttribute("aria-busy", "true");
+    expect(within(regiao()).getByRole("status")).toBeVisible();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("sucesso com itens", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: REGISTROS }));
+    const { container } = await pedir();
+    expect(await within(regiao()).findAllByRole("listitem")).toHaveLength(2);
+    expect(within(regiao()).getByRole("status")).toBeVisible();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("vazio", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
+    const { container } = await pedir();
+    expect(await within(regiao()).findByRole("status")).toHaveTextContent("Nenhuma refeição registrada.");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it.each([403, 400])("erro %i em role=alert visível", async (status) => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
+    const { container } = await pedir();
+    expect(await within(regiao()).findByRole("alert")).toBeVisible();
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("controle positivo: sem o htmlFor do campo da seção, o jest-axe acusa 'label'", async () => {
+    const { container } = render(<Alimentacao />);
+    const label = within(regiao()).getByText(ROTULO_CAMPO, { exact: true });
+    expect(label.tagName).toBe("LABEL");
+    label.removeAttribute("for");
+    const ids = (await axe(container, AXE)).violations.map((v) => v.id);
+    expect(ids).toContain("label");
   });
 });

@@ -384,7 +384,12 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   (sem CHECK), `descricao` obrigatória 1 a 500 (dado sensível, regras de log do RNF-001), `data_hora` ISO com fuso,
   passado e futuro. Decisões D1 a D12 no histórico. Esqueleto `pages/Alimentacao.tsx` em `/alimentacao`. Backend 35
   suítes e 1802 testes, frontend 377 passando; `verify-rotas-alimentacao.ts` (prefixo `verify-alim-`) 14/14 PASS no
-  SQL Server local. Commits e PR ainda não feitos ao registrar isto.
+  SQL Server local. PR #135, mergeado em `main` em 2026-10-05T16:59:48Z por rebase.
+- 7.2 histórico alimentar (RF-019): `GET /alimentacao` (idoso) e `GET /alimentacao/idoso/:idosoId` (vínculo aprovado
+  basta: cuidador lê com as 3 flags `false`, sem `permite_*` nem resolver) em `routes/alimentacao.ts`, ordem
+  `data_hora` e `id` decrescentes. `lib/alimentacaoFormato.ts` e seção "Ver histórico alimentar" em `Alimentacao.tsx`.
+  Backend 36 suítes e 1890 testes, frontend 440 passando; `verify-rotas-alimentacao.ts` 24/24 PASS no SQL Server
+  local. Commits e PR ainda não feitos ao registrar isto.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
