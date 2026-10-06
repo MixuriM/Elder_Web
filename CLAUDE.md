@@ -296,7 +296,9 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   Para regras de segurança, validar com mutação local (quebrar o código, ver o teste
   falhar, reverter).
 - Testes de rota importam de `./app`, nunca de `./index`.
-- `jest-axe` não calcula contraste em jsdom. Contraste de cor segue pendente (item 9.1).
+- `jest-axe` não calcula contraste em jsdom; o contraste é auditado por `npm run test:a11y` (Playwright, local, fora do
+  CI; exige SQL Server local e `MSSQL_SA_PASSWORD`, senão o spec trava). `#6C63FF` sólido reprova sobre branco: usar
+  `#5F56EC` em `text-`/`bg-` e `#554CD8` no hover com texto branco.
 - A matriz `backend/src/testSupport/matrizAcessoLeitura.ts` é compartilhada por `saudeHistorico` e
   `remediosHistorico`. Toda nova rota de leitura por vínculo deve entrar nela.
 - O e2e cria contas `e2e-*@e2e.elderweb.test` no Firebase real, sem limpeza automática.
@@ -318,7 +320,9 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   variável no dashboard. Conferir o log do `npm ci` e do 1º deploy depois do merge (o `docker build` local passou).
 - Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
   `frontend/src/lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
-- Contraste de cor segue no item 9.1; revisar `pdfjs-dist` (devDependency, com `canvas` opcional sem binário) e os
+- Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura) e levar ao grupo: `heading-order`
+  da landing, 2 `h1` em Cadastro/Login/EsqueciSenha, textos de 9px do `Sidebar`, 38 `focus:ring-` com opacidade.
+- Revisar `pdfjs-dist` (devDependency, com `canvas` opcional sem binário) e os
   3 avisos de `npm audit` só de dev (`pdfjs-dist`, `tar`, `@mapbox/node-pre-gyp`; `--omit=dev` dá 0) no item 9.3.
 
 **Decisões fechadas**
@@ -397,6 +401,9 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   testes passando. PR #141, mergeado em `main` em 2026-10-06T13:20:42Z por rebase (`259c195` feat, `4f33d1d` test e `56fcf28` docs; os hashes locais `df66c8f`, `a3f2e85` e `600ce7c` mudaram no rebase).
 - 8.x teste de navegação: `LandingPage.navegacao.test.tsx` e `Welcome.navegacao.test.tsx` (Entrar e Criar minha conta vão para `/welcome`;
   na Welcome, `/cadastro` e `/login`; os botões da Welcome existem em 2 cópias no DOM, mobile e desktop).
+- 9.1 auditoria axe (RNF-007): 9 `*.acessibilidade.test.tsx` novos (jest-axe) e `e2e/acessibilidade-{publicas,autenticadas}.spec.ts`
+  (`@axe-core/playwright`, 7+8 rotas, 3 perfis, falha só em critical/serious). Frontend 43 arquivos e 433 testes; `test:a11y`
+  15/15. PR #143 ABERTO (não mergeado ao registrar; trocar por data e hashes depois do merge; locais `4e1656f`...`cf291cc`).
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
