@@ -368,7 +368,7 @@ function FormularioCadastro({
             sm:text-lg
 
             dark:bg-[#5F56EC]
-            dark:hover:bg-[#7C74FF]
+            dark:hover:bg-[#554CD8]
             dark:focus:ring-[#3A355C]
           "
         >
