@@ -68,7 +68,7 @@ export default function DetalhesVinculo({ vinculo, onFechar }: DetalhesVinculoPr
           <button
             type="button"
             onClick={onFechar}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-[#071A38] transition hover:bg-white hover:text-[#5F56EC] focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40 dark:text-white dark:hover:bg-[#151B35]"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-[#071A38] transition hover:bg-white hover:text-[#554CD8] focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40 dark:text-white dark:hover:bg-[#151B35]"
             aria-label="Fechar detalhes"
           >
             <X size={24} aria-hidden="true" />

@@ -67,7 +67,12 @@ async function auditar(page: Page, rotulo: string) {
     if (!graves.includes(v)) console.log(`[a11y] ${rotulo} (nao falha) ${resumir(v)}`);
   }
   for (const i of incomplete) {
-    console.log(`[a11y] ${rotulo} incomplete ${i.id} x${i.nodes.length}`);
+    // id, seletor e o motivo do axe (messageKey: bgGradient, bgImage, bgOverlap...). Nunca html.
+    const alvos = i.nodes.map((n) => {
+      const motivo = (n.any[0]?.data as { messageKey?: string } | undefined)?.messageKey;
+      return `${n.target.flat().join(" ")}${motivo ? ` {${motivo}}` : ""}`;
+    });
+    console.log(`[a11y] ${rotulo} incomplete ${i.id} x${i.nodes.length} alvos=[${alvos.join(" | ")}]`);
   }
   expect.soft(graves.map(resumir), `${rotulo}: violações critical/serious`).toEqual([]);
 }
@@ -76,7 +81,7 @@ type Opcoes = {
   // Leva a tela a um estado extra (ex.: mensagem de erro) antes de auditar.
   estado?: (page: Page) => Promise<void>;
   rotulo?: string;
-  // Falso desliga a variante escura (estados extras só rodam em claro).
+  // Falso desliga a variante escura.
   escuro?: boolean;
 };
 
@@ -95,6 +100,7 @@ export async function auditarRota(context: BrowserContext, rota: string, opcoes:
         else {
           const escura = await abrirPagina(context, rota, DESKTOP, true);
           try {
+            await opcoes.estado?.(escura);
             await auditar(escura, `${nome} [desktop escuro]`);
           } finally {
             await escura.close();

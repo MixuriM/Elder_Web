@@ -124,7 +124,7 @@ function CTASection({
             focus-visible:ring-[#6C63FF]/40
 
             dark:bg-[#5F56EC]
-            dark:hover:bg-[#6C63FF]
+            dark:hover:bg-[#554CD8]
           "
         >
           Criar minha conta
