@@ -30,7 +30,7 @@ function WelcomeBotoes() {
           focus:ring-[#D8D4FF]
 
           dark:bg-[#8B82FF]
-          dark:hover:bg-[#9E96FF]
+          dark:hover:bg-[#554CD8]
           dark:focus:ring-[#3A355C]
         "
       >
