@@ -1657,3 +1657,27 @@ Decisões D1 a D13 fechadas por Claude sob delegação explícita do Marcos em 2
 **Limitações aceitas.** Sem paginação, filtro, edição, exclusão nem notificação; a lista não atualiza sozinha depois de registrar; a seção não conhece o perfil (o 403 vira mensagem); um registro com `refeicao` desconhecida ou data inválida derruba a lista inteira no esqueleto (`refeicao` não tem CHECK no banco); M19 só é pego por um teste porque o fake não aplica `take`; contraste de cor segue no item 9.1; nada visto no navegador.
 
 **Continua com o Marcos:** avisar Laureane e Jennifer (contrato novo: `GET /alimentacao`, `GET /alimentacao/idoso/:idosoId`, `lib/alimentacaoFormato.ts` e a seção nova de `Alimentacao.tsx`, com os textos fixos acima); commits e PR; registrar PR e hashes depois do merge.
+
+## Item 8.1 — Página "Sobre Nós" pública (RF-029)
+
+Decisões D0 a D8 fechadas por Claude sob delegação explícita do Marcos em 2026-10-06 ("decisão do grupo").
+
+- **D0.** Conferido antes de codar: nenhuma branch, commit ou código com `SobreNos` ou `sobre-nos`. Branch `development`, árvore limpa.
+- **D1.** Backend intocado. Esqueleto cru de frontend com conteúdo provisório; tela é da Laureane e da Jennifer. Único arquivo existente editado: `App.tsx` (import e uma rota).
+- **D2.** Rota `/sobre-nos`, pública, fora de `RotaProtegida`. Arquivo `frontend/src/pages/SobreNos.tsx`. Não usa `useAuthUser` nem contexto de foto.
+- **D3.** Cabeçalho próprio com 2 links ("Voltar para a página inicial" para `/`; "Entrar ou criar conta" para `/welcome`), `<main>` com um `<h1>` e 5 `<section aria-labelledby>` com `<h2>`. Sem `Header`, `Sidebar`, `Navbar` ou `Footer` existentes.
+- **D4.** Texto só com fatos do CLAUDE.md e do TCC; acessibilidade em tom de intenção ("buscamos"); equipe só com primeiros nomes; sem instituição, contato, número ou link externo.
+- **D5.** `text-lg` no corpo, alvos `min-h-[44px]`, foco visível. Texto de corpo e links em `#071A38` sobre fundo claro; roxo da marca só em borda, fundo sem texto e h1/h2 grandes e em negrito. As outras páginas não definem `document.title`, então não foi adicionado.
+- **D6.** `components/landing/*` intocado: a página não tem link de entrada a partir da landing (pendência da Laureane).
+- **D7.** Só testes do 8.1.
+- **D8.** Este registro; no CLAUDE.md, 2 linhas.
+
+**Testes.** `SobreNos.test.tsx` (h1 e main únicos, 5 h2 e regiões, 2 links com href, termos proibidos ausentes), `App.sobreNos.test.tsx` (`<App />` real em `BrowserRouter` com `pushState('/sobre-nos')`, sem usuário e com usuário; pathname mantido), `SobreNos.acessibilidade.test.tsx` (jest-axe, `color-contrast` desligado; h1 afirmado à mão porque `page-has-heading-one` não roda via jest-axe).
+
+**Mutações locais (revertidas, `git diff` limpo).** M1 (rota dentro de `RotaProtegida`): cai o teste "sem usuário" de `App.sobreNos`. M2 (`/welcome` para `/login`): cai o teste do link em `SobreNos.test`. M3 (sem `<h1>`): caem `SobreNos.test`, `SobreNos.acessibilidade` e os 2 de `App.sobreNos`. Na primeira versão do T3, M3 não derrubava o axe; corrigido com a asserção do h1.
+
+**Suítes.** Frontend 26 arquivos e 388 testes (0 pulados) antes; 29 arquivos e 396 testes depois (mais 8). `tsc --noEmit`, `typecheck:test`, lint e build limpos. Backend não rodado (não tocado).
+
+**Limitações aceitas.** Contraste de cor segue no item 9.1; nada visto no navegador; texto e layout provisórios.
+
+**Continua com o Marcos:** avisar Laureane e Jennifer (página nova provisória e rota em `App.tsx`); link de entrada na landing é da Laureane; atualizar no Obsidian o Acompanhamento 8.1 e a tabela de Testes do 8.1; hashes dos commits a registrar depois do merge.
