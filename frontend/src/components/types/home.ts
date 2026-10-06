@@ -12,4 +12,5 @@ export type ActionCardProps = {
   description: string;
   icon: ElementType;
   color: string;
+  onClick?: () => void;
 };
