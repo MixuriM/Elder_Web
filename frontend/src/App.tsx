@@ -13,6 +13,7 @@ import Remedios from './pages/Remedios'
 import Agenda from './pages/Agenda'
 import Alimentacao from './pages/Alimentacao'
 import SobreNos from './pages/SobreNos'
+import Orientacoes from './pages/Orientacoes'
 import RotaProtegida from './components/RotaProtegida'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 
@@ -80,6 +81,14 @@ function App() {
         element={
           <RotaProtegida>
             <Alimentacao />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/orientacoes"
+        element={
+          <RotaProtegida>
+            <Orientacoes />
           </RotaProtegida>
         }
       />
