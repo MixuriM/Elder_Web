@@ -182,7 +182,7 @@ function LadoInformativo({
 
           hover:border-[#6C63FF]
           hover:bg-white
-          hover:text-[#5F56EC]
+          hover:text-[#554CD8]
 
           sm:left-5
           sm:top-5

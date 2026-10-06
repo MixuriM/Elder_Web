@@ -403,7 +403,7 @@ function CardMedicamento({
 
             hover:border-[#A18BFF]
             hover:bg-[#F3F0FF]
-            hover:text-[#5F56EC]
+            hover:text-[#554CD8]
 
             focus:outline-none
             focus-visible:ring-2

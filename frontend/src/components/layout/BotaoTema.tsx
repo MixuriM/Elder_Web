@@ -109,7 +109,7 @@ function BotaoTema({
 
                   lg:hover:border-[#A18BFF]
                   lg:hover:bg-[#F3F0FF]
-                  lg:hover:text-[#5F56EC]
+                  lg:hover:text-[#554CD8]
 
                   lg:dark:border-[#454558]
                   lg:dark:bg-[#2B2C3B]
@@ -144,7 +144,7 @@ function BotaoTema({
 
               hover:border-[#A18BFF]
               hover:bg-[#F3F0FF]
-              hover:text-[#5F56EC]
+              hover:text-[#554CD8]
 
               dark:border-[#454558]
               dark:bg-[#2B2C3B]

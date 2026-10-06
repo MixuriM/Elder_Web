@@ -95,7 +95,7 @@ function Saude() {
               transition
 
               hover:border-[#6C63FF]
-              hover:text-[#5F56EC]
+              hover:text-[#554CD8]
 
               dark:border-[#393947]
               dark:bg-[#171721]

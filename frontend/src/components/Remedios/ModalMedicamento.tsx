@@ -215,7 +215,7 @@ function ModalMedicamento({
 
               hover:border-[#A18BFF]
               hover:bg-[#F3F0FF]
-              hover:text-[#5F56EC]
+              hover:text-[#554CD8]
 
               dark:border-[#393947]
               dark:bg-[#20202A]
