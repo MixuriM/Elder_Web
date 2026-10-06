@@ -390,6 +390,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `data_hora` e `id` decrescentes. `lib/alimentacaoFormato.ts` e seção "Ver histórico alimentar" em `Alimentacao.tsx`.
   Backend 36 suítes e 1890 testes, frontend 440 passando; `verify-rotas-alimentacao.ts` 24/24 PASS no SQL Server
   local. Commits e PR ainda não feitos ao registrar isto.
+- 8.1 página pública "Sobre Nós" (RF-029): `/sobre-nos` em `pages/SobreNos.tsx`, fora de `RotaProtegida`, conteúdo provisório (texto e layout
+  finais: Laureane e Jennifer). Frontend 29 arquivos e 396 testes passando; sem link a partir da landing. Commits locais ainda sem hash.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
