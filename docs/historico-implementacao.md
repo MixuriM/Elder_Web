@@ -1681,3 +1681,27 @@ Decisões D0 a D8 fechadas por Claude sob delegação explícita do Marcos em 20
 **Limitações aceitas.** Contraste de cor segue no item 9.1; nada visto no navegador; texto e layout provisórios.
 
 **Continua com o Marcos:** avisar Laureane e Jennifer (página nova provisória e rota em `App.tsx`); link de entrada na landing é da Laureane; atualizar no Obsidian o Acompanhamento 8.1 e a tabela de Testes do 8.1; hashes dos commits a registrar depois do merge.
+
+## Item 8.2 e teste 8.x — Orientações Gerais (RF-031) e navegação Landing/Welcome
+
+Decisões D0 a D14 fechadas por Claude sob delegação explícita do Marcos em 2026-10-06 ("decisão do grupo").
+
+- **D0.** Nenhuma página, rota ou teste de Orientações em branches, commits ou código. O único `orientacoes` no `frontend/src` era o `navigate("/orientacoes")` do `Sidebar` (PR #140). Branch `development`, árvore limpa. Linha de base: 29 arquivos e 396 testes.
+- **D1 e D2.** Backend intocado, sem dependência nova. Esqueleto cru com conteúdo provisório (texto e layout finais: Laureane e Jennifer). Único arquivo existente editado: `App.tsx` (import e uma rota).
+- **D3.** Rota `/orientacoes` dentro de `RotaProtegida`. Conteúdo estático: sem `tipo_perfil`, sem vínculo, sem backend, igual para os 3 perfis.
+- **D4.** Os esqueletos autenticados não têm cabeçalho comum (`Remedios` usa só `navigate(-1)`); cabeçalho próprio com `Link` para `/Home` ("Voltar para o início") e `/perfil` ("Meu perfil").
+- **D5.** h1 "Orientações gerais" e 5 seções com h2: Como começar, Senha e acesso, Perfis e vínculos, O que você encontra no Elder Web, Ajuda e aviso importante. Rótulo da recuperação de senha tirado de `FormularioLogin.tsx`: "Esqueci minha senha". Suporte por `mailto:`; avisos de não enviar informações de saúde por e-mail e de SAMU 192. Sem orientação médica, sem instituição, sem `modo_decisao`.
+- **D7.** Constantes de foco e de link duplicadas do `SobreNos.tsx`; `text-lg`, `min-h-[44px]`, foco de 4px, um único `<main>`.
+- **D8.** `RotaProtegida` e o texto "Carregando..." intocados.
+
+**Testes.** `Orientacoes.test.tsx` (6), `Orientacoes.acessibilidade.test.tsx` (1, jest-axe com `color-contrast` desligado, h1 à mão) e `App.orientacoes.test.tsx` (3: sem usuário vai para `/login`; com usuário renderiza; auth não resolvida mostra "Carregando..." sem redirecionar, via mock de `onAuthChange` que não chama o callback). RED confirmado antes de implementar (módulo e rota inexistentes). 8.x: `LandingPage.navegacao.test.tsx` (2: "Entrar" e "Criar minha conta" vão para `/welcome`) e `Welcome.navegacao.test.tsx` (4: a `Welcome` renderiza os dois botões duas vezes, layout mobile e desktop, então cada cópia é testada).
+
+**Mutações locais (revertidas à mão).** M1 (rota sem `RotaProtegida`): caem 2 de `App.orientacoes`. M2 (sem h1): caem 1 de `Orientacoes.test`, o axe e 1 de `App.orientacoes`. M3 ("Alexa" numa seção): cai o teste de termos proibidos. M4 (`handleLogin` para `/login`): cai o teste da Navbar. M5 (`handleCadastro` para `/cadastro`): cai o da CTASection. M6 (destinos invertidos em `WelcomeBotoes`): caem os 4 da Welcome. M7 (`href` de suporte trocado): cai o teste do `mailto:`. Na primeira tentativa a M1 gerou JSX inválido (0 testes rodaram) e foi refeita.
+
+**Suítes.** Frontend 29 arquivos e 396 testes antes; 34 arquivos e 412 depois (mais 16). `typecheck:test`, lint e build (`tsc -b` e `vite build`) limpos. Backend não tocado.
+
+**Limitações aceitas.** Conteúdo provisório, sem as ilustrações do guia rápido do TCC (2.9.1 e 2.9.3); o `Sidebar` já aponta para `/orientacoes`; sem link na Home e na landing (telas da Laureane e da Jennifer); contraste de cor segue no item 9.1; nada visto no navegador.
+
+**Observações para a auditoria axe (9.x).** O `Login` renderiza 2 `h1` (`LadoInformativo.tsx` e `FormularioLogin.tsx`) e nenhum dos dois tem classe de breakpoint que o esconda (`hidden`, `md:` ou `lg:`): os dois ficam visíveis ao mesmo tempo, em qualquer largura. A `Welcome` renderiza os botões em duplicata, mas escondida por breakpoint: a seção mobile tem `md:hidden` e a seção desktop (`LandingWelcome`) tem `hidden md:block`, então só uma cópia aparece por largura. No jsdom o Tailwind não é carregado, por isso as duas cópias existem no DOM dos testes.
+
+**Continua com o Marcos:** avisar Laureane e Jennifer (página nova provisória, rota em `App.tsx`); commits e PR; registrar PR e hashes depois do merge.
