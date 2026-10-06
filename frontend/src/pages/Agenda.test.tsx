@@ -1,7 +1,16 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import Agenda from "./Agenda";
+
+function renderAgenda() {
+  return render(
+    <MemoryRouter>
+      <Agenda />
+    </MemoryRouter>,
+  );
+}
 
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
@@ -50,7 +59,7 @@ function chamada(i = 0) {
 
 describe("Agenda (item 6.1)", () => {
   it("renderiza os dois formulários com todos os campos acessíveis por label", () => {
-    render(<Agenda />);
+    renderAgenda();
     expect(screen.getByRole("heading", { name: "Criar compromisso" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Criar compromisso para um idoso vinculado" })).toBeInTheDocument();
     for (const s of ["idoso", "familiar"] as const) {
@@ -59,7 +68,7 @@ describe("Agenda (item 6.1)", () => {
   });
 
   it.each(["idoso", "familiar"] as const)("select de tipo (%s) só tem Pessoal e Médico, sem 'cuidado'", (sufixo) => {
-    render(<Agenda />);
+    renderAgenda();
     const opcoes = Array.from(secao(sufixo).tipo.options).map((o) => [o.value, o.textContent]);
     expect(opcoes).toEqual([
       ["pessoal", "Pessoal"],
@@ -69,7 +78,7 @@ describe("Agenda (item 6.1)", () => {
   });
 
   it("campos trazem maxLength 150 (título) e 500 (descrição)", () => {
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("idoso");
     expect(c.titulo).toHaveAttribute("maxLength", "150");
     expect(c.descricao).toHaveAttribute("maxLength", "500");
@@ -78,7 +87,7 @@ describe("Agenda (item 6.1)", () => {
   it("idoso: POST /agenda com Authorization, início via toISOString e fim vazio omitido", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 31 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("idoso");
     await preencher(c, user);
     await user.click(c.botao);
@@ -100,7 +109,7 @@ describe("Agenda (item 6.1)", () => {
   it("idoso: tipo médico, descrição e fim preenchidos vão no corpo, fim via toISOString", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 32 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("idoso");
     await preencher(c, user);
     await user.selectOptions(c.tipo, "medico");
@@ -120,7 +129,7 @@ describe("Agenda (item 6.1)", () => {
   it("familiar: POST /agenda/idoso/<id> com o id digitado no caminho, nunca no corpo", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 33 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("familiar");
     await preencher(c, user);
     await user.click(c.botao);
@@ -136,7 +145,7 @@ describe("Agenda (item 6.1)", () => {
   it("sucesso em role=status com o id criado", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 41 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("idoso");
     await preencher(c, user);
     await user.click(c.botao);
@@ -147,7 +156,7 @@ describe("Agenda (item 6.1)", () => {
   it.each([400, 403, 500])("erro %i em role=alert com a mensagem do servidor", async (status) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("familiar");
     await preencher(c, user);
     await user.click(c.botao);
@@ -158,7 +167,7 @@ describe("Agenda (item 6.1)", () => {
   it.each(["idoso", "familiar"] as const)("durante o envio (%s): botão desabilitado e aria-busy", async (sufixo) => {
     (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao(sufixo);
     await preencher(c, user);
     await user.click(c.botao);
@@ -172,7 +181,7 @@ describe("Agenda (item 6.1)", () => {
       .mockResolvedValueOnce(respostaJson(400, { error: "Mensagem de erro de teste." }))
       .mockReturnValueOnce(new Promise(() => undefined));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("idoso");
     await preencher(c, user);
     await user.click(c.botao);
@@ -187,7 +196,7 @@ describe("Agenda (item 6.1)", () => {
       .mockResolvedValueOnce(respostaJson(201, { id: 5 }))
       .mockReturnValueOnce(new Promise(() => undefined));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("idoso");
     await preencher(c, user);
     await user.click(c.botao);
@@ -202,7 +211,7 @@ describe("Agenda (item 6.1)", () => {
       jest.spyOn(console, m).mockImplementation(() => undefined),
     );
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secao("idoso");
     await preencher(c, user, TITULO);
     await user.click(c.botao);
@@ -230,7 +239,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   }
 
   it("renderiza o título da seção e os campos acessíveis por label, sem select de tipo", () => {
-    render(<Agenda />);
+    renderAgenda();
     expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).toBeInTheDocument();
     Object.values(secaoCuidador()).forEach((el) => expect(el).toBeInTheDocument());
     expect(screen.queryByLabelText(/Tipo \(cuidador\)/)).not.toBeInTheDocument();
@@ -239,7 +248,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   });
 
   it("campos trazem maxLength 150 (título) e 500 (descrição)", () => {
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     expect(c.titulo).toHaveAttribute("maxLength", "150");
     expect(c.descricao).toHaveAttribute("maxLength", "500");
@@ -248,7 +257,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   it("POST /agenda/idoso/<id> com tipo_evento 'cuidado' fixo, datas em ISO UTC com Z, id só no caminho", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 51 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     await preencherCuidador(c, user);
     await user.type(c.descricao, "Trocar curativo");
@@ -275,7 +284,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   it("opcionais em branco não vão no corpo", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 52 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     await preencherCuidador(c, user);
     await user.click(c.botao);
@@ -290,7 +299,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   it("sucesso em role=status com o id criado", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 53 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     await preencherCuidador(c, user);
     await user.click(c.botao);
@@ -301,7 +310,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   it.each([400, 403, 500])("erro %i em role=alert com a mensagem do servidor", async (status) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     await preencherCuidador(c, user);
     await user.click(c.botao);
@@ -312,7 +321,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   it("durante o envio: botão desabilitado e aria-busy", async () => {
     (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     await preencherCuidador(c, user);
     await user.click(c.botao);
@@ -327,7 +336,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
       .mockResolvedValueOnce(respostaJson(201, { id: 54 }))
       .mockReturnValueOnce(new Promise(() => undefined));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     await preencherCuidador(c, user);
     await user.click(c.botao);
@@ -346,7 +355,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
       jest.spyOn(console, m).mockImplementation(() => undefined),
     );
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     const c = secaoCuidador();
     await user.type(c.idosoId, "7");
     await user.type(c.titulo, TITULO);
@@ -409,7 +418,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   afterEach(() => jest.useRealTimers());
 
   it("C1: a seção existe sempre, sem depender de vínculo, permissão ou modo_decisao", () => {
-    render(<Agenda />);
+    renderAgenda();
     const v = verAgenda();
     expect(within(v.regiao).getByRole("heading", { name: "Ver agenda" })).toBeInTheDocument();
     expect(v.campo).toBeInTheDocument();
@@ -420,7 +429,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   it("C2: campo vazio chama GET /agenda, com Authorization e sem Content-Type", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: [] }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     await screen.findByText("Nenhum compromisso na agenda.");
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
@@ -434,7 +443,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   it("C2: campo preenchido chama GET /agenda/idoso/<id>", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: [] }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.type(verAgenda().campo, "7");
     await user.click(verAgenda().botao);
     await screen.findByText("Nenhum compromisso na agenda.");
@@ -448,7 +457,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
     relogioFalso();
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: EVENTOS_API }));
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     const { regiao } = verAgenda();
     expect(await within(regiao).findByRole("status")).toHaveTextContent("4 compromisso(s)");
@@ -496,7 +505,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
     relogioFalso();
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, { eventos: EVENTOS_API }));
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     await screen.findByText("titulo-falso-2");
 
@@ -513,7 +522,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   it("C4: lista vazia mostra a mensagem fixa e nenhum dia", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: [] }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     expect(await screen.findByText("Nenhum compromisso na agenda.")).toBeInTheDocument();
     expect(within(verAgenda().regiao).queryAllByRole("heading", { level: 3 })).toHaveLength(0);
@@ -528,7 +537,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   ])("C4: erro %i vira mensagem fixa em role=alert, sem ecoar o corpo", async (status, mensagem) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: SENT_CORPO }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     const alerta = await within(verAgenda().regiao).findByRole("alert");
     expect(alerta).toHaveTextContent(mensagem);
@@ -538,7 +547,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   it("C4: falha de rede vira a mensagem genérica e a mensagem anterior é limpa ao reenviar", async () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error(SENT_CORPO));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     expect(await within(verAgenda().regiao).findByRole("alert")).toHaveTextContent("Não foi possível carregar a agenda.");
     expect(document.body.textContent).not.toContain(SENT_CORPO);
@@ -551,7 +560,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   it("C4: 200 sem a lista eventos vira erro genérico, nunca tela vazia", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { outra: 1 }));
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     expect(await within(verAgenda().regiao).findByRole("alert")).toHaveTextContent("Não foi possível carregar a agenda.");
   });
@@ -561,7 +570,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
       respostaJson(200, { eventos: [evApi(1, "medico", "data-sigilosa-falsa")] }),
     );
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     const alerta = await within(verAgenda().regiao).findByRole("alert");
     expect(alerta).toHaveTextContent("Não foi possível exibir a agenda.");
@@ -575,7 +584,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
       jest.spyOn(console, m).mockImplementation(() => undefined),
     );
     const user = userEvent.setup();
-    render(<Agenda />);
+    renderAgenda();
     await user.click(verAgenda().botao);
     await screen.findByText("titulo-falso-2");
     const logado = JSON.stringify(espioes.flatMap((s) => s.mock.calls));
@@ -584,7 +593,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   });
 
   it("C5: as seções de criação seguem presentes", () => {
-    render(<Agenda />);
+    renderAgenda();
     expect(screen.getByRole("heading", { name: "Criar compromisso" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).toBeInTheDocument();
   });
