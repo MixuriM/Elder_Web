@@ -91,7 +91,7 @@ function ResumoDia() {
             <Pill
               size={17}
               className="
-                text-[#6C63FF]
+                text-[#5F56EC]
 
                 transition-transform
                 duration-300

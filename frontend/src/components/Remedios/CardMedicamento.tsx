@@ -80,7 +80,7 @@ function CardMedicamento({
             justify-center
             rounded-2xl
             bg-[#F3F0FF]
-            text-[#6C63FF]
+            text-[#5F56EC]
 
             dark:bg-[#29243F]
             dark:text-[#A89FFF]
@@ -113,7 +113,7 @@ function CardMedicamento({
                 className="
                   mt-1
                   font-semibold
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   dark:text-[#A89FFF]
                 "
@@ -195,7 +195,7 @@ function CardMedicamento({
             className="
               mt-0.5
               shrink-0
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:text-[#A89FFF]
             "
@@ -238,7 +238,7 @@ function CardMedicamento({
             className="
               mt-0.5
               shrink-0
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:text-[#A89FFF]
             "
@@ -350,7 +350,7 @@ function CardMedicamento({
             justify-center
             gap-2
             rounded-xl
-            bg-[#6C63FF]
+            bg-[#5F56EC]
             px-4
             py-2.5
             text-sm
@@ -403,7 +403,7 @@ function CardMedicamento({
 
             hover:border-[#A18BFF]
             hover:bg-[#F3F0FF]
-            hover:text-[#6C63FF]
+            hover:text-[#5F56EC]
 
             focus:outline-none
             focus-visible:ring-2

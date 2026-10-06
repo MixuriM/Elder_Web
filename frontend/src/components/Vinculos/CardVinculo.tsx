@@ -60,7 +60,7 @@ export default function CardVinculo({
           className="
             flex h-14 w-14 shrink-0 items-center justify-center
             rounded-full bg-[#F3F0FF]
-            text-[#6C63FF]
+            text-[#5F56EC]
             dark:bg-[#242A4A]
           "
         >
@@ -105,7 +105,7 @@ export default function CardVinculo({
           mt-5 flex min-h-11 w-full
           items-center justify-between
           rounded-xl bg-[#F3F0FF] px-4
-          font-semibold text-[#6C63FF]
+          font-semibold text-[#5F56EC]
           transition hover:bg-[#E8E3FF]
           dark:bg-[#242A4A]
         "

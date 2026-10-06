@@ -182,7 +182,7 @@ function LadoInformativo({
 
           hover:border-[#6C63FF]
           hover:bg-white
-          hover:text-[#6C63FF]
+          hover:text-[#5F56EC]
 
           sm:left-5
           sm:top-5
@@ -391,7 +391,7 @@ function LadoInformativo({
         >
           <span
             className="
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:text-[#A89FFF]
             "
@@ -508,7 +508,7 @@ function LadoInformativo({
 
                   text-sm
                   font-bold
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   sm:h-9
                   sm:w-9
@@ -573,7 +573,7 @@ function LadoInformativo({
 
                   text-sm
                   font-bold
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   sm:h-9
                   sm:w-9
@@ -638,7 +638,7 @@ function LadoInformativo({
 
                   text-sm
                   font-bold
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   sm:h-9
                   sm:w-9

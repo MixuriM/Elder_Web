@@ -102,7 +102,7 @@ function Header({ abrirSidebar }: HeaderProps) {
             duration-300
 
             hover:bg-[#F3F0FF]
-            hover:text-[#6C63FF]
+            hover:text-[#5F56EC]
 
             dark:text-[#C7C7D1]
             dark:hover:bg-[#2B2C3B]
@@ -124,7 +124,7 @@ function Header({ abrirSidebar }: HeaderProps) {
               top-1/2
               -translate-y-1/2
 
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:text-[#A89FFF]
             "
@@ -196,7 +196,7 @@ function Header({ abrirSidebar }: HeaderProps) {
             duration-300
 
             hover:bg-[#F3F0FF]
-            hover:text-[#6C63FF]
+            hover:text-[#5F56EC]
 
             dark:text-[#C7C7D1]
             dark:hover:bg-[#2B2C3B]

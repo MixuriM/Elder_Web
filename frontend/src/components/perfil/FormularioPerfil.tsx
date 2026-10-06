@@ -109,7 +109,7 @@ function FormularioPerfil({
 
             hover:border-[#6C63FF]
             hover:bg-[#F3F0FF]
-            hover:text-[#6C63FF]
+            hover:text-[#5F56EC]
 
             focus:outline-none
             focus:ring-2
@@ -207,7 +207,7 @@ function FormularioPerfil({
                 size={62}
                 strokeWidth={1.7}
                 className="
-                  text-[#6C63FF]
+                  text-[#5F56EC]
                   dark:text-[#9B96FF]
                 "
               />
@@ -240,7 +240,7 @@ function FormularioPerfil({
               border-2
               border-white
 
-              bg-[#6C63FF]
+              bg-[#5F56EC]
               text-white
 
               shadow-sm
@@ -285,7 +285,7 @@ function FormularioPerfil({
 
             text-sm
             font-semibold
-            text-[#6C63FF]
+            text-[#5F56EC]
 
             transition
 
@@ -648,7 +648,7 @@ function FormularioPerfil({
 
           rounded-xl
 
-          bg-[#6C63FF]
+          bg-[#5F56EC]
 
           px-6
           py-3.5

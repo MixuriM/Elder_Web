@@ -122,7 +122,7 @@ function Home() {
                   gap-2
 
                   text-xs
-                  text-slate-500
+                  text-slate-600
 
                   transition-colors
                   duration-300
@@ -133,7 +133,7 @@ function Home() {
                 <CalendarDays
                   size={16}
                   className="
-                    text-[#6C63FF]
+                    text-[#5F56EC]
 
                     dark:text-[#A89FFF]
                   "

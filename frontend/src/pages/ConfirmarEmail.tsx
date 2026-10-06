@@ -52,7 +52,7 @@ function ConfirmarEmail() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F7F6FF] p-6 dark:bg-[#10101A]">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-[#6C63FF]" />
+          <Loader2 className="h-10 w-10 animate-spin text-[#5F56EC]" />
 
           <p className="text-lg font-medium text-[#071A38] dark:text-[#F5F5FA]">
             Carregando...
@@ -71,7 +71,7 @@ function ConfirmarEmail() {
       <main className="flex min-h-screen items-center justify-center bg-[#F7F6FF] p-6 dark:bg-[#10101A]">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-lg dark:bg-[#151B35] sm:p-10">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#F3F0FF] dark:bg-[#6C63FF]/15">
-            <AlertCircle className="h-10 w-10 text-[#6C63FF]" />
+            <AlertCircle className="h-10 w-10 text-[#5F56EC]" />
           </div>
 
           <h1 className="mb-3 text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
@@ -118,7 +118,7 @@ function ConfirmarEmail() {
           {status === 'sucesso' ? (
             <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
           ) : (
-            <Mail className="h-10 w-10 text-[#6C63FF]" />
+            <Mail className="h-10 w-10 text-[#5F56EC]" />
           )}
         </div>
 
@@ -168,7 +168,7 @@ function ConfirmarEmail() {
               justify-center
               gap-2
               rounded-xl
-              bg-[#6C63FF]
+              bg-[#5F56EC]
               px-6
               py-3
               text-lg
@@ -229,7 +229,7 @@ function ConfirmarEmail() {
 
         {status !== 'sucesso' && (
           <div className="mt-7 flex items-start gap-3 border-t border-gray-100 pt-6 dark:border-white/10">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#6C63FF]" />
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#5F56EC]" />
 
             <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
               A confirmação do e-mail ajuda a manter sua conta segura

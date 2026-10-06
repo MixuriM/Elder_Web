@@ -297,7 +297,7 @@ function ModalMarcarDose({
                 justify-center
                 rounded-2xl
                 bg-[#F3F0FF]
-                text-[#6C63FF]
+                text-[#5F56EC]
 
                 dark:bg-[#29243F]
                 dark:text-[#A89FFF]
@@ -314,7 +314,7 @@ function ModalMarcarDose({
                 className="
                   text-sm
                   font-semibold
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   dark:text-[#A89FFF]
                 "
@@ -373,7 +373,7 @@ function ModalMarcarDose({
 
               hover:border-[#A18BFF]
               hover:bg-[#F3F0FF]
-              hover:text-[#6C63FF]
+              hover:text-[#5F56EC]
 
               disabled:cursor-not-allowed
               disabled:opacity-50
@@ -463,7 +463,7 @@ function ModalMarcarDose({
                           ? `
                             border-[#6C63FF]
                             bg-[#F3F0FF]
-                            text-[#6C63FF]
+                            text-[#5F56EC]
 
                             dark:border-[#9B96FF]
                             dark:bg-[#29243F]
@@ -514,7 +514,7 @@ function ModalMarcarDose({
               <Clock3
                 size={17}
                 className="
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   dark:text-[#A89FFF]
                 "
@@ -674,7 +674,7 @@ function ModalMarcarDose({
 
                 hover:border-[#A18BFF]
                 hover:bg-[#F3F0FF]
-                hover:text-[#6C63FF]
+                hover:text-[#5F56EC]
 
                 disabled:cursor-not-allowed
                 disabled:opacity-50
@@ -702,7 +702,7 @@ function ModalMarcarDose({
                 justify-center
                 gap-2
                 rounded-xl
-                bg-[#6C63FF]
+                bg-[#5F56EC]
                 px-5
                 py-3
                 font-semibold

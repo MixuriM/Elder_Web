@@ -119,7 +119,7 @@ function LandingWelcome() {
 
             tracking-[0.18em]
 
-            text-[#6C63FF]
+            text-[#5F56EC]
 
             min-[375px]:text-sm
             min-[375px]:tracking-[0.22em]

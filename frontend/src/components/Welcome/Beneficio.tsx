@@ -27,7 +27,7 @@ function Beneficio({
 
           bg-[#E5E1FF]
           text-2xl
-          text-[#6C63FF]
+          text-[#5F56EC]
 
           dark:bg-[#2A2840]
           dark:text-[#A89FFF]

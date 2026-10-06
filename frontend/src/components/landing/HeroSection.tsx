@@ -228,7 +228,7 @@ function HeroSection({
               py-2
               text-xs
               font-bold
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               sm:px-4
               sm:text-sm
@@ -337,7 +337,7 @@ function HeroSection({
               className="
                 w-full
                 rounded-xl
-                bg-[#6C63FF]
+                bg-[#5F56EC]
                 px-6
                 py-3.5
                 text-sm
@@ -357,7 +357,7 @@ function HeroSection({
                 hover:-translate-y-0.5
                 hover:bg-[#5C54E8]
 
-                dark:bg-[#817AFF]
+                dark:bg-[#5F56EC]
                 dark:hover:bg-[#6C63FF]
               "
             >
@@ -395,7 +395,7 @@ function HeroSection({
                 sm:text-base
 
                 hover:border-[#6C63FF]
-                hover:text-[#6C63FF]
+                hover:text-[#5F56EC]
 
                 dark:border-white/15
                 dark:bg-white/5
@@ -423,7 +423,7 @@ function HeroSection({
               gap-x-4
               gap-y-2
               text-xs
-              text-gray-500
+              text-gray-600
 
               sm:mt-8
               sm:gap-x-6
@@ -509,7 +509,7 @@ function HeroSection({
                 justify-center
                 rounded-xl
                 bg-[#ECE9FF]
-                text-[#6C63FF]
+                text-[#5F56EC]
 
                 sm:h-11
                 sm:w-11
@@ -613,7 +613,7 @@ function CardRecurso({
           justify-center
           rounded-xl
           bg-[#ECE9FF]
-          text-[#6C63FF]
+          text-[#5F56EC]
 
           sm:h-12
           sm:w-12

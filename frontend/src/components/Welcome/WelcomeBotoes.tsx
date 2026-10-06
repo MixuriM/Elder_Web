@@ -13,7 +13,7 @@ function WelcomeBotoes() {
         className="
           w-full
           rounded-2xl
-          bg-[#6C63FF]
+          bg-[#5F56EC]
           px-6
           py-4
           text-xl
@@ -52,7 +52,7 @@ function WelcomeBotoes() {
           py-4
           text-xl
           font-bold
-          text-[#6C63FF]
+          text-[#5F56EC]
 
           transition
           duration-200

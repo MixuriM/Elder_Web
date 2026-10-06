@@ -48,7 +48,7 @@ function CTASection({
             uppercase
             tracking-[0.2em]
 
-            text-[#6C63FF]
+            text-[#5F56EC]
 
             dark:text-[#9B95FF]
           "
@@ -104,7 +104,7 @@ function CTASection({
 
             rounded-2xl
 
-            bg-[#6C63FF]
+            bg-[#5F56EC]
 
             px-9
             py-4
@@ -123,7 +123,7 @@ function CTASection({
             focus-visible:ring-2
             focus-visible:ring-[#6C63FF]/40
 
-            dark:bg-[#817AFF]
+            dark:bg-[#5F56EC]
             dark:hover:bg-[#6C63FF]
           "
         >

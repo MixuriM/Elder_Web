@@ -339,7 +339,7 @@ function FormularioCadastro({
 
             rounded-xl
 
-            bg-[#6C63FF]
+            bg-[#5F56EC]
 
             px-4
             py-3
@@ -367,7 +367,7 @@ function FormularioCadastro({
             sm:py-4
             sm:text-lg
 
-            dark:bg-[#6C63FF]
+            dark:bg-[#5F56EC]
             dark:hover:bg-[#7C74FF]
             dark:focus:ring-[#3A355C]
           "
@@ -476,7 +476,7 @@ function FormularioCadastro({
             className="
               font-bold
 
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               hover:underline
 
