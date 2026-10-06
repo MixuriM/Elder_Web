@@ -263,7 +263,7 @@ function Welcome() {
               uppercase
               tracking-[0.22em]
 
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:text-[#A89FFF]
             "

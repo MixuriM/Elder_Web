@@ -95,7 +95,7 @@ function AvisoPermissaoDose({
                 justify-center
                 rounded-xl
                 bg-[#ECE9FF]
-                text-[#6C63FF]
+                text-[#5F56EC]
 
                 dark:bg-[#29243F]
                 dark:text-[#9B96FF]

@@ -149,7 +149,7 @@ function FormularioEsqueciSenha({
             className="
               w-full
               rounded-xl
-              bg-[#6C63FF]
+              bg-[#5F56EC]
               px-6
               py-4
               text-lg
@@ -177,8 +177,9 @@ function FormularioEsqueciSenha({
           className="
             text-lg
             font-medium
-            text-[#6C63FF]
+            text-[#5F56EC]
             hover:underline
+            dark:text-[#A89FFF]
           "
         >
           Voltar para o login

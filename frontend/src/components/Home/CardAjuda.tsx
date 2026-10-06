@@ -42,7 +42,7 @@ function CardAjuda() {
 
             rounded-full
 
-            bg-[#6C63FF]
+            bg-[#5F56EC]
 
             text-white
 
@@ -111,7 +111,7 @@ function CardAjuda() {
 
           rounded-xl
 
-          bg-[#6C63FF]
+          bg-[#5F56EC]
 
           text-xs
           font-semibold

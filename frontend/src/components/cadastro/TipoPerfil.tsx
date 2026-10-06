@@ -77,7 +77,7 @@ function TipoPerfilCampo({
                   selecionado
                     ? `
                       border-[#6C63FF]
-                      bg-[#6C63FF]
+                      bg-[#5F56EC]
                       shadow-md
                     `
                     : `
@@ -131,7 +131,7 @@ function TipoPerfilCampo({
                   className={
                     selecionado
                       ? "text-white"
-                      : "text-[#6C63FF] dark:text-[#A89FFF]"
+                      : "text-[#5F56EC] dark:text-[#A89FFF]"
                   }
                 />
               </div>

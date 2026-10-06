@@ -128,7 +128,7 @@ function FormularioLogin({
           className="
             text-lg
             font-semibold
-            text-[#6C63FF]
+            text-[#5F56EC]
 
             transition-colors
 
@@ -192,7 +192,7 @@ function FormularioLogin({
 
           rounded-xl
 
-          bg-[#6C63FF]
+          bg-[#5F56EC]
 
           px-6
           py-3.5
@@ -213,7 +213,7 @@ function FormularioLogin({
           disabled:cursor-not-allowed
           disabled:opacity-70
 
-          dark:bg-[#7C74FF]
+          dark:bg-[#5F56EC]
           dark:hover:bg-[#6C63FF]
         "
       >
@@ -239,9 +239,9 @@ function FormularioLogin({
         <span
           className="
             text-lg
-            text-gray-400
+            text-gray-500
 
-            dark:text-gray-500
+            dark:text-gray-400
           "
         >
           ou
@@ -282,7 +282,7 @@ function FormularioLogin({
           to="/cadastro"
           className="
             font-bold
-            text-[#6C63FF]
+            text-[#5F56EC]
 
             transition-colors
 

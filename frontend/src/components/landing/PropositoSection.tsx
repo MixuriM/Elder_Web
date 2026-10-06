@@ -64,7 +64,7 @@ function PropositoSection() {
             "
           >
             Cuidar também é planejar o{" "}
-            <span className="text-[#6C63FF]">
+            <span className="text-[#5F56EC]">
               futuro.
             </span>
           </h2>
@@ -117,7 +117,7 @@ function PropositoSection() {
                 rounded-2xl
 
                 bg-[#ECE9FF]
-                text-[#6C63FF]
+                text-[#5F56EC]
 
                 dark:bg-[#292740]
                 dark:text-[#A7A2FF]
@@ -181,7 +181,7 @@ function PropositoSection() {
                 rounded-2xl
 
                 bg-[#ECE9FF]
-                text-[#6C63FF]
+                text-[#5F56EC]
 
                 dark:bg-[#292740]
                 dark:text-[#A7A2FF]

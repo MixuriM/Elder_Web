@@ -197,7 +197,7 @@ function Sidebar({
               Elder
               <span
                 className="
-                  text-[#6C63FF]
+                  text-[#5F56EC]
                   dark:text-[#A89FFF]
                 "
               >
@@ -208,12 +208,12 @@ function Sidebar({
             <p
               className="
                 text-[9px]
-                text-slate-500
+                text-slate-600
 
                 transition-colors
                 duration-300
 
-                dark:text-[#858594]
+                dark:text-[#8A8A99]
               "
             >
               Cuidado e bem-estar
@@ -238,7 +238,7 @@ function Sidebar({
               duration-300
 
               hover:bg-[#E7E1FF]
-              hover:text-[#6C63FF]
+              hover:text-[#5F56EC]
 
               dark:text-[#C7C7D1]
               dark:hover:bg-[#2B2C3B]
@@ -273,12 +273,12 @@ function Sidebar({
               uppercase
               tracking-[0.15em]
 
-              text-slate-500
+              text-slate-600
 
               transition-colors
               duration-300
 
-              dark:text-[#858594]
+              dark:text-[#8A8A99]
             "
           >
             Menu principal
@@ -315,7 +315,7 @@ function Sidebar({
                     ${
                       active
                         ? `
-                          bg-[#6C63FF]
+                          bg-[#5F56EC]
 
                           font-semibold
                           text-white
@@ -327,7 +327,7 @@ function Sidebar({
                           text-slate-600
 
                           hover:bg-[#E7E1FF]
-                          hover:text-[#6C63FF]
+                          hover:text-[#5F56EC]
 
                           dark:text-[#C7C7D1]
                           dark:hover:bg-[#2B2C3B]
@@ -387,7 +387,7 @@ function Sidebar({
               duration-300
 
               hover:bg-[#E7E1FF]
-              hover:text-[#6C63FF]
+              hover:text-[#5F56EC]
 
               dark:text-[#C7C7D1]
               dark:hover:bg-[#2B2C3B]

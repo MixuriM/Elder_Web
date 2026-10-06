@@ -106,7 +106,7 @@ function ResumoSection() {
                   rounded-xl
 
                   bg-[#F0EEFF]
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   dark:bg-[#292740]
                   dark:text-[#A7A2FF]

@@ -138,7 +138,7 @@ function ExportarHistorico({
               justify-center
               rounded-2xl
               bg-[#F3F0FF]
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:bg-[#29243F]
               dark:text-[#A89FFF]
@@ -197,7 +197,7 @@ function ExportarHistorico({
               justify-center
               gap-2
               rounded-xl
-              bg-[#6C63FF]
+              bg-[#5F56EC]
               px-5
               py-3
               font-semibold

@@ -35,7 +35,7 @@ function AcessibilidadeSection() {
               font-bold
               uppercase
               tracking-[0.2em]
-              text-[#6C63FF]
+              text-[#5F56EC]
               dark:text-[#9B95FF]
             "
           >
@@ -54,7 +54,7 @@ function AcessibilidadeSection() {
             "
           >
             Tecnologia que deve ser simples para{" "}
-            <span className="text-[#6C63FF]">
+            <span className="text-[#5F56EC]">
               todos.
             </span>
           </h2>
@@ -140,7 +140,7 @@ function Item({
       <Icone
         size={27}
         className="
-          text-[#6C63FF]
+          text-[#5F56EC]
           dark:text-[#A7A2FF]
         "
       />

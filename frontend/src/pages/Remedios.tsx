@@ -164,7 +164,7 @@ export default function Remedios() {
 
               hover:border-[#A18BFF]
               hover:bg-[#F3F0FF]
-              hover:text-[#6C63FF]
+              hover:text-[#5F56EC]
 
               focus:outline-none
               focus-visible:ring-2
@@ -191,7 +191,7 @@ export default function Remedios() {
 
         <header className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-semibold text-[#6C63FF] dark:text-[#A89FFF]">
+            <p className="font-semibold text-[#5F56EC] dark:text-[#A89FFF]">
               Cuidado e acompanhamento
             </p>
 
@@ -215,7 +215,7 @@ export default function Remedios() {
               justify-center
               gap-2
               rounded-xl
-              bg-[#6C63FF]
+              bg-[#5F56EC]
               px-5
               py-3
               font-semibold
@@ -342,7 +342,7 @@ export default function Remedios() {
                   justify-center
                   rounded-2xl
                   bg-[#F3F0FF]
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   dark:bg-[#29243F]
                   dark:text-[#A89FFF]
@@ -371,7 +371,7 @@ export default function Remedios() {
                   justify-center
                   gap-2
                   rounded-xl
-                  bg-[#6C63FF]
+                  bg-[#5F56EC]
                   px-5
                   py-3
                   font-semibold
@@ -443,7 +443,7 @@ export default function Remedios() {
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-[#6C63FF] dark:text-[#A89FFF]">
+                <p className="text-sm font-semibold text-[#5F56EC] dark:text-[#A89FFF]">
                   Histórico de doses
                 </p>
 
@@ -476,7 +476,7 @@ export default function Remedios() {
 
                   hover:border-[#A18BFF]
                   hover:bg-[#F3F0FF]
-                  hover:text-[#6C63FF]
+                  hover:text-[#5F56EC]
 
                   dark:border-[#454558]
                   dark:bg-[#20202A]
