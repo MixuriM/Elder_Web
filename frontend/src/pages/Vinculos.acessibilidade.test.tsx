@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { axe, toHaveNoViolations } from 'jest-axe'
+import VinculoDetalhe from './VinculoDetalhe'
 import Vinculos from './Vinculos'
 
 expect.extend(toHaveNoViolations)
@@ -13,6 +15,14 @@ jest.mock('../lib/auth', () => ({
 // LIMITE: jsdom não calcula cor, então contraste NÃO é verificado aqui (coberto pelo Playwright, item 9.1).
 // page-has-heading-one não roda via jest-axe (regra de página inteira), por isso o h1 é afirmado à mão.
 const AXE = { rules: { 'color-contrast': { enabled: false } } }
+
+function renderVinculos() {
+  return render(
+    <MemoryRouter initialEntries={['/vinculos']}>
+      <Vinculos />
+    </MemoryRouter>
+  )
+}
 
 function respostaJson(status: number, corpo: unknown) {
   return {
@@ -45,30 +55,51 @@ describe('Vinculos (acessibilidade)', () => {
 
   it('lista vazia: tem h1 e não tem violações detectáveis pelo axe', async () => {
     jest.mocked(global.fetch).mockResolvedValue(respostaJson(200, { vinculos: [] }))
-    const { container } = render(<Vinculos />)
+    const { container } = renderVinculos()
 
     await screen.findByText('Nenhum vínculo encontrado')
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /voltar/i })).toHaveAttribute('href', '/Home')
+    expect(screen.getByRole('button', { name: 'Ativar modo escuro' })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 
   it('lista com vínculos: tem h1 e não tem violações detectáveis pelo axe', async () => {
     jest.mocked(global.fetch).mockResolvedValue(respostaJson(200, { vinculos: [vinculo] }))
-    const { container } = render(<Vinculos />)
+    const { container } = renderVinculos()
 
     await screen.findByText('João da Silva')
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 
-  it('com o diálogo DetalhesVinculo aberto: não tem violações detectáveis pelo axe', async () => {
+  it('link para detalhes: abre uma URL separada sem substituir a lista', async () => {
     jest.mocked(global.fetch).mockResolvedValue(respostaJson(200, { vinculos: [vinculo] }))
-    const { container } = render(<Vinculos />)
+    const { container } = renderVinculos()
 
     await screen.findByText('João da Silva')
-    fireEvent.click(screen.getByRole('button', { name: /ver detalhes/i }))
 
-    expect(screen.getByRole('dialog', { name: 'Detalhes do vínculo' })).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /ver detalhes de joão da silva/i })
+    expect(link).toHaveAttribute('href', '/vinculos/12')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(screen.getByRole('heading', { name: 'Pessoas vinculadas' })).toBeInTheDocument()
+    expect(await axe(container, AXE)).toHaveNoViolations()
+  })
+
+  it('página de detalhes: tem h1 e não tem violações detectáveis pelo axe', async () => {
+    jest.mocked(global.fetch).mockResolvedValue(respostaJson(200, { vinculos: [vinculo] }))
+    const { container } = render(
+      <MemoryRouter initialEntries={['/vinculos/12']}>
+        <Routes>
+          <Route path="/vinculos/:id" element={<VinculoDetalhe />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await screen.findByRole('heading', { name: 'João da Silva' })
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute('href', '/vinculos')
+    expect(screen.getByRole('button', { name: 'Ativar modo escuro' })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 })

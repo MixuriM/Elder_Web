@@ -1,21 +1,16 @@
 import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
+import { ArrowLeft, CalendarDays, Clock3, HeartPulse, UsersRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { chamarApi } from '../lib/chamarApi'
 import Spinner from '../components/common/Spinner'
+import BotaoTema from '../components/layout/BotaoTema'
 import { getCurrentUserToken } from '../lib/auth'
 import { agruparEventosPorDia, formatarIntervalo, rotuloTipo, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
-
-// Esqueleto cru da Fase 6, itens 6.1 (RF-015), 6.2 (RF-016) e 6.3 (RF-017): os formulários de criar compromisso (POST /agenda
-// do idoso e POST /agenda/idoso/:idosoId do familiar e do cuidador) e a seção "Ver agenda" (GET), pra exercitar os
-// endpoints sem depender do front delas. Sem calendário e sem polish visual: layout final é de Laureane/Jennifer. Idoso e
-// familiar escolhem 'pessoal' ou 'medico' (nunca 'cuidado'); a seção do cuidador não tem select e envia sempre
-// 'cuidado'. O frontend não sabe se o cuidador tem a flag permite_criar_evento_cuidado: a seção sempre
-// aparece e o 403 do backend vira mensagem de erro (limitação aceita). Nunca loga o corpo enviado nem o título.
 
 const VAZIO = { idosoId: '', tipo: 'pessoal', titulo: '', descricao: '', inicio: '', fim: '' }
 
 type Modo = 'idoso' | 'familiar' | 'cuidador'
 
-// O modo é também o sufixo dos rótulos e o slug dos ids de campo (únicos por seção).
 function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
   const sufixo = modo
   const comIdoso = modo !== 'idoso'
@@ -54,28 +49,51 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
   }
 
   const slug = modo
-  const classe = 'mt-1 w-full rounded border border-gray-400 p-3 text-lg'
+  const classe =
+    'mt-1 min-h-12 w-full rounded-xl border border-[#DDD9F2] bg-white px-4 py-3 text-lg text-[#071A38] outline-none transition placeholder:text-[#78849A] hover:border-[#A18BFF] focus:border-[#5F56EC] focus:ring-2 focus:ring-[#5F56EC]/20 dark:border-[#454558] dark:bg-[#181824] dark:text-[#F5F5FA] dark:placeholder:text-[#858594] dark:hover:border-[#66667A] dark:focus:border-[#A89FFF] dark:focus:ring-[#A89FFF]/20'
+  const classeLabel = 'block text-base font-semibold text-[#071A38] dark:text-[#F5F5FA]'
   const campo = (
     rotulo: string,
     nome: keyof typeof VAZIO,
     atributos: InputHTMLAttributes<HTMLInputElement>,
+    classeContainer = '',
   ) => (
-    <div>
-      <label htmlFor={`${nome}_${slug}`} className="block text-lg font-medium text-gray-900">
+    <div className={classeContainer}>
+      <label htmlFor={`${nome}_${slug}`} className={classeLabel}>
         {rotulo}
       </label>
       <input id={`${nome}_${slug}`} {...atributos} value={campos[nome]} onChange={setCampo(nome)} className={classe} />
     </div>
   )
+  const IconeModo = modo === 'idoso' ? CalendarDays : modo === 'familiar' ? UsersRound : HeartPulse
 
   return (
-    <section className="w-full max-w-sm space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900">{titulo}</h2>
-      <form onSubmit={handleCriar} className="space-y-4">
+    <section
+      aria-labelledby={`titulo_criar_${slug}`}
+      className="rounded-3xl border border-[#E5E2F5] bg-white p-5 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
+    >
+      <div className="mb-6 flex items-start gap-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#5F56EC] dark:bg-[#29263D] dark:text-[#A89FFF]">
+          <IconeModo size={24} aria-hidden="true" />
+        </span>
+        <div>
+          <h2 id={`titulo_criar_${slug}`} className="text-xl font-bold leading-snug text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
+            {titulo}
+          </h2>
+          <p className="mt-1 text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1]">
+            {modo === 'idoso'
+              ? 'Adicione um compromisso à sua rotina.'
+              : modo === 'familiar'
+                ? 'Organize um compromisso para a pessoa vinculada.'
+                : 'Registre um compromisso de cuidado para a pessoa vinculada.'}
+          </p>
+        </div>
+      </div>
+      <form onSubmit={handleCriar} className="grid gap-4 sm:grid-cols-2">
         {comIdoso && campo(`Id do idoso (${sufixo})`, 'idosoId', { type: 'number', required: true, min: 1, step: 1 })}
         {modo !== 'cuidador' && (
           <div>
-            <label htmlFor={`tipo_${slug}`} className="block text-lg font-medium text-gray-900">
+            <label htmlFor={`tipo_${slug}`} className={classeLabel}>
               Tipo ({sufixo})
             </label>
             <select id={`tipo_${slug}`} value={campos.tipo} onChange={setCampo('tipo')} className={classe}>
@@ -84,27 +102,27 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
             </select>
           </div>
         )}
-        {campo(`Título (${sufixo})`, 'titulo', { type: 'text', required: true, maxLength: 150 })}
-        {campo(`Descrição (opcional, ${sufixo})`, 'descricao', { type: 'text', maxLength: 500 })}
+        {campo(`Título (${sufixo})`, 'titulo', { type: 'text', required: true, maxLength: 150 }, 'sm:col-span-2')}
+        {campo(`Descrição (opcional, ${sufixo})`, 'descricao', { type: 'text', maxLength: 500 }, 'sm:col-span-2')}
         {campo(`Início (${sufixo})`, 'inicio', { type: 'datetime-local', required: true })}
         {campo(`Fim (opcional, ${sufixo})`, 'fim', { type: 'datetime-local' })}
         <button
           type="submit"
           disabled={carregando}
           aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus:ring-2 focus:ring-[#5F56EC]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-[#171721] sm:col-span-2"
         >
           {carregando && <Spinner />}
           {carregando ? 'Criando...' : `Criar compromisso (${sufixo})`}
         </button>
       </form>
       {erro && (
-        <p role="alert" className="text-lg text-red-700">
+        <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-base font-medium text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
           {erro}
         </p>
       )}
       {resultado && (
-        <p role="status" className="text-lg text-gray-900">
+        <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-base font-medium text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
           Compromisso criado (id {resultado.id}).
         </p>
       )}
@@ -140,20 +158,29 @@ async function buscarAgenda(path: string): Promise<EventoAgenda[]> {
 
 function DiaDaAgenda({ grupo }: { grupo: GrupoDia }) {
   return (
-    <section aria-labelledby={`dia_${grupo.dia}`} className="space-y-2">
-      <h3 id={`dia_${grupo.dia}`} className="text-xl font-bold text-gray-900">
+    <section aria-labelledby={`dia_${grupo.dia}`} className="border-l-2 border-[#DDD9F2] pl-4 dark:border-[#454558] sm:pl-5">
+      <h3 id={`dia_${grupo.dia}`} className="mb-3 flex flex-wrap items-center gap-2 text-lg font-bold text-[#071A38] dark:text-[#F5F5FA] sm:text-xl">
         {grupo.rotulo}
-        {grupo.hoje ? ' (hoje)' : ''}
+        {grupo.hoje && (
+          <span className="rounded-full bg-[#F0EDFF] px-3 py-1 text-sm font-bold text-[#554CD8] dark:bg-[#29263D] dark:text-[#B6B0FF]">
+            (hoje)
+          </span>
+        )}
       </h3>
-      <ul className="space-y-2 text-lg text-gray-900">
+      <ul className="space-y-3">
         {grupo.eventos.map((e) => (
-          <li key={e.id}>
-            <p>
-              <strong>{rotuloTipo(e.tipo_evento)}</strong>{' '}
-              <time dateTime={e.data_hora_inicio}>{formatarIntervalo(e)}</time>
-            </p>
-            <p>{e.titulo}</p>
-            {e.descricao && <p>{e.descricao}</p>}
+          <li key={e.id} className="rounded-2xl border border-[#E5E2F5] bg-[#FCFBFF] p-4 dark:border-[#393947] dark:bg-[#1D1D29] sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-[#F0EDFF] px-3 py-1 text-sm font-bold text-[#554CD8] dark:bg-[#29263D] dark:text-[#B6B0FF]">
+                {rotuloTipo(e.tipo_evento)}
+              </span>
+              <p className="flex items-center gap-2 text-base font-semibold text-[#56657D] dark:text-[#C7C7D1]">
+                <Clock3 size={18} aria-hidden="true" className="shrink-0 text-[#5F56EC] dark:text-[#A89FFF]" />
+                <time dateTime={e.data_hora_inicio}>{formatarIntervalo(e)}</time>
+              </p>
+            </div>
+            <p className="mt-3 text-lg font-bold text-[#071A38] dark:text-[#F5F5FA]">{e.titulo}</p>
+            {e.descricao && <p className="mt-1 text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1]">{e.descricao}</p>}
           </li>
         ))}
       </ul>
@@ -187,13 +214,26 @@ function VerAgenda() {
   const proximos = grupos?.filter((g) => !g.passado) ?? []
 
   return (
-    <section aria-labelledby="titulo_ver_agenda" className="w-full max-w-sm space-y-4">
-      <h2 id="titulo_ver_agenda" className="text-2xl font-bold text-gray-900">
-        Ver agenda
-      </h2>
-      <form onSubmit={handleVer} className="space-y-4">
+    <section
+      aria-labelledby="titulo_ver_agenda"
+      className="rounded-3xl border border-[#E5E2F5] bg-white p-5 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
+    >
+      <div className="mb-6 flex items-start gap-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#5F56EC] dark:bg-[#29263D] dark:text-[#A89FFF]">
+          <CalendarDays size={24} aria-hidden="true" />
+        </span>
         <div>
-          <label htmlFor="idoso_id_ver_agenda" className="block text-lg font-medium text-gray-900">
+          <h2 id="titulo_ver_agenda" className="text-xl font-bold text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
+            Ver agenda
+          </h2>
+          <p className="mt-1 text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1]">
+            Consulte os próximos compromissos e os anteriores.
+          </p>
+        </div>
+      </div>
+      <form onSubmit={handleVer} className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div>
+          <label htmlFor="idoso_id_ver_agenda" className="block text-base font-semibold text-[#071A38] dark:text-[#F5F5FA]">
             Id do idoso para ver a agenda (vazio = minha agenda)
           </label>
           <input
@@ -203,54 +243,90 @@ function VerAgenda() {
             step={1}
             value={idosoId}
             onChange={(e) => setIdosoId(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
+            className="mt-1 min-h-12 w-full rounded-xl border border-[#DDD9F2] bg-white px-4 py-3 text-lg text-[#071A38] outline-none transition placeholder:text-[#78849A] hover:border-[#A18BFF] focus:border-[#5F56EC] focus:ring-2 focus:ring-[#5F56EC]/20 dark:border-[#454558] dark:bg-[#181824] dark:text-[#F5F5FA] dark:placeholder:text-[#858594] dark:hover:border-[#66667A] dark:focus:border-[#A89FFF] dark:focus:ring-[#A89FFF]/20"
           />
         </div>
         <button
           type="submit"
           disabled={carregando}
           aria-busy={carregando}
-          className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
+          className="flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus:ring-2 focus:ring-[#5F56EC]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-[#171721] sm:w-auto"
         >
           {carregando && <Spinner />}
           {carregando ? 'Carregando...' : 'Ver agenda'}
         </button>
       </form>
       {erro && (
-        <p role="alert" className="text-lg text-red-700">
+        <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-base font-medium text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
           {erro}
         </p>
       )}
       {grupos && (
-        <p role="status" className="text-lg text-gray-900">
+        <p role="status" className="mt-5 rounded-xl border border-[#E5E2F5] bg-[#F8F7FF] p-4 text-base font-semibold text-[#071A38] dark:border-[#393947] dark:bg-[#1D1D29] dark:text-[#F5F5FA]">
           {grupos.length === 0
             ? 'Nenhum compromisso na agenda.'
             : `${grupos.reduce((n, g) => n + g.eventos.length, 0)} compromisso(s) encontrado(s).`}
         </p>
       )}
-      {passados.length > 0 && (
-        <details className="space-y-2">
-          <summary className="cursor-pointer text-lg font-medium text-gray-900">Compromissos anteriores</summary>
-          {passados.map((g) => (
+      {(proximos.length > 0 || passados.length > 0) && (
+        <div className="mt-6 space-y-6">
+          {passados.length > 0 && (
+            <details className="space-y-4 rounded-2xl border border-[#E5E2F5] bg-[#FCFBFF] p-4 dark:border-[#393947] dark:bg-[#1D1D29] sm:p-5">
+              <summary className="min-h-11 cursor-pointer py-2 text-base font-bold text-[#554CD8] outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC] dark:text-[#B6B0FF] dark:focus-visible:ring-[#A89FFF]">
+                Compromissos anteriores
+              </summary>
+              <div className="space-y-6">
+                {passados.map((g) => (
+                  <DiaDaAgenda key={g.dia} grupo={g} />
+                ))}
+              </div>
+            </details>
+          )}
+          {proximos.map((g) => (
             <DiaDaAgenda key={g.dia} grupo={g} />
           ))}
-        </details>
+        </div>
       )}
-      {proximos.map((g) => (
-        <DiaDaAgenda key={g.dia} grupo={g} />
-      ))}
     </section>
   )
 }
 
 export default function Agenda() {
   return (
-    <main className="flex min-h-screen flex-col items-center gap-10 p-6">
-      <h1 className="text-3xl font-bold text-gray-900">Agenda</h1>
-      <CriarCompromisso titulo="Criar compromisso" modo="idoso" />
-      <CriarCompromisso titulo="Criar compromisso para um idoso vinculado" modo="familiar" />
-      <CriarCompromisso titulo="Criar compromisso de cuidado (cuidador)" modo="cuidador" />
-      <VerAgenda />
+    <main className="min-h-screen bg-[#F8F7FF] px-4 py-6 dark:bg-[#0F0F17] sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl">
+        <nav aria-label="Navegação da página" className="mb-6 flex items-center justify-between">
+          <Link
+            to="/Home"
+            className="
+              inline-flex min-h-11 items-center gap-2 rounded-xl
+              border border-gray-300 bg-white px-4 font-semibold text-[#071A38]
+              transition hover:border-[#A18BFF] hover:bg-[#F3F0FF]
+              focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40
+              dark:border-gray-700 dark:bg-[#151B35] dark:text-white dark:hover:bg-[#242A4A]
+            "
+          >
+            <ArrowLeft size={20} aria-hidden="true" />
+            Voltar
+          </Link>
+          <BotaoTema />
+        </nav>
+        <header className="mb-6 rounded-3xl border border-[#E5E2F5] bg-white px-6 py-7 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:mb-8 sm:px-8 sm:py-8">
+          <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#5F56EC] dark:text-[#A89FFF]">
+            Organização e rotina
+          </span>
+          <h1 className="mt-2 text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA] sm:text-4xl">Agenda</h1>
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1] sm:text-lg">
+            Acompanhe consultas, compromissos pessoais e momentos de cuidado em um só lugar.
+          </p>
+        </header>
+        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+          <CriarCompromisso titulo="Criar compromisso" modo="idoso" />
+          <CriarCompromisso titulo="Criar compromisso para um idoso vinculado" modo="familiar" />
+          <CriarCompromisso titulo="Criar compromisso de cuidado (cuidador)" modo="cuidador" />
+          <VerAgenda />
+        </div>
+      </div>
     </main>
   )
 }

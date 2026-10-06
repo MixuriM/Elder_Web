@@ -1,6 +1,7 @@
 
 
     import { ChevronRight, UserRound } from "lucide-react";
+    import { Link } from "react-router-dom";
 
 export type Vinculo = {
   id: number;
@@ -27,13 +28,9 @@ export type Vinculo = {
 
 type CardVinculoProps = {
   vinculo: Vinculo;
-  onVerDetalhes?: (vinculo: Vinculo) => void;
 };
 
-export default function CardVinculo({
-  vinculo,
-  onVerDetalhes,
-}: CardVinculoProps) {
+export default function CardVinculo({ vinculo }: CardVinculoProps) {
   const nome =
     vinculo.vinculado.nome ??
     vinculo.idoso.nome ??
@@ -98,9 +95,11 @@ export default function CardVinculo({
         </span>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onVerDetalhes?.(vinculo)}
+      <Link
+        to={`/vinculos/${vinculo.id}`}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Ver detalhes de ${nome} (abre em nova aba)`}
         className="
           mt-5 flex min-h-11 w-full
           items-center justify-between
@@ -112,8 +111,8 @@ export default function CardVinculo({
       >
         Ver detalhes
 
-        <ChevronRight size={21} />
-      </button>
+        <ChevronRight size={21} aria-hidden="true" />
+      </Link>
     </article>
   );
 }

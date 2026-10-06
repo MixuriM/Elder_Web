@@ -4,14 +4,12 @@ type ListaVinculosProps = {
   vinculos: Vinculo[];
   carregando?: boolean;
   erro?: string | null;
-  onVerDetalhes?: (vinculo: Vinculo) => void;
 };
 
 export default function ListaVinculos({
   vinculos,
   carregando = false,
   erro,
-  onVerDetalhes,
 }: ListaVinculosProps) {
   if (carregando) {
     return (
@@ -57,7 +55,6 @@ export default function ListaVinculos({
           <CardVinculo
             key={vinculo.id}
             vinculo={vinculo}
-            onVerDetalhes={onVerDetalhes}
           />
         ))}
       </div>
