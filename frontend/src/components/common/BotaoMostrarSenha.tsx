@@ -23,7 +23,7 @@ function BotaoMostrarSenha({ mostrar, onToggle, campo }: BotaoMostrarSenhaProps)
         rounded-lg
         p-2
         text-[#4B5563]
-        hover:text-[#5F56EC]
+        hover:text-[#554CD8]
         focus:outline-none
         focus:ring-2
         focus:ring-[#6C63FF]/40

@@ -228,14 +228,14 @@ function HeroSection({
               py-2
               text-xs
               font-bold
-              text-[#5F56EC]
+              text-[#554CD8]
 
               sm:px-4
               sm:text-sm
 
               dark:border-white/10
               dark:bg-white/5
-              dark:text-[#A7A2FF]
+              dark:text-[#EDEBFF]
             "
           >
             <HeartPulse
@@ -358,7 +358,7 @@ function HeroSection({
                 hover:bg-[#5C54E8]
 
                 dark:bg-[#5F56EC]
-                dark:hover:bg-[#6C63FF]
+                dark:hover:bg-[#554CD8]
               "
             >
               {ctaText}
@@ -395,7 +395,7 @@ function HeroSection({
                 sm:text-base
 
                 hover:border-[#6C63FF]
-                hover:text-[#5F56EC]
+                hover:text-[#554CD8]
 
                 dark:border-white/15
                 dark:bg-white/5
@@ -423,7 +423,7 @@ function HeroSection({
               gap-x-4
               gap-y-2
               text-xs
-              text-gray-600
+              text-gray-700
 
               sm:mt-8
               sm:gap-x-6
@@ -432,7 +432,7 @@ function HeroSection({
               lg:mx-0
               lg:justify-start
 
-              dark:text-gray-400
+              dark:text-gray-200
             "
           >
             <span className="whitespace-nowrap">
@@ -653,9 +653,9 @@ function CardRecurso({
           break-words
           text-sm
           leading-6
-          text-gray-500
+          text-gray-600
 
-          dark:text-gray-400
+          dark:text-gray-300
         "
       >
         {descricao}

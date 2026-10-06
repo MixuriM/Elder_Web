@@ -164,7 +164,7 @@ export default function Remedios() {
 
               hover:border-[#A18BFF]
               hover:bg-[#F3F0FF]
-              hover:text-[#5F56EC]
+              hover:text-[#554CD8]
 
               focus:outline-none
               focus-visible:ring-2
@@ -476,7 +476,7 @@ export default function Remedios() {
 
                   hover:border-[#A18BFF]
                   hover:bg-[#F3F0FF]
-                  hover:text-[#5F56EC]
+                  hover:text-[#554CD8]
 
                   dark:border-[#454558]
                   dark:bg-[#20202A]

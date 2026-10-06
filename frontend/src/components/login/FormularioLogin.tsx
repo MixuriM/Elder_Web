@@ -214,7 +214,7 @@ function FormularioLogin({
           disabled:opacity-70
 
           dark:bg-[#5F56EC]
-          dark:hover:bg-[#6C63FF]
+          dark:hover:bg-[#554CD8]
         "
       >
         {carregando && <Spinner />}

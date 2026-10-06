@@ -33,8 +33,8 @@ function ActionCards() {
         onClick={() => navigate("/saude")}
         color="
           bg-gradient-to-br
-          from-emerald-500
-          to-emerald-700
+          from-emerald-700
+          to-emerald-800
         "
       />
 
@@ -45,7 +45,7 @@ function ActionCards() {
         onClick={() => navigate("/remedios")}
         color="
           bg-gradient-to-br
-          from-[#6C63FF]
+          from-[#5F56EC]
           to-[#5149D8]
         "
       />
@@ -57,7 +57,7 @@ function ActionCards() {
         onClick={() => navigate("/agenda")}
         color="
           bg-gradient-to-br
-          from-blue-500
+          from-blue-600
           to-blue-700
         "
       />
@@ -69,8 +69,8 @@ function ActionCards() {
         onClick={() => navigate("/alimentacao")}
         color="
           bg-gradient-to-br
-          from-orange-400
-          to-orange-600
+          from-orange-700
+          to-orange-800
         "
       />
     </div>

@@ -27,6 +27,19 @@ test("acessibilidade /cadastro com erro de perfil", async ({ context }) => {
   });
 });
 
+// Perfil selecionado muda o estilo do card (TipoPerfil): audita cada um dos 3 radios, nas 3 variantes.
+for (const radio of ["Idoso", "Cuidador", "Familiar"]) {
+  test(`acessibilidade /cadastro com perfil ${radio} selecionado`, async ({ context }) => {
+    await auditarRota(context, "/cadastro", {
+      rotulo: `/cadastro perfil ${radio}`,
+      estado: async (page) => {
+        await page.getByText(radio, { exact: true }).click();
+        await expect(page.getByRole("radio", { name: new RegExp(radio, "i") })).toBeChecked();
+      },
+    });
+  });
+}
+
 test("acessibilidade /login com credencial inválida", async ({ context }) => {
   await auditarRota(context, "/login", {
     rotulo: "/login com erro",

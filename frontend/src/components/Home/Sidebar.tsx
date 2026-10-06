@@ -238,7 +238,7 @@ function Sidebar({
               duration-300
 
               hover:bg-[#E7E1FF]
-              hover:text-[#5F56EC]
+              hover:text-[#554CD8]
 
               dark:text-[#C7C7D1]
               dark:hover:bg-[#2B2C3B]
@@ -327,7 +327,7 @@ function Sidebar({
                           text-slate-600
 
                           hover:bg-[#E7E1FF]
-                          hover:text-[#5F56EC]
+                          hover:text-[#554CD8]
 
                           dark:text-[#C7C7D1]
                           dark:hover:bg-[#2B2C3B]
@@ -387,7 +387,7 @@ function Sidebar({
               duration-300
 
               hover:bg-[#E7E1FF]
-              hover:text-[#5F56EC]
+              hover:text-[#554CD8]
 
               dark:text-[#C7C7D1]
               dark:hover:bg-[#2B2C3B]

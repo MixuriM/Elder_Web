@@ -102,7 +102,7 @@ function Header({ abrirSidebar }: HeaderProps) {
             duration-300
 
             hover:bg-[#F3F0FF]
-            hover:text-[#5F56EC]
+            hover:text-[#554CD8]
 
             dark:text-[#C7C7D1]
             dark:hover:bg-[#2B2C3B]
@@ -196,7 +196,7 @@ function Header({ abrirSidebar }: HeaderProps) {
             duration-300
 
             hover:bg-[#F3F0FF]
-            hover:text-[#5F56EC]
+            hover:text-[#554CD8]
 
             dark:text-[#C7C7D1]
             dark:hover:bg-[#2B2C3B]
@@ -242,8 +242,8 @@ function Header({ abrirSidebar }: HeaderProps) {
               rounded-full
 
               bg-gradient-to-br
-              from-[#A18BFF]
-              to-[#6C63FF]
+              from-[#5F56EC]
+              to-[#554CD8]
 
               text-[10px]
               font-bold

@@ -109,7 +109,7 @@ function FormularioPerfil({
 
             hover:border-[#6C63FF]
             hover:bg-[#F3F0FF]
-            hover:text-[#5F56EC]
+            hover:text-[#554CD8]
 
             focus:outline-none
             focus:ring-2

@@ -14,9 +14,9 @@ function BannerSaude() {
         border-[#6C63FF]/20
 
         bg-gradient-to-r
-        from-[#6C63FF]
-        via-[#756DFF]
-        to-[#8B83FF]
+        from-[#554CD8]
+        via-[#5A52E0]
+        to-[#6259EF]
 
         p-5
 
@@ -128,7 +128,7 @@ function BannerSaude() {
               mt-1
 
               text-xs
-              text-white/80
+              text-white
 
               transition-colors
               duration-300

@@ -143,7 +143,7 @@ function ActionCard({
               text-[12px]
               leading-4
 
-              text-white/80
+              text-white
 
               sm:text-[13px]
             "

@@ -373,7 +373,7 @@ function ModalMarcarDose({
 
               hover:border-[#A18BFF]
               hover:bg-[#F3F0FF]
-              hover:text-[#5F56EC]
+              hover:text-[#554CD8]
 
               disabled:cursor-not-allowed
               disabled:opacity-50
@@ -674,7 +674,7 @@ function ModalMarcarDose({
 
                 hover:border-[#A18BFF]
                 hover:bg-[#F3F0FF]
-                hover:text-[#5F56EC]
+                hover:text-[#554CD8]
 
                 disabled:cursor-not-allowed
                 disabled:opacity-50

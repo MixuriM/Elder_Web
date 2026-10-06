@@ -13,7 +13,7 @@ const estiloLink = `
   text-gray-600
   transition-colors
   duration-200
-  hover:text-[#5F56EC]
+  hover:text-[#554CD8]
   dark:text-gray-300
   dark:hover:text-[#A7A2FF]
 `;
@@ -177,7 +177,7 @@ function Navbar({ onEntrar }: NavbarProps) {
               transition
               duration-300
 
-              hover:bg-[#5F56EC]
+              hover:bg-[#554CD8]
               hover:text-white
 
               dark:border-[#8B84FF]
