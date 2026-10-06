@@ -2,7 +2,16 @@ import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe, toHaveNoViolations } from "jest-axe";
+import { MemoryRouter } from "react-router-dom";
 import Agenda from "./Agenda";
+
+function renderAgenda() {
+  return render(
+    <MemoryRouter>
+      <Agenda />
+    </MemoryRouter>,
+  );
+}
 
 expect.extend(toHaveNoViolations);
 
@@ -53,14 +62,14 @@ describe("jest-axe: controle positivo", () => {
 
 describe("Agenda: acessibilidade", () => {
   it("estado inicial dos três formulários", async () => {
-    const { container } = render(<Agenda />);
+    const { container } = renderAgenda();
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
 
   describe.each(["idoso", "familiar", "cuidador"] as const)("formulário %s", (sufixo) => {
     async function preencherEEnviar() {
       const user = userEvent.setup();
-      const utils = render(<Agenda />);
+      const utils = renderAgenda();
       if (sufixo !== "idoso") await user.type(screen.getByLabelText(`Id do idoso (${sufixo})`, { exact: true }), "1");
       await user.type(screen.getByLabelText(`Título (${sufixo})`, { exact: true }), "Consulta Ficticia");
       fireEvent.change(screen.getByLabelText(`Início (${sufixo})`, { exact: true }), { target: { value: "2026-10-10T09:00" } });
@@ -115,7 +124,7 @@ describe("Agenda: acessibilidade da seção Ver agenda", () => {
 
   async function ver() {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    const utils = render(<Agenda />);
+    const utils = renderAgenda();
     await user.click(screen.getByRole("button", { name: /^ver agenda$/i }));
     return { ...utils, user };
   }

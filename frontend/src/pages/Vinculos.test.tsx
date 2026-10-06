@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import CardVinculo from "../components/Vinculos/CardVinculo";
-import DetalhesVinculo from "../components/Vinculos/DetalhesVinculo";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import VinculoDetalhe from "./VinculoDetalhe";
 import Vinculos from "./Vinculos";
 
 const mockGetCurrentUserToken = jest.fn();
@@ -30,11 +30,30 @@ const vinculo = {
   vinculado: { id: 8, nome: "João da Silva", email_mascarado: "jo***@mail.com" },
 };
 
+function LocalizacaoAtual() {
+  const location = useLocation();
+  return <output data-testid="localizacao">{location.pathname}</output>;
+}
+
+function renderComRotas(rotaInicial = "/vinculos") {
+  return render(
+    <MemoryRouter initialEntries={[rotaInicial]}>
+      <Routes>
+        <Route path="/vinculos" element={<Vinculos />} />
+        <Route path="/vinculos/:id" element={<VinculoDetalhe />} />
+      </Routes>
+      <LocalizacaoAtual />
+    </MemoryRouter>
+  );
+}
+
 describe("Vinculos", () => {
   beforeEach(() => {
     mockGetCurrentUserToken.mockReset();
     mockGetCurrentUserToken.mockResolvedValue("token-fake");
     global.fetch = jest.fn();
+    localStorage.clear();
+    document.documentElement.classList.remove("dark");
   });
 
   afterEach(() => {
@@ -49,15 +68,18 @@ describe("Vinculos", () => {
       })
     );
 
-    render(<Vinculos />);
+    renderComRotas();
 
     expect(screen.getByText("Carregando vínculos...")).toBeInTheDocument();
     resolverFetch(respostaJson(200, { vinculos: [vinculo] }));
 
     expect(await screen.findByRole("heading", { name: "Pessoas vinculadas" })).toBeInTheDocument();
     expect(screen.getByText("João da Silva")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /ver detalhes/i }));
-    expect(screen.getByRole("dialog", { name: "Detalhes do vínculo" })).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /ver detalhes de joão da silva/i });
+    expect(link).toHaveAttribute("href", "/vinculos/12");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(screen.getByTestId("localizacao")).toHaveTextContent("/vinculos");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("mostra estado vazio quando não há vínculos", async () => {
@@ -65,9 +87,44 @@ describe("Vinculos", () => {
       respostaJson(200, { vinculos: [] })
     );
 
-    render(<Vinculos />);
+    renderComRotas();
 
     expect(await screen.findByText("Nenhum vínculo encontrado")).toBeInTheDocument();
+  });
+
+  it("alterna entre modo claro e escuro e salva a preferência", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [] })
+    );
+
+    renderComRotas();
+
+    const ativarModoEscuro = await screen.findByRole("button", {
+      name: "Ativar modo escuro",
+    });
+    fireEvent.click(ativarModoEscuro);
+
+    expect(document.documentElement).toHaveClass("dark");
+    expect(localStorage.getItem("tema")).toBe("escuro");
+    expect(
+      screen.getByRole("button", { name: "Ativar modo claro" })
+    ).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Ativar modo claro" }));
+
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(localStorage.getItem("tema")).toBe("claro");
+  });
+
+  it("mostra o botão Voltar apontando para a Home", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [] })
+    );
+
+    renderComRotas();
+
+    const botaoVoltar = await screen.findByRole("link", { name: /voltar/i });
+    expect(botaoVoltar).toHaveAttribute("href", "/Home");
   });
 
   it("mostra uma mensagem acessível quando a API falha", async () => {
@@ -76,7 +133,42 @@ describe("Vinculos", () => {
       respostaJson(500, { error: "Falha ao carregar vínculos." })
     );
 
-    render(<Vinculos />);
+    renderComRotas();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Falha ao carregar vínculos."
+    );
+  });
+
+  it("abre os detalhes ao acessar diretamente a URL do vínculo", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [vinculo] })
+    );
+
+    renderComRotas("/vinculos/12");
+
+    expect(await screen.findByRole("heading", { name: "João da Silva" })).toBeInTheDocument();
+    expect(screen.getByText("E-mail")).toBeInTheDocument();
+  });
+
+  it("informa quando o vínculo da URL não existe ou não está acessível", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [] })
+    );
+
+    renderComRotas("/vinculos/999");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Vínculo não encontrado ou sem acesso."
+    );
+  });
+
+  it("informa erro quando a API falha ao carregar os detalhes", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(500, { error: "Falha ao carregar vínculos." })
+    );
+
+    renderComRotas("/vinculos/12");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Falha ao carregar vínculos."
@@ -84,27 +176,21 @@ describe("Vinculos", () => {
   });
 });
 
-describe("Vinculos — detalhes de vínculo", () => {
-  it("dispara o callback ao selecionar uma pessoa e mostra os dados do vínculo", () => {
-    const onVerDetalhes = jest.fn();
-    render(<CardVinculo vinculo={vinculo} onVerDetalhes={onVerDetalhes} />);
+describe("VínculoDetalhe", () => {
+  it("carrega e exibe os dados do vínculo acessado pela URL", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [vinculo] })
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: /ver detalhes/i }));
+    renderComRotas("/vinculos/12");
 
-    expect(onVerDetalhes).toHaveBeenCalledWith(vinculo);
-  });
-
-  it("renderiza um diálogo de detalhes com informações acessíveis", () => {
-    const onFechar = jest.fn();
-    render(<DetalhesVinculo vinculo={vinculo} onFechar={onFechar} />);
-
-    const dialogo = screen.getByRole("dialog", { name: "Detalhes do vínculo" });
-    expect(dialogo).toHaveTextContent("João da Silva");
-    expect(dialogo).toHaveTextContent("Cuidador");
-    expect(dialogo).toHaveTextContent("Aprovado");
-    expect(dialogo).toHaveTextContent("Pessoa que cuida do idoso");
-
-    fireEvent.click(screen.getByRole("button", { name: /fechar detalhes/i }));
-    expect(onFechar).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("heading", { name: "João da Silva" })).toBeInTheDocument();
+    expect(screen.getByText("Cuidador")).toBeInTheDocument();
+    expect(screen.getByText("Aprovado")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Voltar" })).toHaveAttribute(
+      "href",
+      "/vinculos"
+    );
+    expect(screen.getByRole("button", { name: "Ativar modo escuro" })).toBeInTheDocument();
   });
 });

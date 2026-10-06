@@ -1,10 +1,10 @@
-import { ArrowLeft, CheckCircle2, CircleUserRound, Clock3, ShieldAlert, X } from "lucide-react";
+import { CheckCircle2, CircleUserRound, Clock3, ShieldAlert } from "lucide-react";
 
+import CabecalhoDetalheVinculo from "./CabecalhoDetalheVinculo";
 import type { Vinculo } from "./CardVinculo";
 
 type DetalhesVinculoProps = {
   vinculo: Vinculo;
-  onFechar: () => void;
 };
 
 function formatarData(data: string | null | undefined) {
@@ -38,19 +38,18 @@ function obterPapel(vinculo: Vinculo) {
   return "Pessoa vinculada";
 }
 
-export default function DetalhesVinculo({ vinculo, onFechar }: DetalhesVinculoProps) {
+export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
   const nome = vinculo.vinculado.nome ?? vinculo.idoso.nome ?? "Pessoa vinculada";
   const papel = obterPapel(vinculo);
   const status = formatarStatus(vinculo.status);
   const data = formatarData(vinculo.data_resposta ?? vinculo.confirmado_em);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#071A38]/70 p-4 sm:items-center">
+    <main className="min-h-screen bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
+      <CabecalhoDetalheVinculo />
       <section
-        role="dialog"
-        aria-modal="true"
-        aria-label="Detalhes do vínculo"
-        className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#151B35]"
+        aria-labelledby="detalhes-vinculo-titulo"
+        className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#151B35]"
       >
         <header className="flex items-center justify-between gap-4 border-b border-gray-200 bg-[#F3F0FF] p-5 dark:border-gray-700 dark:bg-[#242A4A]">
           <div className="flex items-center gap-3">
@@ -59,20 +58,12 @@ export default function DetalhesVinculo({ vinculo, onFechar }: DetalhesVinculoPr
             </div>
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-[#5F56EC]">Detalhes do vínculo</p>
-              <h2 id="detalhes-vinculo-titulo" className="text-2xl font-bold text-[#071A38] dark:text-white">
+              <h1 id="detalhes-vinculo-titulo" className="text-2xl font-bold text-[#071A38] dark:text-white">
                 {nome}
-              </h2>
+              </h1>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onFechar}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-[#071A38] transition hover:bg-white hover:text-[#554CD8] focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40 dark:text-white dark:hover:bg-[#151B35]"
-            aria-label="Fechar detalhes"
-          >
-            <X size={24} aria-hidden="true" />
-          </button>
         </header>
 
         <div className="space-y-5 p-5 sm:p-6">
@@ -113,18 +104,7 @@ export default function DetalhesVinculo({ vinculo, onFechar }: DetalhesVinculoPr
             </div>
           </dl>
         </div>
-
-        <footer className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-[#FAFAFF] p-5 sm:flex-row sm:justify-end dark:border-gray-700 dark:bg-[#0F1428]">
-          <button
-            type="button"
-            onClick={onFechar}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#6C63FF] px-5 font-semibold text-[#5F56EC] transition hover:bg-[#F3F0FF] focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40 dark:hover:bg-[#242A4A]"
-          >
-            <ArrowLeft size={20} aria-hidden="true" />
-            Voltar
-          </button>
-        </footer>
       </section>
-    </div>
+    </main>
   );
 }
