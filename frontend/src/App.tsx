@@ -12,6 +12,7 @@ import Saude from './pages/Saude'
 import Remedios from './pages/Remedios'
 import Agenda from './pages/Agenda'
 import Alimentacao from './pages/Alimentacao'
+import SobreNos from './pages/SobreNos'
 import RotaProtegida from './components/RotaProtegida'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 
@@ -28,6 +29,7 @@ function App() {
           </RotaProtegida>
         }
       />
+      <Route path="/sobre-nos" element={<SobreNos />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
