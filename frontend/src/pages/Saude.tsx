@@ -95,7 +95,7 @@ function Saude() {
               transition
 
               hover:border-[#6C63FF]
-              hover:text-[#6C63FF]
+              hover:text-[#5F56EC]
 
               dark:border-[#393947]
               dark:bg-[#171721]
@@ -135,7 +135,7 @@ function Saude() {
             md:px-8 md:py-8
           "
         >
-          <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#6C63FF] dark:text-[#9B96FF]">
+          <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#5F56EC] dark:text-[#9B96FF]">
             Cuidados e bem-estar
           </span>
 

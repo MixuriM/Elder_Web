@@ -47,10 +47,10 @@ export default function SobreNos() {
         </a>
       </header>
       <main className="mx-auto max-w-3xl space-y-8 p-4">
-        <h1 className="text-4xl font-bold text-[#6C63FF] dark:text-[#A18BFF]">Sobre nós</h1>
+        <h1 className="text-4xl font-bold text-[#5F56EC] dark:text-[#A18BFF]">Sobre nós</h1>
         {secoes.map((s) => (
           <section key={s.id} aria-labelledby={s.id} className="space-y-2">
-            <h2 id={s.id} className="text-2xl font-bold text-[#6C63FF] dark:text-[#A18BFF]">
+            <h2 id={s.id} className="text-2xl font-bold text-[#5F56EC] dark:text-[#A18BFF]">
               {s.titulo}
             </h2>
             <p>{s.texto}</p>

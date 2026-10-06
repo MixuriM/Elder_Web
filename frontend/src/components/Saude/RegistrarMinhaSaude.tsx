@@ -88,7 +88,7 @@ function RegistrarMinhaSaude() {
       "
     >
       <div className="mb-7">
-        <span className="text-sm font-bold uppercase tracking-[0.08em] text-[#6C63FF] dark:text-[#9B96FF]">
+        <span className="text-sm font-bold uppercase tracking-[0.08em] text-[#5F56EC] dark:text-[#9B96FF]">
           Minha saúde
         </span>
 
@@ -193,7 +193,7 @@ function RegistrarMinhaSaude() {
             justify-center
             gap-2
             rounded-xl
-            bg-[#6C63FF]
+            bg-[#5F56EC]
             px-5
             py-3.5
             text-lg

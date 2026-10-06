@@ -79,7 +79,7 @@ function FuncionalidadesSection() {
               font-bold
               uppercase
               tracking-[0.2em]
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:text-[#9B95FF]
             "
@@ -161,7 +161,7 @@ function FuncionalidadesSection() {
                     rounded-2xl
 
                     bg-[#ECE9FF]
-                    text-[#6C63FF]
+                    text-[#5F56EC]
 
                     dark:bg-[#292740]
                     dark:text-[#A7A2FF]

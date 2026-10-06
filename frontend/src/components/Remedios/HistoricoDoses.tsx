@@ -143,7 +143,7 @@ function HistoricoDoses({
             justify-center
             rounded-2xl
             bg-[#F3F0FF]
-            text-[#6C63FF]
+            text-[#5F56EC]
 
             dark:bg-[#29243F]
             dark:text-[#A89FFF]
@@ -285,7 +285,7 @@ function HistoricoDoses({
               <Clock3
                 size={17}
                 className="
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   dark:text-[#A89FFF]
                 "

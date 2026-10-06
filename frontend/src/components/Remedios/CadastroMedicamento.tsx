@@ -200,7 +200,7 @@ function CadastroMedicamento({
             justify-center
             gap-2
             rounded-xl
-            bg-[#6C63FF]
+            bg-[#5F56EC]
             px-5
             py-3
             font-semibold

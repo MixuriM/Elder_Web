@@ -140,7 +140,7 @@ function ModalMedicamento({
                 justify-center
                 rounded-xl
                 bg-[#F3F0FF]
-                text-[#6C63FF]
+                text-[#5F56EC]
 
                 dark:bg-[#29243F]
                 dark:text-[#A89FFF]
@@ -157,7 +157,7 @@ function ModalMedicamento({
                 className="
                   text-sm
                   font-semibold
-                  text-[#6C63FF]
+                  text-[#5F56EC]
 
                   dark:text-[#A89FFF]
                 "
@@ -215,7 +215,7 @@ function ModalMedicamento({
 
               hover:border-[#A18BFF]
               hover:bg-[#F3F0FF]
-              hover:text-[#6C63FF]
+              hover:text-[#5F56EC]
 
               dark:border-[#393947]
               dark:bg-[#20202A]

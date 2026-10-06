@@ -165,7 +165,7 @@ function EditarSaude({
           </div>
 
           <div>
-            <span className="text-sm font-bold uppercase tracking-[0.08em] text-[#6C63FF] dark:text-[#9B96FF]">
+            <span className="text-sm font-bold uppercase tracking-[0.08em] text-[#5F56EC] dark:text-[#9B96FF]">
               Editar registro
             </span>
 
@@ -184,7 +184,7 @@ function EditarSaude({
         <span
           className={`
             text-2xl
-            text-[#6C63FF]
+            text-[#5F56EC]
             transition-transform
             duration-300
             dark:text-[#9B96FF]
@@ -333,7 +333,7 @@ function EditarSaude({
                   flex min-h-[54px] flex-1
                   items-center justify-center gap-2
                   rounded-xl
-                  bg-[#6C63FF]
+                  bg-[#5F56EC]
                   px-5 py-3.5
                   font-semibold text-white
 

@@ -24,7 +24,7 @@ export default function CabecalhoVinculos({
         onClick={onAdicionar}
         className="
           flex min-h-12 items-center justify-center gap-2
-          rounded-xl bg-[#6C63FF] px-5 py-3
+          rounded-xl bg-[#5F56EC] px-5 py-3
           text-lg font-semibold text-white
           transition hover:bg-[#5B53E8]
           focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40

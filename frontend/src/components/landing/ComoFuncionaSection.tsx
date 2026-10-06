@@ -49,7 +49,7 @@ function ComoFuncionaSection() {
               font-bold
               uppercase
               tracking-[0.2em]
-              text-[#6C63FF]
+              text-[#5F56EC]
 
               dark:text-[#9B95FF]
             "
@@ -116,7 +116,11 @@ function ComoFuncionaSection() {
                   dark:bg-[#181824]
                 "
               >
+                {/* Numeral decorativo (marca d'água): vai como conteúdo CSS, fora do DOM de texto, para não
+                    ser lido nem medido como texto de baixo contraste (WCAG 1.4.3 isenta decoração pura). */}
                 <span
+                  aria-hidden="true"
+                  data-numero={numero}
                   className="
                     absolute
                     right-6
@@ -127,11 +131,11 @@ function ComoFuncionaSection() {
 
                     text-[#6C63FF]/10
 
+                    before:content-[attr(data-numero)]
+
                     dark:text-white/5
                   "
-                >
-                  {numero}
-                </span>
+                />
 
                 <div
                   className="
@@ -146,7 +150,7 @@ function ComoFuncionaSection() {
                     rounded-2xl
 
                     bg-[#ECE9FF]
-                    text-[#6C63FF]
+                    text-[#5F56EC]
 
                     dark:bg-[#292740]
                     dark:text-[#A7A2FF]
