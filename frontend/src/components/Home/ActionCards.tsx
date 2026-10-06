@@ -5,9 +5,13 @@ import {
   Pill,
 } from "lucide-react";
 
+import { useNavigate } from "react-router-dom";
+
 import ActionCard from "./ActionCard";
 
 function ActionCards() {
+  const navigate = useNavigate();
+
   return (
     <div
       className="
@@ -26,6 +30,7 @@ function ActionCards() {
         title="Minha Saúde"
         description="Acompanhe seus registros de saúde."
         icon={HeartPulse}
+        onClick={() => navigate("/saude")}
         color="
           bg-gradient-to-br
           from-emerald-500
@@ -37,6 +42,7 @@ function ActionCards() {
         title="Meus Medicamentos"
         description="Veja seus remédios e horários."
         icon={Pill}
+        onClick={() => navigate("/remedios")}
         color="
           bg-gradient-to-br
           from-[#6C63FF]
@@ -48,6 +54,7 @@ function ActionCards() {
         title="Minha Agenda"
         description="Consulte seus compromissos."
         icon={CalendarDays}
+        onClick={() => navigate("/agenda")}
         color="
           bg-gradient-to-br
           from-blue-500
@@ -56,9 +63,10 @@ function ActionCards() {
       />
 
       <ActionCard
-        title="Meus Relatórios"
+        title="Alimentação e Nutrição"
         description="Visualize seus registros e históricos."
         icon={FileText}
+        onClick={() => navigate("/alimentacao")}
         color="
           bg-gradient-to-br
           from-orange-400

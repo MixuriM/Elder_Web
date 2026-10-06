@@ -3,6 +3,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
 import { menuItems } from "../../data/menuItems";
@@ -28,6 +29,48 @@ function Sidebar({
     navigate("/login", { replace: true });
   }
 
+  function handleMenuClick(label: string) {
+    setMenuAtivo(label);
+    setAberto(false);
+
+    switch (label) {
+      case "Início":
+        navigate("/Home");
+        break;
+
+      case "Meu Perfil":
+        navigate("/perfil");
+        break;
+
+      case "Saúde":
+        navigate("/saude");
+        break;
+
+      case "Medicamentos":
+        navigate("/remedios");
+        break;
+
+      case "Agenda":
+        navigate("/agenda");
+        break;
+
+      case "Alimentação e Nutrição":
+        navigate("/alimentacao");
+        break;
+
+      case "Família":
+        navigate("/familia");
+        break;
+
+      case "Orientações":
+        navigate("/orientacoes");
+        break;
+
+      default:
+        break;
+    }
+  }
+
   return (
     <>
       {/* Fundo escuro ao abrir o menu no celular */}
@@ -40,10 +83,8 @@ function Sidebar({
             fixed
             inset-0
             z-30
-
             bg-black/60
             backdrop-blur-[2px]
-
             lg:hidden
           "
         />
@@ -128,10 +169,13 @@ function Sidebar({
               bg-gradient-to-br
               from-[#A18BFF]
               to-[#6C63FF]
-              
             "
           >
-            <img src="elder-favicon.ico"></img>
+            <img
+              src="elder-favicon.ico"
+              alt="Logo ElderWeb"
+              className="h-full w-full rounded-full object-cover"
+            />
           </div>
 
           {/* Nome da plataforma */}
@@ -249,11 +293,7 @@ function Sidebar({
                 <button
                   type="button"
                   key={item.label}
-                  onClick={() => {
-                    setMenuAtivo(item.label);
-                    setAberto(false);
-                    if (item.label === "Meu Perfil") navigate("/perfil");
-                  }}
+                  onClick={() => handleMenuClick(item.label)}
                   className={`
                     flex
                     w-full

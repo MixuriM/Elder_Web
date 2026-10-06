@@ -3,7 +3,6 @@ import {
   FileText,
   HeartPulse,
   Home,
-  KeyRound,
   LifeBuoy,
   Pill,
   Users,
@@ -16,9 +15,8 @@ export const menuItems: MenuItem[] = [
   { label: "Meu Perfil", icon: Users },
   { label: "Saúde", icon: HeartPulse },
   { label: "Medicamentos", icon: Pill },
-  { label: "Remédios", icon: KeyRound },
   { label: "Agenda", icon: CalendarDays },
-  { label: "Relatórios", icon: FileText },
+  { label: "Alimentação e Nutrição", icon: FileText },
   { label: "Família", icon: Users },
   { label: "Orientações", icon: LifeBuoy },
 ];
