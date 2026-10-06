@@ -1680,7 +1680,7 @@ Decisões D0 a D8 fechadas por Claude sob delegação explícita do Marcos em 20
 
 **Limitações aceitas.** Contraste de cor segue no item 9.1; nada visto no navegador; texto e layout provisórios.
 
-**Continua com o Marcos:** avisar Laureane e Jennifer (página nova provisória e rota em `App.tsx`); link de entrada na landing é da Laureane; atualizar no Obsidian o Acompanhamento 8.1 e a tabela de Testes do 8.1; hashes dos commits a registrar depois do merge.
+**Continua com o Marcos:** avisar Laureane e Jennifer (página nova provisória e rota em `App.tsx`); link de entrada na landing é da Laureane; atualizar no Obsidian o Acompanhamento 8.1 e a tabela de Testes do 8.1; PR #139 mergeado em `main` por rebase: `a36b35c` (feat) e `73173f8` (docs).
 
 ## Item 8.2 e teste 8.x — Orientações Gerais (RF-031) e navegação Landing/Welcome
 
@@ -1704,4 +1704,6 @@ Decisões D0 a D14 fechadas por Claude sob delegação explícita do Marcos em 2
 
 **Observações para a auditoria axe (9.x).** O `Login` renderiza 2 `h1` (`LadoInformativo.tsx` e `FormularioLogin.tsx`) e nenhum dos dois tem classe de breakpoint que o esconda (`hidden`, `md:` ou `lg:`): os dois ficam visíveis ao mesmo tempo, em qualquer largura. A `Welcome` renderiza os botões em duplicata, mas escondida por breakpoint: a seção mobile tem `md:hidden` e a seção desktop (`LandingWelcome`) tem `hidden md:block`, então só uma cópia aparece por largura. No jsdom o Tailwind não é carregado, por isso as duas cópias existem no DOM dos testes.
 
-**Continua com o Marcos:** avisar Laureane e Jennifer (página nova provisória, rota em `App.tsx`); commits e PR; registrar PR e hashes depois do merge.
+**PR e hashes.** PR #141, mergeado em `main` em 2026-10-06T13:20:42Z por rebase (`259c195` feat, `4f33d1d` test e `56fcf28` docs; os hashes locais `df66c8f`, `a3f2e85` e `600ce7c` mudaram no rebase). CI do PR verde: backend, frontend e Vercel.
+
+**Continua com o Marcos:** avisar Laureane e Jennifer (página nova provisória, rota em `App.tsx`).
