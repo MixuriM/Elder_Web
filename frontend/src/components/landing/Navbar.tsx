@@ -183,7 +183,7 @@ function Navbar({ onEntrar }: NavbarProps) {
               dark:border-[#8B84FF]
               dark:text-[#A7A2FF]
 
-              dark:hover:bg-[#8B84FF]
+              dark:hover:bg-[#554CD8]
               dark:hover:text-white
             "
           >
