@@ -391,10 +391,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   Backend 36 suítes e 1890 testes, frontend 440 passando; `verify-rotas-alimentacao.ts` 24/24 PASS no SQL Server
   local. Commits e PR ainda não feitos ao registrar isto.
 - 8.1 página pública "Sobre Nós" (RF-029): `/sobre-nos` em `pages/SobreNos.tsx`, fora de `RotaProtegida`, conteúdo provisório (texto e layout
-  finais: Laureane e Jennifer). Frontend 29 arquivos e 396 testes passando; sem link a partir da landing. Commits locais ainda sem hash.
+  finais: Laureane e Jennifer). Frontend 29 arquivos e 396 testes passando; sem link a partir da landing. PR #139, mergeado em `main` por rebase (`a36b35c` feat e `73173f8` docs).
 - 8.2 Orientações Gerais (RF-031): `/orientacoes` em `pages/Orientacoes.tsx`, dentro de `RotaProtegida`, conteúdo estático e provisório
   (sem backend, sem checar perfil; texto final: Laureane e Jennifer). `Sidebar` já aponta para ela; sem link na Home e na landing. Frontend 34 arquivos e 412
-  testes passando. Commits locais ainda sem hash; PR a registrar depois do merge.
+  testes passando. PR #141, mergeado em `main` em 2026-10-06T13:20:42Z por rebase (`259c195` feat, `4f33d1d` test e `56fcf28` docs; os hashes locais `df66c8f`, `a3f2e85` e `600ce7c` mudaram no rebase).
 - 8.x teste de navegação: `LandingPage.navegacao.test.tsx` e `Welcome.navegacao.test.tsx` (Entrar e Criar minha conta vão para `/welcome`;
   na Welcome, `/cadastro` e `/login`; os botões da Welcome existem em 2 cópias no DOM, mobile e desktop).
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
