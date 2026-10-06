@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom";
+
 import {
   fireEvent,
   render,
@@ -6,6 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+
 import userEvent from "@testing-library/user-event";
 
 import Remedios from "./Remedios";
@@ -246,9 +248,9 @@ describe("Remedios - página principal", () => {
     );
 
     await waitFor(() => {
-      expect(mockChamarApi).toHaveBeenCalledTimes(
-        2,
-      );
+      expect(
+        mockChamarApi,
+      ).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -263,7 +265,9 @@ describe("Remedios - página principal", () => {
       }),
     );
 
-    expect(mockNavigate).toHaveBeenCalledWith(-1);
+    expect(
+      mockNavigate,
+    ).toHaveBeenCalledWith(-1);
   });
 });
 
@@ -614,8 +618,7 @@ describe("Remedios - cadastro", () => {
 
       expect(body).toMatchObject({
         data_fim: "2026-12-31",
-        observacoes:
-          "Observação falsa",
+        observacoes: "Observação falsa",
       });
     });
   });
@@ -837,18 +840,19 @@ describe("Remedios - marcar dose", () => {
       }),
     );
 
-    expect(
-      screen.getByRole("dialog"),
-    ).toBeInTheDocument();
+    const dialog =
+      screen.getByRole("dialog");
+
+    expect(dialog).toBeInTheDocument();
 
     expect(
-      screen.getByRole("heading", {
+      within(dialog).getByRole("heading", {
         name: "Losartana Teste",
       }),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(
+      within(dialog).getByText(
         "Situação da dose",
       ),
     ).toBeInTheDocument();
@@ -907,7 +911,9 @@ describe("Remedios - marcar dose", () => {
     );
 
     await waitFor(() => {
-      expect(mockChamarApi).toHaveBeenCalledWith(
+      expect(
+        mockChamarApi,
+      ).toHaveBeenCalledWith(
         "/remedios/1/doses",
         expect.objectContaining({
           method: "POST",
@@ -932,9 +938,9 @@ describe("Remedios - marcar dose", () => {
       body.status_administracao,
     ).toBe("pulado");
 
-    expect(body.observacoes).toBe(
-      "Dose não tomada",
-    );
+    expect(
+      body.observacoes,
+    ).toBe("Dose não tomada");
   });
 
   it("mostra erro ao registrar dose", async () => {
@@ -948,7 +954,10 @@ describe("Remedios - marcar dose", () => {
         new Error(
           "Medicamento inativo.",
         ),
-      );
+      )
+      .mockResolvedValue({
+        medicamentos: [MEDICAMENTO],
+      });
 
     render(<Remedios />);
 
@@ -966,18 +975,32 @@ describe("Remedios - marcar dose", () => {
       }),
     );
 
+    const dialog =
+      screen.getByRole("dialog");
+
+    expect(dialog).toBeInTheDocument();
+
     await user.click(
-      within(
-        screen.getByRole("dialog"),
-      ).getByRole("button", {
+      within(dialog).getByRole("button", {
         name: /^registrar dose$/i,
       }),
     );
 
     expect(
-      await screen.findByRole("alert"),
+      await within(dialog).findByRole(
+        "alert",
+      ),
     ).toHaveTextContent(
       "Medicamento inativo.",
+    );
+
+    expect(
+      mockChamarApi,
+    ).toHaveBeenCalledWith(
+      "/remedios/1/doses",
+      expect.objectContaining({
+        method: "POST",
+      }),
     );
   });
 });
