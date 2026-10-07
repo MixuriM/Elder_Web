@@ -323,8 +323,6 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura) e levar ao grupo: `heading-order`
   da landing, 2 `h1` em Cadastro/Login/EsqueciSenha, textos de 9px do `Sidebar`, 38 `focus:ring-` com opacidade.
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
-- Revisar `pdfjs-dist` (devDependency, com `canvas` opcional sem binário) e os
-  3 avisos de `npm audit` só de dev (`pdfjs-dist`, `tar`, `@mapbox/node-pre-gyp`; `--omit=dev` dá 0) no item 9.3.
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (uso local via `docker-compose.yml`, com volume e
@@ -363,6 +361,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   cuidador: 403 de vínculo, 403 de ator ou flag, 400 de tipo, 403 de tipo, 400 de campos (sem a flag, corpo inválido
   dá 403). Campos e limites iguais aos do 6.1 (mesma função de validação, parametrizada por ator). Frontend não sabe
   se o cuidador tem a flag: a seção do cuidador sempre aparece e o 403 vira mensagem (limitação aceita).
+- Item 9.3: pendência de `pdfjs-dist` (`canvas` opcional sem binário) e dos 3 avisos de `npm audit` só de dev encerrada
+  como aceita; sem `npm audit` no CI (`--omit=dev` dá 0).
 
 **Itens implementados (resumo; detalhes e hashes no histórico)**
 - 5.2 marcar dose (PR #125), 5.3 histórico de remédios (PR #127), 5.4 exportar histórico em PDF (PR #129,
@@ -391,17 +391,17 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   DOM, mobile e desktop): conteúdo provisório, texto e layout finais são da Laureane e da Jennifer.
 - 9.1 auditoria axe (RNF-007): jest-axe em 9 telas e Playwright com `@axe-core/playwright` (`npm run test:a11y`,
   local); falha só em critical/serious. PR #143, mergeado em `main` em 2026-10-06T18:59:56Z por rebase.
-- 9.2 TLS e criptografia em repouso (RNF-002), concluído em 2026-10-06: `middleware/hsts.ts`
-  (`Strict-Transport-Security: max-age=31536000` só com `NODE_ENV=production`, avaliado por requisição, primeiro
-  `app.use`; sem `includeSubDomains` nem `preload`), `lib/segurancaTransporte.ts` (avaliadores puros),
-  `lib/sondaHttp.ts` e `scripts/smoke-*.ts`. O redirect HTTP para HTTPS é do Render (sem `trust proxy` nem redirect
-  no código); TDE só verificado, nunca alterado (Azure: TDE ativo, protetor `CERTIFICATE_OAEP_256`, confirmado pelo
-  portal como chave gerenciada pelo serviço). Backend 39 suítes e 1993 testes, 12 de 12 mutações derrubadas. PR #145,
-  mergeado em `main` em 2026-10-07T00:36:35Z (21:36 em Brasília) por rebase; hashes finais `8f0ae4e` (HSTS e
-  avaliadores), `92fd486` (smokes), `0bab6f6` e `520a947` (docs); os locais `76f59a8`, `cedb023`, `25420f7` e
-  `58025e7` mudaram no rebase. Smoke pós-deploy `smoke-https-producao.ts`: 6/6 PASS (C1 301 para https do mesmo
-  host em `/health` e `/usuario/me`; C2 TLSv1.3, certificado válido por 74 dias; C3 200; C4 HSTS
-  `max-age=31536000` em 200 e 401; o C4 passou de FAIL pré-deploy para PASS).
+- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (HSTS `max-age=31536000` só com
+  `NODE_ENV=production`, avaliado por requisição, primeiro `app.use`; sem `includeSubDomains` nem `preload`),
+  `lib/segurancaTransporte.ts`, `lib/sondaHttp.ts` e `scripts/smoke-*.ts`. O redirect HTTP para HTTPS é do Render
+  (sem `trust proxy` nem redirect no código); TDE só verificado, nunca alterado (Azure: ativo, chave gerenciada pelo
+  serviço). PR #145, mergeado em `main` em 2026-10-07T00:36:35Z por rebase (`8f0ae4e`, `92fd486`, `0bab6f6`,
+  `520a947`). Smoke pós-deploy `smoke-https-producao.ts`: 6/6 PASS.
+- 9.3 CI builda a imagem do backend (RNF-010): último passo do job `backend` de `ci.yml`, `docker build -t
+  elder-web-backend:ci ./backend` com `working-directory: .` (o job tem `defaults.run.working-directory: backend`).
+  Teste de contrato `backend/src/infra/dockerCi.test.ts` (8 testes, só `fs` e regex; lê fora de `backend/`, então
+  não roda no container do `docker-compose.yml`). A imagem não é publicada nem executada: o CI pega erro de build,
+  não de boot. Backend 40 suítes e 2001 testes, 7 de 7 mutações derrubadas.
 - PR #144 (`0165e20`, mergeado em `main` em 2026-10-07T00:35:10Z, 13 arquivos em `frontend/`, não é do 9.2):
   redesenho de Vínculos, Detalhes do Vínculo e Agenda; alterou `Agenda.tsx`, que era o esqueleto do 6.1 a 6.3.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
