@@ -265,6 +265,9 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   só contra o SQL Server local (`docker-compose.yml`, `localhost:14330`), com
   `DATABASE_URL` sobrescrita no comando, nunca no `.env` (o `.env` aponta para o Azure).
   Contra o Azure, só com autorização explícita. O e2e também roda só contra o local.
+- Scripts `backend/scripts/smoke-*.ts` são só leitura, rodam à mão (fora do CI) e nunca imprimem corpo de
+  resposta, `DATABASE_URL`, usuário, senha, token nem erro bruto do Prisma. `smoke-tde-azure.ts` só conecta a host
+  não local com `--confirmo-azure`, e só com autorização do Marcos naquele momento.
 
 **Segurança e privacidade (RegistroSaude é dado sensível, RNF-001)**
 - Nenhum `console.*`, corpo de erro ou log pode conter valores de saúde. O `errorHandler`
@@ -322,6 +325,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `frontend/src/lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
 - Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura) e levar ao grupo: `heading-order`
   da landing, 2 `h1` em Cadastro/Login/EsqueciSenha, textos de 9px do `Sidebar`, 38 `focus:ring-` com opacidade.
+- 9.2: no portal do Azure (servidor SQL), conferir a versão mínima de TLS em 1.2 e o estado do TDE do `elder_web`
+  (print para o TCC); no Render, conferir `NODE_ENV=production` e `FRONTEND_URL` com `https://`; depois do merge e do
+  deploy, rodar em `backend/` `npx tsx scripts/smoke-https-producao.ts https://elder-web-backend.onrender.com` e
+  colar a saída para fechar o 9.2.
 - Revisar `pdfjs-dist` (devDependency, com `canvas` opcional sem binário) e os
   3 avisos de `npm audit` só de dev (`pdfjs-dist`, `tar`, `@mapbox/node-pre-gyp`; `--omit=dev` dá 0) no item 9.3.
 
@@ -371,39 +378,33 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
 - 6.1 criar compromisso (RF-015): `POST /agenda` (idoso) e `POST /agenda/idoso/:idosoId` (familiar) em
   `routes/agenda.ts`; só `pessoal` e `medico` (`cuidado` dá 403, validado antes dos demais campos); datas ISO com
-  fuso, gravadas em UTC. Esqueleto `pages/Agenda.tsx` em `/agenda`. Backend 31 suítes e 1343 testes, frontend 284
-  passando; `verify-rotas-agenda.ts` (prefixo `verify-agenda-`) 12/12 PASS no SQL Server local.
-- 6.2 cuidador cria compromisso de cuidado (RF-016, RF-032): ramo do cuidador em `POST /agenda/idoso/:idosoId`
-  (ver decisões do 6.2). Seção "Criar compromisso de cuidado (cuidador)" em `pages/Agenda.tsx`, sem select de tipo.
-  Backend 32 suítes e 1466 testes, frontend 299 passando; `verify-rotas-agenda.ts` 17/17 PASS no SQL Server local.
-  Commits e PR ainda não feitos ao registrar isto (completar hashes e PR no histórico depois do merge).
+  fuso, gravadas em UTC. Esqueleto `pages/Agenda.tsx` em `/agenda`.
+- 6.2 cuidador cria compromisso de cuidado (RF-016, RF-032): ramo do cuidador em `POST /agenda/idoso/:idosoId` (ver
+  decisões do 6.2); seção "Criar compromisso de cuidado (cuidador)" em `pages/Agenda.tsx`, sem select de tipo.
 - 6.3 visualizar agenda (RF-017, RNF-003): `GET /agenda` (idoso) e `GET /agenda/idoso/:idosoId` (vínculo aprovado
-  basta) em `routes/agenda.ts`; `lib/agendaPorDia.ts` e seção "Ver agenda" em `pages/Agenda.tsx`. Backend 33 suítes e
-  1535 testes, frontend 347 passando; `verify-rotas-agenda.ts` 24/24 PASS no SQL Server local. Commits locais
-  ainda sem hash definitivo; PR e hashes a registrar no histórico depois do merge. Teste de fuso por
-  subprocesso `node` com `TZ` real (exige Node 22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
+  basta); `lib/agendaPorDia.ts` e seção "Ver agenda". Teste de fuso por subprocesso `node` com `TZ` real (exige Node
+  22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
 - 7.1 registrar refeição/plano alimentar (RF-018): `POST /alimentacao` (idoso) e `POST /alimentacao/idoso/:idosoId`
   (familiar com `modo_decisao` efetivo `'familiar'`, via resolver) em `routes/alimentacao.ts`. Cuidador nunca cria:
   403 com qualquer vínculo e flags, resolver nunca chamado para ele. `refeicao` fechada em 6 valores só na aplicação
   (sem CHECK), `descricao` obrigatória 1 a 500 (dado sensível, regras de log do RNF-001), `data_hora` ISO com fuso,
-  passado e futuro. Decisões D1 a D12 no histórico. Esqueleto `pages/Alimentacao.tsx` em `/alimentacao`. Backend 35
-  suítes e 1802 testes, frontend 377 passando; `verify-rotas-alimentacao.ts` (prefixo `verify-alim-`) 14/14 PASS no
-  SQL Server local. PR #135, mergeado em `main` em 2026-10-05T16:59:48Z por rebase.
+  passado e futuro. Decisões D1 a D12 no histórico. Esqueleto `pages/Alimentacao.tsx`. PR #135, mergeado em `main` em 2026-10-05T16:59:48Z por rebase.
 - 7.2 histórico alimentar (RF-019): `GET /alimentacao` (idoso) e `GET /alimentacao/idoso/:idosoId` (vínculo aprovado
-  basta: cuidador lê com as 3 flags `false`, sem `permite_*` nem resolver) em `routes/alimentacao.ts`, ordem
-  `data_hora` e `id` decrescentes. `lib/alimentacaoFormato.ts` e seção "Ver histórico alimentar" em `Alimentacao.tsx`.
-  Backend 36 suítes e 1890 testes, frontend 440 passando; `verify-rotas-alimentacao.ts` 24/24 PASS no SQL Server
-  local. Commits e PR ainda não feitos ao registrar isto.
-- 8.1 página pública "Sobre Nós" (RF-029): `/sobre-nos` em `pages/SobreNos.tsx`, fora de `RotaProtegida`, conteúdo provisório (texto e layout
-  finais: Laureane e Jennifer). Frontend 29 arquivos e 396 testes passando; sem link a partir da landing. PR #139, mergeado em `main` por rebase (`a36b35c` feat e `73173f8` docs).
-- 8.2 Orientações Gerais (RF-031): `/orientacoes` em `pages/Orientacoes.tsx`, dentro de `RotaProtegida`, conteúdo estático e provisório
-  (sem backend, sem checar perfil; texto final: Laureane e Jennifer). `Sidebar` já aponta para ela; sem link na Home e na landing. Frontend 34 arquivos e 412
-  testes passando. PR #141, mergeado em `main` em 2026-10-06T13:20:42Z por rebase (`259c195` feat, `4f33d1d` test e `56fcf28` docs; os hashes locais `df66c8f`, `a3f2e85` e `600ce7c` mudaram no rebase).
-- 8.x teste de navegação: `LandingPage.navegacao.test.tsx` e `Welcome.navegacao.test.tsx` (Entrar e Criar minha conta vão para `/welcome`;
-  na Welcome, `/cadastro` e `/login`; os botões da Welcome existem em 2 cópias no DOM, mobile e desktop).
-- 9.1 auditoria axe (RNF-007): 9 `*.acessibilidade.test.tsx` novos (jest-axe) e `e2e/acessibilidade-{publicas,autenticadas}.spec.ts`
-  (`@axe-core/playwright`, 7+8 rotas, 3 perfis, falha só em critical/serious). Frontend 43 arquivos e 433 testes; `test:a11y`
-  15/15. PR #143 ABERTO (não mergeado ao registrar; trocar por data e hashes depois do merge; locais `4e1656f`...`cf291cc`).
+  basta: cuidador lê com as 3 flags `false`, sem `permite_*` nem resolver), ordem `data_hora` e `id` decrescentes.
+  `lib/alimentacaoFormato.ts` e seção "Ver histórico alimentar" em `Alimentacao.tsx`.
+- 8.1 "Sobre Nós" (RF-029, `/sobre-nos`, pública, PR #139), 8.2 Orientações Gerais (RF-031, `/orientacoes`, dentro de
+  `RotaProtegida`, PR #141) e testes de navegação da landing e da Welcome (botões da Welcome existem em 2 cópias no
+  DOM, mobile e desktop): conteúdo provisório, texto e layout finais são da Laureane e da Jennifer.
+- 9.1 auditoria axe (RNF-007): jest-axe em 9 telas e Playwright com `@axe-core/playwright` (`npm run test:a11y`,
+  local); falha só em critical/serious. PR #143, mergeado em `main` em 2026-10-06T18:59:56Z por rebase.
+- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (`Strict-Transport-Security: max-age=31536000`
+  só com `NODE_ENV=production`, avaliado por requisição, primeiro `app.use`; sem `includeSubDomains` nem `preload`),
+  `lib/segurancaTransporte.ts` (avaliadores puros) e `lib/sondaHttp.ts`; `scripts/smoke-https-producao.ts` e
+  `scripts/smoke-tde-azure.ts`. O redirect HTTP para HTTPS é do Render (sem `trust proxy` nem redirect no código);
+  TDE só verificado, nunca alterado. Backend 39 suítes e 1993 testes, 12 de 12 mutações derrubadas. Antes do
+  deploy: C1 a C3 PASS e C4 (HSTS) FAIL em produção. Azure (só SELECT, autorizado): conexão cifrada e TDE PASS
+  (`encryption_state` 3, protetor `CERTIFICATE_OAEP_256`). Commits sem hash definitivo. Só conclui depois do
+  `smoke-https-producao` pós-deploy (pendência abaixo).
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
