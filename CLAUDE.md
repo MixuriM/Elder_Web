@@ -167,7 +167,7 @@ elder-web/
 - Frontend dev: `npm run dev` (dentro de `frontend/`)
 - Backend dev: `npm run dev` (dentro de `backend/`)
 - Frontend test: `npm test` (dentro de `frontend/`)
-- Backend test: `npm test` (dentro de `backend/`)
+- Backend test: `npm test` (dentro de `backend/`); com cobertura: `npm run test:coverage` (é o que o CI roda)
 
 `backend/src/index.ts` foi dividido em `app.ts` (monta e exporta o Express app)
 e `index.ts` (só chama `app.listen`) especificamente para viabilizar Supertest
@@ -319,7 +319,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 
 **Pendências manuais (Marcos)**
 - Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
-  `frontend/src/lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
+  `lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
 - Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura) e levar ao grupo: `heading-order`
   da landing, 2 `h1` em Cadastro/Login/EsqueciSenha, textos de 9px do `Sidebar`, 38 `focus:ring-` com opacidade.
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
@@ -363,12 +363,19 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   se o cuidador tem a flag: a seção do cuidador sempre aparece e o 403 vira mensagem (limitação aceita).
 - Item 9.3: pendência de `pdfjs-dist` (`canvas` opcional sem binário) e dos 3 avisos de `npm audit` só de dev encerrada
   como aceita; sem `npm audit` no CI (`--omit=dev` dá 0).
+- Item 9.4 (D1 a D9, fechadas): o item só vai a ✅ com o CI remoto verde num push em `development`; sem dependência
+  nova; código de produção só muda se um teste novo provar furo real de autorização (RED, correção mínima, commit
+  `fix(auth):` separado; 400 antes de 403 não é furo); testes com Prisma mockado (não prova o filtro do SQL Server
+  real, aceito); `npm test` segue `jest` e o CI roda `npm run test:coverage` no lugar dele; CI em push de todas as
+  branches mais PR para `main`, com `concurrency` (execução duplicada aceita); limiares = floor(medido) menos 1
+  (routes 95/92/99/96, middleware 99; metas mínimas 85/75/85/85 e 90/80/90/90); mutação local vale como RED em
+  teste de caracterização; regra de ator vem do código (cuidador nunca cria medicamento nem refeição, familiar só com
+  `modo_decisao` efetivo `'familiar'`, flag exata e estrita).
 
 **Itens implementados (resumo; detalhes e hashes no histórico)**
-- 5.2 marcar dose (PR #125), 5.3 histórico de remédios (PR #127), 5.4 exportar histórico em PDF (PR #129,
-  mergeado em `main` em 2026-10-04T18:46:01Z, rebase). Familiar só marca dose com `modo_decisao` efetivo
-  `'familiar'` (via resolver), como no cadastro de medicamento (5.1). `GET /remedios` e `GET /remedios/idoso/:idosoId`
-  e as rotas de PDF: vínculo aprovado basta, sem `permite_*` nem `modo_decisao`. PDF montado inteiro em memória
+- 5.2 marcar dose (PR #125), 5.3 histórico de remédios (PR #127), 5.4 exportar histórico em PDF (PR #129, mergeado em
+  `main` em 2026-10-04T18:46:01Z, rebase). Familiar só marca dose com `modo_decisao` efetivo `'familiar'` (via
+  resolver), como em 5.1. `GET /remedios`, `GET /remedios/idoso/:idosoId` e as rotas de PDF: vínculo aprovado basta. PDF montado inteiro em memória
   (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
 - 6.1 criar compromisso (RF-015): `POST /agenda` (idoso) e `POST /agenda/idoso/:idosoId` (familiar) em
   `routes/agenda.ts`; só `pessoal` e `medico` (`cuidado` dá 403, validado antes dos demais campos); datas ISO com
@@ -378,37 +385,38 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - 6.3 visualizar agenda (RF-017, RNF-003): `GET /agenda` (idoso) e `GET /agenda/idoso/:idosoId` (vínculo aprovado
   basta); `lib/agendaPorDia.ts` e seção "Ver agenda". Teste de fuso por subprocesso `node` com `TZ` real (exige Node
   22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
-- 7.1 registrar refeição/plano alimentar (RF-018): `POST /alimentacao` (idoso) e `POST /alimentacao/idoso/:idosoId`
-  (familiar com `modo_decisao` efetivo `'familiar'`, via resolver) em `routes/alimentacao.ts`. Cuidador nunca cria:
-  403 com qualquer vínculo e flags, resolver nunca chamado para ele. `refeicao` fechada em 6 valores só na aplicação
-  (sem CHECK), `descricao` obrigatória 1 a 500 (dado sensível, regras de log do RNF-001), `data_hora` ISO com fuso,
-  passado e futuro. Decisões D1 a D12 no histórico. Esqueleto `pages/Alimentacao.tsx`. PR #135, mergeado em `main` em 2026-10-05T16:59:48Z por rebase.
+- 7.1 registrar refeição (RF-018): `POST /alimentacao` (idoso) e `POST /alimentacao/idoso/:idosoId` (familiar com
+  `modo_decisao` efetivo `'familiar'`, via resolver) em `routes/alimentacao.ts`. Cuidador nunca cria (403 com qualquer
+  vínculo e flags; resolver nunca chamado). `refeicao` com 6 valores só na aplicação (sem CHECK), `descricao` 1 a 500
+  (dado sensível), `data_hora` ISO com fuso. Decisões D1 a D12 no histórico. PR #135, mergeado em `main` em
+  2026-10-05T16:59:48Z por rebase.
 - 7.2 histórico alimentar (RF-019): `GET /alimentacao` (idoso) e `GET /alimentacao/idoso/:idosoId` (vínculo aprovado
   basta: cuidador lê com as 3 flags `false`, sem `permite_*` nem resolver), ordem `data_hora` e `id` decrescentes.
   `lib/alimentacaoFormato.ts` e seção "Ver histórico alimentar" em `Alimentacao.tsx`.
 - 8.1 "Sobre Nós" (RF-029, `/sobre-nos`, pública, PR #139), 8.2 Orientações Gerais (RF-031, `/orientacoes`, dentro de
-  `RotaProtegida`, PR #141) e testes de navegação da landing e da Welcome (botões da Welcome existem em 2 cópias no
-  DOM, mobile e desktop): conteúdo provisório, texto e layout finais são da Laureane e da Jennifer.
+  `RotaProtegida`, PR #141) e testes de navegação da landing e da Welcome (botões em 2 cópias no DOM, mobile e
+  desktop): conteúdo provisório, texto e layout finais são da Laureane e da Jennifer.
 - 9.1 auditoria axe (RNF-007): jest-axe em 9 telas e Playwright com `@axe-core/playwright` (`npm run test:a11y`,
-  local); falha só em critical/serious. PR #143, mergeado em `main` em 2026-10-06T18:59:56Z por rebase.
+  local); falha só em critical/serious. PR #143, mergeado em `main` em 2026-10-06T18:59:56Z.
 - 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (HSTS `max-age=31536000` só com
-  `NODE_ENV=production`, avaliado por requisição, primeiro `app.use`; sem `includeSubDomains` nem `preload`),
-  `lib/segurancaTransporte.ts`, `lib/sondaHttp.ts` e `scripts/smoke-*.ts`. O redirect HTTP para HTTPS é do Render
-  (sem `trust proxy` nem redirect no código); TDE só verificado, nunca alterado (Azure: ativo, chave gerenciada pelo
-  serviço). PR #145, mergeado em `main` em 2026-10-07T00:36:35Z por rebase (`8f0ae4e`, `92fd486`, `0bab6f6`,
-  `520a947`). Smoke pós-deploy `smoke-https-producao.ts`: 6/6 PASS.
-- 9.3 CI builda a imagem do backend (RNF-010): último passo do job `backend` de `ci.yml`, `docker build -t
-  elder-web-backend:ci ./backend` com `working-directory: .` (o job tem `defaults.run.working-directory: backend`).
-  Teste de contrato `backend/src/infra/dockerCi.test.ts` (8 testes, só `fs` e regex; lê fora de `backend/`, então
-  não roda no container do `docker-compose.yml`). A imagem não é publicada nem executada: o CI pega erro de build,
-  não de boot. Backend 40 suítes e 2001 testes, 7 de 7 mutações derrubadas. PR #149, mergeado em `main` em
-  2026-10-07T20:19:58Z por rebase (`995bac5`, `90df423`, `d14f493`); CI verde, o passo de build passou no runner.
-- PR #144 (`0165e20`, mergeado em `main` em 2026-10-07T00:35:10Z, 13 arquivos em `frontend/`, não é do 9.2):
-  redesenho de Vínculos, Detalhes do Vínculo e Agenda; alterou `Agenda.tsx`, que era o esqueleto do 6.1 a 6.3.
+  `NODE_ENV=production`, sem `includeSubDomains` nem `preload`), `lib/segurancaTransporte.ts`, `lib/sondaHttp.ts` e
+  `scripts/smoke-*.ts`. O redirect HTTP para HTTPS é do Render; TDE só verificado (Azure: ativo, chave gerenciada pelo
+  serviço). PR #145, mergeado em `main` em 2026-10-07T00:36:35Z por rebase; smoke pós-deploy 6/6 PASS.
+- 9.3 CI builda a imagem do backend (RNF-010): último passo do job `backend`, `docker build -t elder-web-backend:ci
+  ./backend` com `working-directory: .`. Teste `backend/src/infra/dockerCi.test.ts` (8 testes; só roda no host e
+  no CI). Não publica nem executa a imagem: pega erro de build, não de boot. PR #149,
+  mergeado em `main` em 2026-10-07T20:19:58Z por rebase.
+- 9.4 suíte de autorização no CI (RNF-003): `routes/autorizacaoRotas.test.ts` enumera as rotas de `app._router.stack`
+  e compara com `ROTAS_ESPERADAS` (rota nova sem classificação falha). Cobre 401 e 503 sem
+  token, 403 sem Usuario, 403 sem vínculo aprovado (corpo idêntico), 403 sem a flag exata do Cuidador, regra de ator
+  e 404 uniforme de registro, sempre sem escrita no Prisma. Também limiares de cobertura e contratos em `src/infra/`.
+  Backend 40 suítes e 2001 testes antes, 43 e 2550 depois; sem furo achado.
+- PR #144 (`0165e20`, `main` em 2026-10-07T00:35:10Z, só `frontend/`): redesenho de Vínculos, Detalhes do Vínculo e
+  Agenda; alterou `Agenda.tsx`, o esqueleto do 6.1 a 6.3.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
-  sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
-  `verify-pdf-` no `firebase_uid` marca conta residual se o processo for morto no meio.
+  sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo `verify-dose-`,
+  `verify-hist-` ou `verify-pdf-` marca conta residual se o processo morrer no meio.
 
 ## Histórico de implementação
 O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
