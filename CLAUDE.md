@@ -401,7 +401,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   elder-web-backend:ci ./backend` com `working-directory: .` (o job tem `defaults.run.working-directory: backend`).
   Teste de contrato `backend/src/infra/dockerCi.test.ts` (8 testes, só `fs` e regex; lê fora de `backend/`, então
   não roda no container do `docker-compose.yml`). A imagem não é publicada nem executada: o CI pega erro de build,
-  não de boot. Backend 40 suítes e 2001 testes, 7 de 7 mutações derrubadas.
+  não de boot. Backend 40 suítes e 2001 testes, 7 de 7 mutações derrubadas. PR #149, mergeado em `main` em
+  2026-10-07T20:19:58Z por rebase (`995bac5`, `90df423`, `d14f493`); CI verde, o passo de build passou no runner.
 - PR #144 (`0165e20`, mergeado em `main` em 2026-10-07T00:35:10Z, 13 arquivos em `frontend/`, não é do 9.2):
   redesenho de Vínculos, Detalhes do Vínculo e Agenda; alterou `Agenda.tsx`, que era o esqueleto do 6.1 a 6.3.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
