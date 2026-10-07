@@ -59,4 +59,13 @@ describe("Sidebar — logout", () => {
 
     expect(mockNavigate).toHaveBeenCalledWith("/perfil");
   });
+
+  it("clicar em 'Família' navega para /vinculos", async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    await user.click(screen.getByRole("button", { name: /família/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/vinculos");
+  });
 });

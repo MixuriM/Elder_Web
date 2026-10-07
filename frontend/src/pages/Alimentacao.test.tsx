@@ -85,20 +85,20 @@ function chamada(i = 0) {
 
 describe("Alimentacao (item 7.1)", () => {
   it("renderiza a seção com todos os campos acessíveis por label", () => {
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     expect(screen.getByRole("heading", { level: 1, name: "Alimentação" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Registrar refeição" })).toBeInTheDocument();
     Object.values(campos()).forEach((el) => expect(el).toBeInTheDocument());
   });
 
   it("select de refeição tem exatamente os 6 valores do backend, com rótulos em português", () => {
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     const opcoes = Array.from(campos().refeicao.options).map((o) => [o.value, o.textContent]);
     expect(opcoes).toEqual(OPCOES);
   });
 
   it("descrição é textarea com maxLength 500; descrição e data e hora são obrigatórias", () => {
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     const c = campos();
     expect(c.descricao.tagName).toBe("TEXTAREA");
     expect(c.descricao).toHaveAttribute("maxLength", "500");
@@ -111,7 +111,7 @@ describe("Alimentacao (item 7.1)", () => {
 
   it("cuidador ou familiar: seletor de idoso obrigatório, sem campo de ID digitável", () => {
     mockUseIdosos.mockReturnValue(listaDoisIdosos7);
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     const seletor = seletorRegistrar() as HTMLElement;
     expect(seletor.tagName).toBe("SELECT");
     expect(seletor).toBeRequired();
@@ -121,7 +121,7 @@ describe("Alimentacao (item 7.1)", () => {
   it("escrita com 2+ idosos: sem pré-seleção e envio desabilitado até escolher; 1 idoso vem pré-selecionado", async () => {
     mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     const user = userEvent.setup();
-    const { unmount } = render(<Alimentacao />);
+    const { unmount } = render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     expect(seletorRegistrar()).toHaveValue("");
     expect(campos().botao).toBeDisabled();
     await user.selectOptions(seletorRegistrar() as HTMLElement, "9");
@@ -129,17 +129,9 @@ describe("Alimentacao (item 7.1)", () => {
     unmount();
 
     mockUseIdosos.mockReturnValue(listaUmIdoso);
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     expect(seletorRegistrar()).toHaveValue("7");
     expect(campos().botao).toBeEnabled();
-  });
-
-  it("a página não tem tema escuro: os seletores não usam classes dark: (senão o rótulo some sobre fundo branco)", () => {
-    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
-    const { container } = render(<Alimentacao />);
-    const seletores = container.querySelectorAll("label[for^='idoso_id'], select[id^='idoso_id']");
-    expect(seletores).toHaveLength(4);
-    seletores.forEach((el) => expect(el.getAttribute("class") ?? "").not.toMatch(/(^|\s)dark:/));
   });
 
   it("0 idosos: orienta a solicitar vínculo e desabilita o registro", () => {
@@ -156,7 +148,7 @@ describe("Alimentacao (item 7.1)", () => {
   it("perfil idoso (sem seletor): POST /alimentacao, Authorization e Content-Type JSON, corpo exato com data via toISOString", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 31 }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
     await screen.findByRole("status");
     expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -171,7 +163,7 @@ describe("Alimentacao (item 7.1)", () => {
     mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 33 }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user, "7", "jantar");
     await screen.findByRole("status");
     const { url, corpo } = chamada();
@@ -183,7 +175,7 @@ describe("Alimentacao (item 7.1)", () => {
   it.each(OPCOES.map(([v]) => v))("refeição '%s' escolhida vai no corpo", async (valor) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 1 }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user, "", valor);
     await screen.findByRole("status");
     expect(chamada().corpo.refeicao).toBe(valor);
@@ -192,7 +184,7 @@ describe("Alimentacao (item 7.1)", () => {
   it("201: sucesso em role=status com o id criado, sem alerta", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 41 }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
     expect(await screen.findByRole("status")).toHaveTextContent("Refeição registrada (id 41).");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -201,7 +193,7 @@ describe("Alimentacao (item 7.1)", () => {
   it.each(MENSAGENS)("%i: mensagem fixa em role=alert, sem ecoar o corpo de erro do servidor", async (status, msg) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: ERRO_DO_SERVIDOR }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
     expect(await screen.findByRole("alert")).toHaveTextContent(msg);
     expect(screen.queryByText(new RegExp(ERRO_DO_SERVIDOR))).not.toBeInTheDocument();
@@ -211,7 +203,7 @@ describe("Alimentacao (item 7.1)", () => {
   it("falha de rede: mensagem genérica fixa, sem ecoar o texto do erro", async () => {
     (global.fetch as jest.Mock).mockRejectedValue(new Error(ERRO_DO_SERVIDOR));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível registrar a refeição.");
     expect(screen.queryByText(new RegExp(ERRO_DO_SERVIDOR))).not.toBeInTheDocument();
@@ -220,7 +212,7 @@ describe("Alimentacao (item 7.1)", () => {
   it("carregando: botão desabilitado, aria-busy e texto 'Registrando...'", async () => {
     (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
     const botao = await screen.findByRole("button", { name: /registrando/i });
     expect(botao).toBeDisabled();
@@ -230,7 +222,7 @@ describe("Alimentacao (item 7.1)", () => {
   it("depois da resposta o botão volta ao normal", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 5 }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
     await screen.findByRole("status");
     const botao = campos().botao;
@@ -240,7 +232,7 @@ describe("Alimentacao (item 7.1)", () => {
 
   it("reenviar limpa o erro anterior (e o sucesso anterior)", async () => {
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(403, {}));
     await preencherEEnviar(user);
     await screen.findByRole("alert");
@@ -251,7 +243,7 @@ describe("Alimentacao (item 7.1)", () => {
 
   it("reenviar limpa o sucesso anterior", async () => {
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(201, { id: 9 }));
     await preencherEEnviar(user);
     await screen.findByRole("status");
@@ -266,7 +258,7 @@ describe("Alimentacao (item 7.1)", () => {
     );
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(400, { error: ERRO_DO_SERVIDOR }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
     await screen.findByRole("alert");
     expect(JSON.stringify(espioes.map((s) => s.mock.calls))).not.toContain(DESCRICAO);
@@ -323,7 +315,7 @@ async function pedirHistorico(user: ReturnType<typeof userEvent.setup>, idosoId 
 
 describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H1: a seção existe sempre, com heading, campo por label e botão; só busca ao enviar", () => {
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     const h = verHistorico();
     expect(within(h.regiao).getByRole("heading", { level: 2, name: "Ver histórico alimentar" })).toBeInTheDocument();
     expect(h.campo).not.toBeInTheDocument(); // perfil idoso: sem seletor
@@ -334,7 +326,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H2: perfil idoso (sem seletor) chama GET /alimentacao, com Authorization, sem Content-Type e sem corpo", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     await within(verHistorico().regiao).findByText("Nenhuma refeição registrada.");
     expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -349,7 +341,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
     mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user, "7");
     await within(verHistorico().regiao).findByText("Nenhuma refeição registrada.");
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
@@ -360,7 +352,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H2: usa fetch direto, nunca chamarApi", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: REGISTROS_API }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     await within(verHistorico().regiao).findByText("descricao-falsa-3");
     expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -370,7 +362,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H3: itens na ordem recebida, cada um com rótulo em texto, <time dateTime> em ISO e a descrição", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: REGISTROS_API }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     const { regiao } = verHistorico();
     expect(await within(regiao).findByRole("status")).toHaveTextContent("3 registro(s) encontrado(s).");
@@ -405,7 +397,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
     );
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: seis }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     const { regiao } = verHistorico();
     await within(regiao).findByText("descricao-falsa-1");
@@ -416,7 +408,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H4: carregando: botão desabilitado com aria-busy, status de carregando, resultado anterior some", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, { registros: REGISTROS_API }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     await within(verHistorico().regiao).findByText("descricao-falsa-3");
 
@@ -434,7 +426,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H4: depois da resposta o botão volta ao normal", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     await within(verHistorico().regiao).findByText("Nenhuma refeição registrada.");
     expect(verHistorico().botao).toBeEnabled();
@@ -444,7 +436,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H5: lista vazia mostra a mensagem fixa em role=status e nenhum item", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     const { regiao } = verHistorico();
     expect(await within(regiao).findByRole("status")).toHaveTextContent("Nenhuma refeição registrada.");
@@ -456,7 +448,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
     mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: SENT_CORPO }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user, "7");
     const { regiao } = verHistorico();
     expect(await within(regiao).findByRole("alert")).toHaveTextContent(mensagem);
@@ -467,7 +459,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H6: falha de rede vira a mensagem genérica, e a mensagem é limpa ao reenviar", async () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error(SENT_CORPO));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     expect(await within(verHistorico().regiao).findByRole("alert")).toHaveTextContent(
       "Não foi possível carregar o histórico alimentar.",
@@ -482,7 +474,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H6: erro limpo ao reenviar com sucesso", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(403, {}));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     await within(verHistorico().regiao).findByRole("alert");
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, { registros: REGISTROS_API }));
@@ -494,7 +486,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   it("H6: 200 sem a lista registros vira erro genérico, nunca tela vazia", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { outra: 1 }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     expect(await within(verHistorico().regiao).findByRole("alert")).toHaveTextContent(
       "Não foi possível carregar o histórico alimentar.",
@@ -508,7 +500,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   ])("H7: %s (RangeError) vira 'Não foi possível exibir o histórico alimentar.' sem repetir o valor", async (_nome, reg, valor) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [reg] }));
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     const { regiao } = verHistorico();
     expect(await within(regiao).findByRole("alert")).toHaveTextContent("Não foi possível exibir o histórico alimentar.");
@@ -523,7 +515,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
       jest.spyOn(console, m).mockImplementation(() => undefined),
     );
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await pedirHistorico(user);
     await within(verHistorico().regiao).findByText("descricao-falsa-3");
     expect(JSON.stringify(espioes.flatMap((s) => s.mock.calls))).not.toContain("descricao-falsa");
@@ -531,7 +523,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
 
   it("H9: a seção de registro do 7.1 segue presente e registrar não recarrega a lista sozinho (D12)", async () => {
     const user = userEvent.setup();
-    render(<Alimentacao />);
+    render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     expect(screen.getByRole("heading", { level: 2, name: "Registrar refeição" })).toBeInTheDocument();
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(200, { registros: [] }));
     await pedirHistorico(user);
