@@ -317,14 +317,11 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 ("decisão do grupo"); reabrir só se o grupo mandar. Pendências manuais ficam com o Marcos.
 
 **Pendências manuais (Marcos)**
-- Conferir o log do `npm ci` e do 1º deploy depois do merge (o `docker build` local passou).
 - Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
   `frontend/src/lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
 - Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura) e levar ao grupo: `heading-order`
   da landing, 2 `h1` em Cadastro/Login/EsqueciSenha, textos de 9px do `Sidebar`, 38 `focus:ring-` com opacidade.
-- 9.2 (Azure e Render fechados em 2026-10-06, com print do portal e leitura do dashboard; Secret Files e grupos de
-  ambiente do Render não olhados): depois do merge e do deploy, rodar em `backend/`
-  `npx tsx scripts/smoke-https-producao.ts https://elder-web-backend.onrender.com` e colar a saída para fechar o 9.2.
+- Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Revisar `pdfjs-dist` (devDependency, com `canvas` opcional sem binário) e os
   3 avisos de `npm audit` só de dev (`pdfjs-dist`, `tar`, `@mapbox/node-pre-gyp`; `--omit=dev` dá 0) no item 9.3.
 
@@ -393,14 +390,19 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   DOM, mobile e desktop): conteúdo provisório, texto e layout finais são da Laureane e da Jennifer.
 - 9.1 auditoria axe (RNF-007): jest-axe em 9 telas e Playwright com `@axe-core/playwright` (`npm run test:a11y`,
   local); falha só em critical/serious. PR #143, mergeado em `main` em 2026-10-06T18:59:56Z por rebase.
-- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (`Strict-Transport-Security: max-age=31536000`
-  só com `NODE_ENV=production`, avaliado por requisição, primeiro `app.use`; sem `includeSubDomains` nem `preload`),
-  `lib/segurancaTransporte.ts` (avaliadores puros) e `lib/sondaHttp.ts`; `scripts/smoke-https-producao.ts` e
-  `scripts/smoke-tde-azure.ts`. O redirect HTTP para HTTPS é do Render (sem `trust proxy` nem redirect no código);
-  TDE só verificado, nunca alterado. Backend 39 suítes e 1993 testes, 12 de 12 mutações derrubadas. Antes do
-  deploy: C1 a C3 PASS e C4 (HSTS) FAIL em produção. Azure (só SELECT, autorizado): conexão cifrada e TDE PASS
-  (`encryption_state` 3, protetor `CERTIFICATE_OAEP_256`, confirmado pelo portal como chave gerenciada pelo
-  serviço). Commits sem hash definitivo. Só conclui depois do `smoke-https-producao` pós-deploy (pendência abaixo).
+- 9.2 TLS e criptografia em repouso (RNF-002), concluído em 2026-10-06: `middleware/hsts.ts`
+  (`Strict-Transport-Security: max-age=31536000` só com `NODE_ENV=production`, avaliado por requisição, primeiro
+  `app.use`; sem `includeSubDomains` nem `preload`), `lib/segurancaTransporte.ts` (avaliadores puros),
+  `lib/sondaHttp.ts` e `scripts/smoke-*.ts`. O redirect HTTP para HTTPS é do Render (sem `trust proxy` nem redirect
+  no código); TDE só verificado, nunca alterado (Azure: TDE ativo, protetor `CERTIFICATE_OAEP_256`, confirmado pelo
+  portal como chave gerenciada pelo serviço). Backend 39 suítes e 1993 testes, 12 de 12 mutações derrubadas. PR #145,
+  mergeado em `main` em 2026-10-07T00:36:35Z (21:36 em Brasília) por rebase; hashes finais `8f0ae4e` (HSTS e
+  avaliadores), `92fd486` (smokes), `0bab6f6` e `520a947` (docs); os locais `76f59a8`, `cedb023`, `25420f7` e
+  `58025e7` mudaram no rebase. Smoke pós-deploy `smoke-https-producao.ts`: 6/6 PASS (C1 301 para https do mesmo
+  host em `/health` e `/usuario/me`; C2 TLSv1.3, certificado válido por 74 dias; C3 200; C4 HSTS
+  `max-age=31536000` em 200 e 401; o C4 passou de FAIL pré-deploy para PASS).
+- PR #144 (`0165e20`, mergeado em `main` em 2026-10-07T00:35:10Z, 13 arquivos em `frontend/`, não é do 9.2):
+  redesenho de Vínculos, Detalhes do Vínculo e Agenda; alterou `Agenda.tsx`, que era o esqueleto do 6.1 a 6.3.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
