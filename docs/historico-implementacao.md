@@ -1862,3 +1862,7 @@ Lacunas transversais, todas fechadas pela T2: nenhum teste garantia que o conjun
 **Nenhum furo real de autorização foi encontrado.** Em todos os casos negativos dos blocos B a F a resposta foi o 401, 403 ou 404 esperado, sem escrita no Prisma. Em nenhuma rota de flag o 400 veio antes do 403 (o teste "corpo inválido sem a flag continua 403" passa nas 4 rotas). Código de produção não mudou. Nenhum contrato HTTP mudou: não há aviso novo para Laureane e Jennifer.
 
 **Commits locais (hashes mudam no rebase do merge).** `bb58f0e` suíte de autorização, `d5880cb` lacunas 2.1, 2.2 e 2.9, `6181e47` cobertura, `9a5f030` CI, `6173bdd` migrations e template de PR.
+
+## Ajuste visual da página Alimentação (2026-10-07)
+
+`frontend/src/pages/Alimentacao.tsx` recebeu navegação de retorno e controle de tema, cabeçalho e cartões responsivos no padrão de Agenda/Medicamentos, com a paleta já adotada e estados de sucesso/erro/carregamento adaptados ao tema escuro. Campos, chamadas HTTP, mensagens, semântica acessível e conteúdo do histórico foram preservados. Os testes existentes passaram a renderizar a página dentro de `MemoryRouter`, necessário pelo novo link de navegação. Testes focados de comportamento e acessibilidade: 59/59 passaram.
