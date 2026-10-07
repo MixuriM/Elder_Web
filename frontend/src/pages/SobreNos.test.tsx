@@ -21,7 +21,7 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: /sobre nós/i,
+        name: /sobre o elder web/i,
       }),
     ).toBeInTheDocument()
   })
