@@ -78,9 +78,10 @@ aplicação roda em produção.
 - **Backend:** Render.
 - **Frontend:** Vercel.
 
-Isso é só o registro de *onde* — a configuração real de deploy (Dockerfile
-para o Render, variáveis de ambiente de produção, configuração do Vercel)
-ainda não foi feita.
+Deploy configurado e no ar: o backend roda no Render (plano free, runtime Docker, `backend/Dockerfile`,
+`dockerCommand: npm start`, `healthCheckPath: /health`; as variáveis estão em `render.yaml`, com os segredos em
+`sync: false` e definidos no dashboard) e o frontend no Vercel (`frontend/vercel.json`, rewrite para `index.html`).
+Migrations são aplicadas à mão, de uma máquina local, antes do deploy.
 
 ## Arquitetura de autenticação (Firebase Auth + SQL Server)
 Decisão travada — não reabrir sem discutir com o grupo.
