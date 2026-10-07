@@ -2,8 +2,11 @@ import {
   ChevronRight,
   LifeBuoy,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 function CardAjuda() {
+  const navigate = useNavigate();
+
   return (
     <section
       className="
@@ -99,6 +102,7 @@ function CardAjuda() {
       {/* Botão */}
       <button
         type="button"
+        onClick={() => navigate("/orientacoes")}
         className="
           mt-5
 
