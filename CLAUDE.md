@@ -72,9 +72,9 @@ login para os 3 perfis, interface dedicada de cuidador.
 Decisão fechada pelo grupo (Marcos, Laureane, Jennifer): onde cada parte da
 aplicação roda em produção.
 
-- **Banco de dados:** Azure. O serviço exato ainda não foi especificado
-  (Azure SQL Database, Azure SQL Managed Instance ou SQL Server em VM) —
-  confirmar com o grupo antes de configurar a `DATABASE_URL` de produção.
+- **Banco de dados:** Azure SQL Database (confirmado em 2026-10-06, item 9.2: `EngineEdition` 5, TDE ativo com
+  chave gerenciada pelo serviço, TLS mínimo 1.2 no portal). A `DATABASE_URL` de produção usa `encrypt=true` e
+  `trustServerCertificate=false`.
 - **Backend:** Render.
 - **Frontend:** Vercel.
 
