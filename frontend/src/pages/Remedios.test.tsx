@@ -989,6 +989,9 @@ describe("Remedios - marcar dose", () => {
     expect(
       await within(dialog).findByRole(
         "alert",
+        {},
+        // CI lento estourava o timeout padrão de 1s (PR 151)
+        { timeout: 4000 },
       ),
     ).toHaveTextContent(
       "Medicamento inativo.",
