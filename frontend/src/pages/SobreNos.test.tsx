@@ -1,32 +1,48 @@
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+
 import SobreNos from './SobreNos'
 
-const mockUseAuthUser = jest.fn()
-jest.mock('../hooks/useAuthUser', () => ({
-  useAuthUser: () => mockUseAuthUser(),
-}))
-
 function renderSobreNos() {
-  mockUseAuthUser.mockReturnValue({ usuario: null, carregando: false })
   return render(
     <MemoryRouter initialEntries={['/sobre-nos']}>
       <SobreNos />
-    </MemoryRouter>
+    </MemoryRouter>,
   )
 }
 
 describe('SobreNos (item 8.1, RF-029)', () => {
-  it('tem um único h1 "Sobre nós" e um único main', () => {
+  it('renderiza a página Sobre nós', () => {
     renderSobreNos()
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1, name: 'Sobre nós' })).toBeInTheDocument()
-    expect(screen.getAllByRole('main')).toHaveLength(1)
+
+    expect(screen.getByRole('main')).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /sobre nós/i,
+      }),
+    ).toBeInTheDocument()
   })
 
-  it('tem as 5 seções, cada uma com seu h2', () => {
+  it('possui apenas um h1 e um main', () => {
     renderSobreNos()
+
+    expect(
+      screen.getAllByRole('heading', {
+        level: 1,
+      }),
+    ).toHaveLength(1)
+
+    expect(
+      screen.getAllByRole('main'),
+    ).toHaveLength(1)
+  })
+
+  it('renderiza as 5 seções do Sobre nós', () => {
+    renderSobreNos()
+
     const titulos = [
       'O que é o Elder Web',
       'Para quem é',
@@ -34,25 +50,138 @@ describe('SobreNos (item 8.1, RF-029)', () => {
       'Nosso compromisso com a acessibilidade',
       'Quem fez',
     ]
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(titulos)
-    titulos.forEach((t) => {
-      expect(screen.getByRole('region', { name: t })).toBeInTheDocument()
+
+    titulos.forEach((titulo) => {
+      expect(
+        screen.getByRole('heading', {
+          level: 2,
+          name: titulo,
+        }),
+      ).toBeInTheDocument()
     })
   })
 
-  it('link para a página inicial', () => {
+  it('cada seção possui uma região acessível', () => {
     renderSobreNos()
-    expect(screen.getByRole('link', { name: 'Voltar para a página inicial' })).toHaveAttribute('href', '/')
+
+    const titulos = [
+      'O que é o Elder Web',
+      'Para quem é',
+      'O que reúne',
+      'Nosso compromisso com a acessibilidade',
+      'Quem fez',
+    ]
+
+    titulos.forEach((titulo) => {
+      expect(
+        screen.getByRole('region', {
+          name: titulo,
+        }),
+      ).toBeInTheDocument()
+    })
   })
 
-  it('link para entrar ou criar conta aponta para /welcome', () => {
+  it('exibe as informações sobre o Elder Web', () => {
     renderSobreNos()
-    expect(screen.getByRole('link', { name: 'Entrar ou criar conta' })).toHaveAttribute('href', '/welcome')
+
+    expect(
+      screen.getByText(
+        /O Elder Web é uma aplicação web que apoia idosos/i,
+      ),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText(
+        /Para o idoso, o cuidador e o familiar/i,
+      ),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText(
+        /Registro de saúde/i,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('exibe o compromisso com acessibilidade', () => {
+    renderSobreNos()
+
+    expect(
+      screen.getByText(
+        /Buscamos letras grandes, bom contraste/i,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('exibe as informações de quem fez o projeto', () => {
+    renderSobreNos()
+
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'Quem fez',
+      }),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText(
+        /Projeto de Conclusão de Curso/i,
+      ),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText(
+        /Etec Fernando Prestes/i,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('exibe os integrantes da equipe', () => {
+    renderSobreNos()
+
+    expect(
+      screen.getByText('Marcos'),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText('Laureane'),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText('Jennifer'),
+    ).toBeInTheDocument()
+  })
+
+  it('possui link para a página inicial', () => {
+    renderSobreNos()
+
+    const linkInicial = screen.getByRole('link', {
+      name: /página inicial/i,
+    })
+
+    expect(linkInicial).toBeInTheDocument()
+    expect(linkInicial).toHaveAttribute('href', '/')
+  })
+
+  it('possui link para entrar ou criar conta', () => {
+    renderSobreNos()
+
+    const linkWelcome = screen.getByRole('link', {
+      name: /entrar ou criar conta/i,
+    })
+
+    expect(linkWelcome).toBeInTheDocument()
+    expect(linkWelcome).toHaveAttribute(
+      'href',
+      '/welcome',
+    )
   })
 
   it('não contém termos proibidos', () => {
     const { container } = renderSobreNos()
+
     const texto = container.textContent ?? ''
+
     expect(texto).not.toMatch(/\bAlexa\b/i)
     expect(texto).not.toMatch(/\bmicrofone\b/i)
     expect(texto).not.toMatch(/\bloja\b/i)
