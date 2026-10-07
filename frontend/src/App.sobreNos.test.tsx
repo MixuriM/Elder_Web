@@ -26,7 +26,7 @@ describe('App: rota pública /sobre-nos', () => {
   it('sem usuário: mostra a página, mantém a URL e não manda para login', async () => {
     mockUsuario = null
     renderApp()
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sobre nós' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sobre o Elder Web' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/sobre-nos')
     expect(screen.queryByText(/carregando/i)).not.toBeInTheDocument()
   })
@@ -34,7 +34,7 @@ describe('App: rota pública /sobre-nos', () => {
   it('com usuário logado: a página também renderiza', async () => {
     mockUsuario = { uid: 'u1' }
     renderApp()
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sobre nós' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sobre o Elder Web' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/sobre-nos')
   })
 })

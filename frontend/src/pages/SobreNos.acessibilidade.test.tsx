@@ -43,7 +43,7 @@ describe('SobreNos (acessibilidade)', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: /sobre nós/i,
+        name: /sobre o elder web/i,
       }),
     ).toBeInTheDocument()
   })
