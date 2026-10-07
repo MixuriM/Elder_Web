@@ -8,7 +8,7 @@ import {
   FileText,
 } from 'lucide-react'
 
-import { getCurrentUserToken } from '../../lib/auth'
+import { baixarPdf } from '../../lib/baixarPdf'
 import Spinner from '../common/Spinner'
 
 interface ExportarHistoricoProps {
@@ -37,55 +37,11 @@ function ExportarHistorico({
     setCarregando(true)
 
     try {
-      const token =
-        await getCurrentUserToken()
-
       const caminho = idosoId
-        ? `/remedios/historico/idoso/${idosoId}/pdf`
-        : '/remedios/historico/pdf'
+        ? `/historico/idoso/${idosoId}/pdf`
+        : '/historico/pdf'
 
-      const resposta = await fetch(
-        `${import.meta.env.VITE_API_URL}${caminho}`,
-        {
-          method: 'GET',
-
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      )
-
-      if (!resposta.ok) {
-        const corpo = await resposta
-          .json()
-          .catch(() => null)
-
-        throw new Error(
-          corpo?.error ??
-            `Falha ao gerar PDF: status ${resposta.status}`,
-        )
-      }
-
-      const arquivo =
-        await resposta.blob()
-
-      const url =
-        URL.createObjectURL(arquivo)
-
-      const link =
-        document.createElement('a')
-
-      link.href = url
-
-      link.download =
-        'historico-medicamentos.pdf'
-
-      document.body.appendChild(link)
-
-      link.click()
-      link.remove()
-
-      URL.revokeObjectURL(url)
+      await baixarPdf(caminho)
 
       setSucesso(true)
     } catch (err) {
