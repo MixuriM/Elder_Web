@@ -410,7 +410,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   e compara com `ROTAS_ESPERADAS` (rota nova sem classificação falha). Cobre 401 e 503 sem
   token, 403 sem Usuario, 403 sem vínculo aprovado (corpo idêntico), 403 sem a flag exata do Cuidador, regra de ator
   e 404 uniforme de registro, sempre sem escrita no Prisma. Também limiares de cobertura e contratos em `src/infra/`.
-  Backend 40 suítes e 2001 testes antes, 43 e 2550 depois; sem furo achado.
+  Backend 40 suítes e 2001 testes antes, 43 e 2550 depois; sem furo achado. PR #151.
 - PR #144 (`0165e20`, `main` em 2026-10-07T00:35:10Z, só `frontend/`): redesenho de Vínculos, Detalhes do Vínculo e
   Agenda; alterou `Agenda.tsx`, o esqueleto do 6.1 a 6.3.
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
