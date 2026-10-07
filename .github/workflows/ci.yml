@@ -43,3 +43,6 @@ jobs:
           DATABASE_URL: "sqlserver://localhost:14330;database=elder_web;user=sa;password=fake;encrypt=true;trustServerCertificate=true"
       - run: npm test
       - run: npm run build
+      - name: Build da imagem Docker do backend
+        working-directory: .
+        run: docker build -t elder-web-backend:ci ./backend
