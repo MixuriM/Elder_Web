@@ -9,9 +9,11 @@ import remediosRouter from './routes/remedios'
 import historicoPdfRouter from './routes/historicoPdf'
 import agendaRouter from './routes/agenda'
 import alimentacaoRouter from './routes/alimentacao'
+import { hsts } from './middleware/hsts'
 
 const app = express()
 
+app.use(hsts)
 app.use(cors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:5173' }))
 app.use(express.json())
 
