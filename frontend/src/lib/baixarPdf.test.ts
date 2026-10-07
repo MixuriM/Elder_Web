@@ -9,7 +9,12 @@ jest.mock("./auth", () => ({
 const BLOB = new Blob(["%PDF-falso"], { type: "application/pdf" });
 
 function respostaPdf() {
-  return { ok: true, status: 200, blob: () => Promise.resolve(BLOB) } as unknown as Response;
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: (nome: string) => nome.toLowerCase() === "content-type" ? "application/pdf" : null },
+    blob: () => Promise.resolve(BLOB),
+  } as unknown as Response;
 }
 function respostaErro(status: number, corpo: unknown) {
   return { ok: false, status, json: () => (corpo === undefined ? Promise.reject(new Error("sem json")) : Promise.resolve(corpo)) } as unknown as Response;
@@ -22,6 +27,7 @@ let cliques: { href: string; download: string; noDom: boolean }[];
 beforeEach(() => {
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
+  process.env.VITE_API_URL = "http://localhost:3000/";
   global.fetch = jest.fn();
   createObjectURL = jest.fn().mockReturnValue("blob:fake-url");
   revokeObjectURL = jest.fn();
@@ -31,7 +37,10 @@ beforeEach(() => {
     cliques.push({ href: this.href, download: this.download, noDom: document.body.contains(this) });
   });
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
 
 describe("baixarPdf", () => {
   it("GET na URL certa com Authorization e sem Content-Type JSON", async () => {
@@ -39,9 +48,10 @@ describe("baixarPdf", () => {
     await baixarPdf("/historico/pdf");
 
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(String(url)).toMatch(/\/historico\/pdf$/);
+    expect(String(url)).toBe("http://localhost:3000/historico/pdf");
     expect(init.method).toBe("GET");
     expect(init.headers.Authorization).toBe("Bearer token-fake");
+    expect(init.headers.Accept).toBe("application/pdf");
     const nomes = Object.keys(init.headers).map((h) => h.toLowerCase());
     expect(nomes).not.toContain("content-type");
     expect(init.body).toBeUndefined();
@@ -61,18 +71,23 @@ describe("baixarPdf", () => {
   });
 
   it("revoga a URL do objeto depois do clique", async () => {
+    jest.useFakeTimers();
     (global.fetch as jest.Mock).mockResolvedValue(respostaPdf());
     await baixarPdf("/historico/pdf");
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1000);
     expect(revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
   });
 
   it("revoga a URL mesmo se o clique lançar erro", async () => {
+    jest.useFakeTimers();
     (global.fetch as jest.Mock).mockResolvedValue(respostaPdf());
     (HTMLAnchorElement.prototype.click as jest.Mock).mockImplementation(() => {
       throw new Error("clique falhou");
     });
     await expect(baixarPdf("/historico/pdf")).rejects.toThrow("clique falhou");
+    jest.advanceTimersByTime(1000);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
   });
 
@@ -89,12 +104,47 @@ describe("baixarPdf", () => {
 
   it("erro HTTP sem JSON usa mensagem com o status", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaErro(502, undefined));
-    await expect(baixarPdf("/historico/pdf")).rejects.toThrow("Falha na requisição: status 502");
+    await expect(baixarPdf("/historico/pdf")).rejects.toThrow("Não foi possível gerar o PDF (HTTP 502).");
   });
 
-  it("falha de rede propaga o erro", async () => {
+  it("mostra uma mensagem clara quando a conexão falha", async () => {
     (global.fetch as jest.Mock).mockRejectedValue(new Error("rede caiu"));
-    await expect(baixarPdf("/historico/pdf")).rejects.toThrow("rede caiu");
+    await expect(baixarPdf("/historico/pdf")).rejects.toThrow(
+      "Não foi possível conectar ao servidor. Verifique a API, a conexão e as configurações de CORS.",
+    );
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("não faz a requisição se a sessão expirou", async () => {
+    mockGetCurrentUserToken.mockResolvedValueOnce(null);
+
+    await expect(baixarPdf("/historico/pdf")).rejects.toThrow(
+      "Sua sessão expirou. Entre novamente para baixar o histórico.",
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejeita resposta PDF vazia", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ...respostaPdf(),
+      blob: () => Promise.resolve(new Blob()),
+    });
+
+    await expect(baixarPdf("/historico/pdf")).rejects.toThrow(
+      "O servidor retornou um arquivo vazio.",
+    );
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("rejeita uma resposta que não seja PDF", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ...respostaPdf(),
+      headers: { get: () => "text/html" },
+    });
+
+    await expect(baixarPdf("/historico/pdf")).rejects.toThrow(
+      "O servidor não retornou um PDF válido.",
+    );
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 
