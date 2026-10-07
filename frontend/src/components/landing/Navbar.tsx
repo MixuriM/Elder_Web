@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import logoElder from "../../Img/Elder_logo.svg";
 import ControleTema from "../layout/ControleTema";
 
@@ -19,6 +20,8 @@ const estiloLink = `
 `;
 
 function Navbar({ onEntrar }: NavbarProps) {
+  const navigate = useNavigate();
+
   // Faz a rolagem suave até uma seção
   function irParaSecao(id: string) {
     document.getElementById(id)?.scrollIntoView({
@@ -121,7 +124,7 @@ function Navbar({ onEntrar }: NavbarProps) {
           {/* 3 - Sobre */}
           <button
             type="button"
-            onClick={() => irParaSecao("sobre")}
+            onClick={() => navigate("/sobre-nos")}
             className={estiloLink}
           >
             Sobre
