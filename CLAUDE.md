@@ -317,18 +317,14 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 ("decisão do grupo"); reabrir só se o grupo mandar. Pendências manuais ficam com o Marcos.
 
 **Pendências manuais (Marcos)**
-- Conferir no dashboard do Render (serviço `elder-web-backend`) que `DEBUG` e `PRISMA_*` não estão definidas
-  (Claude não confere: o Render MCP exige workspace confirmado por ele e a lista de variáveis traz segredos).
-- `NODE_ENV=production` entrou no `render.yaml`; se o serviço do Render não sincroniza o blueprint, definir a
-  variável no dashboard. Conferir o log do `npm ci` e do 1º deploy depois do merge (o `docker build` local passou).
+- Conferir o log do `npm ci` e do 1º deploy depois do merge (o `docker build` local passou).
 - Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
   `frontend/src/lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
 - Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura) e levar ao grupo: `heading-order`
   da landing, 2 `h1` em Cadastro/Login/EsqueciSenha, textos de 9px do `Sidebar`, 38 `focus:ring-` com opacidade.
-- 9.2: no portal do Azure (servidor SQL), conferir a versão mínima de TLS em 1.2 e o estado do TDE do `elder_web`
-  (print para o TCC); no Render, conferir `NODE_ENV=production` e `FRONTEND_URL` com `https://`; depois do merge e do
-  deploy, rodar em `backend/` `npx tsx scripts/smoke-https-producao.ts https://elder-web-backend.onrender.com` e
-  colar a saída para fechar o 9.2.
+- 9.2 (Azure e Render fechados em 2026-10-06, com print do portal e leitura do dashboard; Secret Files e grupos de
+  ambiente do Render não olhados): depois do merge e do deploy, rodar em `backend/`
+  `npx tsx scripts/smoke-https-producao.ts https://elder-web-backend.onrender.com` e colar a saída para fechar o 9.2.
 - Revisar `pdfjs-dist` (devDependency, com `canvas` opcional sem binário) e os
   3 avisos de `npm audit` só de dev (`pdfjs-dist`, `tar`, `@mapbox/node-pre-gyp`; `--omit=dev` dá 0) no item 9.3.
 
@@ -403,8 +399,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `scripts/smoke-tde-azure.ts`. O redirect HTTP para HTTPS é do Render (sem `trust proxy` nem redirect no código);
   TDE só verificado, nunca alterado. Backend 39 suítes e 1993 testes, 12 de 12 mutações derrubadas. Antes do
   deploy: C1 a C3 PASS e C4 (HSTS) FAIL em produção. Azure (só SELECT, autorizado): conexão cifrada e TDE PASS
-  (`encryption_state` 3, protetor `CERTIFICATE_OAEP_256`). Commits sem hash definitivo. Só conclui depois do
-  `smoke-https-producao` pós-deploy (pendência abaixo).
+  (`encryption_state` 3, protetor `CERTIFICATE_OAEP_256`, confirmado pelo portal como chave gerenciada pelo
+  serviço). Commits sem hash definitivo. Só conclui depois do `smoke-https-producao` pós-deploy (pendência abaixo).
 - Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
   local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
   sentinela única no `finally` e recusam rodar fora de `localhost`; o prefixo `verify-dose-`, `verify-hist-` ou
