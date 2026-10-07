@@ -8,6 +8,7 @@ import EsqueciSenha from './pages/EsqueciSenha'
 import ConfirmarEmail from './pages/ConfirmarEmail'
 import Perfil from './pages/Perfil'
 import Vinculos from './pages/Vinculos'
+import VinculoDetalhe from './pages/VinculoDetalhe'
 import Saude from './pages/Saude'
 import Remedios from './pages/Remedios'
 import Agenda from './pages/Agenda'
@@ -49,6 +50,14 @@ function App() {
         element={
           <RotaProtegida>
             <Vinculos />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/vinculos/:id"
+        element={
+          <RotaProtegida>
+            <VinculoDetalhe />
           </RotaProtegida>
         }
       />
