@@ -1770,7 +1770,7 @@ Decisões D1 a D10 fechadas pelo grupo (Marcos, por delegação). O prompt origi
 
 ## Item 9.3: CI builda a imagem Docker do backend (RNF-010)
 
-**Status: implementado em 2026-10-07, na `development`, ainda sem PR.** Critério do plano: o pipeline de CI falha se a imagem do backend não buildar, pegando erro de build antes do Render tentar.
+**Status: concluído em 2026-10-07.** PR #149 mergeado e CI verde, com o passo de build passando no runner. Critério do plano: o pipeline de CI falha se a imagem do backend não buildar, pegando erro de build antes do Render tentar.
 
 Decisões D1 a D9 fechadas pelo grupo (Marcos, Laureane, Jennifer):
 
@@ -1792,4 +1792,8 @@ Decisões D1 a D9 fechadas pelo grupo (Marcos, Laureane, Jennifer):
 
 **Documentação.** Plano: 9.3 marcado como ✅ (07/10/2026) nas tabelas Acompanhamento e Testes, parágrafo "Item 9.3 implementado" e a frase da linha 40 ("Não builda as imagens Docker") atualizada. `CLAUDE.md`: pendência de `pdfjs-dist` removida, decisão D6 em "Decisões fechadas", resumo do 9.3 em "Itens implementados" e o resumo do 9.2 comprimido (29.119 bytes no fim).
 
-**PR e hashes.** A preencher depois do PR e do merge por rebase.
+**PR e hashes.** PR #149, mergeado em `main` em 2026-10-07T20:19:58Z (2026-10-07 17:19 em Brasília) por rebase. Hashes finais em `main`: `995bac5` (teste de contrato), `90df423` (passo no `ci.yml`) e `d14f493` (docs). Os locais `fc4675b`, `153ec3f` e `4936609` mudaram no rebase.
+
+**CI do PR.** `backend` pass em 1m14s, `frontend` pass em 1m4s, `Vercel` e `Vercel Preview Comments` pass. Job `backend`: o passo "Build da imagem Docker do backend" rodou depois de `npm run build` e passou (`naming to docker.io/library/elder-web-backend:ci done`, camada final em 3,7 s). Sem diferença de resultado entre o Docker local e o do runner. O `ci.yml` também passou no `actionlint` (imagem `rhysd/actionlint:latest`, removida depois).
+
+**Fora do 9.3, para registro.** O hook `PostToolUse:Edit` que falha com `C:/Users/Marcos: No such file or directory` vem do plugin `render` 0.2.2 (`${CLAUDE_PLUGIN_ROOT}/scripts/validate-render-yaml-hook.sh` sem aspas, caminho com espaço), não de configuração do projeto; causa inferida pelo padrão, não reproduzida. Nenhuma mudança feita.
