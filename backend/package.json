@@ -12,7 +12,8 @@
     "start": "node dist/index.js",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
-    "test": "jest"
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
