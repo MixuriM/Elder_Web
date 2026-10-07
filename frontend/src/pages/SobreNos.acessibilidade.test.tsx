@@ -2,22 +2,104 @@ import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { axe, toHaveNoViolations } from 'jest-axe'
+
 import SobreNos from './SobreNos'
 
 expect.extend(toHaveNoViolations)
 
-// LIMITE: jsdom não calcula cor, então contraste NÃO é verificado aqui (pendente: item 9.1).
-// page-has-heading-one não roda via jest-axe (regra de página inteira), por isso o h1 é afirmado à mão.
-const AXE = { rules: { 'color-contrast': { enabled: false } } }
+// LIMITE:
+// O jsdom não calcula cores reais, então contraste não é
+// verificado neste teste automatizado.
+//
+// A existência do H1 também é verificada manualmente,
+// pois algumas regras de página inteira não são executadas
+// normalmente pelo jest-axe.
+const AXE = {
+  rules: {
+    'color-contrast': {
+      enabled: false,
+    },
+  },
+}
+
+function renderSobreNos() {
+  return render(
+    <MemoryRouter initialEntries={['/sobre-nos']}>
+      <SobreNos />
+    </MemoryRouter>,
+  )
+}
 
 describe('SobreNos (acessibilidade)', () => {
-  it('tem h1 e não tem violações detectáveis pelo axe', async () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={['/sobre-nos']}>
-        <SobreNos />
-      </MemoryRouter>
+  it('possui um único título principal', () => {
+    renderSobreNos()
+
+    expect(
+      screen.getAllByRole('heading', {
+        level: 1,
+      }),
+    ).toHaveLength(1)
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /sobre nós/i,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('possui um único elemento main', () => {
+    renderSobreNos()
+
+    expect(
+      screen.getAllByRole('main'),
+    ).toHaveLength(1)
+  })
+
+  it('possui regiões identificadas pelos títulos das seções', () => {
+    renderSobreNos()
+
+    const secoes = [
+      'O que é o Elder Web',
+      'Para quem é',
+      'O que reúne',
+      'Nosso compromisso com a acessibilidade',
+      'Quem fez',
+    ]
+
+    secoes.forEach((titulo) => {
+      expect(
+        screen.getByRole('region', {
+          name: titulo,
+        }),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('possui links acessíveis de navegação', () => {
+    renderSobreNos()
+
+    expect(
+      screen.getByRole('link', {
+        name: /página inicial/i,
+      }),
+    ).toHaveAttribute('href', '/')
+
+    expect(
+      screen.getByRole('link', {
+        name: /entrar ou criar conta/i,
+      }),
+    ).toHaveAttribute('href', '/welcome')
+  })
+
+  it('não possui violações detectáveis pelo axe', async () => {
+    const { container } = renderSobreNos()
+
+    const resultado = await axe(
+      container,
+      AXE,
     )
-    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
-    expect(await axe(container, AXE)).toHaveNoViolations()
+
+    expect(resultado).toHaveNoViolations()
   })
 })
