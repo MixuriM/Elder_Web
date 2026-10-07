@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
     branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
@@ -41,7 +45,7 @@ jobs:
       - run: npx prisma validate
         env:
           DATABASE_URL: "sqlserver://localhost:14330;database=elder_web;user=sa;password=fake;encrypt=true;trustServerCertificate=true"
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run build
       - name: Build da imagem Docker do backend
         working-directory: .
