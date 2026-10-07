@@ -1287,3 +1287,156 @@ describe("POST /vinculo/:id/contestar", () => {
     });
   });
 });
+
+// Item 9.4 (T3, lacunas das tabelas de testes das Fases 1 e 2): corrida do índice único (2.1), id não numérico em
+// aprovar e recusar (2.2) e borda do relógio em modo_decisao_expira_em (2.9). Ids e e-mails FICTÍCIOS.
+describe("corrida entre duas solicitações do mesmo par: o create rejeitado pelo índice único vira 409 (2.1)", () => {
+  const ERRO_INDICE = new Error("Violation of UNIQUE KEY constraint 'UX_Vinculo_ficticio'");
+
+  beforeEach(() => {
+    [verifyIdToken, findFirstUsuario, findUniqueUsuario, findFirstVinculo, createVinculo].forEach((m) => m.mockReset());
+    verifyIdToken.mockResolvedValue({ uid: "uid-1" });
+    findFirstVinculo.mockResolvedValue(null); // a checagem em aplicação não viu a outra solicitação
+  });
+
+  it("solicitar-cuidador: 409 e a mensagem de solicitação existente", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? CUIDADOR : { id: 10, nome: "Ze", email: "idoso@a.com" },
+    );
+    findUniqueUsuario.mockResolvedValue(CUIDADOR);
+    createVinculo.mockRejectedValue(ERRO_INDICE);
+
+    const res = await post({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/solicitação/i);
+    expect(createVinculo).toHaveBeenCalledTimes(1);
+  });
+
+  it("solicitar-familiar: 409 e a mensagem de solicitação existente", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? FAMILIAR : { id: 10, tipo_perfil: "idoso" },
+    );
+    findUniqueUsuario.mockResolvedValue(FAMILIAR);
+    createVinculo.mockRejectedValue(ERRO_INDICE);
+
+    const res = await postFamiliar({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/solicitação/i);
+    expect(createVinculo).toHaveBeenCalledTimes(1);
+  });
+
+  it("controle negativo: erro de create que não é violação de índice continua 500, não 409", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? CUIDADOR : { id: 10, nome: "Ze", email: "idoso@a.com" },
+    );
+    findUniqueUsuario.mockResolvedValue(CUIDADOR);
+    createVinculo.mockRejectedValue(new Error("conexao perdida"));
+
+    const res = await post({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(500);
+  });
+});
+
+describe("id de vínculo não numérico em aprovar e recusar (2.2)", () => {
+  beforeEach(() => {
+    [verifyIdToken, findFirstUsuario, findUniqueVinculo, updateVinculo, findUniqueUsuario].forEach((m) => m.mockReset());
+    verifyIdToken.mockResolvedValue({ uid: "uid-10" });
+    findFirstUsuario.mockResolvedValue({ id: 10 });
+  });
+
+  it.each([["aprovar"], ["recusar"]] as const)("POST /vinculo/%s com id 'abc': 400 sem consultar nem escrever", async (acao) => {
+    const res = await request(buildApp()).post(`/vinculo/abc/${acao}`).set("Authorization", "Bearer x").send();
+
+    expect(res.status).toBe(400);
+    expect(findUniqueVinculo).not.toHaveBeenCalled();
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+
+  it.each([["1.5"], ["NaN"], ["Infinity"]])("id %s também dá 400", async (id) => {
+    const res = await request(buildApp()).post(`/vinculo/${id}/aprovar`).set("Authorization", "Bearer x").send();
+
+    expect(res.status).toBe(400);
+    expect(updateVinculo).not.toHaveBeenCalled();
+  });
+});
+
+describe("borda do relógio: modo_decisao_expira_em exatamente igual a 'agora' (2.9)", () => {
+  const AGORA = new Date("2026-10-07T12:00:00.000Z");
+  const VINCULO_CUIDADOR_PENDENTE = { id: 5, idoso_id: 10, status: "pendente", tipo_vinculo: "cuidador" };
+
+  beforeEach(() => {
+    // Só Date é falso: supertest e Express precisam de timers e microtasks reais.
+    jest.useFakeTimers({
+      doNotFake: [
+        "nextTick",
+        "setImmediate",
+        "clearImmediate",
+        "setInterval",
+        "clearInterval",
+        "setTimeout",
+        "clearTimeout",
+        "queueMicrotask",
+        "performance",
+        "hrtime",
+      ],
+    });
+    jest.setSystemTime(AGORA);
+    [verifyIdToken, findFirstUsuario, findUniqueUsuario, updateUsuario, findUniqueVinculo, findFirstVinculo, updateVinculo, countVinculo].forEach(
+      (m) => m.mockReset(),
+    );
+    verifyIdToken.mockResolvedValue({ uid: "uid-77" });
+    findFirstUsuario.mockResolvedValue({ id: 77 }); // chamador = o familiar solicitante
+    findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_PENDENTE);
+    updateVinculo.mockResolvedValue({ id: 5, status: "aprovado" });
+    updateUsuario.mockResolvedValue({ modo_decisao: "familiar" });
+    findFirstVinculo.mockResolvedValue({ id: 900 }); // familiarTemVinculoAprovado(10, 77)
+    countVinculo.mockResolvedValue(1);
+  });
+
+  afterEach(() => jest.useRealTimers());
+
+  function estado(expiraEm: Date) {
+    return {
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: 77,
+      modo_decisao_expira_em: expiraEm,
+      modo_decisao_segunda_confirmacao_id: null,
+    };
+  }
+
+  it("expira_em == agora conta como vencida (<=): a transferência efetiva", async () => {
+    findUniqueUsuario.mockResolvedValue(estado(new Date(AGORA.getTime())));
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ modo_decisao: "familiar" }) }),
+    );
+  });
+
+  it("expira_em 1 ms depois de agora ainda não venceu: nada é efetivado", async () => {
+    findUniqueUsuario.mockResolvedValue(estado(new Date(AGORA.getTime() + 1)));
+    findFirstUsuario.mockResolvedValue({ id: 10 }); // o idoso ainda tem a autoridade
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).not.toHaveBeenCalled();
+  });
+
+  it("expira_em 1 ms antes de agora já venceu: a transferência efetiva", async () => {
+    findUniqueUsuario.mockResolvedValue(estado(new Date(AGORA.getTime() - 1)));
+
+    const res = await responder(5, "aprovar");
+
+    expect(res.status).toBe(200);
+    expect(updateUsuario).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ modo_decisao: "familiar" }) }),
+    );
+  });
+});
