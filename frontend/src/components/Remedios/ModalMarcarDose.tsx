@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from 'react'
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 
 import { chamarApi } from '../../lib/chamarApi'
+import { useFocoModal } from '../../hooks/useFocoModal'
 import Spinner from '../common/Spinner'
 
 import type { MedicamentoCard } from './CardMedicamento'
@@ -107,6 +109,10 @@ function ModalMarcarDose({
       )
     }
   }, [aberto, carregando, onFechar])
+
+  const dialogoRef = useRef<HTMLElement>(null)
+
+  useFocoModal(dialogoRef, aberto && !!medicamento)
 
   async function handleSalvar(
     event: FormEvent<HTMLFormElement>,
@@ -248,10 +254,13 @@ function ModalMarcarDose({
       }}
     >
       <section
+        ref={dialogoRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="titulo-modal-dose"
         className="
+          focus:!outline-none
           max-h-[90vh]
           w-full
           max-w-lg

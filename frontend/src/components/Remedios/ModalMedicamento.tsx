@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
 } from 'react'
 
@@ -8,6 +9,7 @@ import {
   X,
 } from 'lucide-react'
 
+import { useFocoModal } from '../../hooks/useFocoModal'
 import CadastroMedicamento from './CadastroMedicamento'
 
 interface ModalMedicamentoProps {
@@ -58,6 +60,10 @@ function ModalMedicamento({
     }
   }, [aberto, onFechar])
 
+  const dialogoRef = useRef<HTMLElement>(null)
+
+  useFocoModal(dialogoRef, aberto)
+
   if (!aberto) {
     return null
   }
@@ -92,10 +98,13 @@ function ModalMedicamento({
       }}
     >
       <section
+        ref={dialogoRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="titulo-modal-medicamento"
         className="
+          focus:!outline-none
           flex
           max-h-[92vh]
           w-full
