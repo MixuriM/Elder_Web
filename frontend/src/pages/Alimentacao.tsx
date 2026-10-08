@@ -84,7 +84,7 @@ export default function Alimentacao() {
           Registrar refeição
         </h2>
         <form onSubmit={handleRegistrar} className="space-y-4">
-          <SeletorIdoso id="idoso_id_alimentacao" escrita valor={campos.idosoId} aoMudar={(v) => setCampos((atual) => ({ ...atual, idosoId: v }))} lista={idosos} />
+          <SeletorIdoso id="idoso_id_alimentacao" escrita semTemaEscuro valor={campos.idosoId} aoMudar={(v) => setCampos((atual) => ({ ...atual, idosoId: v }))} lista={idosos} />
           <div>
             <label htmlFor="refeicao_alimentacao" className={classeLabel}>
               Refeição
@@ -217,7 +217,7 @@ function VerHistoricoAlimentar() {
         Ver histórico alimentar
       </h2>
       <form onSubmit={handleVer} className="space-y-4">
-        <SeletorIdoso id="idoso_id_historico_alimentar" valor={idosoId} aoMudar={setIdosoId} lista={idosos} />
+        <SeletorIdoso id="idoso_id_historico_alimentar" semTemaEscuro valor={idosoId} aoMudar={setIdosoId} lista={idosos} />
         <button
           type="submit"
           disabled={carregando || envioBloqueado(idosos, idosoId)}

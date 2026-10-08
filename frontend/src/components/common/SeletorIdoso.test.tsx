@@ -117,6 +117,42 @@ describe('SeletorIdoso', () => {
     expect(opcao.textContent).not.toMatch(/null|undefined|\(/)
   })
 
+  describe('semTemaEscuro (telas sem tema escuro, ex.: /alimentacao)', () => {
+    const dois = lista({
+      idosos: [
+        { id: 7, nome: 'Dona Ana', email_mascarado: null },
+        { id: 9, nome: 'Seu João', email_mascarado: null },
+      ],
+    })
+
+    function classesComDark(container: HTMLElement) {
+      return Array.from(container.querySelectorAll('*'))
+        .map((e) => e.getAttribute('class') ?? '')
+        .filter((c) => /(^|\s)dark:/.test(c))
+    }
+
+    it.each([
+      ['lista', dois],
+      ['carregando', lista({ estado: 'carregando' })],
+      ['erro', lista({ estado: 'erro' })],
+      ['0 idosos', lista({ idosos: [] })],
+    ])('%s: nenhuma classe dark: quando a tela não tem tema escuro', (_nome, l) => {
+      const { container } = render(
+        <MemoryRouter>
+          <SeletorIdoso id="x" valor="7" aoMudar={() => {}} lista={l} semTemaEscuro />
+        </MemoryRouter>,
+      )
+
+      expect(classesComDark(container)).toEqual([])
+    })
+
+    it('sem a prop, o tema escuro continua aplicado', () => {
+      const { container } = renderizar(dois, '7')
+
+      expect(classesComDark(container).length).toBeGreaterThan(0)
+    })
+  })
+
   describe('tela de escrita (escrita)', () => {
     const doisIdosos = lista({
       idosos: [
