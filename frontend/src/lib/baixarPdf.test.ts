@@ -62,9 +62,8 @@ beforeEach(() => {
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
 
-  // A URL deve estar configurada no ambiente de testes
-  // para corresponder a import.meta.env.VITE_API_URL.
-  expect(API_URL).toBe("http://localhost:3000/");
+  // O plugin do Babel mapeia import.meta.env.VITE_API_URL para process.env.
+  process.env.VITE_API_URL = API_URL;
 
   mockFetch = jest.fn();
   global.fetch = mockFetch;

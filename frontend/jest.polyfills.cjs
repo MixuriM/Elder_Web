@@ -10,3 +10,7 @@ if (typeof globalThis.TextEncoder === 'undefined') {
 if (typeof globalThis.TextDecoder === 'undefined') {
   globalThis.TextDecoder = TextDecoder
 }
+
+// O babel-plugin-transform-vite-meta-env troca import.meta.env.X por process.env.X. Sem .env (CI), VITE_API_URL
+// fica indefinida e baixarPdf lança antes do fetch. Default só preenche se não houver valor.
+process.env.VITE_API_URL ??= 'http://localhost:3000'
