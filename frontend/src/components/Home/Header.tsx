@@ -147,7 +147,7 @@ function Header({ abrirSidebar }: HeaderProps) {
               pl-9
               pr-4
 
-              text-xs
+              text-sm
               text-[#071A38]
 
               outline-none
@@ -245,7 +245,7 @@ function Header({ abrirSidebar }: HeaderProps) {
               from-[#5F56EC]
               to-[#554CD8]
 
-              text-[10px]
+              text-sm
               font-bold
               text-white
 

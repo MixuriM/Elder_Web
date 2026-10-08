@@ -41,9 +41,10 @@ function ActionCard({
         ring-black/5
 
         transition-all
-        duration-300
+        duration-150
+        ease-out
 
-        hover:-translate-y-1
+        hover:-translate-y-0.5
 
         hover:shadow-[0_22px_48px_rgba(15,23,42,0.18)]
 
@@ -99,7 +100,6 @@ function ActionCard({
           transition-transform
           duration-300
 
-          group-hover:scale-150
         "
       />
 
@@ -122,7 +122,7 @@ function ActionCard({
       {/* Texto e seta */}
       <div className="relative flex min-w-0 items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h3
+          <h2
             className="
               text-[17px]
               font-bold
@@ -132,7 +132,7 @@ function ActionCard({
             "
           >
             {title}
-          </h3>
+          </h2>
 
           <p
             className="

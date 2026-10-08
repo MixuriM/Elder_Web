@@ -17,11 +17,13 @@ import {
 import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioCadastro from "../components/cadastro/FormularioCadastro";
 import BotaoTema from "../components/layout/BotaoTema";
+import { useTitulo } from "../hooks/useTitulo";
 
 const MENSAGEM_ESCOLHA_PERFIL =
   "Escolha se você é idoso, cuidador ou familiar.";
 
 function Cadastro() {
+  useTitulo("Criar conta");
   // =========================================================
   // ESTADOS
   // =========================================================

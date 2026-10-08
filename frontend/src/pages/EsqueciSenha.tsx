@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 
 // Importa a função responsável pela recuperação de senha
 import { resetPassword } from "../lib/auth";
+import { useTitulo } from "../hooks/useTitulo";
 
 // Importa os componentes utilizados na página
 import FormularioEsqueciSenha
@@ -17,6 +18,7 @@ import ControleTema
 
 // Componente principal da página de recuperação de senha
 function EsqueciSenha() {
+  useTitulo("Recuperar senha");
 
   // Estado responsável por armazenar o e-mail digitado
   const [email, setEmail] = useState("");

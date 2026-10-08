@@ -21,6 +21,11 @@ function BotaoMostrarSenha({ mostrar, onToggle, campo }: BotaoMostrarSenhaProps)
         -translate-y-1/2
         mt-0.5
         rounded-lg
+        flex
+        min-h-[44px]
+        min-w-[44px]
+        items-center
+        justify-center
         p-2
         text-[#4B5563]
         hover:text-[#554CD8]

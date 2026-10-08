@@ -8,6 +8,7 @@ import { envioBloqueado } from '../lib/regrasIdosoVinculado'
 import { useIdososVinculados } from '../hooks/useIdososVinculados'
 import { getCurrentUserToken } from '../lib/auth'
 import { formatarDataHora, rotuloRefeicao } from '../lib/alimentacaoFormato'
+import { useTitulo } from '../hooks/useTitulo'
 
 // Cuidador nunca cria e o 403 do backend vira mensagem. Não usa chamarApi (repassa o corpo do erro): as mensagens
 // são fixas por status e nunca ecoam o corpo (a descrição pode revelar dado de saúde, RNF-001). Sem console.*.
@@ -31,6 +32,7 @@ const ERRO_GENERICO = 'Não foi possível registrar a refeição.'
 const VAZIO = { idosoId: '', refeicao: 'cafe_manha', descricao: '', dataHora: '' }
 
 export default function Alimentacao() {
+  useTitulo('Alimentação')
   const idosos = useIdososVinculados()
   const [campos, setCampos] = useState(VAZIO)
   const [carregando, setCarregando] = useState(false)

@@ -27,6 +27,7 @@ import HistoricoDoses, {
 
 import ModalMarcarDose from "../components/Remedios/ModalMarcarDose";
 import ModalMedicamento from "../components/Remedios/ModalMedicamento";
+import { useTitulo } from "../hooks/useTitulo";
 
 interface Medicamento extends MedicamentoCard {
   doses: DoseHistorico[];
@@ -37,6 +38,7 @@ interface RespostaMedicamentos {
 }
 
 export default function Remedios() {
+  useTitulo("Medicamentos");
   const navigate = useNavigate();
 
   const permissoes = usePermissoesDose();
