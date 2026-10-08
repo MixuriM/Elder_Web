@@ -42,6 +42,8 @@ function LayoutPerfil({
       <img
         src={folhasDecorativas}
         alt=""
+        loading="lazy"
+        decoding="async"
         aria-hidden="true"
         className="
           pointer-events-none
@@ -64,6 +66,8 @@ function LayoutPerfil({
       <img
         src={folhasDecorativas}
         alt=""
+        loading="lazy"
+        decoding="async"
         aria-hidden="true"
         className="
           pointer-events-none

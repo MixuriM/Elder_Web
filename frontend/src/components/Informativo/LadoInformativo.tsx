@@ -223,6 +223,8 @@ function LadoInformativo({
       <img
         src={folhasDecorativas}
         alt=""
+        loading="lazy"
+        decoding="async"
         aria-hidden="true"
         className="
           pointer-events-none
@@ -271,6 +273,8 @@ function LadoInformativo({
       <img
         src={florCadastro}
         alt=""
+        loading="lazy"
+        decoding="async"
         aria-hidden="true"
         className="
           pointer-events-none
