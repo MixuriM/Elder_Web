@@ -61,7 +61,7 @@ function CardAjuda() {
 
         {/* Texto */}
         <div>
-          <h3
+          <h2
             className="
               text-sm
               font-bold
@@ -75,13 +75,13 @@ function CardAjuda() {
             "
           >
             Precisa de ajuda?
-          </h3>
+          </h2>
 
           <p
             className="
               mt-1
 
-              text-[11px]
+              text-sm
               leading-4
 
               text-gray-500

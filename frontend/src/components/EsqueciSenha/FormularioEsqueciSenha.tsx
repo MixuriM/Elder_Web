@@ -175,6 +175,9 @@ function FormularioEsqueciSenha({
         <Link
           to="/login"
           className="
+            inline-flex
+            min-h-[44px]
+            items-center
             text-lg
             font-medium
             text-[#5F56EC]

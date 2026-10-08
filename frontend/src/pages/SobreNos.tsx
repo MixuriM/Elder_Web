@@ -2,8 +2,10 @@ import SobreCards from '../components/SobreNos/SobreCards'
 import SobreCTA from '../components/SobreNos/SobreCTA'
 import SobreHeader from '../components/SobreNos/SobreHeader'
 import SobreHero from '../components/SobreNos/SobreHero'
+import { useTitulo } from '../hooks/useTitulo'
 
 function SobreNos() {
+  useTitulo('Sobre nós')
   return (
     <main
       className="

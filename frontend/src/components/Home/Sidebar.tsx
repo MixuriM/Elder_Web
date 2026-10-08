@@ -112,9 +112,9 @@ function Sidebar({
           shadow-2xl
           shadow-black/10
 
-          transition-all
-          duration-300
-          ease-out
+          transition-transform
+          duration-[220ms]
+          ease-[cubic-bezier(.32,.72,0,1)]
 
           dark:border-[#454558]
           dark:bg-[#20202D]
@@ -180,7 +180,7 @@ function Sidebar({
 
           {/* Nome da plataforma */}
           <div>
-            <h1
+            <p
               className="
                 text-[17px]
                 font-bold
@@ -203,11 +203,11 @@ function Sidebar({
               >
                 Web
               </span>
-            </h1>
+            </p>
 
             <p
               className="
-                text-[9px]
+                text-sm
                 text-slate-600
 
                 transition-colors
@@ -268,7 +268,7 @@ function Sidebar({
 
               px-3
 
-              text-[9px]
+              text-sm
               font-semibold
               uppercase
               tracking-[0.15em]
@@ -307,7 +307,7 @@ function Sidebar({
                     py-2.5
 
                     text-left
-                    text-[12px]
+                    text-sm
 
                     transition-all
                     duration-200
@@ -380,7 +380,7 @@ function Sidebar({
               px-3
               py-2.5
 
-              text-[12px]
+              text-sm
               text-slate-600
 
               transition-colors
@@ -417,7 +417,7 @@ function Sidebar({
               px-3
               py-2.5
 
-              text-[12px]
+              text-sm
               text-slate-600
 
               transition-colors

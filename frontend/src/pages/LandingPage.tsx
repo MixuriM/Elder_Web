@@ -11,8 +11,10 @@ import PublicoSection from "../components/landing/PublicoSection";
 import AcessibilidadeSection from "../components/landing/AcessibilidadeSection";
 import CTASection from "../components/landing/CTASection";
 import Footer from "../components/landing/Footer";
+import { useTitulo } from "../hooks/useTitulo";
 
 function LandingPage() {
+  useTitulo("Página inicial");
   // Hook utilizado para navegar entre páginas
   const navigate = useNavigate();
 

@@ -8,8 +8,10 @@ import HistoricoSaude from '../components/Saude/HistoricoSaude'
 import AvisoPermissaoSaude from '../components/Saude/AvisoPermissaoSaude'
 
 import { usePermissoesSaude } from '../lib/permissoesSaude'
+import { useTitulo } from '../hooks/useTitulo'
 
 function Saude() {
+  useTitulo('Saúde')
   const permissoes = usePermissoesSaude()
 
   const mostrarEscritaDeTerceiros =
