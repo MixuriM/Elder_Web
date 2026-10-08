@@ -12,6 +12,7 @@ function Spinner() {
         w-8
 
         animate-spin
+        motion-reduce:animate-none
         rounded-full
 
         bg-[conic-gradient(from_0deg,transparent_0%,currentColor_100%)]

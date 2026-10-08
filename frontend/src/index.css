@@ -67,3 +67,32 @@ textarea {
     font-size: 18px;
   }
 }
+
+/* ================================
+   FOCO VISÍVEL
+================================ */
+
+/* !important: o focus:outline-none do Tailwind (especificidade maior) apagaria o contorno. */
+:focus-visible {
+  outline: 3px solid #5F56EC !important;
+  outline-offset: 2px !important;
+}
+
+.dark :focus-visible {
+  outline-color: #A89FFF !important;
+}
+
+/* ================================
+   MOVIMENTO REDUZIDO
+================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

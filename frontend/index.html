@@ -7,6 +7,15 @@
     <link rel="icon" type="image/x-icon" href="/elder-favicon.ico?v=10" />
 
     <title>Elder Web</title>
+
+    <script>
+      // Aplica o tema salvo antes do React montar (sem piscar). Mesma chave do BotaoTema.
+      try {
+        if (localStorage.getItem("tema") === "escuro") {
+          document.documentElement.classList.add("dark");
+        }
+      } catch (e) {}
+    </script>
   </head>
 
   <body>
