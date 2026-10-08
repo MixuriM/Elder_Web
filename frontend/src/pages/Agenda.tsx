@@ -9,6 +9,7 @@ import Spinner from '../components/common/Spinner'
 import BotaoTema from '../components/layout/BotaoTema'
 import { getCurrentUserToken } from '../lib/auth'
 import { agruparEventosPorDia, formatarIntervalo, rotuloTipo, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
+import { useTitulo } from '../hooks/useTitulo'
 
 const VAZIO = { idosoId: '', tipo: 'pessoal', titulo: '', descricao: '', inicio: '', fim: '' }
 
@@ -299,6 +300,7 @@ function VerAgenda() {
 }
 
 export default function Agenda() {
+  useTitulo('Agenda')
   return (
     <main className="min-h-screen bg-[#F8F7FF] px-4 py-6 dark:bg-[#0F0F17] sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-7xl">

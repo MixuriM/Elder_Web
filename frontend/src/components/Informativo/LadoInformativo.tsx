@@ -18,6 +18,9 @@ function LadoInformativo({
 }: LadoInformativoProps) {
   const navigate = useNavigate();
 
+  // Só a tela de boas-vindas usa este título como h1: em Login e Cadastro o h1 é o do formulário.
+  const Titulo = tipo === "landing" ? "h1" : "h2";
+
   // =========================================================
   // NAVEGAÇÃO
   // =========================================================
@@ -156,7 +159,7 @@ function LadoInformativo({
           z-50
 
           flex
-          h-10
+          h-11
           items-center
           justify-center
           gap-2
@@ -357,7 +360,7 @@ function LadoInformativo({
             TÍTULO
         ==================================================== */}
 
-        <h1
+        <Titulo
           className="
             mx-auto
             mt-3
@@ -406,7 +409,7 @@ function LadoInformativo({
           <br />
 
           {conteudo.complemento}
-        </h1>
+        </Titulo>
 
         {/* ===================================================
             DESCRIÇÃO

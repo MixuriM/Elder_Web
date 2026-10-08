@@ -23,8 +23,10 @@ import {
 import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioLogin from "../components/login/FormularioLogin";
 import BotaoTema from "../components/layout/BotaoTema";
+import { useTitulo } from "../hooks/useTitulo";
 
 function Login() {
+  useTitulo("Entrar");
   // =========================================================
   // ESTADOS
   // =========================================================

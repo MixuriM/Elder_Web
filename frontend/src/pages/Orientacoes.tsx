@@ -1,5 +1,6 @@
 // Conteúdo provisório (item 8.2, RF-031). Texto final e layout: Laureane e Jennifer.
 import { Link } from 'react-router-dom'
+import { useTitulo } from '../hooks/useTitulo'
 
 const foco =
   'focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[#071A38] dark:focus-visible:outline-[#F5F5FA]'
@@ -35,6 +36,7 @@ const secoes = [
 ]
 
 export default function Orientacoes() {
+  useTitulo('Orientações')
   return (
     <div className="min-h-screen bg-white text-lg text-[#071A38] dark:bg-[#101018] dark:text-[#F5F5FA]">
       <header className="flex flex-wrap gap-4 border-b-2 border-[#6C63FF] p-4">

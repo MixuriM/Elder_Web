@@ -165,11 +165,8 @@ function ModalMarcarDose({
 
       setSucesso(true)
 
+      // Sem fechamento automático: a pessoa lê a confirmação e fecha em "Concluir".
       onSucesso?.()
-
-      window.setTimeout(() => {
-        onFechar()
-      }, 700)
     } catch (err) {
       setErro(
         err instanceof Error
@@ -637,6 +634,7 @@ function ModalMarcarDose({
               <CheckCircle2
                 size={19}
                 aria-hidden="true"
+                className="animate-check-entrada motion-reduce:animate-none"
               />
 
               Dose registrada com sucesso.
@@ -688,12 +686,12 @@ function ModalMarcarDose({
                 dark:hover:text-[#A89FFF]
               "
             >
-              Cancelar
+              {sucesso ? 'Concluir' : 'Cancelar'}
             </button>
 
             <button
               type="submit"
-              disabled={carregando}
+              disabled={carregando || sucesso}
               aria-busy={carregando}
               className="
                 inline-flex

@@ -132,7 +132,7 @@ function ResumoSection() {
                 <p
                   className="
                     mt-1
-                    text-xs
+                    text-sm
                     leading-5
                     text-gray-500
 

@@ -9,8 +9,10 @@ import {
 
 import { useAuthUser } from '../hooks/useAuthUser'
 import { getCurrentUserToken, syncUser } from '../lib/auth'
+import { useTitulo } from '../hooks/useTitulo'
 
 function ConfirmarEmail() {
+  useTitulo('Confirmar e-mail')
   const { usuario, carregando } = useAuthUser()
 
   const [status, setStatus] = useState<

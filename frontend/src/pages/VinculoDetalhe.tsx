@@ -5,8 +5,10 @@ import DetalhesVinculo from "../components/Vinculos/DetalhesVinculo";
 import CabecalhoDetalheVinculo from "../components/Vinculos/CabecalhoDetalheVinculo";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
 import { chamarApi } from "../lib/chamarApi";
+import { useTitulo } from "../hooks/useTitulo";
 
 export default function VinculoDetalhe() {
+  useTitulo("Detalhes do vínculo");
   const { id } = useParams();
   const [vinculo, setVinculo] = useState<Vinculo | null>(null);
   const [carregando, setCarregando] = useState(true);

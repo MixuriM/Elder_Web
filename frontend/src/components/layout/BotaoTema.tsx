@@ -77,8 +77,8 @@ function BotaoTema({
 
         ${compacto || responsivo
           ? `
-            h-10
-            w-10
+            h-11
+            w-11
 
             rounded-full
 

@@ -7,8 +7,10 @@ import ActionCards from "../components/Home/ActionCards";
 import BannerSaude from "../components/Home/BannerSaude";
 import CardAjuda from "../components/Home/CardAjuda";
 import ResumoDia from "../components/Home/ResumoDia";
+import { useTitulo } from "../hooks/useTitulo";
 
 function Home() {
+  useTitulo("Início");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Início");
 
@@ -75,7 +77,7 @@ function Home() {
               "
             >
               <div>
-                <h2
+                <h1
                   className="
                     text-2xl
                     font-bold
@@ -93,7 +95,7 @@ function Home() {
                   "
                 >
                   Olá!
-                </h2>
+                </h1>
 
                 <p
                   className="

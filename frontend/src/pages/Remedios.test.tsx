@@ -960,6 +960,70 @@ describe("Remedios - marcar dose", () => {
     ).toBe("Dose não tomada");
   });
 
+  it("mantém a confirmação da dose na tela até a pessoa concluir", async () => {
+    const user = userEvent.setup();
+
+    mockChamarApi
+      .mockResolvedValueOnce({
+        medicamentos: [MEDICAMENTO],
+      })
+      .mockResolvedValueOnce({
+        id: 55,
+      })
+      .mockResolvedValue({
+        medicamentos: [MEDICAMENTO],
+      });
+
+    render(<Remedios />);
+
+    const titulo =
+      await screen.findByRole("heading", {
+        name: "Losartana Teste",
+      });
+
+    await user.click(
+      within(
+        titulo.closest("article") as HTMLElement,
+      ).getByRole("button", {
+        name: /marcar dose/i,
+      }),
+    );
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole(
+        "button",
+        { name: /^registrar dose$/i },
+      ),
+    );
+
+    expect(
+      await screen.findByText("Dose registrada com sucesso."),
+    ).toBeInTheDocument();
+
+    // Antes o modal fechava sozinho em 700 ms.
+    await new Promise((resolver) =>
+      setTimeout(resolver, 1000),
+    );
+
+    const dialog = screen.getByRole("dialog");
+
+    expect(
+      within(dialog).getByRole("button", {
+        name: /^registrar dose$/i,
+      }),
+    ).toBeDisabled();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: /^concluir$/i,
+      }),
+    );
+
+    expect(
+      screen.queryByRole("dialog"),
+    ).not.toBeInTheDocument();
+  });
+
   it("mostra erro ao registrar dose", async () => {
     const user = userEvent.setup();
 

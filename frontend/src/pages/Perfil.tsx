@@ -21,8 +21,10 @@ import FormularioPerfil from "../components/perfil/FormularioPerfil";
 
 // Importa o layout da página de perfil
 import LayoutPerfil from "../components/perfil/LayoutPerfil";
+import { useTitulo } from "../hooks/useTitulo";
 
 function Perfil() {
+  useTitulo("Meu perfil");
   // Dados do usuário
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");

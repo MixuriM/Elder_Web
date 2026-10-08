@@ -126,6 +126,9 @@ function FormularioLogin({
         <Link
           to="/esqueci-senha"
           className="
+            inline-flex
+            min-h-[44px]
+            items-center
             text-lg
             font-semibold
             text-[#5F56EC]
@@ -281,6 +284,9 @@ function FormularioLogin({
         <Link
           to="/cadastro"
           className="
+            inline-flex
+            min-h-[44px]
+            items-center
             font-bold
             text-[#5F56EC]
 

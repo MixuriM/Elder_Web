@@ -226,7 +226,7 @@ function HeroSection({
               bg-white/70
               px-3
               py-2
-              text-xs
+              text-sm
               font-bold
               text-[#554CD8]
 
@@ -422,7 +422,7 @@ function HeroSection({
               justify-center
               gap-x-4
               gap-y-2
-              text-xs
+              text-sm
               text-gray-700
 
               sm:mt-8
@@ -541,7 +541,7 @@ function HeroSection({
               <p
                 className="
                   mt-1
-                  text-xs
+                  text-sm
                   leading-5
                   text-gray-500
 
@@ -629,7 +629,7 @@ function CardRecurso({
       </div>
 
       {/* Título */}
-      <h3
+      <h2
         className="
           mt-4
           break-words
@@ -644,7 +644,7 @@ function CardRecurso({
         "
       >
         {titulo}
-      </h3>
+      </h2>
 
       {/* Descrição */}
       <p

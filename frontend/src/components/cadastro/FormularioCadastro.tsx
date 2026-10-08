@@ -474,6 +474,9 @@ function FormularioCadastro({
           <a
             href="/login"
             className="
+              inline-flex
+              min-h-[44px]
+              items-center
               font-bold
 
               text-[#5F56EC]

@@ -5,8 +5,10 @@ import { chamarApi } from "../lib/chamarApi";
 import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
+import { useTitulo } from "../hooks/useTitulo";
 
 export default function Vinculos() {
+  useTitulo("Vínculos");
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);

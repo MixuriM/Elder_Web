@@ -5,8 +5,10 @@ import LadoInformativo from "../components/Informativo/LadoInformativo";
 import LandingWelcome from "../components/Welcome/LandingWelcome";
 import WelcomeBotoes from "../components/Welcome/WelcomeBotoes";
 import BotaoTema from "../components/layout/BotaoTema";
+import { useTitulo } from "../hooks/useTitulo";
 
 function Welcome() {
+  useTitulo("Boas-vindas");
   const location = useLocation();
   const navigate = useNavigate();
 

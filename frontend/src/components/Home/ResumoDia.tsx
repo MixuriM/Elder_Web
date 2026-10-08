@@ -19,13 +19,11 @@ function ResumoDia() {
 
     shadow-[0_12px_30px_rgba(15,23,42,0.04)]
 
-    cursor-pointer
 
     transition-all
     duration-300
     ease-out
 
-    hover:-translate-y-1
 
     hover:border-[#6C63FF]/40
     hover:bg-[#F8F7FF]
@@ -61,7 +59,7 @@ function ResumoDia() {
     <div className="mt-6 sm:mt-8">
 
       {/* Título */}
-      <h3
+      <h2
         className="
           mb-3
 
@@ -77,7 +75,7 @@ function ResumoDia() {
         "
       >
         Resumo do seu dia
-      </h3>
+      </h2>
 
       <div className="grid gap-3 sm:grid-cols-3">
 
@@ -96,7 +94,6 @@ function ResumoDia() {
                 transition-transform
                 duration-300
 
-                group-hover:scale-125
 
                 dark:text-[#A89FFF]
               "
@@ -121,7 +118,7 @@ function ResumoDia() {
 
           <p
             className="
-              text-[10px]
+              text-sm
               text-emerald-500
             "
           ></p>
@@ -142,7 +139,6 @@ function ResumoDia() {
                 transition-transform
                 duration-300
 
-                group-hover:scale-125
 
                 dark:text-blue-400
               "
@@ -167,7 +163,7 @@ function ResumoDia() {
 
           <p
             className="
-              text-[10px]
+              text-sm
 
               text-gray-500
 
@@ -194,7 +190,6 @@ function ResumoDia() {
                 transition-transform
                 duration-300
 
-                group-hover:scale-125
 
                 dark:text-emerald-400
               "
@@ -219,7 +214,7 @@ function ResumoDia() {
 
           <p
             className="
-              text-[10px]
+              text-sm
               text-emerald-500
             "
           ></p>

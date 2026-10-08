@@ -11,6 +11,15 @@ export default {
 
   theme: {
     extend: {
+      keyframes: {
+        'check-entrada': {
+          from: { transform: 'scale(0.8)', opacity: '0' },
+          to: { transform: 'scale(1)', opacity: '1' },
+        },
+      },
+      animation: {
+        'check-entrada': 'check-entrada 250ms cubic-bezier(0.2, 0, 0, 1)',
+      },
       fontFamily: {
         sans: ['"Atkinson Hyperlegible"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
