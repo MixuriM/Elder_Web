@@ -1,7 +1,14 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import Alimentacao from "./Alimentacao";
+import { listaDoisIdosos7, listaPerfilIdoso, listaSemIdosos, listaUmIdoso } from "../hooks/idososFixtures";
+
+const mockUseIdosos = jest.fn();
+jest.mock("../hooks/useIdososVinculados", () => ({
+  useIdososVinculados: () => mockUseIdosos(),
+}));
 
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
@@ -41,6 +48,7 @@ const MENSAGENS: [number, string][] = [
 ];
 
 beforeEach(() => {
+  mockUseIdosos.mockReturnValue(listaPerfilIdoso);
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
   mockChamarApi.mockReset();
@@ -48,9 +56,12 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+function seletorRegistrar() {
+  return within(screen.getByRole("region", { name: "Registrar refeição" })).queryByLabelText("Idoso", { exact: true });
+}
+
 function campos() {
   return {
-    idosoId: screen.getByLabelText("Id do idoso (vazio = minha alimentação)", { exact: true }),
     refeicao: screen.getByLabelText("Refeição", { exact: true }) as HTMLSelectElement,
     descricao: screen.getByLabelText("Descrição", { exact: true }),
     dataHora: screen.getByLabelText("Data e hora", { exact: true }),
@@ -60,7 +71,7 @@ function campos() {
 
 async function preencherEEnviar(user: ReturnType<typeof userEvent.setup>, idosoId = "", refeicao?: string) {
   const c = campos();
-  if (idosoId) await user.type(c.idosoId, idosoId);
+  if (idosoId) await user.selectOptions(seletorRegistrar() as HTMLElement, idosoId);
   if (refeicao) await user.selectOptions(c.refeicao, refeicao);
   await user.type(c.descricao, DESCRICAO);
   fireEvent.change(c.dataHora, { target: { value: DATA_LOCAL } });
@@ -94,10 +105,47 @@ describe("Alimentacao (item 7.1)", () => {
     expect(c.descricao).toBeRequired();
     expect(c.dataHora).toHaveAttribute("type", "datetime-local");
     expect(c.dataHora).toBeRequired();
-    expect(c.idosoId).not.toBeRequired();
+    // Perfil idoso não tem seletor (usa o endpoint sem ID).
+    expect(seletorRegistrar()).not.toBeInTheDocument();
   });
 
-  it("id vazio: POST /alimentacao, Authorization e Content-Type JSON, corpo exato com data via toISOString", async () => {
+  it("cuidador ou familiar: seletor de idoso obrigatório, sem campo de ID digitável", () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+    render(<Alimentacao />);
+    const seletor = seletorRegistrar() as HTMLElement;
+    expect(seletor.tagName).toBe("SELECT");
+    expect(seletor).toBeRequired();
+    expect(screen.queryByLabelText(/id do idoso/i)).not.toBeInTheDocument();
+  });
+
+  it("escrita com 2+ idosos: sem pré-seleção e envio desabilitado até escolher; 1 idoso vem pré-selecionado", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+    const user = userEvent.setup();
+    const { unmount } = render(<Alimentacao />);
+    expect(seletorRegistrar()).toHaveValue("");
+    expect(campos().botao).toBeDisabled();
+    await user.selectOptions(seletorRegistrar() as HTMLElement, "9");
+    expect(campos().botao).toBeEnabled();
+    unmount();
+
+    mockUseIdosos.mockReturnValue(listaUmIdoso);
+    render(<Alimentacao />);
+    expect(seletorRegistrar()).toHaveValue("7");
+    expect(campos().botao).toBeEnabled();
+  });
+
+  it("0 idosos: orienta a solicitar vínculo e desabilita o registro", () => {
+    mockUseIdosos.mockReturnValue(listaSemIdosos);
+    render(
+      <MemoryRouter>
+        <Alimentacao />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByRole("link", { name: /solicite um vínculo/i }).length).toBeGreaterThan(0);
+    expect(campos().botao).toBeDisabled();
+  });
+
+  it("perfil idoso (sem seletor): POST /alimentacao, Authorization e Content-Type JSON, corpo exato com data via toISOString", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 31 }));
     const user = userEvent.setup();
     render(<Alimentacao />);
@@ -111,7 +159,8 @@ describe("Alimentacao (item 7.1)", () => {
     expect(corpo).toEqual({ refeicao: "cafe_manha", descricao: DESCRICAO, data_hora: new Date(DATA_LOCAL).toISOString() });
   });
 
-  it("id preenchido: POST /alimentacao/idoso/<id>, id só no caminho, nunca no corpo", async () => {
+  it("idoso escolhido no seletor: POST /alimentacao/idoso/<id>, id só no caminho, nunca no corpo", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 33 }));
     const user = userEvent.setup();
     render(<Alimentacao />);
@@ -254,13 +303,13 @@ function verHistorico() {
   const regiao = screen.getByRole("region", { name: "Ver histórico alimentar" });
   return {
     regiao,
-    campo: within(regiao).getByLabelText("Id do idoso para ver o histórico (vazio = meu histórico)", { exact: true }),
+    campo: within(regiao).queryByLabelText("Idoso", { exact: true }),
     botao: within(regiao).getByRole("button", { name: /^ver histórico alimentar$/i }),
   };
 }
 
 async function pedirHistorico(user: ReturnType<typeof userEvent.setup>, idosoId = "") {
-  if (idosoId) await user.type(verHistorico().campo, idosoId);
+  if (idosoId) await user.selectOptions(verHistorico().campo as HTMLElement, idosoId);
   await user.click(verHistorico().botao);
 }
 
@@ -269,12 +318,12 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
     render(<Alimentacao />);
     const h = verHistorico();
     expect(within(h.regiao).getByRole("heading", { level: 2, name: "Ver histórico alimentar" })).toBeInTheDocument();
-    expect(h.campo).not.toBeRequired();
+    expect(h.campo).not.toBeInTheDocument(); // perfil idoso: sem seletor
     expect(h.botao).toBeEnabled();
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("H2: campo vazio chama GET /alimentacao, com Authorization, sem Content-Type e sem corpo", async () => {
+  it("H2: perfil idoso (sem seletor) chama GET /alimentacao, com Authorization, sem Content-Type e sem corpo", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
     const user = userEvent.setup();
     render(<Alimentacao />);
@@ -288,7 +337,8 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
     expect(init.body).toBeUndefined();
   });
 
-  it("H2: campo preenchido chama GET /alimentacao/idoso/<id>, sem Content-Type", async () => {
+  it("H2: idoso escolhido no seletor chama GET /alimentacao/idoso/<id>, sem Content-Type", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { registros: [] }));
     const user = userEvent.setup();
     render(<Alimentacao />);
@@ -395,6 +445,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
   });
 
   it.each(MENSAGENS_HISTORICO)("H6: erro %i vira mensagem fixa em role=alert, sem ecoar o corpo", async (status, mensagem) => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: SENT_CORPO }));
     const user = userEvent.setup();
     render(<Alimentacao />);
