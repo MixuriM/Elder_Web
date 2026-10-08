@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react'
 
+import { useIdososVinculados } from '../../hooks/useIdososVinculados'
 import { chamarApi } from '../../lib/chamarApi'
+import SeletorIdoso from '../common/SeletorIdoso'
+import { envioBloqueado } from '../../lib/regrasIdosoVinculado'
 import Spinner from '../common/Spinner'
-import CampoSaude from './CampoSaude'
 
 type RegistroLista = {
   id: number
@@ -14,6 +16,7 @@ type RegistroLista = {
 }
 
 function HistoricoSaude() {
+  const idosos = useIdososVinculados()
   const [idosoId, setIdosoId] = useState('')
   const [carregando, setCarregando] = useState(false)
 
@@ -30,10 +33,9 @@ function HistoricoSaude() {
     setCarregando(true)
 
     try {
-      const caminho =
-        idosoId === ''
-          ? '/saude'
-          : `/saude/idoso/${idosoId}`
+      const caminho = idosos.ehIdoso
+        ? '/saude'
+        : `/saude/idoso/${idosoId}`
 
       const corpo = await chamarApi(caminho, {
         method: 'GET',
@@ -85,22 +87,16 @@ function HistoricoSaude() {
         onSubmit={handleVer}
         className="space-y-5"
       >
-        <CampoSaude
+        <SeletorIdoso
           id="idoso_id_historico"
-          label="ID do idoso"
-          type="number"
-          min={1}
-          step={1}
-          placeholder="Deixe vazio para ver seu histórico"
-          value={idosoId}
-          onChange={(e) =>
-            setIdosoId(e.target.value)
-          }
+          valor={idosoId}
+          aoMudar={setIdosoId}
+          lista={idosos}
         />
 
         <button
           type="submit"
-          disabled={carregando}
+          disabled={carregando || envioBloqueado(idosos, idosoId)}
           className="
             flex min-h-[54px] w-full
             items-center justify-center gap-2

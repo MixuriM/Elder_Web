@@ -59,7 +59,7 @@ function Sidebar({
         break;
 
       case "Família":
-        navigate("/familia");
+        navigate("/vinculos");
         break;
 
       case "Orientações":

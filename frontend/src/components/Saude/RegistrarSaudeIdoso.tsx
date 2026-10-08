@@ -1,6 +1,12 @@
 import { useState, type FormEvent } from 'react'
 
+import { useIdososVinculados } from '../../hooks/useIdososVinculados'
 import { chamarApi } from '../../lib/chamarApi'
+import {
+  envioBloqueado,
+  ocultarSecaoDeTerceiros,
+} from '../../lib/regrasIdosoVinculado'
+import SeletorIdoso from '../common/SeletorIdoso'
 import Spinner from '../common/Spinner'
 import CampoSaude from './CampoSaude'
 
@@ -15,6 +21,7 @@ const LEITURA_VAZIA = {
 }
 
 function RegistrarSaudeIdoso() {
+  const idosos = useIdososVinculados()
   const [campos, setCampos] = useState(LEITURA_VAZIA)
 
   const [carregando, setCarregando] = useState(false)
@@ -83,6 +90,8 @@ function RegistrarSaudeIdoso() {
     }
   }
 
+  if (ocultarSecaoDeTerceiros(idosos)) return null
+
   return (
     <section
       className="
@@ -117,21 +126,14 @@ function RegistrarSaudeIdoso() {
         onSubmit={handleRegistrar}
         className="space-y-5"
       >
-        <CampoSaude
+        <SeletorIdoso
           id="idoso_id_cuid"
-          label="ID do idoso"
-          type="number"
-          required
-          min={1}
-          step={1}
-          placeholder="Digite o ID do idoso"
-          value={campos.idosoId}
-          onChange={(e) =>
-            atualizarCampo(
-              'idosoId',
-              e.target.value,
-            )
+          escrita
+          valor={campos.idosoId}
+          aoMudar={(v) =>
+            atualizarCampo('idosoId', v)
           }
+          lista={idosos}
         />
 
         <CampoSaude
@@ -229,7 +231,10 @@ function RegistrarSaudeIdoso() {
 
         <button
           type="submit"
-          disabled={carregando}
+          disabled={
+            carregando ||
+            envioBloqueado(idosos, campos.idosoId)
+          }
           className="
             flex min-h-[54px] w-full
             items-center justify-center gap-2

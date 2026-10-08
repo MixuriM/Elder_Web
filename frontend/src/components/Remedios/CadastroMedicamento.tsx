@@ -16,12 +16,13 @@ import FormMedicamento, {
 } from './FormMedicamento'
 
 interface CadastroMedicamentoProps {
-  comIdoso?: boolean
+  // Cuidador e familiar: idoso escolhido na página (herdado, sem seletor próprio).
+  idosoId?: string
+  idosoNome?: string
   onSucesso?: () => void
 }
 
 const CAMPOS_VAZIOS: CamposMedicamento = {
-  idosoId: '',
   nome: '',
   dosagem: '',
   frequencia: '',
@@ -31,7 +32,8 @@ const CAMPOS_VAZIOS: CamposMedicamento = {
 }
 
 function CadastroMedicamento({
-  comIdoso = false,
+  idosoId,
+  idosoNome,
   onSucesso,
 }: CadastroMedicamentoProps) {
   const [campos, setCampos] =
@@ -58,8 +60,8 @@ function CadastroMedicamento({
     setCarregando(true)
 
     try {
-      const caminho = comIdoso
-        ? `/remedios/idoso/${campos.idosoId}`
+      const caminho = idosoId
+        ? `/remedios/idoso/${idosoId}`
         : '/remedios'
 
       await chamarApi(caminho, {
@@ -111,7 +113,7 @@ function CadastroMedicamento({
       <FormMedicamento
         campos={campos}
         setCampos={setCampos}
-        comIdoso={comIdoso}
+        idosoNome={idosoNome}
         desabilitado={carregando}
       />
 
