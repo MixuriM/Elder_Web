@@ -1240,7 +1240,7 @@ describe("Remedios - seletor de idoso", () => {
 
     expect(
       String((global.fetch as jest.Mock).mock.calls[0][0]),
-    ).toMatch(/\/remedios\/historico\/idoso\/7\/pdf$/);
+    ).toMatch(/\/historico\/idoso\/7\/pdf$/);
   });
 
   it("modal de cadastro herda o idoso da página: só leitura, sem seletor próprio", async () => {
