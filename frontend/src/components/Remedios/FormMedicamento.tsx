@@ -4,7 +4,6 @@ import type {
 } from 'react'
 
 export type CamposMedicamento = {
-  idosoId: string
   nome: string
   dosagem: string
   frequencia: string
@@ -20,14 +19,15 @@ interface FormMedicamentoProps {
     SetStateAction<CamposMedicamento>
   >
 
-  comIdoso?: boolean
+  // Cuidador e familiar: idoso escolhido na página, só leitura (o modal não troca o idoso).
+  idosoNome?: string
   desabilitado?: boolean
 }
 
 function FormMedicamento({
   campos,
   setCampos,
-  comIdoso = false,
+  idosoNome,
   desabilitado = false,
 }: FormMedicamentoProps) {
   function alterarCampo(
@@ -91,35 +91,28 @@ function FormMedicamento({
 
   return (
     <div className="space-y-5">
-      {/* ID DO IDOSO */}
+      {/* IDOSO (SÓ LEITURA) */}
 
-      {comIdoso && (
-        <div>
-          <label
-            htmlFor="medicamento-idoso"
-            className={classeLabel}
-          >
-            ID do idoso
-          </label>
+      {idosoNome && (
+        <p
+          className="
+            rounded-xl
+            border
+            border-[#E5E2F5]
+            bg-[#F8F7FC]
+            px-4
+            py-3
+            text-base
+            text-[#071A38]
 
-          <input
-            id="medicamento-idoso"
-            type="number"
-            min={1}
-            step={1}
-            required
-            disabled={desabilitado}
-            value={campos.idosoId}
-            onChange={(event) =>
-              alterarCampo(
-                'idosoId',
-                event.target.value,
-              )
-            }
-            placeholder="Informe o ID do idoso"
-            className={classeInput}
-          />
-        </div>
+            dark:border-[#393947]
+            dark:bg-[#1C1C27]
+            dark:text-[#F5F5FA]
+          "
+        >
+          Cadastrando para:{' '}
+          <strong>{idosoNome}</strong>
+        </p>
       )}
 
       {/* NOME */}

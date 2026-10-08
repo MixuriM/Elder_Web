@@ -1,6 +1,12 @@
 import { useState, type FormEvent } from 'react'
 
+import { useIdososVinculados } from '../../hooks/useIdososVinculados'
 import { chamarApi } from '../../lib/chamarApi'
+import {
+  envioBloqueado,
+  ocultarSecaoDeTerceiros,
+} from '../../lib/regrasIdosoVinculado'
+import SeletorIdoso from '../common/SeletorIdoso'
 import Spinner from '../common/Spinner'
 import CampoSaude from './CampoSaude'
 
@@ -23,6 +29,7 @@ function EditarSaude({
   titulo,
   comIdoso,
 }: EditarSaudeProps) {
+  const idosos = useIdososVinculados()
   const [aberto, setAberto] = useState(false)
   const [campos, setCampos] = useState(LEITURA_VAZIA)
   const [registroId, setRegistroId] = useState('')
@@ -112,6 +119,10 @@ function EditarSaude({
   const prefixo = comIdoso
     ? 'idoso'
     : 'proprio'
+
+  if (comIdoso && ocultarSecaoDeTerceiros(idosos)) {
+    return null
+  }
 
   return (
     <section
@@ -207,20 +218,14 @@ function EditarSaude({
             className="space-y-5"
           >
             {comIdoso && (
-              <CampoSaude
+              <SeletorIdoso
                 id={`idoso_${prefixo}`}
-                label="ID do idoso"
-                type="number"
-                required
-                min={1}
-                step={1}
-                value={campos.idosoId}
-                onChange={(e) =>
-                  atualizarCampo(
-                    'idosoId',
-                    e.target.value,
-                  )
+                escrita
+                valor={campos.idosoId}
+                aoMudar={(v) =>
+                  atualizarCampo('idosoId', v)
                 }
+                lista={idosos}
               />
             )}
 
@@ -328,7 +333,14 @@ function EditarSaude({
             <div className="flex flex-col gap-3 pt-2 sm:flex-row">
               <button
                 type="submit"
-                disabled={carregando}
+                disabled={
+                  carregando ||
+                  (comIdoso &&
+                    envioBloqueado(
+                      idosos,
+                      campos.idosoId,
+                    ))
+                }
                 className="
                   flex min-h-[54px] flex-1
                   items-center justify-center gap-2

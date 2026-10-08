@@ -12,6 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
 import Remedios from "./Remedios";
+import { listaPerfilIdoso } from "../hooks/idososFixtures";
 
 /* =========================================================
    AXE
@@ -58,6 +59,12 @@ jest.mock("react-router-dom", () => ({
   ...jest.requireActual("react-router-dom"),
 
   useNavigate: () => mockNavigate,
+}));
+
+const mockUseIdosos = jest.fn();
+
+jest.mock("../hooks/useIdososVinculados", () => ({
+  useIdososVinculados: () => mockUseIdosos(),
 }));
 
 jest.mock("../lib/chamarApi", () => ({
@@ -161,6 +168,8 @@ const MEDICAMENTO_SEM_DOSES = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+
+  mockUseIdosos.mockReturnValue(listaPerfilIdoso);
 
   mockGetCurrentUserToken.mockResolvedValue(
     "token-fake",

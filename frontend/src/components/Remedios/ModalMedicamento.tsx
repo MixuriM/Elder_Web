@@ -13,13 +13,15 @@ import CadastroMedicamento from './CadastroMedicamento'
 interface ModalMedicamentoProps {
   aberto: boolean
   onFechar: () => void
-  comIdoso?: boolean
+  idosoId?: string
+  idosoNome?: string
 }
 
 function ModalMedicamento({
   aberto,
   onFechar,
-  comIdoso = false,
+  idosoId,
+  idosoNome,
 }: ModalMedicamentoProps) {
   const [cadastroConcluido, setCadastroConcluido] =
     useState(false)
@@ -271,7 +273,8 @@ function ModalMedicamento({
           )}
 
           <CadastroMedicamento
-            comIdoso={comIdoso}
+            idosoId={idosoId}
+            idosoNome={idosoNome}
             onSucesso={handleSucesso}
           />
         </div>

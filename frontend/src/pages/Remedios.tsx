@@ -4,10 +4,13 @@ import { ArrowLeft, Pill, Plus, RefreshCw } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
 
+import { useIdososVinculados } from "../hooks/useIdososVinculados";
 import { chamarApi } from "../lib/chamarApi";
 import { usePermissoesDose } from "../lib/permissoesDose";
 
 import ControleTema from "../components/layout/ControleTema";
+import SeletorIdoso from "../components/common/SeletorIdoso";
+import { envioBloqueado } from "../lib/regrasIdosoVinculado";
 import Spinner from "../components/common/Spinner";
 
 import AvisoPermissaoDose from "../components/Remedios/AvisoPermissaoDose";
@@ -54,17 +57,27 @@ export default function Remedios() {
   const [medicamentoDetalhes, setMedicamentoDetalhes] =
     useState<Medicamento | null>(null);
 
-  /**
-   * Por enquanto vazio = usuário visualizando
-   * os próprios medicamentos.
-   *
-   * Depois esse ID poderá vir automaticamente
-   * do vínculo selecionado pelo cuidador/familiar.
-   */
-  const idosoId = "";
+  const idosos = useIdososVinculados();
+
+  // Cuidador e familiar escolhem o idoso no seletor; perfil idoso usa os endpoints sem ID.
+  const [idosoEscolhido, setIdosoEscolhido] = useState("");
+
+  const ehIdoso = idosos.ehIdoso;
+  const estadoIdosos = idosos.estado;
+  const bloqueado = envioBloqueado(idosos, idosoEscolhido);
+  const idosoId = ehIdoso ? "" : idosoEscolhido;
+  const idosoNome = idosos.idosos.find((i) => String(i.id) === idosoId)?.nome;
 
   const carregarMedicamentos = useCallback(async () => {
     setErro(null);
+
+    if (bloqueado) {
+      // Sem idoso escolhido não há o que listar (o seletor mostra o motivo).
+      setMedicamentos([]);
+      setCarregando(estadoIdosos === "carregando");
+      return;
+    }
+
     setCarregando(true);
 
     try {
@@ -84,7 +97,7 @@ export default function Remedios() {
     } finally {
       setCarregando(false);
     }
-  }, [idosoId]);
+  }, [bloqueado, estadoIdosos, idosoId]);
 
   useEffect(() => {
     void carregarMedicamentos();
@@ -208,6 +221,7 @@ export default function Remedios() {
           <button
             type="button"
             onClick={() => setModalMedicamentoAberto(true)}
+            disabled={bloqueado}
             className="
               flex
               min-h-12
@@ -230,6 +244,9 @@ export default function Remedios() {
               focus-visible:ring-[#6C63FF]/40
               focus-visible:ring-offset-2
 
+              disabled:cursor-not-allowed
+              disabled:opacity-60
+
               dark:ring-offset-[#10101A]
             "
           >
@@ -243,6 +260,19 @@ export default function Remedios() {
         <div className="mb-6">
           <AvisoPermissaoDose permissoes={permissoes} />
         </div>
+
+        {/* IDOSO */}
+
+        {!ehIdoso && (
+          <div className="mb-6 max-w-xl">
+            <SeletorIdoso
+              id="idoso_remedios"
+              valor={idosoEscolhido}
+              aoMudar={setIdosoEscolhido}
+              lista={idosos}
+            />
+          </div>
+        )}
 
         {/* ERRO */}
 
@@ -314,7 +344,7 @@ export default function Remedios() {
 
         {/* SEM MEDICAMENTOS */}
 
-        {!carregando && !erro && medicamentos.length === 0 && (
+        {!carregando && !erro && !bloqueado && medicamentos.length === 0 && (
           <section
             className="
                 rounded-3xl
@@ -497,9 +527,11 @@ export default function Remedios() {
 
         {/* EXPORTAR PDF */}
 
-        <div className="mt-8">
-          <ExportarHistorico idosoId={idosoId || undefined} />
-        </div>
+        {!bloqueado && (
+          <div className="mt-8">
+            <ExportarHistorico idosoId={idosoId || undefined} />
+          </div>
+        )}
       </div>
 
       {/* MODAL DE CADASTRO */}
@@ -511,7 +543,8 @@ export default function Remedios() {
 
           void carregarMedicamentos();
         }}
-        comIdoso={Boolean(idosoId)}
+        idosoId={idosoId || undefined}
+        idosoNome={idosoNome}
       />
 
       {/* MODAL DE DOSE */}

@@ -22,8 +22,9 @@ export async function buscarPermissoesSaude(): Promise<VinculoMinimo[]> {
 
 // Só conta vínculo aprovado em que o chamador é o vinculado (papéis dono e titular ficam de fora):
 // familiar escreve (o backend ainda exige modo_decisao), cuidador só com permite_registrar_saude.
-// ponytail: com vários vínculos vale "qualquer um qualifica", porque o id do idoso é digitado livremente
-// no esqueleto; o backend valida o idoso de fato.
+// ponytail: com vários vínculos vale "qualquer um qualifica": a decisão é global, não por idoso. O seletor de
+// idoso lista todos os idosos com vínculo aprovado, inclusive os em que o chamador não tem permissão; o backend
+// valida o idoso escolhido (403). Decidir por idoso exigiria cruzar o idoso do seletor com cada vínculo.
 export function decidirVisibilidade(vinculos: VinculoMinimo[]) {
   const meus = vinculos.filter((v) => v.status === 'aprovado' && v.papel_do_chamador === 'vinculado')
   const escrita = meus.some(

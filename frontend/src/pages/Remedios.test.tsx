@@ -10,7 +10,15 @@ import {
 
 import userEvent from "@testing-library/user-event";
 
+import { MemoryRouter } from "react-router-dom";
+
 import Remedios from "./Remedios";
+
+import {
+  listaDoisIdosos7,
+  listaPerfilIdoso,
+  listaSemIdosos,
+} from "../hooks/idososFixtures";
 
 /* =========================================================
    MOCKS
@@ -24,6 +32,12 @@ const mockGetCurrentUserToken = jest.fn();
 jest.mock("react-router-dom", () => ({
   ...jest.requireActual("react-router-dom"),
   useNavigate: () => mockNavigate,
+}));
+
+const mockUseIdosos = jest.fn();
+
+jest.mock("../hooks/useIdososVinculados", () => ({
+  useIdososVinculados: () => mockUseIdosos(),
 }));
 
 jest.mock("../lib/chamarApi", () => ({
@@ -109,6 +123,9 @@ const MEDICAMENTO_INATIVO = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+
+  // Padrão: perfil idoso (endpoints sem ID, como antes do seletor).
+  mockUseIdosos.mockReturnValue(listaPerfilIdoso);
 
   mockUsePermissoesDose.mockReturnValue({
     carregando: false,
@@ -1070,5 +1087,273 @@ describe("Remedios - acessibilidade básica", () => {
       "aria-modal",
       "true",
     );
+  });
+});
+
+/* =========================================================
+   SELETOR DE IDOSO (cuidador e familiar)
+========================================================= */
+
+describe("Remedios - seletor de idoso", () => {
+  it("perfil idoso: sem seletor e lista pelo endpoint sem ID", async () => {
+    render(<Remedios />);
+
+    await screen.findByRole("heading", {
+      name: "Nenhum medicamento cadastrado",
+    });
+
+    expect(
+      screen.queryByRole("combobox"),
+    ).not.toBeInTheDocument();
+
+    expect(mockChamarApi).toHaveBeenCalledWith(
+      "/remedios",
+      { method: "GET" },
+    );
+  });
+
+  it("familiar ou cuidador: lista pelo idoso pré-selecionado e recarrega ao trocar", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+
+    const user = userEvent.setup();
+
+    render(<Remedios />);
+
+    await waitFor(() => {
+      expect(mockChamarApi).toHaveBeenCalledWith(
+        "/remedios/idoso/7",
+        { method: "GET" },
+      );
+    });
+
+    expect(mockChamarApi).not.toHaveBeenCalledWith(
+      "/remedios",
+      expect.anything(),
+    );
+
+    await user.selectOptions(
+      screen.getByLabelText("Idoso"),
+      "9",
+    );
+
+    await waitFor(() => {
+      expect(mockChamarApi).toHaveBeenCalledWith(
+        "/remedios/idoso/9",
+        { method: "GET" },
+      );
+    });
+  });
+
+  it("0 idosos: orienta a solicitar vínculo e não chama a API nem mostra o estado vazio", async () => {
+    mockUseIdosos.mockReturnValue(listaSemIdosos);
+
+    render(
+      <MemoryRouter>
+        <Remedios />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("link", {
+        name: /solicite um vínculo/i,
+      }),
+    ).toBeInTheDocument();
+
+    expect(mockChamarApi).not.toHaveBeenCalled();
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Nenhum medicamento cadastrado",
+      }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("button", {
+        name: /baixar histórico/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marcar dose usa o idoso escolhido no caminho", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+
+    mockChamarApi.mockImplementation(
+      (url: string, options?: { method?: string }) =>
+        Promise.resolve(
+          options?.method === "POST"
+            ? { id: 55 }
+            : { medicamentos: [MEDICAMENTO] },
+        ),
+    );
+
+    const user = userEvent.setup();
+
+    render(<Remedios />);
+
+    const titulo = await screen.findByRole("heading", {
+      name: "Losartana Teste",
+    });
+
+    await user.click(
+      within(
+        titulo.closest("article") as HTMLElement,
+      ).getByRole("button", { name: /marcar dose/i }),
+    );
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole(
+        "button",
+        { name: /^registrar dose$/i },
+      ),
+    );
+
+    await waitFor(() => {
+      expect(mockChamarApi).toHaveBeenCalledWith(
+        "/remedios/idoso/7/1/doses",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+  });
+
+  it("PDF usa o idoso escolhido no caminho", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve(null),
+    });
+
+    const user = userEvent.setup();
+
+    render(<Remedios />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /baixar histórico/i,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+
+    expect(
+      String((global.fetch as jest.Mock).mock.calls[0][0]),
+    ).toMatch(/\/remedios\/historico\/idoso\/7\/pdf$/);
+  });
+
+  it("modal de cadastro herda o idoso da página: só leitura, sem seletor próprio", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+
+    const user = userEvent.setup();
+
+    render(<Remedios />);
+
+    await screen.findByRole("heading", {
+      name: "Nenhum medicamento cadastrado",
+    });
+
+    await user.selectOptions(
+      screen.getByLabelText("Idoso"),
+      "9",
+    );
+
+    await screen.findByRole("heading", {
+      name: "Nenhum medicamento cadastrado",
+    });
+
+    await user.click(
+      screen.getAllByRole("button", {
+        name: /adicionar medicamento/i,
+      })[0],
+    );
+
+    const dialog = screen.getByRole("dialog");
+
+    expect(
+      within(dialog).getByText(/cadastrando para:/i),
+    ).toHaveTextContent("Cadastrando para: Idoso Teste Nove");
+
+    expect(
+      within(dialog).queryByRole("combobox"),
+    ).not.toBeInTheDocument();
+
+    mockChamarApi.mockClear();
+
+    await user.type(
+      within(dialog).getByLabelText("Nome do medicamento"),
+      "Remedio Teste",
+    );
+    await user.type(
+      within(dialog).getByLabelText("Dosagem"),
+      "10 mg",
+    );
+    await user.type(
+      within(dialog).getByLabelText("Frequência"),
+      "1 vez ao dia",
+    );
+    fireEvent.change(
+      within(dialog).getByLabelText("Data de início"),
+      { target: { value: "2026-10-01" } },
+    );
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: /^adicionar medicamento$/i,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockChamarApi).toHaveBeenCalledWith(
+        "/remedios/idoso/9",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    const corpo = JSON.parse(
+      mockChamarApi.mock.calls.find(
+        ([url]) => url === "/remedios/idoso/9",
+      )![1].body,
+    );
+
+    expect(corpo).not.toHaveProperty("idosoId");
+    expect(corpo).not.toHaveProperty("idoso_id");
+  });
+
+  it("perfil idoso: modal sem 'Cadastrando para' e POST /remedios", async () => {
+    const user = userEvent.setup();
+
+    render(<Remedios />);
+
+    await screen.findByRole("heading", {
+      name: "Nenhum medicamento cadastrado",
+    });
+
+    await user.click(
+      screen.getAllByRole("button", {
+        name: /adicionar medicamento/i,
+      })[0],
+    );
+
+    expect(
+      screen.queryByText(/cadastrando para:/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("0 idosos: botão de adicionar medicamento desabilitado", () => {
+    mockUseIdosos.mockReturnValue(listaSemIdosos);
+
+    render(
+      <MemoryRouter>
+        <Remedios />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: /adicionar medicamento/i,
+      }),
+    ).toBeDisabled();
   });
 });

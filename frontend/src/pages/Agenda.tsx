@@ -1,7 +1,10 @@
 import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
 import { ArrowLeft, CalendarDays, Clock3, HeartPulse, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useIdososVinculados } from '../hooks/useIdososVinculados'
 import { chamarApi } from '../lib/chamarApi'
+import SeletorIdoso from '../components/common/SeletorIdoso'
+import { envioBloqueado, ocultarSecaoDeTerceiros } from '../lib/regrasIdosoVinculado'
 import Spinner from '../components/common/Spinner'
 import BotaoTema from '../components/layout/BotaoTema'
 import { getCurrentUserToken } from '../lib/auth'
@@ -14,6 +17,7 @@ type Modo = 'idoso' | 'familiar' | 'cuidador'
 function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
   const sufixo = modo
   const comIdoso = modo !== 'idoso'
+  const idosos = useIdososVinculados()
   const [campos, setCampos] = useState(VAZIO)
   const [carregando, setCarregando] = useState(false)
   const [resultado, setResultado] = useState<{ id: number } | null>(null)
@@ -65,6 +69,9 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
       <input id={`${nome}_${slug}`} {...atributos} value={campos[nome]} onChange={setCampo(nome)} className={classe} />
     </div>
   )
+  // Criar em nome de terceiros não existe para o perfil idoso.
+  if (comIdoso && ocultarSecaoDeTerceiros(idosos)) return null
+
   const IconeModo = modo === 'idoso' ? CalendarDays : modo === 'familiar' ? UsersRound : HeartPulse
 
   return (
@@ -90,7 +97,17 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
         </div>
       </div>
       <form onSubmit={handleCriar} className="grid gap-4 sm:grid-cols-2">
-        {comIdoso && campo(`Id do idoso (${sufixo})`, 'idosoId', { type: 'number', required: true, min: 1, step: 1 })}
+        {comIdoso && (
+          <div className="sm:col-span-2">
+            <SeletorIdoso
+              id={`idosoId_${slug}`}
+              escrita
+              valor={campos.idosoId}
+              aoMudar={(v) => setCampos((atual) => ({ ...atual, idosoId: v }))}
+              lista={idosos}
+            />
+          </div>
+        )}
         {modo !== 'cuidador' && (
           <div>
             <label htmlFor={`tipo_${slug}`} className={classeLabel}>
@@ -108,7 +125,7 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
         {campo(`Fim (opcional, ${sufixo})`, 'fim', { type: 'datetime-local' })}
         <button
           type="submit"
-          disabled={carregando}
+          disabled={carregando || (comIdoso && envioBloqueado(idosos, campos.idosoId))}
           aria-busy={carregando}
           className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus:ring-2 focus:ring-[#5F56EC]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-[#171721] sm:col-span-2"
         >
@@ -189,6 +206,7 @@ function DiaDaAgenda({ grupo }: { grupo: GrupoDia }) {
 }
 
 function VerAgenda() {
+  const idosos = useIdososVinculados()
   const [idosoId, setIdosoId] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [grupos, setGrupos] = useState<GrupoDia[] | null>(null)
@@ -200,7 +218,7 @@ function VerAgenda() {
     setGrupos(null)
     setCarregando(true)
     try {
-      const eventos = await buscarAgenda(idosoId === '' ? '/agenda' : `/agenda/idoso/${idosoId}`)
+      const eventos = await buscarAgenda(idosos.ehIdoso ? '/agenda' : `/agenda/idoso/${idosoId}`)
       setGrupos(agruparEventosPorDia(eventos))
     } catch (err) {
       if (err instanceof RangeError) setErro('Não foi possível exibir a agenda.')
@@ -232,23 +250,12 @@ function VerAgenda() {
         </div>
       </div>
       <form onSubmit={handleVer} className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div>
-          <label htmlFor="idoso_id_ver_agenda" className="block text-base font-semibold text-[#071A38] dark:text-[#F5F5FA]">
-            Id do idoso para ver a agenda (vazio = minha agenda)
-          </label>
-          <input
-            id="idoso_id_ver_agenda"
-            type="number"
-            min={1}
-            step={1}
-            value={idosoId}
-            onChange={(e) => setIdosoId(e.target.value)}
-            className="mt-1 min-h-12 w-full rounded-xl border border-[#DDD9F2] bg-white px-4 py-3 text-lg text-[#071A38] outline-none transition placeholder:text-[#78849A] hover:border-[#A18BFF] focus:border-[#5F56EC] focus:ring-2 focus:ring-[#5F56EC]/20 dark:border-[#454558] dark:bg-[#181824] dark:text-[#F5F5FA] dark:placeholder:text-[#858594] dark:hover:border-[#66667A] dark:focus:border-[#A89FFF] dark:focus:ring-[#A89FFF]/20"
-          />
+        <div className="sm:min-w-80">
+          <SeletorIdoso id="idoso_id_ver_agenda" valor={idosoId} aoMudar={setIdosoId} lista={idosos} />
         </div>
         <button
           type="submit"
-          disabled={carregando}
+          disabled={carregando || envioBloqueado(idosos, idosoId)}
           aria-busy={carregando}
           className="flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus:ring-2 focus:ring-[#5F56EC]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-[#171721] sm:w-auto"
         >

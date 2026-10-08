@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import SeletorIdoso from '../components/common/SeletorIdoso'
+import { envioBloqueado } from '../lib/regrasIdosoVinculado'
 import Spinner from '../components/common/Spinner'
+import { useIdososVinculados } from '../hooks/useIdososVinculados'
 import { getCurrentUserToken } from '../lib/auth'
 import { formatarDataHora, rotuloRefeicao } from '../lib/alimentacaoFormato'
 
@@ -30,6 +33,7 @@ const ERRO_GENERICO = 'Não foi possível registrar a refeição.'
 const VAZIO = { idosoId: '', refeicao: 'cafe_manha', descricao: '', dataHora: '' }
 
 export default function Alimentacao() {
+  const idosos = useIdososVinculados()
   const [campos, setCampos] = useState(VAZIO)
   const [carregando, setCarregando] = useState(false)
   const [criadoId, setCriadoId] = useState<number | null>(null)
@@ -44,7 +48,7 @@ export default function Alimentacao() {
     setCarregando(true)
     try {
       const token = await getCurrentUserToken()
-      const caminho = campos.idosoId === '' ? '/alimentacao' : `/alimentacao/idoso/${campos.idosoId}`
+      const caminho = idosos.ehIdoso ? '/alimentacao' : `/alimentacao/idoso/${campos.idosoId}`
       const res = await fetch(`${import.meta.env.VITE_API_URL}${caminho}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -80,20 +84,7 @@ export default function Alimentacao() {
           Registrar refeição
         </h2>
         <form onSubmit={handleRegistrar} className="space-y-4">
-          <div>
-            <label htmlFor="idoso_id_alimentacao" className={classeLabel}>
-              Id do idoso (vazio = minha alimentação)
-            </label>
-            <input
-              id="idoso_id_alimentacao"
-              type="number"
-              min={1}
-              step={1}
-              value={campos.idosoId}
-              onChange={setCampo('idosoId')}
-              className={classe}
-            />
-          </div>
+          <SeletorIdoso id="idoso_id_alimentacao" escrita valor={campos.idosoId} aoMudar={(v) => setCampos((atual) => ({ ...atual, idosoId: v }))} lista={idosos} />
           <div>
             <label htmlFor="refeicao_alimentacao" className={classeLabel}>
               Refeição
@@ -135,7 +126,7 @@ export default function Alimentacao() {
           </div>
           <button
             type="submit"
-            disabled={carregando}
+            disabled={carregando || envioBloqueado(idosos, campos.idosoId)}
             aria-busy={carregando}
             className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
           >
@@ -189,6 +180,7 @@ async function buscarHistorico(path: string): Promise<RegistroApi[]> {
 }
 
 function VerHistoricoAlimentar() {
+  const idosos = useIdososVinculados()
   const [idosoId, setIdosoId] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [itens, setItens] = useState<ItemHistorico[] | null>(null)
@@ -200,7 +192,7 @@ function VerHistoricoAlimentar() {
     setItens(null)
     setCarregando(true)
     try {
-      const registros = await buscarHistorico(idosoId === '' ? '/alimentacao' : `/alimentacao/idoso/${idosoId}`)
+      const registros = await buscarHistorico(idosos.ehIdoso ? '/alimentacao' : `/alimentacao/idoso/${idosoId}`)
       // Formata tudo antes de exibir: um registro inválido vira erro, nunca lista pela metade.
       setItens(
         registros.map((r) => ({
@@ -225,23 +217,10 @@ function VerHistoricoAlimentar() {
         Ver histórico alimentar
       </h2>
       <form onSubmit={handleVer} className="space-y-4">
-        <div>
-          <label htmlFor="idoso_id_historico_alimentar" className="block text-lg font-medium text-gray-900">
-            Id do idoso para ver o histórico (vazio = meu histórico)
-          </label>
-          <input
-            id="idoso_id_historico_alimentar"
-            type="number"
-            min={1}
-            step={1}
-            value={idosoId}
-            onChange={(e) => setIdosoId(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-400 p-3 text-lg"
-          />
-        </div>
+        <SeletorIdoso id="idoso_id_historico_alimentar" valor={idosoId} aoMudar={setIdosoId} lista={idosos} />
         <button
           type="submit"
-          disabled={carregando}
+          disabled={carregando || envioBloqueado(idosos, idosoId)}
           aria-busy={carregando}
           className="flex w-full items-center justify-center gap-2 rounded bg-blue-700 p-3 text-lg font-semibold text-white disabled:opacity-70"
         >

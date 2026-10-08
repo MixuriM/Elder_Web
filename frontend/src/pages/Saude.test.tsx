@@ -10,9 +10,17 @@ import {
 
 import userEvent from '@testing-library/user-event'
 
+import { MemoryRouter } from 'react-router-dom'
+
 import Saude from './Saude'
 
 import * as permissoesSaude from '../lib/permissoesSaude'
+
+import {
+  listaFamiliar,
+  listaPerfilIdoso,
+  listaSemIdosos,
+} from '../hooks/idososFixtures'
 
 /* =========================================================
    MOCK DAS PERMISSÕES
@@ -25,6 +33,16 @@ jest.mock('../lib/permissoesSaude', () => ({
 
 const mockUsePermissoes =
   permissoesSaude.usePermissoesSaude as jest.Mock
+
+/* =========================================================
+   MOCK DOS IDOSOS VINCULADOS
+========================================================= */
+
+const mockUseIdosos = jest.fn()
+
+jest.mock('../hooks/useIdososVinculados', () => ({
+  useIdososVinculados: () => mockUseIdosos(),
+}))
 
 /* =========================================================
    MOCK DO BOTÃO DE TEMA
@@ -74,6 +92,8 @@ function respostaJson(
 
 beforeEach(() => {
   jest.clearAllMocks()
+
+  mockUseIdosos.mockReturnValue(listaFamiliar)
 
   mockUsePermissoes.mockReturnValue({
     estado: 'ok',
@@ -516,7 +536,7 @@ describe(
 
         expect(
           s.getByLabelText(
-            'ID do idoso',
+            'Idoso',
           ),
         ).toBeInTheDocument()
 
@@ -558,9 +578,9 @@ describe(
 
         const s = secao()
 
-        await user.type(
+        await user.selectOptions(
           s.getByLabelText(
-            'ID do idoso',
+            'Idoso',
           ),
           '5',
         )
@@ -663,8 +683,12 @@ describe(
     }
 
     it(
-      'sem ID chama GET /saude',
+      'perfil idoso: sem seletor, chama GET /saude',
       async () => {
+        mockUseIdosos.mockReturnValue(
+          listaPerfilIdoso,
+        );
+
         (
           global.fetch as jest.Mock
         ).mockResolvedValue(
@@ -692,6 +716,10 @@ describe(
         render(<Saude />)
 
         const s = secao()
+
+        expect(
+          s.queryByRole('combobox'),
+        ).not.toBeInTheDocument()
 
         await user.click(
           s.getByRole(
@@ -727,7 +755,7 @@ describe(
     )
 
     it(
-      'com ID chama GET /saude/idoso/:id',
+      'escolhendo o idoso no seletor chama GET /saude/idoso/:id',
       async () => {
         (
           global.fetch as jest.Mock
@@ -744,11 +772,9 @@ describe(
 
         const s = secao()
 
-        await user.type(
-          s.getByLabelText(
-            'ID do idoso',
-          ),
-          '5',
+        await user.selectOptions(
+          s.getByLabelText('Idoso'),
+          '8',
         )
 
         await user.click(
@@ -772,8 +798,99 @@ describe(
             global.fetch as jest.Mock
           ).mock.calls[0][0],
         ).toMatch(
+          /\/saude\/idoso\/8$/,
+        )
+      },
+    )
+
+    it(
+      'primeiro idoso vem pré-selecionado e o ID não é exibido nem digitável',
+      async () => {
+        (
+          global.fetch as jest.Mock
+        ).mockResolvedValue(
+          respostaJson(200, {
+            registros: [],
+          }),
+        )
+
+        const user =
+          userEvent.setup()
+
+        render(<Saude />)
+
+        const s = secao()
+
+        expect(
+          s.getByLabelText('Idoso'),
+        ).toHaveValue('5')
+
+        expect(
+          s.queryByLabelText(
+            /ID do idoso/i,
+          ),
+        ).not.toBeInTheDocument()
+
+        await user.click(
+          s.getByRole(
+            'button',
+            {
+              name:
+                /ver histórico/i,
+            },
+          ),
+        )
+
+        await s.findByText(
+          /nenhum registro encontrado/i,
+        )
+
+        expect(
+          (
+            global.fetch as jest.Mock
+          ).mock.calls[0][0],
+        ).toMatch(
           /\/saude\/idoso\/5$/,
         )
+      },
+    )
+
+    it(
+      'sem idosos vinculados: desabilita o envio e não chama a API',
+      async () => {
+        mockUseIdosos.mockReturnValue(
+          listaSemIdosos,
+        )
+
+        const user =
+          userEvent.setup()
+
+        render(
+          <MemoryRouter>
+            <Saude />
+          </MemoryRouter>,
+        )
+
+        const s = secao()
+
+        const botao =
+          s.getByRole(
+            'button',
+            {
+              name:
+                /ver histórico/i,
+            },
+          )
+
+        expect(
+          botao,
+        ).toBeDisabled()
+
+        await user.click(botao)
+
+        expect(
+          global.fetch,
+        ).not.toHaveBeenCalled()
       },
     )
   },
@@ -979,9 +1096,9 @@ describe(
           ),
         )
 
-        await user.type(
+        await user.selectOptions(
           s.getByLabelText(
-            /ID do idoso/i,
+            'Idoso',
           ),
           '5',
         )
@@ -1284,6 +1401,119 @@ describe(
         } finally {
           spy.mockRestore()
         }
+      },
+    )
+  },
+)
+
+/* =========================================================
+   SELETOR DE IDOSO — TELAS DE ESCRITA E PERFIL IDOSO
+========================================================= */
+
+describe(
+  'Saude — seletor de idoso',
+  () => {
+    it(
+      'escrita com 2+ idosos: não pré-seleciona e mantém o envio desabilitado até escolher',
+      async () => {
+        const user =
+          userEvent.setup()
+
+        render(<Saude />)
+
+        const titulo =
+          screen.getByRole(
+            'heading',
+            {
+              name:
+                /registrar saúde do idoso/i,
+            },
+          )
+
+        const s = within(
+          titulo.closest(
+            'section',
+          ) as HTMLElement,
+        )
+
+        const seletor =
+          s.getByLabelText('Idoso')
+
+        expect(seletor).toHaveValue('')
+
+        expect(
+          s.getByRole('option', {
+            name: 'Selecione o idoso',
+          }),
+        ).toBeInTheDocument()
+
+        const botao = s.getByRole(
+          'button',
+          {
+            name:
+              /registrar leitura do idoso/i,
+          },
+        )
+
+        expect(botao).toBeDisabled()
+
+        await user.selectOptions(
+          seletor,
+          '8',
+        )
+
+        expect(botao).toBeEnabled()
+      },
+    )
+
+    it(
+      'perfil idoso: seções de terceiros não renderizam, histórico e edição própria sim',
+      () => {
+        mockUseIdosos.mockReturnValue(
+          listaPerfilIdoso,
+        )
+
+        render(<Saude />)
+
+        expect(
+          screen.queryByRole(
+            'heading',
+            {
+              name:
+                /registrar saúde do idoso/i,
+            },
+          ),
+        ).not.toBeInTheDocument()
+
+        expect(
+          screen.queryByRole(
+            'heading',
+            {
+              name:
+                /editar registro do idoso/i,
+            },
+          ),
+        ).not.toBeInTheDocument()
+
+        expect(
+          screen.getByRole(
+            'heading',
+            {
+              name:
+                /histórico de saúde/i,
+            },
+          ),
+        ).toBeInTheDocument()
+
+        expect(
+          screen.getByRole(
+            'heading',
+            {
+              name:
+                /editar meu registro/i,
+            },
+          ),
+        ).toBeInTheDocument()
       },
     )
   },

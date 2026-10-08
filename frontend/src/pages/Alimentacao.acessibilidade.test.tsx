@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe, toHaveNoViolations } from "jest-axe";
 import Alimentacao from "./Alimentacao";
+import { listaUmIdoso } from "../hooks/idososFixtures";
 
 expect.extend(toHaveNoViolations);
 
@@ -17,6 +18,11 @@ const AXE = {
   },
 };
 
+const mockUseIdosos = jest.fn();
+jest.mock("../hooks/useIdososVinculados", () => ({
+  useIdososVinculados: () => mockUseIdosos(),
+}));
+
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
   getCurrentUserToken: (...args: unknown[]) => mockGetCurrentUserToken(...args),
@@ -27,6 +33,7 @@ function respostaJson(status: number, corpo: unknown) {
 }
 
 beforeEach(() => {
+  mockUseIdosos.mockReturnValue(listaUmIdoso);
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
   global.fetch = jest.fn();
@@ -95,7 +102,7 @@ describe("Alimentacao: acessibilidade", () => {
 
 // Item 7.2: seção "Ver histórico alimentar". Mesma limitação de contraste (item 9.1). Valores obviamente falsos.
 describe("Alimentacao: acessibilidade da seção Ver histórico alimentar (item 7.2)", () => {
-  const ROTULO_CAMPO = "Id do idoso para ver o histórico (vazio = meu histórico)";
+  const ROTULO_CAMPO = "Idoso";
   const regiao = () => screen.getByRole("region", { name: "Ver histórico alimentar" });
 
   const REGISTROS = [
@@ -166,12 +173,12 @@ describe("Alimentacao: acessibilidade da seção Ver histórico alimentar (item 
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
 
-  it("controle positivo: sem o htmlFor do campo da seção, o jest-axe acusa 'label'", async () => {
+  it("controle positivo: sem o htmlFor do campo da seção, o jest-axe acusa 'select-name' (o campo agora é um select)", async () => {
     const { container } = render(<Alimentacao />);
     const label = within(regiao()).getByText(ROTULO_CAMPO, { exact: true });
     expect(label.tagName).toBe("LABEL");
     label.removeAttribute("for");
     const ids = (await axe(container, AXE)).violations.map((v) => v.id);
-    expect(ids).toContain("label");
+    expect(ids).toContain("select-name");
   });
 });

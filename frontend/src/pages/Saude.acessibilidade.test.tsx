@@ -10,6 +10,7 @@ import userEvent from '@testing-library/user-event'
 
 import Saude from './Saude'
 import * as permissoesSaude from '../lib/permissoesSaude'
+import { listaFamiliar } from '../hooks/idososFixtures'
 
 /* =========================================================
    MOCK AUTH
@@ -20,6 +21,16 @@ const mockGetCurrentUserToken = jest.fn()
 jest.mock('../lib/auth', () => ({
   getCurrentUserToken: (...args: unknown[]) =>
     mockGetCurrentUserToken(...args),
+}))
+
+/* =========================================================
+   MOCK IDOSOS VINCULADOS
+========================================================= */
+
+const mockUseIdosos = jest.fn()
+
+jest.mock('../hooks/useIdososVinculados', () => ({
+  useIdososVinculados: () => mockUseIdosos(),
 }))
 
 /* =========================================================
@@ -61,6 +72,8 @@ function fetchMock() {
 
 beforeEach(() => {
   jest.clearAllMocks()
+
+  mockUseIdosos.mockReturnValue(listaFamiliar)
 
   mockGetCurrentUserToken.mockResolvedValue(
     'token-fake',
@@ -417,7 +430,7 @@ describe(
 
         expect(
           secao.getByLabelText(
-            'ID do idoso',
+            'Idoso',
           ),
         ).toBeInTheDocument()
 
@@ -507,11 +520,11 @@ describe(
           const secao =
             pegarSecao()
 
-          await user.type(
+          await user.selectOptions(
             secao.getByLabelText(
-              'ID do idoso',
+              'Idoso',
             ),
-            '1',
+            '5',
           )
 
           await user.type(
@@ -590,18 +603,27 @@ describe(
     }
 
     it(
-      'campo do idoso possui label',
+      'seletor de idoso possui label e opções com nome',
       () => {
         render(<Saude />)
 
         const secao =
           pegarSecao()
 
+        const seletor =
+          secao.getByLabelText('Idoso')
+
         expect(
-          secao.getByLabelText(
-            'ID do idoso',
-          ),
-        ).toBeInTheDocument()
+          seletor.tagName,
+        ).toBe('SELECT')
+
+        expect(
+          within(seletor).getAllByRole(
+            'option',
+          )[0],
+        ).toHaveTextContent(
+          'Idoso Teste Cinco (c***@teste.com)',
+        )
       },
     )
 
@@ -993,7 +1015,7 @@ describe(
 
         expect(
           secao.getByLabelText(
-            'ID do idoso',
+            'Idoso',
           ),
         ).toBeInTheDocument()
 
