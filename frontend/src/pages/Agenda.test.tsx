@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import Agenda from "./Agenda";
+import { listaDoisIdosos7, listaPerfilIdoso, listaSemIdosos, listaUmIdoso } from "../hooks/idososFixtures";
 
 function renderAgenda() {
   return render(
@@ -11,6 +12,11 @@ function renderAgenda() {
     </MemoryRouter>,
   );
 }
+
+const mockUseIdosos = jest.fn();
+jest.mock("../hooks/useIdososVinculados", () => ({
+  useIdososVinculados: () => mockUseIdosos(),
+}));
 
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
@@ -28,15 +34,23 @@ const INICIO_LOCAL = "2026-10-10T09:00";
 const FIM_LOCAL = "2026-10-10T10:30";
 
 beforeEach(() => {
+  mockUseIdosos.mockReturnValue(listaUmIdoso);
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
   global.fetch = jest.fn();
 });
 afterEach(() => jest.restoreAllMocks());
 
+function regiaoDe(nome: string) {
+  return within(screen.getByRole("region", { name: nome }));
+}
+
 function secao(sufixo: "idoso" | "familiar") {
   return {
-    idosoId: sufixo === "familiar" ? screen.getByLabelText("Id do idoso (familiar)", { exact: true }) : null,
+    idosoId:
+      sufixo === "familiar"
+        ? regiaoDe("Criar compromisso para um idoso vinculado").getByLabelText("Idoso", { exact: true })
+        : null,
     tipo: screen.getByLabelText(`Tipo (${sufixo})`, { exact: true }) as HTMLSelectElement,
     titulo: screen.getByLabelText(`Título (${sufixo})`, { exact: true }),
     descricao: screen.getByLabelText(`Descrição (opcional, ${sufixo})`, { exact: true }),
@@ -47,7 +61,7 @@ function secao(sufixo: "idoso" | "familiar") {
 }
 
 async function preencher(c: ReturnType<typeof secao>, user: ReturnType<typeof userEvent.setup>, titulo = "Consulta Ficticia") {
-  if (c.idosoId) await user.type(c.idosoId, "7");
+  if (c.idosoId) await user.selectOptions(c.idosoId, "7");
   await user.type(c.titulo, titulo);
   fireEvent.change(c.inicio, { target: { value: INICIO_LOCAL } });
 }
@@ -223,7 +237,7 @@ describe("Agenda (item 6.1)", () => {
 describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   function secaoCuidador() {
     return {
-      idosoId: screen.getByLabelText("Id do idoso (cuidador)", { exact: true }),
+      idosoId: regiaoDe("Criar compromisso de cuidado (cuidador)").getByLabelText("Idoso", { exact: true }),
       titulo: screen.getByLabelText("Título (cuidador)", { exact: true }),
       descricao: screen.getByLabelText("Descrição (opcional, cuidador)", { exact: true }),
       inicio: screen.getByLabelText("Início (cuidador)", { exact: true }),
@@ -233,7 +247,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   }
 
   async function preencherCuidador(c: ReturnType<typeof secaoCuidador>, user: ReturnType<typeof userEvent.setup>) {
-    await user.type(c.idosoId, "7");
+    await user.selectOptions(c.idosoId, "7");
     await user.type(c.titulo, "Banho Ficticio");
     fireEvent.change(c.inicio, { target: { value: INICIO_LOCAL } });
   }
@@ -243,8 +257,8 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
     expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).toBeInTheDocument();
     Object.values(secaoCuidador()).forEach((el) => expect(el).toBeInTheDocument());
     expect(screen.queryByLabelText(/Tipo \(cuidador\)/)).not.toBeInTheDocument();
-    // Só as duas seções antigas têm select de tipo.
-    expect(screen.getAllByRole("combobox")).toHaveLength(2);
+    // Só as duas seções antigas têm select de tipo (os demais comboboxes são seletores de idoso).
+    expect(screen.getAllByRole("combobox", { name: /^Tipo/ })).toHaveLength(2);
   });
 
   it("campos trazem maxLength 150 (título) e 500 (descrição)", () => {
@@ -357,7 +371,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
     const user = userEvent.setup();
     renderAgenda();
     const c = secaoCuidador();
-    await user.type(c.idosoId, "7");
+    await user.selectOptions(c.idosoId, "7");
     await user.type(c.titulo, TITULO);
     fireEvent.change(c.inicio, { target: { value: INICIO_LOCAL } });
     await user.click(c.botao);
@@ -409,7 +423,7 @@ function verAgenda() {
   const regiao = screen.getByRole("region", { name: "Ver agenda" });
   return {
     regiao,
-    campo: within(regiao).getByLabelText("Id do idoso para ver a agenda (vazio = minha agenda)", { exact: true }),
+    campo: within(regiao).queryByLabelText("Idoso", { exact: true }),
     botao: within(regiao).getByRole("button", { name: /^ver agenda$/i }),
   };
 }
@@ -426,10 +440,12 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
     expect(global.fetch).not.toHaveBeenCalled(); // só busca ao enviar
   });
 
-  it("C2: campo vazio chama GET /agenda, com Authorization e sem Content-Type", async () => {
+  it("C2: perfil idoso, sem seletor, chama GET /agenda, com Authorization e sem Content-Type", async () => {
+    mockUseIdosos.mockReturnValue(listaPerfilIdoso);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: [] }));
     const user = userEvent.setup();
     renderAgenda();
+    expect(verAgenda().campo).not.toBeInTheDocument();
     await user.click(verAgenda().botao);
     await screen.findByText("Nenhum compromisso na agenda.");
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
@@ -440,15 +456,16 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
     expect(init.body).toBeUndefined();
   });
 
-  it("C2: campo preenchido chama GET /agenda/idoso/<id>", async () => {
+  it("C2: idoso escolhido no seletor chama GET /agenda/idoso/<id>", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: [] }));
     const user = userEvent.setup();
     renderAgenda();
-    await user.type(verAgenda().campo, "7");
+    await user.selectOptions(verAgenda().campo as HTMLElement, "9");
     await user.click(verAgenda().botao);
     await screen.findByText("Nenhum compromisso na agenda.");
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(String(url)).toMatch(/\/agenda\/idoso\/7$/);
+    expect(String(url)).toMatch(/\/agenda\/idoso\/9$/);
     expect(init.headers.Authorization).toBe("Bearer token-fake");
     expect(init.headers["Content-Type"]).toBeUndefined();
   });
@@ -596,5 +613,49 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
     renderAgenda();
     expect(screen.getByRole("heading", { name: "Criar compromisso" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).toBeInTheDocument();
+  });
+});
+
+describe("Agenda: seletor de idoso", () => {
+  it("escrita com 2+ idosos: sem pré-seleção, envio desabilitado até escolher, id escolhido vai no caminho", async () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 61 }));
+    const user = userEvent.setup();
+    renderAgenda();
+    const c = secao("familiar");
+    expect(c.idosoId).toHaveValue("");
+    expect(within(c.idosoId as HTMLElement).getByRole("option", { name: "Selecione o idoso" })).toBeInTheDocument();
+    expect(c.botao).toBeDisabled();
+    await user.type(c.titulo, "Consulta Ficticia");
+    fireEvent.change(c.inicio, { target: { value: INICIO_LOCAL } });
+    expect(c.botao).toBeDisabled();
+    await user.selectOptions(c.idosoId as HTMLElement, "9");
+    expect(c.botao).toBeEnabled();
+    await user.click(c.botao);
+    await screen.findByRole("status");
+    expect(chamada().url).toMatch(/\/agenda\/idoso\/9$/);
+  });
+
+  it("1 idoso: vem pré-selecionado nas seções de escrita", () => {
+    renderAgenda();
+    expect(secao("familiar").idosoId).toHaveValue("7");
+    expect(regiaoDe("Criar compromisso de cuidado (cuidador)").getByLabelText("Idoso")).toHaveValue("7");
+  });
+
+  it("0 idosos: orienta a solicitar vínculo e desabilita o envio", () => {
+    mockUseIdosos.mockReturnValue(listaSemIdosos);
+    renderAgenda();
+    expect(screen.getAllByRole("link", { name: /solicite um vínculo/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /^criar compromisso \(familiar\)$/i })).toBeDisabled();
+    expect(verAgenda().botao).toBeDisabled();
+  });
+
+  it("perfil idoso: seções de terceiros (familiar e cuidador) não renderizam; criar o próprio compromisso continua", () => {
+    mockUseIdosos.mockReturnValue(listaPerfilIdoso);
+    renderAgenda();
+    expect(screen.queryByRole("heading", { name: "Criar compromisso para um idoso vinculado" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Criar compromisso" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ver agenda" })).toBeInTheDocument();
   });
 });

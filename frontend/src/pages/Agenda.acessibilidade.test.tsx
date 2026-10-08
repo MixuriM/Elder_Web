@@ -1,9 +1,10 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe, toHaveNoViolations } from "jest-axe";
 import { MemoryRouter } from "react-router-dom";
 import Agenda from "./Agenda";
+import { listaUmIdoso } from "../hooks/idososFixtures";
 
 function renderAgenda() {
   return render(
@@ -26,6 +27,11 @@ const AXE = {
   },
 };
 
+const mockUseIdosos = jest.fn();
+jest.mock("../hooks/useIdososVinculados", () => ({
+  useIdososVinculados: () => mockUseIdosos(),
+}));
+
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
   getCurrentUserToken: (...args: unknown[]) => mockGetCurrentUserToken(...args),
@@ -36,6 +42,7 @@ function respostaJson(status: number, corpo: unknown) {
 }
 
 beforeEach(() => {
+  mockUseIdosos.mockReturnValue(listaUmIdoso);
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
   global.fetch = jest.fn();
@@ -70,7 +77,12 @@ describe("Agenda: acessibilidade", () => {
     async function preencherEEnviar() {
       const user = userEvent.setup();
       const utils = renderAgenda();
-      if (sufixo !== "idoso") await user.type(screen.getByLabelText(`Id do idoso (${sufixo})`, { exact: true }), "1");
+      if (sufixo !== "idoso") {
+        const regiao = screen.getByRole("region", {
+          name: sufixo === "familiar" ? "Criar compromisso para um idoso vinculado" : "Criar compromisso de cuidado (cuidador)",
+        });
+        await user.selectOptions(within(regiao).getByLabelText("Idoso", { exact: true }), "7");
+      }
       await user.type(screen.getByLabelText(`Título (${sufixo})`, { exact: true }), "Consulta Ficticia");
       fireEvent.change(screen.getByLabelText(`Início (${sufixo})`, { exact: true }), { target: { value: "2026-10-10T09:00" } });
       await user.click(screen.getByRole("button", { name: new RegExp(`^criar compromisso \\(${sufixo}\\)$`, "i") }));
