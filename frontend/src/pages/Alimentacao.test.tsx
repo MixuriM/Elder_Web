@@ -134,6 +134,14 @@ describe("Alimentacao (item 7.1)", () => {
     expect(campos().botao).toBeEnabled();
   });
 
+  it("a página não tem tema escuro: os seletores não usam classes dark: (senão o rótulo some sobre fundo branco)", () => {
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+    const { container } = render(<Alimentacao />);
+    const seletores = container.querySelectorAll("label[for^='idoso_id'], select[id^='idoso_id']");
+    expect(seletores).toHaveLength(4);
+    seletores.forEach((el) => expect(el.getAttribute("class") ?? "").not.toMatch(/(^|\s)dark:/));
+  });
+
   it("0 idosos: orienta a solicitar vínculo e desabilita o registro", () => {
     mockUseIdosos.mockReturnValue(listaSemIdosos);
     render(
