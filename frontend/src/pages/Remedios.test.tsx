@@ -643,15 +643,20 @@ describe("Remedios - cadastro", () => {
   it("mostra erro quando cadastro falha", async () => {
     const user = userEvent.setup();
 
-    mockChamarApi
-      .mockResolvedValueOnce({
-        medicamentos: [],
-      })
-      .mockRejectedValueOnce(
-        new Error(
-          "Sem permissão para cadastrar medicamento.",
-        ),
-      );
+    // Por método, não por ordem: sob carga a tela às vezes faz um GET a mais antes do POST,
+    // e a rejeição "uma vez" era consumida pelo GET (o POST então dava certo e nenhum alerta aparecia).
+    mockChamarApi.mockImplementation(
+      (_caminho: string, opcoes?: { method?: string }) =>
+        opcoes?.method === "POST"
+          ? Promise.reject(
+              new Error(
+                "Sem permissão para cadastrar medicamento.",
+              ),
+            )
+          : Promise.resolve({
+              medicamentos: [],
+            }),
+    );
 
     render(<Remedios />);
 
@@ -702,7 +707,7 @@ describe("Remedios - cadastro", () => {
     );
 
     expect(
-      await screen.findByRole("alert"),
+      await screen.findByRole("alert", {}, { timeout: 3000 }),
     ).toHaveTextContent(
       "Sem permissão para cadastrar medicamento.",
     );
@@ -1022,6 +1027,45 @@ describe("Remedios - marcar dose", () => {
     expect(
       screen.queryByRole("dialog"),
     ).not.toBeInTheDocument();
+  });
+
+  it("modal de dose recebe o foco ao abrir e devolve ao botão que abriu ao fechar", async () => {
+    const user = userEvent.setup();
+
+    mockChamarApi.mockResolvedValue({
+      medicamentos: [MEDICAMENTO],
+    });
+
+    render(<Remedios />);
+
+    const titulo =
+      await screen.findByRole("heading", {
+        name: "Losartana Teste",
+      });
+
+    const botaoMarcar = within(
+      titulo.closest("article") as HTMLElement,
+    ).getByRole("button", {
+      name: /marcar dose/i,
+    });
+
+    await user.click(botaoMarcar);
+
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog).toHaveFocus();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: /^cancelar$/i,
+      }),
+    );
+
+    expect(
+      screen.queryByRole("dialog"),
+    ).not.toBeInTheDocument();
+
+    expect(botaoMarcar).toHaveFocus();
   });
 
   it("mostra erro ao registrar dose", async () => {

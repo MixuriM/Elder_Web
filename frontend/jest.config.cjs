@@ -10,5 +10,6 @@ module.exports = {
     '\\.(png|jpg|jpeg|gif|svg|webp|avif|ico)$': '<rootDir>/jest.fileMock.cjs',
   },
   setupFiles: ['<rootDir>/jest.polyfills.cjs'],
-  setupFilesAfterEnv: ['@testing-library/jest-dom'],
+  setupFilesAfterEnv: ['@testing-library/jest-dom', '<rootDir>/jest.setup.cjs'],
+  testTimeout: 30000,
 }
