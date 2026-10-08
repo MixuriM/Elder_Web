@@ -320,8 +320,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 **Pendências manuais (Marcos)**
 - Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
   `lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
-- Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura) e levar ao grupo: `heading-order`
-  da landing, 2 `h1` em Cadastro/Login/EsqueciSenha, textos de 9px do `Sidebar`, 38 `focus:ring-` com opacidade.
+- Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura). Resolvidos na `development` (2026-10-08):
+  `heading-order`, 2 `h1`, 9px do `Sidebar`. Sobra: 50 `ring-` de foco com opacidade (35 `focus:`, 15 `focus-visible:`).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 
 **Decisões fechadas**
