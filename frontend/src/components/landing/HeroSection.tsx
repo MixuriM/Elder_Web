@@ -79,6 +79,8 @@ function HeroSection({
       <img
         src={folhasDecorativas}
         alt=""
+        loading="lazy"
+        decoding="async"
         aria-hidden="true"
         className="
           pointer-events-none
@@ -104,6 +106,8 @@ function HeroSection({
       <img
         src={folhasDecorativa}
         alt=""
+        loading="lazy"
+        decoding="async"
         aria-hidden="true"
         className="
           pointer-events-none

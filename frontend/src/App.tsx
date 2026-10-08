@@ -1,26 +1,40 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
-import Home from './pages/Home'
 import Login from './pages/Login'
-import Cadastro from './pages/Cadastro'
-import Welcome from './pages/Welcome'
-import EsqueciSenha from './pages/EsqueciSenha'
-import ConfirmarEmail from './pages/ConfirmarEmail'
-import Perfil from './pages/Perfil'
-import Vinculos from './pages/Vinculos'
-import VinculoDetalhe from './pages/VinculoDetalhe'
-import Saude from './pages/Saude'
-import Remedios from './pages/Remedios'
-import Agenda from './pages/Agenda'
-import Alimentacao from './pages/Alimentacao'
-import SobreNos from './pages/SobreNos'
-import Orientacoes from './pages/Orientacoes'
 import RotaProtegida from './components/RotaProtegida'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
+
+// Landing e Login ficam no bundle inicial (entrada e retorno do usuário); o resto carrega por rota.
+const Home = lazy(() => import('./pages/Home'))
+const Cadastro = lazy(() => import('./pages/Cadastro'))
+const Welcome = lazy(() => import('./pages/Welcome'))
+const EsqueciSenha = lazy(() => import('./pages/EsqueciSenha'))
+const ConfirmarEmail = lazy(() => import('./pages/ConfirmarEmail'))
+const Perfil = lazy(() => import('./pages/Perfil'))
+const Vinculos = lazy(() => import('./pages/Vinculos'))
+const VinculoDetalhe = lazy(() => import('./pages/VinculoDetalhe'))
+const Saude = lazy(() => import('./pages/Saude'))
+const Remedios = lazy(() => import('./pages/Remedios'))
+const Agenda = lazy(() => import('./pages/Agenda'))
+const Alimentacao = lazy(() => import('./pages/Alimentacao'))
+const SobreNos = lazy(() => import('./pages/SobreNos'))
+const Orientacoes = lazy(() => import('./pages/Orientacoes'))
+
+function CarregandoPagina() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-[#0F0F17]">
+      <p role="status" className="text-lg text-gray-900 dark:text-[#F5F5FA]">
+        Carregando...
+      </p>
+    </main>
+  )
+}
 
 function App() {
   return (
     <FotoPerfilProvider>
+    <Suspense fallback={<CarregandoPagina />}>
     <Routes>
       <Route path="/" element={<LandingPage/>} />
       <Route
@@ -102,6 +116,7 @@ function App() {
         }
       />
     </Routes>
+    </Suspense>
     </FotoPerfilProvider>
   )
 }
