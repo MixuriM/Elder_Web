@@ -87,13 +87,14 @@ textarea {
    FOCO VISÍVEL
 ================================ */
 
-/* !important: o focus:outline-none do Tailwind (especificidade maior) apagaria o contorno. */
+/* !important: o focus:outline-none do Tailwind (especificidade maior) apagaria o contorno.
+   :where() no .dark mantém a especificidade baixa: o focus:!outline-none dos modais ainda vence. */
 :focus-visible {
   outline: 3px solid #5F56EC !important;
   outline-offset: 2px !important;
 }
 
-.dark :focus-visible {
+:where(.dark) :focus-visible {
   outline-color: #A89FFF !important;
 }
 
