@@ -11,7 +11,6 @@ const mockGetCurrentUserToken =
     typeof getCurrentUserToken
   >;
 
-const API_URL = "http://localhost:3000/";
 const NOME_ARQUIVO = "historico-saude-remedios.pdf";
 
 const BLOB = new Blob(["%PDF-falso"], {
@@ -61,9 +60,6 @@ beforeEach(() => {
 
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
-
-  // O plugin do Babel mapeia import.meta.env.VITE_API_URL para process.env.
-  process.env.VITE_API_URL = API_URL;
 
   mockFetch = jest.fn();
   global.fetch = mockFetch;
