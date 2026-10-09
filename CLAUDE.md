@@ -201,11 +201,8 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
 - **Sempre pedir confirmação antes de**: `git init`, `git remote add`,
   `git push`, criação de branch nova (`git checkout -b`, `git branch`), e
   qualquer instalação de dependência (`npm install` etc.)
-- Este projeto desativa o link de sessão (`Claude-Session:`) em mensagens de
-  commit via `attribution.sessionUrl: false` em `.claude/settings.json`
-  (escopo de projeto, já commitado). Não reverter essa configuração nem
-  substituí-la por uma versão só pessoal (`~/.claude/settings.json`) — o
-  objetivo é valer pra todo o grupo e para sessões cloud/web também.
+- `attribution.sessionUrl: false` em `.claude/settings.json` (projeto, commitado) tira o link `Claude-Session:` dos
+  commits. Não reverter nem trocar por versão pessoal: vale para o grupo e para sessões cloud/web.
 - Nunca inserir dados fake sem sinalizar claramente que são fake
 - Não reaproveitar nenhum código do protótipo antigo — só olhar como referência
 - Não usar a extensão Claude in Chrome neste projeto
@@ -316,29 +313,23 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 **Pendências manuais (Marcos)**
 - Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
   `lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
-- Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura). Resolvidos na `development` (2026-10-08):
-  `heading-order`, 2 `h1`, 9px do `Sidebar`. Sobra: 50 `ring-` de foco com opacidade (35 `focus:`, 15 `focus-visible:`).
+- Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura). Sobra: 50 `ring-` de foco com
+  opacidade (cobertos pelo contorno global).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
-- Avisar Laureane e Jennifer: layout único (2026-10-08) e revisão visual (2026-10-09): Saúde, Remédios, Agenda e Alimentação
-  escondem a escrita que o backend recusa ao perfil (`useAcesso`); Perfil sem tema duplicado; Sobre Nós com contraste.
-- Frontend pendente: Home com dados, avisos, Configurações, sino e busca do `Header`, emergência, landing, calendário.
-  `useAcesso` expõe `nome` (o `Header` não busca o perfil) e `recarregar` (chamado após ação em `Vinculos.tsx`).
-- Telas de vínculo (2026-10-08, `components/Vinculos/`): `SolicitarVinculo` e `CadastrarIdoso` abrem em `ModalVinculo` pelo
-  "Adicionar pessoa" (`AdicionarPessoa`); `SolicitacoesPendentes` e `ResumoVinculos` no topo de `/familia` e `/cuidadores`;
-  `PermissoesCuidador` em `/vinculos/:id`; `ModoDecisao` em `/familia`. Botão só para quem tem autoridade
-  (`regrasVinculo.ts`); erro de `chamarApi` leva `status`, textos fixos por status. Lacunas fechadas em 2026-10-09 (decisões
-  do Marcos, sob delegação "decisão do grupo"): (1) `POST /vinculo/convidar-familiar` (idoso, só com `modo_decisao` efetivo
-  `idoso`): grava `email_convite_familiar` (um convite por vez, o novo substitui o anterior) e, se há conta de familiar, cria o
-  vínculo pendente `convite_idoso`; resposta igual com ou sem conta, 409 só se já há vínculo; tela `ConvidarFamiliar`.
-  (2) `POST /vinculo/:id/aprovar` em origem `convite_idoso` ou `cadastro_familiar` responde 409 (só recusar ou contestar; a
-  aprovação vem do login com e-mail verificado). (3) `GET /vinculo` ganhou `decisao` (`modo` e `transferencia`, sem motivo nem id
-  de quem pediu) no vínculo aprovado de familiar do próprio chamador.
+- Avisar Laureane e Jennifer: layout único (2026-10-08), revisão visual (escrita escondida por perfil, Perfil,
+  Sobre Nós) e a rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing).
+- Frontend pendente: emergência e calendário.
+- Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
+  por `status`). Decisões de 2026-10-09 (Marcos): (1) `POST /vinculo/convidar-familiar` (idoso com `modo_decisao` efetivo
+  `idoso`) grava `email_convite_familiar` (o novo substitui o anterior) e, se há conta de familiar, cria vínculo pendente
+  `convite_idoso`; resposta igual com ou sem conta, 409 só se já há vínculo. (2) Aprovar vínculo de origem `convite_idoso` ou
+  `cadastro_familiar` dá 409 (só recusar ou contestar). (3) `GET /vinculo` traz `decisao` (`modo`, `transferencia`, sem
+  motivo nem id) no vínculo aprovado de familiar do chamador.
 
 **Decisões fechadas**
-- `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (uso local via `docker-compose.yml`, com volume e
-  `tsx watch`); o Render usa `dockerCommand: npm start` (`render.yaml`). `NODE_ENV=production` definido só no
-  `render.yaml`. `backend/.dockerignore` criado (`node_modules`, `dist`, `.env*` menos `.env.example`): o
-  `COPY . .` não leva mais `.env`, `.env.azure` nem o `node_modules` do host para a imagem.
+- `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local, `docker-compose.yml`); o Render usa `dockerCommand: npm
+  start` e é o único com `NODE_ENV=production` (`render.yaml`). `backend/.dockerignore` tira `node_modules`, `dist` e
+  `.env*` (menos `.env.example`) da imagem.
 - Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem tabela de auditoria.
 - Aceite de termos de uso e política de privacidade no cadastro (LGPD): fora do escopo do TCC (sem RF no plano);
   registrado como trabalho futuro (exigiria RF, migration e tela).
@@ -353,24 +344,24 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   Google; a foto vem só do upload no perfil.
 - Risco de colisão de e-mail entre contas: tratado no código, `/auth/sync` responde 409 (`CONFLITO_EMAIL`, item
   3.2) quando o e-mail já está em uso. Registrar isso no `Elder Web - Modelagem ER.md` fica com o Marcos.
-- Resolvidos em 2026-10-04: JSON malformado e corpo acima do limite agora respondem 400 e 413 fixos no
-  `errorHandler` (sem eco do corpo, sem log); `nome` em branco no corpo de `/auth/sync` não vence mais o `name` do
-  token do Google (aparado; em branco nos dois dá 400).
-- Agenda (6.1): nenhuma biblioteca de calendário; o 6.3 será lista agrupada por dia. Familiar só cria evento com
-  `modo_decisao` efetivo `'familiar'` (via resolver), como em 5.1 e 5.2. Sem idempotência nem checagem de
-  sobreposição (aceito).
-- Agenda (6.3): todos os atores veem os 3 tipos, sem filtro por tipo nem autor (cuidador e familiar veem
-  compromissos pessoais, aceito). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone` explícito, nunca o do
-  navegador. Evento aparece uma vez, no dia do início; o fim mostra a data se cair em outro dia. "Ver agenda" sempre
-  visível, `fetch` direto (não `chamarApi`) com mensagens fixas por status; passados em `<details>` fechado.
-- Agenda (6.2, fechadas por Claude sob delegação do Marcos em 2026-10-04): sem rota nova, `POST /agenda/idoso/:idosoId`
-  ganhou o ramo do cuidador; `POST /agenda` (idoso) segue 403 para cuidador. Cuidador cria só `cuidado`, exigindo
-  `tipo_vinculo` E `tipo_perfil` `'cuidador'` E `permite_criar_evento_cuidado === true` (estrito; as outras flags não
-  abrem); `resolverModoDecisao` nunca é chamado para cuidador. `pessoal`/`medico` pelo cuidador dão 403; tipo ausente,
-  não string, caixa diferente ou fora da CHECK dá 400; idoso e familiar seguem sem criar `cuidado` (403). Ordem para
-  cuidador: 403 de vínculo, 403 de ator ou flag, 400 de tipo, 403 de tipo, 400 de campos (sem a flag, corpo inválido
-  dá 403). Campos e limites iguais aos do 6.1 (mesma função de validação, parametrizada por ator). Frontend não sabe
-  se o cuidador tem a flag: a seção do cuidador sempre aparece e o 403 vira mensagem (limitação aceita).
+- JSON malformado e corpo acima do limite: 400 e 413 fixos no `errorHandler` (sem eco nem log). `nome` em branco em
+  `/auth/sync` não vence o `name` do token do Google (em branco nos dois dá 400).
+- Agenda (6.1): sem biblioteca de calendário (lista por dia). Familiar só cria evento com `modo_decisao` efetivo
+  `'familiar'` (via resolver). Sem idempotência nem checagem de sobreposição (aceito).
+- Agenda (6.3): todos veem os 3 tipos, sem filtro (aceito). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone`
+  explícito, nunca o do navegador. Evento aparece uma vez, no dia do início; passados em `<details>` fechado.
+- Agenda (6.2, delegação de 2026-10-04): cuidador cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda`
+  segue 403), exigindo `tipo_vinculo` e `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito);
+  nunca chama `resolverModoDecisao`. `pessoal`/`medico` pelo cuidador: 403; tipo ausente, não string, caixa diferente ou
+  fora da CHECK: 400; idoso e familiar não criam `cuidado` (403). Ordem: 403 vínculo, 403 ator ou flag, 400 tipo, 403 tipo,
+  400 campos (sem a flag, corpo inválido dá 403). Campos e limites do 6.1. A seção do cuidador sempre aparece (403 vira
+  mensagem).
+- Frontend (2026-10-09): Home com 3 cards (`ResumoDia`, `lib/resumoDia.ts`): compromissos de hoje, últimas medições,
+  medicamentos ativos e doses registradas hoje (nunca "faltam" nem atraso: sem horário estruturado).
+  `AcessoProvider` busca `/vinculo` também para o idoso e expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso).
+  Sem busca no `Header`; o sino leva a `/avisos` (`lib/avisos.ts`, `AvisosProvider`): pedidos que a pessoa decide e
+  compromissos de hoje e amanhã, sem aviso de dose. `/configuracoes`: tema, tamanho do texto e menos movimento em
+  `lib/preferencias.ts` (classes no `<html>`, mesmas chaves do script de `index.html`, storage em try/catch).
 - Item 9.3: pendência de `pdfjs-dist` (`canvas` opcional sem binário) e dos 3 avisos de `npm audit` só de dev encerrada
   como aceita; sem `npm audit` no CI (`--omit=dev` dá 0).
 - Item 9.4 (D1 a D9, fechadas): o item só vai a ✅ com o CI remoto verde num push em `development`; sem dependência
@@ -390,19 +381,16 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   protegidas aninhadas em `LayoutAutenticado` (D5): páginas não têm `<main>` próprio nem botão que saia do site.
 
 **Itens implementados (resumo; detalhes, PRs e hashes no histórico)**
-- 5.2 marcar dose, 5.3 histórico de remédios, 5.4 PDF do histórico. Familiar só marca dose com `modo_decisao` efetivo
-  `'familiar'` (via resolver). Leituras (`GET /remedios*`, PDF): vínculo aprovado basta. PDF montado inteiro em
-  memória (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
-- 6.1 a 6.3 agenda (RF-015 a RF-017, RNF-003): `routes/agenda.ts`; idoso e familiar criam `pessoal` e `medico`,
-  cuidador só `cuidado` (decisões do 6.2 acima); leituras com vínculo aprovado. `lib/agendaPorDia.ts`. Teste de fuso
-  por subprocesso `node` com `TZ` real (exige Node 22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
+- 5.2 a 5.4 (dose, histórico de remédios, PDF): leituras com vínculo aprovado basta. PDF montado inteiro em memória
+  (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
+- 6.1 a 6.3 agenda (`routes/agenda.ts`, `lib/agendaPorDia.ts`; regras de ator acima). Teste de fuso por subprocesso
+  `node` com `TZ` real (Node 22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
 - 7.1 e 7.2 alimentação (RF-018, RF-019): `routes/alimentacao.ts`. Cuidador nunca cria (403, resolver nunca chamado);
   familiar só com `modo_decisao` efetivo `'familiar'`; `refeicao` com 6 valores só na aplicação, `descricao` 1 a 500
   (dado sensível); leitura com vínculo aprovado, ordem `data_hora` e `id` decrescentes.
 - 8.1 "Sobre Nós" (`/sobre-nos`, pública) e 8.2 Orientações (`/orientacoes`, dentro de `RotaProtegida`): conteúdo
   provisório, texto final é da Laureane e da Jennifer.
-- 9.1 auditoria axe (RNF-007): jest-axe em 9 telas e Playwright (`npm run test:a11y`, local); falha só em
-  critical/serious.
+- 9.1 auditoria axe (RNF-007): jest-axe e `npm run test:a11y`; falha só em critical/serious.
 - 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (`max-age=31536000` só com `NODE_ENV=production`,
   sem `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect HTTP para HTTPS é do Render; TDE só
   verificado (ativo, chave gerenciada pelo serviço).
