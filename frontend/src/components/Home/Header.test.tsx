@@ -1,13 +1,15 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Header from "./Header";
 import { FotoPerfilContext } from "../../contexts/useFotoPerfil";
+import { AcessoProvider } from "../../contexts/AcessoContext";
 
 const mockBuscarPerfil = jest.fn();
 jest.mock("../../services/perfilService", () => ({
   buscarPerfil: (...args: unknown[]) => mockBuscarPerfil(...args),
 }));
+jest.mock("../../lib/chamarApi", () => ({ chamarApi: jest.fn() }));
 jest.mock("../../hooks/useAuthUser", () => ({
   useAuthUser: () => ({ usuario: { displayName: "Marcos Castelli", email: "m@m.com" }, carregando: false }),
 }));
@@ -59,5 +61,24 @@ describe("Header — avatar", () => {
     const botao = screen.getByRole("button", { name: /abrir perfil/i });
     expect(botao.querySelector("img")).toHaveAttribute("src", foto);
     expect(screen.queryByText("MC")).not.toBeInTheDocument();
+  });
+});
+
+describe("Header dentro do layout", () => {
+  it("usa o perfil já buscado pelo AcessoProvider: uma busca só, com o nome do banco", async () => {
+    // Dados fake só para o teste.
+    mockBuscarPerfil.mockReset().mockResolvedValue({ tipo_perfil: "idoso", nome: "Maria Teste Silva" });
+
+    render(
+      <MemoryRouter>
+        <AcessoProvider>
+          <Header abrirSidebar={() => {}} />
+        </AcessoProvider>
+      </MemoryRouter>
+    );
+    await act(async () => {});
+
+    expect(screen.getByRole("button", { name: /abrir perfil/i })).toHaveTextContent("MS");
+    expect(mockBuscarPerfil).toHaveBeenCalledTimes(1);
   });
 });

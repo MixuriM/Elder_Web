@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import ModoDecisao, { type DecisaoApi } from './ModoDecisao'
 import type { Vinculo } from './CardVinculo'
-import type { EstadoDecisao } from './useEstadoDecisao'
+import type { DadosUsuario, EstadoDecisao } from '../../services/perfilService'
 import { chamarApi } from '../../lib/chamarApi'
 import { apiFalsa, erroApi } from '../../testSupport/apiFalsa'
 
@@ -403,3 +403,7 @@ describe('ModoDecisao: familiar com o estado devolvido pelo backend (decisao)', 
     expect(confirmar()).not.toBeInTheDocument()
   })
 })
+
+// GET /usuario/me devolve o perfil junto com o estado de decisão: o tipo do perfil precisa declarar esses campos.
+const _perfilTemDecisao: DadosUsuario['modo_decisao_expira_em'] = null
+void _perfilTemDecisao

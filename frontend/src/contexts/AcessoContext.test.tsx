@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom'
 import { act, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AcessoProvider } from './AcessoContext'
 import { useAcesso } from './useAcesso'
 
@@ -94,6 +95,32 @@ describe('AcessoProvider', () => {
     mockBuscarPerfil.mockRejectedValue(new Error('500'))
     expect(await renderizar()).toBe('erro||false|false')
     expect(mockChamarApi).not.toHaveBeenCalled()
+  })
+
+  it('recarregar busca de novo e atualiza o acesso sem voltar a carregando', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+    mockChamarApi.mockResolvedValue({ vinculos: [] })
+    function Recarrega() {
+      const { recarregar } = useAcesso()
+      return <button onClick={() => recarregar?.()}>recarregar</button>
+    }
+    render(
+      <AcessoProvider>
+        <Mostra />
+        <Recarrega />
+      </AcessoProvider>,
+    )
+    await act(async () => {})
+    expect(screen.getByTestId('acesso')).toHaveTextContent('ok|cuidador|false|false')
+
+    let responder: (v: unknown) => void = () => {}
+    mockChamarApi.mockReturnValue(new Promise((r) => (responder = r)))
+    await userEvent.click(screen.getByRole('button', { name: 'recarregar' }))
+    // Durante a nova busca o menu fica como estava (não pisca para "carregando").
+    expect(screen.getByTestId('acesso')).toHaveTextContent('ok|cuidador|false|false')
+    await act(async () => responder({ vinculos: [vinculo('aprovado')] }))
+    expect(screen.getByTestId('acesso')).toHaveTextContent('ok|cuidador|true|false')
+    expect(mockBuscarPerfil).toHaveBeenCalledTimes(2)
   })
 
   it('requisição que nunca responde vira erro depois do timeout', async () => {

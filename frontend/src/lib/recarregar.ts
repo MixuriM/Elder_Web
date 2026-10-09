@@ -17,3 +17,14 @@ export function tratarPreloadError(evento: Event, recarregar = recarregarPagina)
   evento.preventDefault()
   recarregar()
 }
+
+// Um chunk carregou: o recarregamento anterior resolveu, então o próximo deploy pode recarregar sozinho de novo.
+// Só aqui (nunca no boot): se o chunk continua falhando depois do reload, a marca fica e não há loop.
+export function carregouChunk<T>(modulo: T): T {
+  try {
+    sessionStorage.removeItem(CHAVE)
+  } catch {
+    // sem sessionStorage: não há marca para limpar
+  }
+  return modulo
+}

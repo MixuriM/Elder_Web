@@ -1,18 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { chamarApi } from "../../lib/chamarApi";
+import type { EstadoDecisao } from "../../services/perfilService";
 import type { ModoDecisao } from "./regrasVinculo";
-
-// Campos de quem decide por esta conta, como GET /usuario/me e PATCH /usuario/me/modo-decisao devolvem.
-export type EstadoDecisao = {
-  modo_decisao: string | null;
-  modo_decisao_solicitado: string | null;
-  modo_decisao_solicitado_por_id: number | null;
-  modo_decisao_expira_em: string | null;
-  modo_decisao_segunda_confirmacao_id: number | null;
-  modo_decisao_alterado_em: string | null;
-  modo_decisao_motivo: string | null;
-};
 
 // NULL vale "idoso", igual ao backend.
 export function modoDe(estado: EstadoDecisao | null): ModoDecisao {

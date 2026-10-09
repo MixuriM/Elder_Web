@@ -1,4 +1,4 @@
-import { tratarPreloadError } from './recarregar'
+import { carregouChunk, tratarPreloadError } from './recarregar'
 
 describe('tratarPreloadError', () => {
   beforeEach(() => sessionStorage.clear())
@@ -36,5 +36,18 @@ describe('tratarPreloadError', () => {
     expect(recarregar).not.toHaveBeenCalled()
     expect(evento.defaultPrevented).toBe(false)
     getItem.mockRestore()
+  })
+
+  it('depois que um chunk carrega, a próxima falha (outro deploy) recarrega de novo uma vez', () => {
+    const recarregar = jest.fn()
+    tratarPreloadError(new Event('vite:preloadError', { cancelable: true }), recarregar)
+
+    const modulo = { default: 'pagina' }
+    expect(carregouChunk(modulo)).toBe(modulo)
+
+    const outroDeploy = new Event('vite:preloadError', { cancelable: true })
+    tratarPreloadError(outroDeploy, recarregar)
+    expect(recarregar).toHaveBeenCalledTimes(2)
+    expect(outroDeploy.defaultPrevented).toBe(true)
   })
 })

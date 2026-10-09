@@ -5,23 +5,25 @@ import Login from './pages/Login'
 import LimiteErro from './components/LimiteErro'
 import RotaComVinculo from './components/RotaComVinculo'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
+import { useAcesso } from './contexts/useAcesso'
+import { carregouChunk } from './lib/recarregar'
 
 // Landing e Login ficam no bundle inicial (entrada e retorno do usuário); o resto carrega por rota.
-const LayoutAutenticado = lazy(() => import('./components/layout/LayoutAutenticado'))
-const Home = lazy(() => import('./pages/Home'))
-const Cadastro = lazy(() => import('./pages/Cadastro'))
-const Welcome = lazy(() => import('./pages/Welcome'))
-const EsqueciSenha = lazy(() => import('./pages/EsqueciSenha'))
-const ConfirmarEmail = lazy(() => import('./pages/ConfirmarEmail'))
-const Perfil = lazy(() => import('./pages/Perfil'))
-const Vinculos = lazy(() => import('./pages/Vinculos'))
-const VinculoDetalhe = lazy(() => import('./pages/VinculoDetalhe'))
-const Saude = lazy(() => import('./pages/Saude'))
-const Remedios = lazy(() => import('./pages/Remedios'))
-const Agenda = lazy(() => import('./pages/Agenda'))
-const Alimentacao = lazy(() => import('./pages/Alimentacao'))
-const SobreNos = lazy(() => import('./pages/SobreNos'))
-const Orientacoes = lazy(() => import('./pages/Orientacoes'))
+const LayoutAutenticado = lazy(() => import('./components/layout/LayoutAutenticado').then(carregouChunk))
+const Home = lazy(() => import('./pages/Home').then(carregouChunk))
+const Cadastro = lazy(() => import('./pages/Cadastro').then(carregouChunk))
+const Welcome = lazy(() => import('./pages/Welcome').then(carregouChunk))
+const EsqueciSenha = lazy(() => import('./pages/EsqueciSenha').then(carregouChunk))
+const ConfirmarEmail = lazy(() => import('./pages/ConfirmarEmail').then(carregouChunk))
+const Perfil = lazy(() => import('./pages/Perfil').then(carregouChunk))
+const Vinculos = lazy(() => import('./pages/Vinculos').then(carregouChunk))
+const VinculoDetalhe = lazy(() => import('./pages/VinculoDetalhe').then(carregouChunk))
+const Saude = lazy(() => import('./pages/Saude').then(carregouChunk))
+const Remedios = lazy(() => import('./pages/Remedios').then(carregouChunk))
+const Agenda = lazy(() => import('./pages/Agenda').then(carregouChunk))
+const Alimentacao = lazy(() => import('./pages/Alimentacao').then(carregouChunk))
+const SobreNos = lazy(() => import('./pages/SobreNos').then(carregouChunk))
+const Orientacoes = lazy(() => import('./pages/Orientacoes').then(carregouChunk))
 
 function CarregandoPagina() {
   return (
@@ -31,6 +33,19 @@ function CarregandoPagina() {
       </p>
     </main>
   )
+}
+
+// Endereço antigo /vinculos: leva à lista do próprio perfil (cuidador não tem Família no menu).
+function RedirecionarVinculos() {
+  const { estado, tipoPerfil } = useAcesso()
+  if (estado === 'carregando') {
+    return (
+      <p role="status" className="p-8 text-lg text-gray-900 dark:text-[#F5F5FA]">
+        Carregando...
+      </p>
+    )
+  }
+  return <Navigate to={tipoPerfil === 'cuidador' ? '/cuidadores' : '/familia'} replace />
 }
 
 function App() {
@@ -48,11 +63,11 @@ function App() {
       <Route path="/cadastro" element={<Cadastro />} />
       <Route path="/esqueci-senha" element={<EsqueciSenha />} />
       <Route path="/confirmar-email" element={<ConfirmarEmail />} />
-      <Route path="/vinculos" element={<Navigate to="/familia" replace />} />
 
       {/* Telas autenticadas: menu, cabeçalho e <main> únicos vêm do layout. */}
       <Route element={<LayoutAutenticado />}>
         <Route path="/Home" element={<Home />} />
+        <Route path="/vinculos" element={<RedirecionarVinculos />} />
         <Route path="/perfil" element={<Perfil />} />
         <Route path="/familia" element={<Vinculos tipo="familiar" />} />
         <Route path="/cuidadores" element={<Vinculos tipo="cuidador" />} />

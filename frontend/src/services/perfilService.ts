@@ -1,7 +1,18 @@
 import { getCurrentUserToken } from "../lib/auth";
 
-// Estrutura dos dados retornados pela API
-export interface DadosUsuario {
+// Campos de quem decide por esta conta, como GET /usuario/me e PATCH /usuario/me/modo-decisao devolvem.
+export type EstadoDecisao = {
+  modo_decisao: string | null;
+  modo_decisao_solicitado: string | null;
+  modo_decisao_solicitado_por_id: number | null;
+  modo_decisao_expira_em: string | null;
+  modo_decisao_segunda_confirmacao_id: number | null;
+  modo_decisao_alterado_em: string | null;
+  modo_decisao_motivo: string | null;
+};
+
+// Estrutura dos dados retornados por GET /usuario/me: perfil e estado de decisão juntos.
+export interface DadosUsuario extends EstadoDecisao {
   id: number;
   nome: string;
   email: string | null;
