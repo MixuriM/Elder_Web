@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 import { BOTAO_PERIGO, BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "./estilosVinculo";
 
@@ -12,6 +12,8 @@ type ConfirmacaoInlineProps = {
   enviando?: boolean;
   // Ações que tiram acesso (recusar, contestar) usam o botão vermelho.
   perigo?: boolean;
+  // Campo extra da confirmação (por exemplo, o motivo opcional de um pedido).
+  children?: ReactNode;
 };
 
 // Confirmação em linguagem clara, no lugar do botão que foi clicado. Recebe o foco ao aparecer (o leitor de tela
@@ -25,6 +27,7 @@ export default function ConfirmacaoInline({
   onCancelar,
   enviando = false,
   perigo = false,
+  children,
 }: ConfirmacaoInlineProps) {
   const idTitulo = useId();
   const idTexto = useId();
@@ -55,6 +58,7 @@ export default function ConfirmacaoInline({
       <p id={idTexto} className="text-lg text-[#071A38] dark:text-white">
         {texto}
       </p>
+      {children}
       <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="button"

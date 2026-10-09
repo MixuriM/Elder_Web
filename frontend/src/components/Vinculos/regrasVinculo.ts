@@ -41,3 +41,10 @@ export function podeContestar(v: Vinculo, tipoPerfil: string | null, modo: ModoD
 export function emailNaoConfirmado(v: Vinculo): boolean {
   return ORIGENS_AUTOMATICAS.includes(v.origem) && v.status === "pendente" && v.confirmado_em === null;
 }
+
+export function formatarDataBR(data: string | null | undefined): string {
+  if (!data) return "";
+  const d = new Date(data);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+}
