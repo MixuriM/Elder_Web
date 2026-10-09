@@ -117,7 +117,7 @@ function CardAjuda() {
 
           bg-[#5F56EC]
 
-          text-xs
+          text-sm
           font-semibold
           text-white
 

@@ -123,7 +123,7 @@ function Home() {
                   items-center
                   gap-2
 
-                  text-xs
+                  text-sm
                   text-slate-600
 
                   transition-colors

@@ -254,7 +254,7 @@ function FormMedicamento({
           <p
             className="
               mt-2
-              text-xs
+              text-sm
               text-[#56657D]
 
               dark:text-[#A7A7B5]
@@ -297,7 +297,7 @@ function FormMedicamento({
         <p
           className="
             mt-2
-            text-xs
+            text-sm
             text-[#56657D]
 
             dark:text-[#A7A7B5]

@@ -131,7 +131,7 @@ function CardMedicamento({
                 rounded-full
                 px-3
                 py-1
-                text-xs
+                text-sm
                 font-semibold
 
                 ${
@@ -205,7 +205,7 @@ function CardMedicamento({
           <div>
             <p
               className="
-                text-xs
+                text-sm
                 font-semibold
                 uppercase
                 tracking-wide
@@ -248,7 +248,7 @@ function CardMedicamento({
           <div>
             <p
               className="
-                text-xs
+                text-sm
                 font-semibold
                 uppercase
                 tracking-wide
@@ -296,7 +296,7 @@ function CardMedicamento({
           >
             <p
               className="
-                text-xs
+                text-sm
                 font-semibold
                 uppercase
                 tracking-wide

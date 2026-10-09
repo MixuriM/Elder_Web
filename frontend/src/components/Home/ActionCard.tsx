@@ -140,12 +140,11 @@ function ActionCard({
 
               max-w-[230px]
 
-              text-[12px]
-              leading-4
+              text-sm
+              leading-5
 
               text-white
 
-              sm:text-[13px]
             "
           >
             {description}

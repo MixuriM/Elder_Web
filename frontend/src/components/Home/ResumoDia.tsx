@@ -42,7 +42,7 @@ function ResumoDia() {
   `;
 
   const labelClass = `
-    text-xs
+    text-sm
 
     text-gray-500
 
