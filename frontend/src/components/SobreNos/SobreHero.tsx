@@ -10,7 +10,7 @@ function SobreHero() {
           py-2
           text-sm
           font-bold
-          text-[#5F56EC]
+          text-[#554CD8]
 
           dark:bg-[#6C63FF]/15
           dark:text-[#B8B3FF]
