@@ -233,13 +233,22 @@ describe('SeletorIdoso', () => {
     expect(aoMudar).toHaveBeenCalledWith('9')
   })
 
-  it('zero idosos: orienta a solicitar vínculo em /vinculos e não mostra select', () => {
+  it('zero idosos: orienta a solicitar vínculo em /familia e não mostra select', () => {
     renderizar(lista({ idosos: [] }))
 
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /vínculo/i })).toHaveAttribute(
       'href',
-      '/vinculos',
+      '/familia',
+    )
+  })
+
+  it('zero idosos, perfil cuidador: o link leva a /cuidadores', () => {
+    renderizar(lista({ idosos: [], tipoPerfil: 'cuidador' }))
+
+    expect(screen.getByRole('link', { name: /vínculo/i })).toHaveAttribute(
+      'href',
+      '/cuidadores',
     )
   })
 

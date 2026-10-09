@@ -3,10 +3,14 @@ import { Link } from "react-router-dom";
 import BotaoTema from "../layout/BotaoTema";
 
 type CabecalhoVinculosProps = {
+  titulo: string;
+  descricao: string;
   onAdicionar: () => void;
 };
 
 export default function CabecalhoVinculos({
+  titulo,
+  descricao,
   onAdicionar,
 }: CabecalhoVinculosProps) {
   return (
@@ -32,11 +36,11 @@ export default function CabecalhoVinculos({
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
-            Meus vínculos
+            {titulo}
           </h1>
 
           <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
-            Gerencie familiares e cuidadores que ajudam nos seus cuidados.
+            {descricao}
           </p>
         </div>
 

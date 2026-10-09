@@ -4,12 +4,17 @@ type ListaVinculosProps = {
   vinculos: Vinculo[];
   carregando?: boolean;
   erro?: string | null;
+  vazio?: { titulo: string; texto: string };
 };
 
 export default function ListaVinculos({
   vinculos,
   carregando = false,
   erro,
+  vazio = {
+    titulo: "Nenhum vínculo encontrado",
+    texto: "Quando você adicionar um familiar ou cuidador, ele aparecerá aqui.",
+  },
 }: ListaVinculosProps) {
   if (carregando) {
     return (
@@ -34,11 +39,11 @@ export default function ListaVinculos({
     return (
       <div className="rounded-2xl bg-[#F3F0FF] p-8 text-center dark:bg-[#151B35]">
         <h2 className="text-xl font-bold text-[#071A38] dark:text-white">
-          Nenhum vínculo encontrado
+          {vazio.titulo}
         </h2>
 
         <p className="mt-2 text-gray-600 dark:text-gray-300">
-          Quando você adicionar um familiar ou cuidador, ele aparecerá aqui.
+          {vazio.texto}
         </p>
       </div>
     );

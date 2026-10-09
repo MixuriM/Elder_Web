@@ -25,9 +25,17 @@ const vinculo = {
   data_solicitacao: "2026-10-01T10:00:00.000Z",
   data_resposta: "2026-10-02T10:00:00.000Z",
   confirmado_em: "2026-10-02T10:00:00.000Z",
-  papel_do_chamador: "vinculado",
+  papel_do_chamador: "dono",
   idoso: { id: 5, nome: "Maria da Silva", email_mascarado: "ma***@mail.com" },
   vinculado: { id: 8, nome: "João da Silva", email_mascarado: "jo***@mail.com" },
+};
+
+const vinculoFamiliar = {
+  ...vinculo,
+  id: 13,
+  tipo_vinculo: "familiar",
+  origem: "convite_idoso",
+  vinculado: { id: 9, nome: "Ana Souza", email_mascarado: "an***@mail.com" },
 };
 
 function LocalizacaoAtual() {
@@ -35,11 +43,12 @@ function LocalizacaoAtual() {
   return <output data-testid="localizacao">{location.pathname}</output>;
 }
 
-function renderComRotas(rotaInicial = "/vinculos") {
+function renderComRotas(rotaInicial = "/cuidadores") {
   return render(
     <MemoryRouter initialEntries={[rotaInicial]}>
       <Routes>
-        <Route path="/vinculos" element={<Vinculos />} />
+        <Route path="/familia" element={<Vinculos tipo="familiar" />} />
+        <Route path="/cuidadores" element={<Vinculos tipo="cuidador" />} />
         <Route path="/vinculos/:id" element={<VinculoDetalhe />} />
       </Routes>
       <LocalizacaoAtual />
@@ -78,7 +87,7 @@ describe("Vinculos", () => {
     const link = screen.getByRole("link", { name: /ver detalhes de joão da silva/i });
     expect(link).toHaveAttribute("href", "/vinculos/12");
     expect(link).toHaveAttribute("target", "_blank");
-    expect(screen.getByTestId("localizacao")).toHaveTextContent("/vinculos");
+    expect(screen.getByTestId("localizacao")).toHaveTextContent("/cuidadores");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -89,7 +98,48 @@ describe("Vinculos", () => {
 
     renderComRotas();
 
-    expect(await screen.findByText("Nenhum vínculo encontrado")).toBeInTheDocument();
+    expect(await screen.findByText("Nenhum cuidador vinculado")).toBeInTheDocument();
+  });
+
+  it("cada rota mostra só os vínculos do seu tipo", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [vinculo, vinculoFamiliar] })
+    );
+
+    const { unmount } = renderComRotas("/cuidadores");
+    expect(await screen.findByText("João da Silva")).toBeInTheDocument();
+    expect(screen.queryByText("Ana Souza")).not.toBeInTheDocument();
+    unmount();
+
+    renderComRotas("/familia");
+    expect(await screen.findByText("Ana Souza")).toBeInTheDocument();
+    expect(screen.queryByText("João da Silva")).not.toBeInTheDocument();
+  });
+
+  it("estado vazio é próprio do tipo e ignora vínculos do outro tipo", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [vinculo] })
+    );
+
+    renderComRotas("/familia");
+
+    expect(await screen.findByText("Nenhum familiar vinculado")).toBeInTheDocument();
+    expect(screen.queryByText("João da Silva")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["/familia", "Família"],
+    ["/cuidadores", "Cuidadores"],
+  ])("%s tem um único h1 e título da aba próprios", async (rota, titulo) => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [] })
+    );
+
+    renderComRotas(rota);
+
+    await screen.findByRole("heading", { level: 1, name: titulo });
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(document.title).toBe(`${titulo} | Elder Web`);
   });
 
   it("alterna entre modo claro e escuro e salva a preferência", async () => {
@@ -189,8 +239,22 @@ describe("VínculoDetalhe", () => {
     expect(screen.getByText("Aprovado")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Voltar" })).toHaveAttribute(
       "href",
-      "/vinculos"
+      "/cuidadores"
     );
     expect(screen.getByRole("button", { name: "Ativar modo escuro" })).toBeInTheDocument();
+  });
+
+  it("Voltar leva à lista de família quando o vínculo é de familiar", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(200, { vinculos: [vinculo, vinculoFamiliar] })
+    );
+
+    renderComRotas("/vinculos/13");
+
+    await screen.findByRole("heading", { name: "Ana Souza" });
+    expect(screen.getByRole("link", { name: "Voltar" })).toHaveAttribute(
+      "href",
+      "/familia"
+    );
   });
 });
