@@ -94,3 +94,33 @@ describe("Vinculos: Adicionar pessoa e resumo", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("Vinculos: pedir vínculo pelo modal", () => {
+  it("cuidador envia o pedido, a lista recarrega e mostra o pedido como pendente", async () => {
+    const pendente = { ...aprovado, id: 20, status: "pendente", idoso: { id: null, nome: null, email_mascarado: null } };
+    let enviado = false;
+    global.fetch = jest.fn((url: string, init?: RequestInit) => {
+      if (init?.method === "POST" && String(url).endsWith("/vinculo/solicitar-cuidador")) {
+        enviado = true;
+        return Promise.resolve(respostaJson(201, { id: 20 }));
+      }
+      return Promise.resolve(respostaJson(200, { vinculos: enviado ? [aprovado, pendente] : [aprovado] }));
+    }) as jest.Mock;
+
+    renderComPerfil("cuidador", "cuidador");
+    await screen.findByText("1 cuidador vinculado");
+    await userEvent.click(screen.getByRole("button", { name: "Adicionar pessoa" }));
+
+    await userEvent.type(screen.getByLabelText(/e-mail do idoso/i), "idoso.teste@exemplo.test");
+    await userEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    const dialogo = screen.getByRole("dialog");
+    expect(await within(dialogo).findByRole("status")).toHaveTextContent("Pedido enviado.");
+    expect(await screen.findByText("1 pedido aguardando resposta")).toBeInTheDocument();
+    expect(screen.getByText("Pendente")).toBeInTheDocument();
+    // A mensagem permanece e o modal continua aberto até a pessoa concluir.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Concluir" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});

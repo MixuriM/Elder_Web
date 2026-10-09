@@ -12,8 +12,10 @@ export async function chamarApi(path: string, options: RequestInit = {}) {
   })
   const corpo = await res.json().catch(() => null)
   if (!res.ok) {
-    // proximo_passo (409 de conflito de e-mail, item 3.2) viaja junto do erro.
+    // proximo_passo (409 de conflito de e-mail, item 3.2) e status viajam junto do erro: as telas de
+    // vínculo escolhem uma mensagem fixa pelo status, sem repetir o corpo.
     throw Object.assign(new Error(corpo?.error ?? `Falha na requisição: status ${res.status}`), {
+      status: res.status,
       proximo_passo: typeof corpo?.proximo_passo === 'string' ? corpo.proximo_passo : undefined,
     })
   }
