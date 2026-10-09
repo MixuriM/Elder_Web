@@ -319,6 +319,12 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura). Resolvidos na `development` (2026-10-08):
   `heading-order`, 2 `h1`, 9px do `Sidebar`. Sobra: 50 `ring-` de foco com opacidade (35 `focus:`, 15 `focus-visible:`).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
+- Avisar Laureane e Jennifer da mudança estrutural do frontend (2026-10-08, `development`): `Sidebar`, `Header` e `main`
+  únicos no `LayoutAutenticado`, rotas `/familia` e `/cuidadores`, menu e guarda por perfil, texto mínimo de 14px.
+- Frontend pendente (próximos prompts): telas funcionais de vínculo (solicitar, aprovar, permissões, modo de decisão,
+  cadastrar idoso), cards da Home com dados, avisos, Configurações, sino e busca do `Header` (hoje mortos), botão de
+  emergência, texto da landing e calendário da Agenda. `useAcesso` busca uma vez ao montar o layout: não atualiza
+  sozinho após aprovar vínculo (precisará de um `recarregar`).
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (uso local via `docker-compose.yml`, com volume e
@@ -367,6 +373,13 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   (routes 95/92/99/96, middleware 99; metas mínimas 85/75/85/85 e 90/80/90/90); mutação local vale como RED em
   teste de caracterização; regra de ator vem do código (cuidador nunca cria medicamento nem refeição, familiar só com
   `modo_decisao` efetivo `'familiar'`, flag exata e estrita).
+
+- Frontend (2026-10-08, decisões do grupo): menu por perfil (D1, D2): idoso vê tudo; cuidador ou familiar sem vínculo
+  aprovado vê só Início, Meu Perfil, a lista do seu tipo (Família ou Cuidadores) e Orientações; Saúde, Medicamentos,
+  Agenda e Alimentação exigem ao menos 1 vínculo aprovado (`RotaComVinculo`); cuidador não vê Família. Falha ao carregar
+  perfil ou vínculos falha aberto com aviso (D3; a barreira real é o 403). `/familia` e `/cuidadores` filtram no
+  cliente o `GET /vinculo` (D4); `/vinculos` redireciona para `/familia`, `/vinculos/:id` é o detalhe. Rotas
+  protegidas aninhadas em `LayoutAutenticado` (D5): páginas não têm `<main>` próprio nem botão que saia do site.
 
 **Itens implementados (resumo; detalhes, PRs e hashes no histórico)**
 - 5.2 marcar dose, 5.3 histórico de remédios, 5.4 PDF do histórico. Familiar só marca dose com `modo_decisao` efetivo
