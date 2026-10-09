@@ -59,20 +59,20 @@ export default function VinculoDetalhe() {
 
   if (carregando) {
     return (
-      <main className="min-h-screen bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
+      <div className="flex-1 bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
         <CabecalhoDetalheVinculo />
         <div className="flex min-h-[60vh] items-center justify-center">
           <p role="status" className="text-lg text-gray-700 dark:text-gray-200">
             Carregando detalhes do vínculo...
           </p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (erro || !vinculo) {
     return (
-      <main className="min-h-screen bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
+      <div className="flex-1 bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
         <CabecalhoDetalheVinculo />
         <section className="mx-auto max-w-2xl space-y-5 rounded-3xl bg-white p-6 shadow dark:bg-[#151B35]">
           <h1 className="text-2xl font-bold text-[#071A38] dark:text-white">
@@ -82,7 +82,7 @@ export default function VinculoDetalhe() {
             {erro ?? "Vínculo não encontrado ou sem acesso."}
           </p>
         </section>
-      </main>
+      </div>
     );
   }
 

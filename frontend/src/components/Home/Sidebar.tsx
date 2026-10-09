@@ -4,71 +4,25 @@ import {
   X,
 } from "lucide-react";
 
-import { useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 import { menuItems } from "../../data/menuItems";
 import { logoutUser } from "../../lib/auth";
 
 type SidebarProps = {
   aberto: boolean;
-  menuAtivo: string;
   setAberto: (aberto: boolean) => void;
-  setMenuAtivo: (menu: string) => void;
 };
 
 function Sidebar({
   aberto,
-  menuAtivo,
   setAberto,
-  setMenuAtivo,
 }: SidebarProps) {
   const navigate = useNavigate();
 
   async function handleLogout() {
     await logoutUser();
     navigate("/login", { replace: true });
-  }
-
-  function handleMenuClick(label: string) {
-    setMenuAtivo(label);
-    setAberto(false);
-
-    switch (label) {
-      case "Início":
-        navigate("/Home");
-        break;
-
-      case "Meu Perfil":
-        navigate("/perfil");
-        break;
-
-      case "Saúde":
-        navigate("/saude");
-        break;
-
-      case "Medicamentos":
-        navigate("/remedios");
-        break;
-
-      case "Agenda":
-        navigate("/agenda");
-        break;
-
-      case "Alimentação e Nutrição":
-        navigate("/alimentacao");
-        break;
-
-      case "Família":
-        navigate("/familia");
-        break;
-
-      case "Orientações":
-        navigate("/orientacoes");
-        break;
-
-      default:
-        break;
-    }
   }
 
   return (
@@ -172,7 +126,7 @@ function Sidebar({
             "
           >
             <img
-              src="elder-favicon.ico"
+              src="/elder-favicon.ico"
               alt="Logo ElderWeb"
               className="h-full w-full rounded-full object-cover"
             />
@@ -228,9 +182,13 @@ function Sidebar({
             className="
               ml-auto
 
-              rounded-lg
+              flex
+              min-h-11
+              min-w-11
+              items-center
+              justify-center
 
-              p-2
+              rounded-lg
 
               text-slate-600
 
@@ -253,6 +211,7 @@ function Sidebar({
 
         {/* Menu principal */}
         <nav
+          aria-labelledby="menu-principal-titulo"
           className="
             min-h-0
             flex-1
@@ -263,6 +222,7 @@ function Sidebar({
           "
         >
           <p
+            id="menu-principal-titulo"
             className="
               mb-3
 
@@ -287,15 +247,15 @@ function Sidebar({
           <div className="space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const active = menuAtivo === item.label;
 
               return (
-                <button
-                  type="button"
+                <NavLink
                   key={item.label}
-                  onClick={() => handleMenuClick(item.label)}
-                  className={`
+                  to={item.to}
+                  onClick={() => setAberto(false)}
+                  className={({ isActive }) => `
                     flex
+                    min-h-11
                     w-full
                     items-center
 
@@ -313,7 +273,7 @@ function Sidebar({
                     duration-200
 
                     ${
-                      active
+                      isActive
                         ? `
                           bg-[#5F56EC]
 
@@ -336,13 +296,18 @@ function Sidebar({
                     }
                   `}
                 >
-                  <Icon
-                    size={17}
-                    strokeWidth={active ? 2.3 : 1.8}
-                  />
+                  {({ isActive }) => (
+                    <>
+                      <Icon
+                        size={17}
+                        strokeWidth={isActive ? 2.3 : 1.8}
+                        aria-hidden="true"
+                      />
 
-                  <span>{item.label}</span>
-                </button>
+                      <span>{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
               );
             })}
           </div>
@@ -371,6 +336,7 @@ function Sidebar({
             className="
               flex
               w-full
+              min-h-11
               items-center
 
               gap-3
@@ -407,6 +373,7 @@ function Sidebar({
               mt-1
 
               flex
+              min-h-11
               w-full
               items-center
 

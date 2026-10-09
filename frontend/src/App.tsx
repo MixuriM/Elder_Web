@@ -2,11 +2,11 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
-import RotaProtegida from './components/RotaProtegida'
 import LimiteErro from './components/LimiteErro'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 
 // Landing e Login ficam no bundle inicial (entrada e retorno do usuário); o resto carrega por rota.
+const LayoutAutenticado = lazy(() => import('./components/layout/LayoutAutenticado'))
 const Home = lazy(() => import('./pages/Home'))
 const Cadastro = lazy(() => import('./pages/Cadastro'))
 const Welcome = lazy(() => import('./pages/Welcome'))
@@ -37,98 +37,31 @@ function App() {
 
   return (
     <FotoPerfilProvider>
-    {/* key: trocar de rota limpa o erro anterior */}
-    <LimiteErro key={pathname}>
+    <LimiteErro resetKey={pathname}>
     <Suspense fallback={<CarregandoPagina />}>
     <Routes>
       <Route path="/" element={<LandingPage/>} />
-      <Route
-        path="/Home"
-        element={
-          <RotaProtegida>
-            <Home/>
-          </RotaProtegida>
-        }
-      />
       <Route path="/sobre-nos" element={<SobreNos />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
       <Route path="/esqueci-senha" element={<EsqueciSenha />} />
       <Route path="/confirmar-email" element={<ConfirmarEmail />} />
-      <Route
-        path="/perfil"
-        element={
-          <RotaProtegida>
-            <Perfil />
-          </RotaProtegida>
-        }
-      />
       <Route path="/vinculos" element={<Navigate to="/familia" replace />} />
-      <Route
-        path="/familia"
-        element={
-          <RotaProtegida>
-            <Vinculos tipo="familiar" />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/cuidadores"
-        element={
-          <RotaProtegida>
-            <Vinculos tipo="cuidador" />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/vinculos/:id"
-        element={
-          <RotaProtegida>
-            <VinculoDetalhe />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/saude"
-        element={
-          <RotaProtegida>
-            <Saude />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/remedios"
-        element={
-          <RotaProtegida>
-            <Remedios />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/agenda"
-        element={
-          <RotaProtegida>
-            <Agenda />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/alimentacao"
-        element={
-          <RotaProtegida>
-            <Alimentacao />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/orientacoes"
-        element={
-          <RotaProtegida>
-            <Orientacoes />
-          </RotaProtegida>
-        }
-      />
+
+      {/* Telas autenticadas: menu, cabeçalho e <main> únicos vêm do layout. */}
+      <Route element={<LayoutAutenticado />}>
+        <Route path="/Home" element={<Home />} />
+        <Route path="/perfil" element={<Perfil />} />
+        <Route path="/familia" element={<Vinculos tipo="familiar" />} />
+        <Route path="/cuidadores" element={<Vinculos tipo="cuidador" />} />
+        <Route path="/vinculos/:id" element={<VinculoDetalhe />} />
+        <Route path="/saude" element={<Saude />} />
+        <Route path="/remedios" element={<Remedios />} />
+        <Route path="/agenda" element={<Agenda />} />
+        <Route path="/alimentacao" element={<Alimentacao />} />
+        <Route path="/orientacoes" element={<Orientacoes />} />
+      </Route>
     </Routes>
     </Suspense>
     </LimiteErro>

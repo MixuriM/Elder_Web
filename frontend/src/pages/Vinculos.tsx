@@ -69,9 +69,9 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   }
 
   return (
-    <main
+    <div
       className="
-        min-h-screen
+        flex-1
         bg-[#FAFAFF]
         px-4 py-8
         dark:bg-[#10101A]
@@ -92,6 +92,6 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
           erro={erro}
         />
       </div>
-    </main>
+    </div>
   );
 }

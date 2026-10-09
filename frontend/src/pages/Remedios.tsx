@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { ArrowLeft, Pill, Plus, RefreshCw } from "lucide-react";
+import { Pill, Plus, RefreshCw } from "lucide-react";
 
-import { useNavigate } from "react-router-dom";
 
 import { useIdososVinculados } from "../hooks/useIdososVinculados";
 import { chamarApi } from "../lib/chamarApi";
 import { usePermissoesDose } from "../lib/permissoesDose";
 
-import ControleTema from "../components/layout/ControleTema";
 import SeletorIdoso from "../components/common/SeletorIdoso";
 import { envioBloqueado } from "../lib/regrasIdosoVinculado";
 import Spinner from "../components/common/Spinner";
@@ -39,7 +37,6 @@ interface RespostaMedicamentos {
 
 export default function Remedios() {
   useTitulo("Medicamentos");
-  const navigate = useNavigate();
 
   const permissoes = usePermissoesDose();
 
@@ -134,9 +131,9 @@ export default function Remedios() {
   }
 
   return (
-    <main
+    <div
       className="
-        min-h-screen
+        flex-1
         bg-[#F8F9FC]
         px-4
         py-6
@@ -152,56 +149,6 @@ export default function Remedios() {
       "
     >
       <div className="mx-auto w-full max-w-6xl">
-        {/* NAVEGAÇÃO SUPERIOR */}
-
-        <div className="mb-7 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            aria-label="Voltar para a página anterior"
-            className="
-              inline-flex
-              h-11
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              border
-              border-gray-300
-              bg-white
-              px-4
-              text-sm
-              font-semibold
-              text-[#071A38]
-              shadow-sm
-              transition-all
-              duration-200
-
-              hover:border-[#A18BFF]
-              hover:bg-[#F3F0FF]
-              hover:text-[#554CD8]
-
-              focus:outline-none
-              focus-visible:ring-2
-              focus-visible:ring-[#6C63FF]/30
-
-              dark:border-[#454558]
-              dark:bg-[#2B2C3B]
-              dark:text-[#F5F5FA]
-
-              dark:hover:border-[#66667A]
-              dark:hover:bg-[#373849]
-              dark:hover:text-[#A89FFF]
-            "
-          >
-            <ArrowLeft size={18} strokeWidth={2} aria-hidden="true" />
-
-            <span className="hidden sm:inline">Voltar</span>
-          </button>
-
-          <ControleTema responsivo />
-        </div>
-
         {/* CABEÇALHO */}
 
         <header className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -560,6 +507,6 @@ export default function Remedios() {
           void atualizarDepoisDaDose();
         }}
       />
-    </main>
+    </div>
   );
 }

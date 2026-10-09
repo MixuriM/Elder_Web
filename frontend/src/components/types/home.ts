@@ -2,6 +2,7 @@ import type { ElementType } from "react";
 
 export type MenuItem = {
   label: string;
+  to: string;
   icon: ElementType;
 };
 

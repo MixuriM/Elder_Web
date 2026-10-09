@@ -17,11 +17,11 @@ function LayoutPerfil({
   children,
 }: LayoutPerfilProps) {
   return (
-    <main
+    <div
       className="
         relative
         flex
-        min-h-screen
+        flex-1
         items-center
         justify-center
         overflow-hidden
@@ -133,7 +133,7 @@ function LayoutPerfil({
         {children}
       </section>
 
-    </main>
+    </div>
   );
 }
 
