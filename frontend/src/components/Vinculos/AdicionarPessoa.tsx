@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import CadastrarIdoso from "./CadastrarIdoso";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "./estilosVinculo";
 import type { AcaoAdicionar, TipoVinculo } from "./regrasVinculo";
 import SolicitarVinculo from "./SolicitarVinculo";
@@ -19,6 +20,8 @@ const ROTULOS: Record<AcaoAdicionar, string> = {
 // Conteúdo do modal "Adicionar pessoa": com uma só ação abre direto o formulário; com duas, pergunta primeiro.
 export default function AdicionarPessoa({ tipo, acoes, onConcluido, onFechar }: AdicionarPessoaProps) {
   const [escolha, setEscolha] = useState<AcaoAdicionar | null>(acoes.length === 1 ? acoes[0] : null);
+  // Vindo do conflito de e-mail no cadastro: o pedido de vínculo já abre com o e-mail digitado.
+  const [emailInicial, setEmailInicial] = useState("");
 
   if (escolha === null) {
     return (
@@ -41,12 +44,36 @@ export default function AdicionarPessoa({ tipo, acoes, onConcluido, onFechar }: 
   return (
     <div className="space-y-5">
       {acoes.length > 1 && (
-        <button type="button" onClick={() => setEscolha(null)} className={BOTAO_SECUNDARIO}>
+        <button
+          type="button"
+          onClick={() => {
+            setEmailInicial("");
+            setEscolha(null);
+          }}
+          className={BOTAO_SECUNDARIO}
+        >
           Voltar
         </button>
       )}
 
-      {escolha === "solicitar" && <SolicitarVinculo tipo={tipo} onConcluido={onConcluido} onFechar={onFechar} />}
+      {escolha === "solicitar" && (
+        <SolicitarVinculo
+          tipo={tipo}
+          emailInicial={emailInicial}
+          onConcluido={onConcluido}
+          onFechar={onFechar}
+        />
+      )}
+      {escolha === "cadastrar" && (
+        <CadastrarIdoso
+          onConcluido={onConcluido}
+          onFechar={onFechar}
+          onPedirVinculo={(email) => {
+            setEmailInicial(email);
+            setEscolha("solicitar");
+          }}
+        />
+      )}
     </div>
   );
 }
