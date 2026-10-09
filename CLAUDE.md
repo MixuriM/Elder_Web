@@ -231,16 +231,12 @@ em vez de uma variante global de acesso, e `RegistroSaude.editado_por_id`
 obrigatório (RNF-006) — confirmados pelo grupo (Laureane e Jennifer). O modelo
 de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
 Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
-descrito em `Elder Web - Modelagem ER.md` — ver nota no início deste arquivo
-sobre a relação temporária desse documento com o PDF do TCC. A supressão do
-link `Claude-Session:` via `attribution.sessionUrl` (ver seção Workflow) também
-é decisão fechada — não é pendência técnica em aberto. `backend/prisma/migrations/migration_lock.toml`
+descrito em `Elder Web - Modelagem ER.md` (ver nota no início). `attribution.sessionUrl`
+(seção Workflow) também é decisão fechada. `backend/prisma/migrations/migration_lock.toml`
 deve permanecer com `provider = "mssql"`, mesmo o datasource em `schema.prisma` usando
-`provider = "sqlserver"` — não é erro nem legado esquecido. Na versão do Prisma instalada
-(5.22.0), o migration engine espera literalmente "mssql" como identificador do connector SQL
-Server nesse arquivo; trocar para "sqlserver" quebra `prisma migrate status` com erro P3019
-(testado e revertido). Referência: prisma/prisma#12087 (o próprio Prisma reconhece essa
-inconsistência e pretende unificar em versão futura — não decidir isso sozinho antes de
+`provider = "sqlserver"`, não é erro. O Prisma 5.22.0 espera "mssql" nesse arquivo; trocar
+quebra `prisma migrate status` (P3019, testado e revertido). Ver prisma/prisma#12087 (o Prisma
+pretende unificar em versão futura — não decidir isso sozinho antes de
 discutir upgrade de dependência com o grupo).
 
 
@@ -314,9 +310,9 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Avisar Laureane e Jennifer: 5.4 (`GET /historico/pdf` e `/historico/idoso/:idosoId/pdf`, `lib/baixarPdf.ts`,
   `Remedios.tsx`); PR #143 (9.1, cores em ~50 telas, Home mais escura; sobram 50 `ring-` de foco com opacidade,
   cobertos pelo contorno global); layout único e revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`,
-  `/avisos`, `/configuracoes`, landing); calendário da Agenda e a nova ordem da página.
+  `/avisos`, `/configuracoes`, landing); calendário da Agenda; botão de emergência.
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
-- Frontend pendente: emergência.
+- Emergência: domínio próprio do remetente (SPF/DKIM), conta no provedor e os 3 `EMAIL_*` no Render.
 - Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
   por `status`). Decisões de 2026-10-09 (Marcos): (1) `POST /vinculo/convidar-familiar` (idoso com `modo_decisao` efetivo
   `idoso`) grava `email_convite_familiar` (o novo substitui o anterior) e, se há conta de familiar, cria vínculo pendente
@@ -400,7 +396,12 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   e compara com `ROTAS_ESPERADAS` (rota nova sem classificação falha). Também limiares de cobertura; sem furo achado.
 - Os `backend/scripts/verify-rotas-*.ts` NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é
   substituído): limpam por sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo
-  `verify-dose-`, `verify-hist-` ou `verify-pdf-` marca conta residual se o processo morrer no meio.
+  `verify-dose-`, `verify-hist-`, `verify-pdf-` ou `verify-emerg-` marca conta residual se o processo morrer no meio.
+- Emergência (RF novo, número a definir pelo grupo): `POST /emergencia/avisar` (só idoso; 403 nos outros) manda
+  e-mail aos vínculos aprovados com e-mail via `lib/enviarEmail.ts` (único ponto do provedor, API HTTPS: o Render free
+  bloqueia SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Limite em
+  memória por idoso (1 a cada 2 min, 5 por hora), zera ao reiniciar o servidor. Resposta só com contagens. Frontend:
+  `BotaoAjuda` no `Header`, só idoso. Remetente gmail não é entregue; provedor definitivo em aberto.
 
 ## Histórico de implementação
 O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
