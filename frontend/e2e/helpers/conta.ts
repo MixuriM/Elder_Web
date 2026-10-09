@@ -23,7 +23,9 @@ export function exigirBancoLocal() {
 
 // Mesmo fluxo de fluxo-completo.spec.ts (cadastro e login pela UI), num BrowserContext que o
 // chamador mantém aberto: a sessão do Firebase fica no navegador. Sem storageState em disco (tem token).
-export async function criarContaELogar(browser: Browser, { tipoPerfil, radio }: Perfil): Promise<BrowserContext> {
+export type Conta = { context: BrowserContext; email: string };
+
+export async function criarContaELogar(browser: Browser, { tipoPerfil, radio }: Perfil): Promise<Conta> {
   const context = await browser.newContext();
   const page = await context.newPage();
   const email = `e2e-${tipoPerfil}-${Date.now()}@e2e.elderweb.test`;
@@ -46,5 +48,27 @@ export async function criarContaELogar(browser: Browser, { tipoPerfil, radio }: 
   await expect(page.getByRole("button", { name: /abrir perfil/i })).toBeVisible();
 
   await page.close();
-  return context;
+  return { context, email };
+}
+
+// Vínculo aprovado pela UI, como um usuário faria: quem é cuidador ou familiar pede em "Adicionar pessoa"
+// e o idoso (modo de decisão padrão, 'idoso') aprova o pedido na mesma tela.
+export async function vincular(vinculado: Conta, tipo: "cuidador" | "familiar", idoso: Conta) {
+  const rota = tipo === "cuidador" ? "/cuidadores" : "/familia";
+
+  const pede = await vinculado.context.newPage();
+  await pede.goto(rota);
+  await pede.getByRole("button", { name: "Adicionar pessoa" }).click();
+  // Familiar tem duas ações (pedir ou cadastrar idoso); cuidador abre direto no pedido.
+  if (tipo === "familiar") await pede.getByRole("button", { name: "Pedir vínculo com um idoso" }).click();
+  await pede.getByLabel("E-mail do idoso").fill(idoso.email);
+  await pede.getByRole("button", { name: "Enviar pedido" }).click();
+  await expect(pede.getByRole("status").filter({ hasText: /pedido enviado/i })).toBeVisible({ timeout: 20_000 });
+  await pede.close();
+
+  const aprova = await idoso.context.newPage();
+  await aprova.goto(rota);
+  await aprova.getByRole("button", { name: /^aprovar o pedido de/i }).click();
+  await expect(aprova.getByText(/aprovado\.$/)).toBeVisible({ timeout: 20_000 });
+  await aprova.close();
 }
