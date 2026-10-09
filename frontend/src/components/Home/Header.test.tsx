@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import Header from "./Header";
 import { FotoPerfilContext } from "../../contexts/useFotoPerfil";
 import { AcessoProvider } from "../../contexts/AcessoContext";
+import { AvisosContext } from "../../contexts/useAvisos";
 
 const mockBuscarPerfil = jest.fn();
 jest.mock("../../services/perfilService", () => ({
@@ -80,5 +81,48 @@ describe("Header dentro do layout", () => {
 
     expect(screen.getByRole("button", { name: /abrir perfil/i })).toHaveTextContent("MS");
     expect(mockBuscarPerfil).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Header: sino de avisos e sem busca", () => {
+  beforeEach(() => {
+    mockBuscarPerfil.mockReset().mockResolvedValue({ nome: "Marcos Castelli" });
+  });
+
+  function comAvisos(total: number) {
+    // Dados fake só para o teste.
+    const avisos = Array.from({ length: total }, (_, i) => ({
+      id: `a${i}`,
+      tipo: "compromisso" as const,
+      texto: `Aviso ${i}`,
+      link: "/agenda",
+      rotuloLink: "Ver agenda",
+    }));
+    return render(
+      <MemoryRouter>
+        <AvisosContext.Provider value={{ avisos, compromissos: "ok" }}>
+          <Header abrirSidebar={() => {}} />
+        </AvisosContext.Provider>
+      </MemoryRouter>
+    );
+  }
+
+  it("não tem mais o campo de busca", () => {
+    comAvisos(0);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/buscar/i)).not.toBeInTheDocument();
+  });
+
+  it("o sino é um link para /avisos com a contagem no nome e visível", () => {
+    comAvisos(2);
+    const sino = screen.getByRole("link", { name: "Avisos (2)" });
+    expect(sino).toHaveAttribute("href", "/avisos");
+    expect(sino).toHaveTextContent("2");
+  });
+
+  it("sem avisos: sem contador", () => {
+    comAvisos(0);
+    const sino = screen.getByRole("link", { name: "Avisos" });
+    expect(sino).not.toHaveTextContent("0");
   });
 });

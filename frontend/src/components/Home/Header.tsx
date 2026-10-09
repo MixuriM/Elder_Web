@@ -2,14 +2,14 @@ import {
   Bell,
   ChevronDown,
   Menu,
-  Search,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
 import { useAuthUser } from "../../hooks/useAuthUser";
 import { useFotoPerfil } from "../../contexts/useFotoPerfil";
 import { useAcesso } from "../../contexts/useAcesso";
+import { useAvisos } from "../../contexts/useAvisos";
 
 type HeaderProps = {
   abrirSidebar: () => void;
@@ -30,6 +30,7 @@ function Header({ abrirSidebar }: HeaderProps) {
   const { fotoPerfilUrl, carregandoFoto } = useFotoPerfil();
   // Perfil buscado uma vez pelo AcessoProvider; até ele chegar, o nome da sessão do Firebase.
   const nome = useAcesso().nome || usuario?.displayName || usuario?.email || "";
+  const totalAvisos = useAvisos().avisos.length;
 
   return (
     <header
@@ -95,76 +96,14 @@ function Header({ abrirSidebar }: HeaderProps) {
         >
           <Menu size={22} />
         </button>
-
-        {/* Campo de busca */}
-        <div className="relative hidden min-w-0 sm:block">
-          <Search
-            size={15}
-            className="
-              absolute
-              left-3
-              top-1/2
-              -translate-y-1/2
-
-              text-[#5F56EC]
-
-              dark:text-[#A89FFF]
-            "
-          />
-
-          <input
-            type="text"
-            placeholder="Buscar no sistema..."
-            className="
-              h-11
-              w-[clamp(180px,28vw,320px)]
-
-              rounded-xl
-
-              border
-              border-[#DDD7FF]
-
-              bg-[#F8F7FF]
-
-              pl-9
-              pr-4
-
-              text-base
-              text-[#071A38]
-
-              outline-none
-
-              transition-all
-              duration-300
-
-              placeholder:text-slate-400
-
-              hover:border-[#A18BFF]
-
-              focus:border-[#6C63FF]
-              focus:ring-2
-              focus:ring-[#6C63FF]/20
-
-              dark:border-[#454558]
-              dark:bg-[#181824]
-              dark:text-[#F5F5FA]
-              dark:placeholder:text-[#858594]
-
-              dark:hover:border-[#66667A]
-
-              dark:focus:border-[#A89FFF]
-              dark:focus:ring-[#A89FFF]/20
-            "
-          />
-        </div>
       </div>
 
       {/* Lado direito */}
       <div className="flex shrink-0 items-center gap-2">
-        {/* Notificações */}
-        <button
-          type="button"
-          aria-label="Notificações"
+        {/* Avisos: a contagem vai no nome acessível; o número visível é só reforço. */}
+        <Link
+          to="/avisos"
+          aria-label={totalAvisos > 0 ? `Avisos (${totalAvisos})` : "Avisos"}
           className="
             relative
             inline-flex
@@ -190,8 +129,36 @@ function Header({ abrirSidebar }: HeaderProps) {
             dark:hover:text-[#A89FFF]
           "
         >
-          <Bell size={20} />
-        </button>
+          <Bell size={20} aria-hidden="true" />
+          {totalAvisos > 0 && (
+            <span
+              aria-hidden="true"
+              className="
+                absolute
+                -right-0.5
+                -top-0.5
+
+                flex
+                h-[22px]
+                min-w-[22px]
+                items-center
+                justify-center
+
+                rounded-full
+
+                bg-[#B42318]
+                px-1
+
+                text-sm
+                font-bold
+                leading-none
+                text-white
+              "
+            >
+              {totalAvisos > 99 ? "99+" : totalAvisos}
+            </span>
+          )}
+        </Link>
 
         {/* Mesmo estilo de tema do Cadastro */}
         <BotaoTema compacto />
