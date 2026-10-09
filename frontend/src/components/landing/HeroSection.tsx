@@ -7,8 +7,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import folhasDecorativas from "../../Img/folha_inicioE.png";
-import folhasDecorativa from "../../Img/folha_inicioD.png";
+import folhasDecorativas from "../../Img/folha_inicioE.webp";
+import folhasDecorativa from "../../Img/folha_inicioD.webp";
 
 export type HeroProps = {
   headline: string;

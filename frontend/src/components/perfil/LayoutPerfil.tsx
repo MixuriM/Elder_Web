@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import ControleTema from "../layout/ControleTema";
 
 // Importa as folhas decorativas
-import folhasDecorativas from "../../Img/folhas_superior.png";
+import folhasDecorativas from "../../Img/folhas_superior.webp";
 
 // Define as propriedades recebidas pelo layout
 type LayoutPerfilProps = {

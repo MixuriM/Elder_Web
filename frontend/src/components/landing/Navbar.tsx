@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import logoElder from "../../Img/Elder_logo.svg";
+import logoElder from "../../Img/Elder_logo.webp";
 import ControleTema from "../layout/ControleTema";
 
 type NavbarProps = {

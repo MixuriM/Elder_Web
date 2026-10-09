@@ -1,9 +1,9 @@
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import folhasDecorativas from "../../Img/folhaInformativo.png";
+import folhasDecorativas from "../../Img/folhaInformativo.webp";
 import florCadastro from "../../Img/flor_cadastro.svg";
-import logoElder from "../../Img/Elder_logo.svg";
+import logoElder from "../../Img/Elder_logo.webp";
 
 import type { TipoPerfil } from "../../lib/auth";
 
