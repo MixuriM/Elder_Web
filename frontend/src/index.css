@@ -63,23 +63,24 @@ textarea {
 ================================ */
 
 /* Celular */
+/* Em rem (mesmos 16, 17 e 18 px no padrão) para acompanhar o tamanho do texto escolhido em Configurações. */
 @media (max-width: 639px) {
   body {
-    font-size: 16px;
+    font-size: 1rem;
   }
 }
 
 /* Tablet */
 @media (min-width: 640px) {
   body {
-    font-size: 17px;
+    font-size: 1.0625rem;
   }
 }
 
 /* Desktop */
 @media (min-width: 1024px) {
   body {
-    font-size: 18px;
+    font-size: 1.125rem;
   }
 }
 
@@ -99,16 +100,29 @@ textarea {
 }
 
 /* ================================
+   TAMANHO DO TEXTO (Configurações)
+================================ */
+
+/* Classes no <html> (lib/preferencias.ts e script de index.html). Tudo em rem cresce junto: letras,
+   espaçamentos e alvos de toque. */
+html.texto-grande {
+  font-size: 112.5%;
+}
+
+html.texto-muito-grande {
+  font-size: 125%;
+}
+
+/* ================================
    MOVIMENTO REDUZIDO
 ================================ */
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/* A classe começa igual a prefers-reduced-motion (script de index.html) e a pessoa pode trocar em Configurações. */
+html.reduzir-movimento *,
+html.reduzir-movimento *::before,
+html.reduzir-movimento *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

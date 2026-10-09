@@ -73,3 +73,18 @@ describe("Sidebar — logout", () => {
     expect(screen.getByRole("link", { name: "Agenda" })).toHaveClass("min-h-11");
   });
 });
+
+describe("Sidebar: Configurações", () => {
+  it("é um link para /configuracoes que fecha o menu", async () => {
+    const setAberto = jest.fn();
+    render(
+      <MemoryRouter>
+        <Sidebar aberto={true} setAberto={setAberto} />
+      </MemoryRouter>
+    );
+    const link = screen.getByRole("link", { name: "Configurações" });
+    expect(link).toHaveAttribute("href", "/configuracoes");
+    await userEvent.setup().click(link);
+    expect(setAberto).toHaveBeenCalledWith(false);
+  });
+});
