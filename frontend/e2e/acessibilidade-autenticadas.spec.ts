@@ -9,7 +9,7 @@ import { PERFIS, criarContaELogar, exigirBancoLocal, vincular, type Conta } from
 // RotaComVinculo (decisão D1) leva as telas de dados para /familia ou /cuidadores.
 // Contas novas não têm registro: as telas aparecem vazias (estados com dado ficam no jest-axe).
 // Rodar: npm run test:a11y
-const ROTAS_PROTEGIDAS = ["/Home", "/perfil", "/familia", "/cuidadores", "/saude", "/remedios", "/agenda", "/alimentacao", "/orientacoes"];
+const ROTAS_PROTEGIDAS = ["/Home", "/perfil", "/familia", "/cuidadores", "/saude", "/remedios", "/agenda", "/alimentacao", "/orientacoes", "/avisos", "/configuracoes"];
 
 // Tabela D2: cuidador não tem Família no menu.
 const rotasDo = (tipoPerfil: string) => ROTAS_PROTEGIDAS.filter((r) => !(tipoPerfil === "cuidador" && r === "/familia"));
