@@ -3,7 +3,8 @@ import { UserPlus } from "lucide-react";
 type CabecalhoVinculosProps = {
   titulo: string;
   descricao: string;
-  onAdicionar: () => void;
+  // Sem função, o botão não aparece (perfil que não pode adicionar ninguém).
+  onAdicionar?: () => void;
 };
 
 export default function CabecalhoVinculos({
@@ -24,20 +25,22 @@ export default function CabecalhoVinculos({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onAdicionar}
-          className="
-            flex min-h-12 items-center justify-center gap-2
-            rounded-xl bg-[#5F56EC] px-5 py-3
-            text-lg font-semibold text-white
-            transition hover:bg-[#5B53E8]
-            focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40
-          "
-        >
-          <UserPlus size={22} aria-hidden="true" />
-          Adicionar pessoa
-        </button>
+        {onAdicionar && (
+          <button
+            type="button"
+            onClick={onAdicionar}
+            className="
+              flex min-h-12 items-center justify-center gap-2
+              rounded-xl bg-[#5F56EC] px-5 py-3
+              text-lg font-semibold text-white
+              transition hover:bg-[#5B53E8]
+              focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40
+            "
+          >
+            <UserPlus size={22} aria-hidden="true" />
+            Adicionar pessoa
+          </button>
+        )}
       </div>
     </header>
   );
