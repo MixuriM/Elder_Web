@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { chamarApi } from '../lib/chamarApi'
+import { idososAprovados } from '../lib/regrasIdosoVinculado'
 import { buscarPerfil } from '../services/perfilService'
 
 export type IdosoVinculado = {
@@ -18,7 +19,7 @@ export type IdososVinculados = Busca & {
   bloqueado: boolean
 }
 
-type VinculoApi = {
+export type VinculoApi = {
   status: string
   idoso: { id: number | null; nome: string | null; email_mascarado: string | null }
 }
@@ -30,17 +31,7 @@ async function buscar(): Promise<Busca> {
 
   const corpo = await chamarApi('/vinculo?status=aprovado', { method: 'GET' })
 
-  // Familiar titular recebe também vínculos de outras pessoas com o mesmo idoso: um item por idoso.
-  // idoso.id null = idoso oculto pelo backend, não dá para selecionar.
-  const porId = new Map<number, IdosoVinculado>()
-  for (const v of corpo.vinculos as VinculoApi[]) {
-    const { id, nome, email_mascarado } = v.idoso
-    if (v.status === 'aprovado' && id !== null && nome !== null && !porId.has(id)) {
-      porId.set(id, { id, nome, email_mascarado })
-    }
-  }
-
-  return { ehIdoso: false, idosos: [...porId.values()], tipoPerfil: perfil.tipo_perfil }
+  return { ehIdoso: false, idosos: idososAprovados(corpo.vinculos), tipoPerfil: perfil.tipo_perfil }
 }
 
 // Só dedupa buscas simultâneas (vários seletores na mesma página). Zera ao terminar, então

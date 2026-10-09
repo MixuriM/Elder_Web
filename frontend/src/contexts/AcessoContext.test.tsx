@@ -22,11 +22,17 @@ function Mostra() {
   )
 }
 
+function Extra() {
+  const a = useAcesso()
+  return <output data-testid="extra">{[a.vinculos ? a.vinculos.length : 'nulo', a.modoDecisao].join('|')}</output>
+}
+
 async function renderizar() {
   render(
     <AcessoProvider>
       <Mostra />
       <Mostra />
+      <Extra />
     </AcessoProvider>,
   )
   // deixa as promessas resolverem
@@ -53,10 +59,26 @@ describe('AcessoProvider', () => {
     expect(screen.getByTestId('acesso')).toHaveTextContent('carregando')
   })
 
-  it('idoso: ok, sem buscar vínculos', async () => {
-    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'idoso' })
+  it('idoso: ok, e busca os vínculos uma vez (pedidos para responder nos avisos)', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'idoso', modo_decisao: null })
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo('pendente', 'dono')] })
     expect(await renderizar()).toBe('ok|idoso|false|false')
-    expect(mockChamarApi).not.toHaveBeenCalled()
+    expect(mockChamarApi).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByTestId('extra')[0]).toHaveTextContent('1|idoso')
+  })
+
+  it('idoso: falha nos vínculos não vira erro (idoso nunca é bloqueado); vínculos ficam desconhecidos', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'idoso', modo_decisao: 'familiar' })
+    mockChamarApi.mockRejectedValue(new Error('500'))
+    expect(await renderizar()).toBe('ok|idoso|false|false')
+    expect(screen.getAllByTestId('extra')[0]).toHaveTextContent('nulo|familiar')
+  })
+
+  it('cuidador: expõe a lista de vínculos já buscada', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo('aprovado'), vinculo('pendente')] })
+    await renderizar()
+    expect(screen.getAllByTestId('extra')[0]).toHaveTextContent('2|idoso')
   })
 
   it('busca perfil e vínculos uma única vez, mesmo com 2 consumidores', async () => {

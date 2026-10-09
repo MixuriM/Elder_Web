@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom'
 import Home from '../../pages/Home'
 import { AcessoContext, type Acesso } from '../../contexts/useAcesso'
 
+// O resumo do dia da Home busca dados; aqui só importa o cartão, então a busca nunca responde.
+jest.mock('../../lib/chamarApi', () => ({ chamarApi: jest.fn(() => new Promise(() => {})) }))
+
 function renderizarHome(parcial: Partial<Acesso>) {
   const acesso: Acesso = {
     tipoPerfil: null,
