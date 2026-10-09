@@ -7,9 +7,8 @@ de saúde e rotina diária. TCC do Curso Técnico em Desenvolvimento de Sistemas
 
 **Importante:** o projeto não é feito para nem será implantado no Lar São
 Vicente de Paulo. Essa instituição foi entrevistada apenas como fonte de
-dados/levantamento de requisitos para embasar o TCC — não há relação de
-cliente ou deploy com ela. Trate qualquer menção a ela nos documentos como
-contexto de pesquisa, não como especificação de destino do produto.
+dados/levantamento de requisitos para embasar o TCC, sem relação de cliente ou
+deploy. Menções a ela nos documentos são contexto de pesquisa, não destino do produto.
 
 **Fonte de verdade do escopo de funcionalidades: o plano de desenvolvimento
 atualizado, não o PDF do TCC.** O PDF ainda descreve um app mobile com Alexa,
@@ -17,10 +16,8 @@ mensagens e loja — tudo isso foi removido. Se houver conflito entre o PDF e o
 que está descrito abaixo, o que está abaixo vence.
 
 **Fonte de verdade do modelo de dados (ER): `Elder Web - Modelagem ER.md`, não a
-seção 2.5.2 do PDF do TCC.** O ER.md está mais atualizado que o PDF neste
-momento — é uma inversão temporária, o PDF será sincronizado com esse modelo
-em breve. Até lá, trate o ER.md como a referência canônica de trabalho para
-entidades, atributos e relacionamentos.
+seção 2.5.2 do PDF do TCC.** Inversão temporária: o PDF será sincronizado com o
+ER.md, que até lá é a referência canônica de entidades, atributos e relacionamentos.
 
 **Caminhos locais (máquina do Marcos) dos documentos-fonte, fora deste repo —
 cofre Obsidian:**
@@ -398,10 +395,12 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   substituído): limpam por sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo
   `verify-dose-`, `verify-hist-`, `verify-pdf-` ou `verify-emerg-` marca conta residual se o processo morrer no meio.
 - Emergência (RF novo, número a definir pelo grupo): `POST /emergencia/avisar` (só idoso; 403 nos outros) manda
-  e-mail aos vínculos aprovados com e-mail via `lib/enviarEmail.ts` (único ponto do provedor, API HTTPS: o Render free
-  bloqueia SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Limite em
-  memória por idoso (1 a cada 2 min, 5 por hora), zera ao reiniciar o servidor. Resposta só com contagens. Frontend:
-  `BotaoAjuda` no `Header`, só idoso. Remetente gmail não é entregue; provedor definitivo em aberto.
+  e-mail aos vínculos aprovados com e-mail verificado no Firebase (`auth.getUsers`, mesmo e-mail do cadastro; erro do
+  Firebase: 503, ninguém recebe) via `lib/enviarEmail.ts` (único ponto do provedor, API HTTPS: Render free bloqueia
+  SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Limite em memória por
+  idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso. Resposta só com contagens
+  (`nao_confirmados` inclusive). `BotaoAjuda` no `Header` só para idoso; perfil com mais de 3 s ou falha: só o link
+  "Ligar 192". Remetente gmail não é entregue; provedor definitivo em aberto.
 
 ## Histórico de implementação
 O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
