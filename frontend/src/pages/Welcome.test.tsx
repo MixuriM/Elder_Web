@@ -36,4 +36,18 @@ describe("Welcome — pós-cadastro", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText(/cadastro realizado/i)).not.toBeInTheDocument();
   });
+
+  it("falha ao enviar a confirmação (cuidador ou familiar): avisa e aponta Meu Perfil", () => {
+    renderWelcome({ cadastroSucesso: true, confirmarEmail: false, confirmacaoFalhou: true, reenviarNoPerfil: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /^Não conseguimos enviar o e-mail de confirmação agora\. Você pode pedir de novo em Meu Perfil\.$/
+    );
+  });
+
+  it("falha ao enviar a confirmação (idoso): avisa, sem apontar o Perfil", () => {
+    renderWelcome({ cadastroSucesso: true, confirmarEmail: false, confirmacaoFalhou: true, reenviarNoPerfil: false });
+
+    expect(screen.getByRole("status")).toHaveTextContent(/^Não conseguimos enviar o e-mail de confirmação agora\.$/);
+  });
 });

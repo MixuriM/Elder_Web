@@ -19,6 +19,9 @@ function Welcome() {
   const estado = location.state as {
     cadastroSucesso?: boolean;
     confirmarEmail?: boolean;
+    // O envio do e-mail de confirmação falhou (o cadastro seguiu); cuidador e familiar podem pedir de novo no Perfil.
+    confirmacaoFalhou?: boolean;
+    reenviarNoPerfil?: boolean;
   } | null;
 
   const [mostrarSucesso, setMostrarSucesso] = useState(
@@ -27,6 +30,14 @@ function Welcome() {
 
   const [avisoConfirmarEmail] = useState(
     Boolean(estado?.confirmarEmail)
+  );
+
+  const [avisoFalhaConfirmacao] = useState(
+    estado?.confirmacaoFalhou
+      ? `Não conseguimos enviar o e-mail de confirmação agora.${
+          estado.reenviarNoPerfil ? " Você pode pedir de novo em Meu Perfil." : ""
+        }`
+      : null
   );
 
   // =========================================================
@@ -148,7 +159,7 @@ function Welcome() {
           AVISO DE CONFIRMAÇÃO DE E-MAIL
       ====================================================== */}
 
-      {avisoConfirmarEmail && (
+      {(avisoConfirmarEmail || avisoFalhaConfirmacao) && (
         <p
           role="status"
           className="
@@ -186,9 +197,8 @@ function Welcome() {
             dark:text-[#F5F5FA]
           "
         >
-          Enviamos um e-mail de confirmação para você. Abra a
-          mensagem e clique no link para concluir o cadastro e
-          ativar seus vínculos.
+          {avisoFalhaConfirmacao ??
+            "Enviamos um e-mail de confirmação para você. Abra a mensagem e clique no link para concluir o cadastro e ativar seus vínculos."}
         </p>
       )}
 

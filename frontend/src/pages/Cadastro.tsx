@@ -58,6 +58,19 @@ function Cadastro() {
   // CADASTRO COM E-MAIL E SENHA
   // =========================================================
 
+  // Pede o e-mail de confirmação. Se falhar, o cadastro segue e a Welcome avisa (sem logar o erro, que
+  // pode trazer o e-mail). Cuidador e familiar podem pedir de novo em Meu Perfil.
+  async function pedirConfirmacao(perfil: TipoPerfil) {
+    try {
+      return { enviado: await sendEmailVerification(), falha: {} };
+    } catch {
+      return {
+        enviado: false,
+        falha: { confirmacaoFalhou: true, reenviarNoPerfil: perfil !== "idoso" },
+      };
+    }
+  }
+
   async function handleSubmit(
     e: FormEvent
   ) {
@@ -87,16 +100,8 @@ function Cadastro() {
         senha
       );
 
-      let emailEnviado = false;
-
-      // Envia confirmação de e-mail
-      if (
-        tipoPerfil === "familiar" ||
-        tipoPerfil === "idoso"
-      ) {
-        emailEnviado =
-          await sendEmailVerification();
-      }
+      // Confirmação de e-mail para os 3 perfis (o aviso de emergência só vai para e-mail confirmado)
+      const confirmacao = await pedirConfirmacao(tipoPerfil);
 
       // Sincroniza os dados adicionais
       await syncUser({
@@ -113,7 +118,8 @@ function Cadastro() {
       navigate("/welcome", {
         state: {
           cadastroSucesso: true,
-          confirmarEmail: emailEnviado,
+          confirmarEmail: confirmacao.enviado,
+          ...confirmacao.falha,
         },
       });
     } catch (err) {
@@ -148,13 +154,8 @@ function Cadastro() {
       // Login/cadastro com Google
       await loginWithGoogle();
 
-      // Confirmação de e-mail
-      if (
-        tipoPerfil === "familiar" ||
-        tipoPerfil === "idoso"
-      ) {
-        await sendEmailVerification();
-      }
+      // Confirmação de e-mail (conta Google já chega confirmada: vira no-op)
+      const confirmacao = await pedirConfirmacao(tipoPerfil);
 
       // Sincroniza o perfil escolhido
       await syncUser({
@@ -170,6 +171,7 @@ function Cadastro() {
       navigate("/welcome", {
         state: {
           cadastroSucesso: true,
+          ...confirmacao.falha,
         },
       });
     } catch (err) {
