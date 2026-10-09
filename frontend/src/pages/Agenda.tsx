@@ -1,12 +1,16 @@
 import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
-import { CalendarDays, Clock3, HeartPulse, UsersRound } from 'lucide-react'
+import { CalendarDays, HeartPulse, UsersRound } from 'lucide-react'
 import { useIdososVinculados } from '../hooks/useIdososVinculados'
 import { chamarApi } from '../lib/chamarApi'
 import SeletorIdoso from '../components/common/SeletorIdoso'
 import { envioBloqueado, ocultarSecaoDeTerceiros } from '../lib/regrasIdosoVinculado'
 import Spinner from '../components/common/Spinner'
 import { getCurrentUserToken } from '../lib/auth'
-import { agruparEventosPorDia, formatarIntervalo, rotuloTipo, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
+import { agruparEventosPorDia, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
+import { lerVisaoAgenda, salvarVisaoAgenda, type VisaoAgenda } from '../lib/preferencias'
+import Alternador from '../components/Agenda/Alternador'
+import Calendario from '../components/Agenda/Calendario'
+import CartaoCompromisso from '../components/Agenda/CartaoCompromisso'
 import { useTitulo } from '../hooks/useTitulo'
 import { useAcesso } from '../contexts/useAcesso'
 
@@ -189,18 +193,8 @@ function DiaDaAgenda({ grupo }: { grupo: GrupoDia }) {
       </h3>
       <ul className="space-y-3">
         {grupo.eventos.map((e) => (
-          <li key={e.id} className="rounded-2xl border border-[#E5E2F5] bg-[#FCFBFF] p-4 dark:border-[#393947] dark:bg-[#1D1D29] sm:p-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-[#F0EDFF] px-3 py-1 text-sm font-bold text-[#554CD8] dark:bg-[#29263D] dark:text-[#B6B0FF]">
-                {rotuloTipo(e.tipo_evento)}
-              </span>
-              <p className="flex items-center gap-2 text-base font-semibold text-[#56657D] dark:text-[#C7C7D1]">
-                <Clock3 size={18} aria-hidden="true" className="shrink-0 text-[#5F56EC] dark:text-[#A89FFF]" />
-                <time dateTime={e.data_hora_inicio}>{formatarIntervalo(e)}</time>
-              </p>
-            </div>
-            <p className="mt-3 text-lg font-bold text-[#071A38] dark:text-[#F5F5FA]">{e.titulo}</p>
-            {e.descricao && <p className="mt-1 text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1]">{e.descricao}</p>}
+          <li key={e.id}>
+            <CartaoCompromisso evento={e} />
           </li>
         ))}
       </ul>
@@ -208,12 +202,23 @@ function DiaDaAgenda({ grupo }: { grupo: GrupoDia }) {
   )
 }
 
+const VISOES = [
+  { valor: 'calendario', rotulo: 'Calendário' },
+  { valor: 'lista', rotulo: 'Lista' },
+] as const
+
 function VerAgenda() {
   const idosos = useIdososVinculados()
   const [idosoId, setIdosoId] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [grupos, setGrupos] = useState<GrupoDia[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [visao, setVisao] = useState<VisaoAgenda>(() => lerVisaoAgenda().visao)
+
+  function mudarVisao(v: VisaoAgenda) {
+    setVisao(v)
+    salvarVisaoAgenda('agendaVisao', v)
+  }
 
   async function handleVer(e: FormEvent) {
     e.preventDefault()
@@ -253,9 +258,12 @@ function VerAgenda() {
         </div>
       </div>
       <form onSubmit={handleVer} className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="sm:min-w-80">
-          <SeletorIdoso id="idoso_id_ver_agenda" valor={idosoId} aoMudar={setIdosoId} lista={idosos} />
-        </div>
+        {/* Perfil idoso não tem seletor: sem a caixa vazia, que empurrava o botão para o meio. */}
+        {!idosos.ehIdoso && (
+          <div className="sm:min-w-80">
+            <SeletorIdoso id="idoso_id_ver_agenda" valor={idosoId} aoMudar={setIdosoId} lista={idosos} />
+          </div>
+        )}
         <button
           type="submit"
           disabled={carregando || envioBloqueado(idosos, idosoId)}
@@ -278,7 +286,17 @@ function VerAgenda() {
             : `${grupos.reduce((n, g) => n + g.eventos.length, 0)} compromisso(s) encontrado(s).`}
         </p>
       )}
-      {(proximos.length > 0 || passados.length > 0) && (
+      {grupos && (
+        <div className="mt-5">
+          <Alternador legenda="Ver como:" nome="visao_agenda" opcoes={VISOES} valor={visao} aoMudar={mudarVisao} />
+        </div>
+      )}
+      {grupos && visao === 'calendario' && (
+        <div className="mt-6">
+          <Calendario grupos={grupos} />
+        </div>
+      )}
+      {visao === 'lista' && (proximos.length > 0 || passados.length > 0) && (
         <div className="mt-6 space-y-6">
           {passados.length > 0 && (
             <details className="space-y-4 rounded-2xl border border-[#E5E2F5] bg-[#FCFBFF] p-4 dark:border-[#393947] dark:bg-[#1D1D29] sm:p-5">
@@ -316,10 +334,13 @@ export default function Agenda() {
           </p>
         </header>
         <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+          {/* Ver a agenda vem primeiro e ocupa a largura toda: o calendário precisa de espaço. */}
+          <div className="min-w-0 xl:col-span-2">
+            <VerAgenda />
+          </div>
           <CriarCompromisso titulo="Criar compromisso" modo="idoso" />
           <CriarCompromisso titulo="Criar compromisso para um idoso vinculado" modo="familiar" />
           <CriarCompromisso titulo="Criar compromisso de cuidado" modo="cuidador" />
-          <VerAgenda />
         </div>
       </div>
     </div>

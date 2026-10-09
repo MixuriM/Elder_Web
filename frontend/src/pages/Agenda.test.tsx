@@ -665,3 +665,59 @@ describe("Agenda: seletor de idoso", () => {
     expect(screen.getByRole("heading", { name: "Ver agenda" })).toBeInTheDocument();
   });
 });
+
+describe("Agenda: ver como Calendário ou Lista", () => {
+  function telaLarga(larga: boolean) {
+    window.matchMedia = ((q: string) => ({ matches: q.includes("min-width") ? larga : false })) as unknown as typeof window.matchMedia;
+  }
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    jest.useRealTimers();
+    delete (window as { matchMedia?: unknown }).matchMedia;
+  });
+
+  async function carregar(larga: boolean) {
+    relogioFalso();
+    telaLarga(larga);
+    mockUseIdosos.mockReturnValue(listaPerfilIdoso);
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: EVENTOS_API }));
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderAgenda();
+    expect(screen.queryByRole("radio", { name: "Calendário" })).not.toBeInTheDocument(); // só depois de carregar
+    await user.click(verAgenda().botao);
+    await screen.findByRole("status");
+    return user;
+  }
+
+  it("tela larga abre no Calendário, no mês de hoje, com os compromissos buscados", async () => {
+    await carregar(true);
+    expect(screen.getByRole("radio", { name: "Calendário" })).toBeChecked();
+    expect(screen.getByRole("grid", { name: "Outubro de 2026" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^5 de outubro, hoje, 2 compromissos/ })).toBeInTheDocument();
+    expect(within(verAgenda().regiao).getByText("titulo-falso-2")).toBeInTheDocument(); // painel do dia de hoje
+  });
+
+  it("tela estreita abre na Lista intacta; trocar para Calendário fica guardado", async () => {
+    const user = await carregar(false);
+    expect(screen.getByRole("radio", { name: "Lista" })).toBeChecked();
+    expect(screen.queryByRole("grid")).not.toBeInTheDocument();
+    expect(screen.getByText("Compromissos anteriores")).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Calendário" }));
+    expect(screen.getByRole("grid")).toBeInTheDocument();
+    expect(screen.queryByText("Compromissos anteriores")).not.toBeInTheDocument();
+    expect(localStorage.getItem("agendaVisao")).toBe("calendario");
+  });
+
+  it("cuidador ou familiar: o calendário mostra a agenda do idoso escolhido", async () => {
+    relogioFalso();
+    telaLarga(true);
+    mockUseIdosos.mockReturnValue(listaDoisIdosos7);
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: EVENTOS_API }));
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderAgenda();
+    await user.selectOptions(verAgenda().campo as HTMLElement, "9");
+    await user.click(verAgenda().botao);
+    expect(await screen.findByRole("button", { name: /^8 de outubro, 1 compromisso: 1 cuidado$/ })).toBeInTheDocument();
+    expect(String((global.fetch as jest.Mock).mock.calls[0][0])).toMatch(/\/agenda\/idoso\/9$/);
+  });
+});
