@@ -79,7 +79,7 @@ export default function CardVinculo({ vinculo }: CardVinculoProps) {
           className="
             flex h-14 w-14 shrink-0 items-center justify-center
             rounded-full bg-[#F3F0FF]
-            text-[#5F56EC]
+            text-[#5F56EC] dark:text-[#A89FFF]
             dark:bg-[#242A4A]
           "
         >
@@ -87,7 +87,7 @@ export default function CardVinculo({ vinculo }: CardVinculoProps) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-xl font-bold text-[#071A38] dark:text-white">
+          <h2 className="break-words text-xl font-bold text-[#071A38] dark:text-white">
             {nome}
           </h2>
 
@@ -128,14 +128,12 @@ export default function CardVinculo({ vinculo }: CardVinculoProps) {
 
       <Link
         to={`/vinculos/${vinculo.id}`}
-        target="_blank"
-        rel="noreferrer"
-        aria-label={`Ver detalhes de ${nome} (abre em nova aba)`}
+        aria-label={`Ver detalhes de ${nome}`}
         className="
           mt-5 flex min-h-11 w-full
           items-center justify-between
           rounded-xl bg-[#F3F0FF] px-4
-          font-semibold text-[#5F56EC]
+          font-semibold text-[#5F56EC] dark:text-[#A89FFF]
           transition hover:bg-[#E8E3FF]
           dark:bg-[#242A4A]
         "

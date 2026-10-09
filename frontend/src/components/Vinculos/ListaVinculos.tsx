@@ -55,7 +55,7 @@ export default function ListaVinculos({
         Pessoas vinculadas
       </h2>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {vinculos.map((vinculo) => (
           <CardVinculo
             key={vinculo.id}

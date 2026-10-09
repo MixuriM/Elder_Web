@@ -54,3 +54,14 @@ export function formatarDataBR(data: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return "";
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
 }
+
+const TEXTO_ORIGEM: Record<string, string> = {
+  solicitacao_cuidador: "Pedido do cuidador",
+  solicitacao_familiar: "Pedido do familiar",
+  convite_idoso: "Convite do idoso",
+  cadastro_familiar: "Cadastro feito pelo familiar",
+};
+
+export function textoOrigem(origem: string): string {
+  return TEXTO_ORIGEM[origem] ?? "Não informado";
+}
