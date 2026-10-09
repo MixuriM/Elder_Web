@@ -3,7 +3,9 @@
     import { ChevronRight, UserRound } from "lucide-react";
     import { Link } from "react-router-dom";
 
+import AvisoEmailPendente from "./AvisoEmailPendente";
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
+import { emailNaoConfirmado } from "./regrasVinculo";
 
 export type Vinculo = {
   id: number;
@@ -14,6 +16,12 @@ export type Vinculo = {
   data_resposta: string | null;
   confirmado_em: string | null;
   papel_do_chamador: string;
+  // Só em vínculo de cuidador aprovado; fora disso o backend devolve null.
+  permissoes?: {
+    permite_registrar_saude: boolean;
+    permite_marcar_dose: boolean;
+    permite_criar_evento_cuidado: boolean;
+  } | null;
 
   idoso: {
     id: number | null;
@@ -98,6 +106,12 @@ export default function CardVinculo({ vinculo }: CardVinculoProps) {
               : "Recusado"}
         </span>
       </div>
+
+      {emailNaoConfirmado(vinculo) && (
+        <div className="mt-4">
+          <AvisoEmailPendente />
+        </div>
+      )}
 
       <Link
         to={`/vinculos/${vinculo.id}`}
