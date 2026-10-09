@@ -20,7 +20,7 @@ const funcionalidades: Funcionalidade[] = [
   {
     titulo: "Medicamentos",
     descricao:
-      "Acompanhe horários, doses e lembretes de medicamentos.",
+      "Cadastre os medicamentos e registre cada dose tomada.",
     Icone: Pill,
   },
   {
@@ -36,9 +36,9 @@ const funcionalidades: Funcionalidade[] = [
     Icone: HeartPulse,
   },
   {
-    titulo: "Alertas",
+    titulo: "Avisos",
     descricao:
-      "Receba lembretes sobre medicamentos, consultas e eventos.",
+      "Veja avisos dentro do site sobre pedidos de vínculo e compromissos.",
     Icone: Bell,
   },
   {

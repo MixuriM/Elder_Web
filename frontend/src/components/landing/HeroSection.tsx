@@ -35,8 +35,8 @@ const recursos = [
   },
   {
     Icone: Bell,
-    titulo: "Alertas importantes",
-    descricao: "Lembretes para ajudar na organização do dia a dia.",
+    titulo: "Avisos do dia",
+    descricao: "Avisos dentro do site sobre pedidos e compromissos.",
   },
 ];
 
