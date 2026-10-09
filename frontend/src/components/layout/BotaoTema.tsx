@@ -8,10 +8,19 @@ import {
   useState,
 } from "react";
 
+import {
+  aplicarPreferencias,
+  EVENTO_PREFERENCIAS,
+  lerPreferencias,
+  salvarPreferencia,
+} from "../../lib/preferencias";
+
 type BotaoTemaProps = {
   compacto?: boolean;
   responsivo?: boolean;
 };
+
+const escuroNaTela = () => document.documentElement.classList.contains("dark");
 
 function BotaoTema({
   compacto = false,
@@ -19,37 +28,18 @@ function BotaoTema({
 }: BotaoTemaProps) {
   const [escuro, setEscuro] = useState(false);
 
-  // Carrega o tema salvo
+  // Carrega o tema salvo e acompanha a troca feita em Configurações
   useEffect(() => {
-    const temaSalvo = localStorage.getItem("tema");
+    aplicarPreferencias(lerPreferencias());
+    setEscuro(escuroNaTela());
 
-    const temaEscuro =
-      temaSalvo === "escuro";
-
-    setEscuro(temaEscuro);
-
-    document.documentElement.classList.toggle(
-      "dark",
-      temaEscuro
-    );
+    const atualizar = () => setEscuro(escuroNaTela());
+    window.addEventListener(EVENTO_PREFERENCIAS, atualizar);
+    return () => window.removeEventListener(EVENTO_PREFERENCIAS, atualizar);
   }, []);
 
   function alterarTema() {
-    const novoTemaEscuro = !escuro;
-
-    setEscuro(novoTemaEscuro);
-
-    document.documentElement.classList.toggle(
-      "dark",
-      novoTemaEscuro
-    );
-
-    localStorage.setItem(
-      "tema",
-      novoTemaEscuro
-        ? "escuro"
-        : "claro"
-    );
+    salvarPreferencia("tema", escuro ? "claro" : "escuro");
   }
 
   return (

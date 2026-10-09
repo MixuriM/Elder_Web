@@ -24,6 +24,8 @@ const Agenda = lazy(() => import('./pages/Agenda').then(carregouChunk))
 const Alimentacao = lazy(() => import('./pages/Alimentacao').then(carregouChunk))
 const SobreNos = lazy(() => import('./pages/SobreNos').then(carregouChunk))
 const Orientacoes = lazy(() => import('./pages/Orientacoes').then(carregouChunk))
+const Avisos = lazy(() => import('./pages/Avisos').then(carregouChunk))
+const Configuracoes = lazy(() => import('./pages/Configuracoes').then(carregouChunk))
 
 function CarregandoPagina() {
   return (
@@ -80,6 +82,8 @@ function App() {
           <Route path="/alimentacao" element={<Alimentacao />} />
         </Route>
         <Route path="/orientacoes" element={<Orientacoes />} />
+        <Route path="/avisos" element={<Avisos />} />
+        <Route path="/configuracoes" element={<Configuracoes />} />
       </Route>
     </Routes>
     </Suspense>

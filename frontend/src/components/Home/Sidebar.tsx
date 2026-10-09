@@ -339,9 +339,10 @@ function Sidebar({
           "
         >
           {/* Configurações */}
-          <button
-            type="button"
-            className="
+          <NavLink
+            to="/configuracoes"
+            onClick={() => setAberto(false)}
+            className={({ isActive }) => `
               flex
               w-full
               min-h-11
@@ -355,23 +356,30 @@ function Sidebar({
               py-2.5
 
               text-sm
-              text-slate-600
 
               transition-colors
               duration-300
 
-              hover:bg-[#E7E1FF]
-              hover:text-[#554CD8]
+              ${
+                isActive
+                  ? "bg-[#5F56EC] font-semibold text-white"
+                  : `
+                    text-slate-600
 
-              dark:text-[#C7C7D1]
-              dark:hover:bg-[#2B2C3B]
-              dark:hover:text-[#A89FFF]
-            "
+                    hover:bg-[#E7E1FF]
+                    hover:text-[#554CD8]
+
+                    dark:text-[#C7C7D1]
+                    dark:hover:bg-[#2B2C3B]
+                    dark:hover:text-[#A89FFF]
+                  `
+              }
+            `}
           >
-            <Settings size={17} />
+            <Settings size={17} aria-hidden="true" />
 
             <span>Configurações</span>
-          </button>
+          </NavLink>
 
           {/* Sair */}
           <button
