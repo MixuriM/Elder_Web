@@ -19,7 +19,13 @@ function casa(l: Linha, where: Linha = {}) {
 }
 
 const verifyIdToken = jest.fn();
-jest.mock("../lib/firebaseAdmin", () => ({ auth: { verifyIdToken: (...a: unknown[]) => verifyIdToken(...a) } }));
+const getUsers = jest.fn();
+jest.mock("../lib/firebaseAdmin", () => ({
+  auth: {
+    verifyIdToken: (...a: unknown[]) => verifyIdToken(...a),
+    getUsers: (...a: unknown[]) => getUsers(...a),
+  },
+}));
 jest.mock("../lib/prisma", () => ({
   prisma: {
     usuario: {
@@ -77,6 +83,14 @@ beforeEach(() => {
   process.env.EMAIL_API_KEY = "chave-fake-de-teste";
   process.env.EMAIL_REMETENTE_ENDERECO = "avisos@exemplo.test";
   verifyIdToken.mockReset().mockImplementation(async (t: string) => ({ uid: `uid-${t.slice(1)}` }));
+  // Firebase: cada Usuario fake tem uma conta com o mesmo e-mail; verificado salvo se marcado como não verificado.
+  getUsers.mockReset().mockImplementation(async (ids: { uid: string }[]) => ({
+    users: ids.flatMap(({ uid }) => {
+      const u = usuarios.find((x) => x.firebase_uid === uid);
+      return u ? [{ uid, email: u.emailFirebase ?? u.email, emailVerified: u.verificado !== false }] : [];
+    }),
+    notFound: [],
+  }));
   fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 201 }));
   logs = (["log", "info", "warn", "error"] as const).map((m) => jest.spyOn(console, m).mockImplementation(() => {}));
   usuarios = [
@@ -127,7 +141,7 @@ describe("POST /emergencia/avisar: destinatários", () => {
   it("0 vínculos: 200 com mensagem fixa e nenhum envio", async () => {
     const res = await avisar();
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ avisados: 0, falharam: 0, mensagem: "Nenhuma pessoa vinculada para avisar." });
+    expect(res.body).toEqual({ avisados: 0, falharam: 0, nao_confirmados: 0, mensagem: "Nenhuma pessoa vinculada para avisar." });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -135,7 +149,7 @@ describe("POST /emergencia/avisar: destinatários", () => {
     vinculos = [vinculo(FAMILIAR, "familiar")];
     const res = await avisar();
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ avisados: 1, falharam: 0, mensagem: "Aviso enviado." });
+    expect(res.body).toEqual({ avisados: 1, falharam: 0, nao_confirmados: 0, mensagem: "Aviso enviado." });
     expect(destinatarios()).toEqual([[{ email: email(FAMILIAR) }]]);
   });
 
@@ -153,7 +167,7 @@ describe("POST /emergencia/avisar: destinatários", () => {
     ];
     const res = await avisar();
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ avisados: 3, falharam: 0, mensagem: "Aviso enviado." });
+    expect(res.body).toEqual({ avisados: 3, falharam: 0, nao_confirmados: 0, mensagem: "Aviso enviado." });
     // Um e-mail por pessoa: ninguém vê o endereço de outra.
     expect(destinatarios().sort()).toEqual(
       [[{ email: email(CUIDADOR) }], [{ email: email(FAMILIAR) }], [{ email: email(FAMILIAR_2) }]].sort(),
@@ -196,7 +210,7 @@ describe("POST /emergencia/avisar: falhas", () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
     const res = await avisar();
     expect(res.status).toBe(502);
-    expect(res.body).toEqual({ avisados: 0, falharam: 2, error: "Não foi possível avisar. Ligue 192." });
+    expect(res.body).toEqual({ avisados: 0, falharam: 2, nao_confirmados: 0, error: "Não foi possível avisar. Ligue 192." });
   });
 
   it("falha parcial: 200 com quantos foram avisados e quantos falharam", async () => {
@@ -206,7 +220,7 @@ describe("POST /emergencia/avisar: falhas", () => {
       .mockRejectedValueOnce(new TypeError("fetch failed"));
     const res = await avisar();
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ avisados: 1, falharam: 1, mensagem: "Aviso enviado." });
+    expect(res.body).toEqual({ avisados: 1, falharam: 1, nao_confirmados: 0, mensagem: "Aviso enviado." });
   });
 
   it("resposta e log nunca têm e-mail nem o texto do aviso; o log tem id, contagens e código", async () => {
@@ -262,7 +276,11 @@ describe("POST /emergencia/avisar: limite de uso (em memória)", () => {
     expect((await avisar(OUTRO_IDOSO)).status).toBe(200);
   });
 
-  it("dois pedidos ao mesmo tempo: só um envia", async () => {
+  it("dois pedidos ao mesmo tempo: só um envia (o envio em curso bloqueia o segundo)", async () => {
+    // Provedor lento: o segundo pedido chega enquanto o primeiro ainda está enviando.
+    fetchMock.mockImplementation(
+      () => new Promise((ok) => setTimeout(() => ok(new Response(null, { status: 201 })), 200)),
+    );
     const [a, b] = await Promise.all([avisar(), avisar()]);
     expect([a.status, b.status].sort()).toEqual([200, 429]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -276,5 +294,80 @@ describe("POST /emergencia/avisar: limite de uso (em memória)", () => {
     await avisar();
     process.env.EMAIL_API_KEY = "chave-fake-de-teste";
     expect((await avisar()).status).toBe(200);
+  });
+});
+
+describe("POST /emergencia/avisar: só e-mail verificado recebe", () => {
+  it("uma chamada só ao Firebase, com os uids dos vinculados", async () => {
+    vinculos = [vinculo(CUIDADOR, "cuidador"), vinculo(FAMILIAR, "familiar")];
+    await avisar();
+    expect(getUsers).toHaveBeenCalledTimes(1);
+    expect(getUsers.mock.calls[0][0]).toEqual(
+      expect.arrayContaining([{ uid: `uid-${CUIDADOR}` }, { uid: `uid-${FAMILIAR}` }]),
+    );
+  });
+
+  it("e-mail não verificado não recebe e entra em nao_confirmados", async () => {
+    usuarios.find((u) => u.id === FAMILIAR)!.verificado = false;
+    vinculos = [vinculo(CUIDADOR, "cuidador"), vinculo(FAMILIAR, "familiar")];
+    const res = await avisar();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ avisados: 1, falharam: 0, nao_confirmados: 1, mensagem: "Aviso enviado." });
+    expect(destinatarios()).toEqual([[{ email: email(CUIDADOR) }]]);
+  });
+
+  it("conta Firebase com outro e-mail (trocado depois do cadastro) não conta como verificada", async () => {
+    usuarios.find((u) => u.id === FAMILIAR)!.emailFirebase = "outro@exemplo.test";
+    vinculos = [vinculo(FAMILIAR, "familiar")];
+    const res = await avisar();
+    expect(res.body.nao_confirmados).toBe(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("ninguém verificado: 200 sem envio, com a contagem, e não gasta o limite", async () => {
+    usuarios.forEach((u) => (u.verificado = false));
+    vinculos = [vinculo(CUIDADOR, "cuidador"), vinculo(FAMILIAR, "familiar")];
+    const res = await avisar();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      avisados: 0,
+      falharam: 0,
+      nao_confirmados: 2,
+      mensagem: "Ninguém com e-mail confirmado para avisar.",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    usuarios.forEach((u) => (u.verificado = true));
+    expect((await avisar()).status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("Firebase falha: falha fechada, 503 fixo, ninguém recebe e o log não tem e-mail", async () => {
+    getUsers.mockRejectedValue(Object.assign(new Error(`falhou ${email(FAMILIAR)}`), { code: "app/network-error" }));
+    vinculos = [vinculo(FAMILIAR, "familiar")];
+    const res = await avisar();
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: "Não foi possível avisar agora. Ligue 192." });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(textoLogs()).not.toContain("@");
+    expect(textoLogs()).toContain("VERIFICACAO_EMAIL");
+  });
+});
+
+describe("POST /emergencia/avisar: espera de 2 minutos só depois de um envio com sucesso", () => {
+  beforeEach(() => {
+    vinculos = [vinculo(FAMILIAR, "familiar")];
+  });
+
+  it("depois de falha total, pode tentar de novo na hora", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
+    expect((await avisar()).status).toBe(502);
+    expect((await avisar()).status).toBe(200);
+  });
+
+  it("o teto de 5 por hora conta toda tentativa, inclusive as que falharam", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
+    for (let i = 0; i < 5; i++) expect((await avisar()).status).toBe(502);
+    expect((await avisar()).status).toBe(429);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 });

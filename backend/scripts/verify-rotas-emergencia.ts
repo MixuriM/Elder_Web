@@ -3,7 +3,7 @@
 // "só vínculo aprovado do próprio idoso" no SQL Server de verdade.
 //
 // Trocados só nas bordas externas: auth.verifyIdToken devolve { uid: <token> } (o "token" é o firebase_uid da conta
-// de teste) e globalThis.fetch vira um fake que registra o destinatário e responde 201. Nenhum e-mail sai, nenhuma
+// de teste), auth.getUsers devolve todos verificados menos o uid marcado "naoverif", e globalThis.fetch vira um fake que registra o destinatário e responde 201. Nenhum e-mail sai, nenhuma
 // chamada ao Firebase, nenhuma chave real (EMAIL_API_KEY recebe um valor fake só neste processo).
 //
 // Limpeza: as rotas usam o prisma global, sem transação revertida. Contas e vínculos criados são apagados no finally
@@ -37,6 +37,10 @@ async function main() {
   const { prisma } = await import("../src/lib/prisma");
 
   (auth as unknown as { verifyIdToken: (t: string) => Promise<unknown> }).verifyIdToken = async (t) => ({ uid: t });
+  (auth as unknown as { getUsers: (ids: { uid: string }[]) => Promise<unknown> }).getUsers = async (ids) => ({
+    users: ids.map(({ uid }) => ({ uid, email: `${uid}@teste.local`, emailVerified: !uid.includes("naoverif") })),
+    notFound: [],
+  });
   const enviados: string[] = [];
   globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
     enviados.push(...(JSON.parse(String(init?.body)).to as { email: string }[]).map((d) => d.email));
@@ -47,8 +51,8 @@ async function main() {
   const usuarios: number[] = [];
   const contar = async () => [await prisma.usuario.count(), await prisma.vinculo.count()].join("/");
 
-  async function conta(perfil: "idoso" | "cuidador" | "familiar") {
-    const uid = `verify-emerg-${tag}-${perfil}-${randomUUID().slice(0, 6)}`;
+  async function conta(perfil: "idoso" | "cuidador" | "familiar", marca = "") {
+    const uid = `verify-emerg-${tag}-${perfil}${marca}-${randomUUID().slice(0, 6)}`;
     const u = await prisma.usuario.create({
       data: { firebase_uid: uid, nome: "Conta de Teste", email: `${uid}@teste.local`, tipo_perfil: perfil },
       select: { id: true, email: true },
@@ -78,11 +82,13 @@ async function main() {
     const pendente = await conta("cuidador");
     const recusado = await conta("familiar");
     const deOutro = await conta("familiar");
+    const naoVerificado = await conta("familiar", "naoverif");
     await vincular(idoso.id, cuidador.id, "cuidador", "aprovado");
     await vincular(idoso.id, familiar.id, "familiar", "aprovado");
     await vincular(idoso.id, pendente.id, "cuidador", "pendente");
     await vincular(idoso.id, recusado.id, "familiar", "recusado");
     await vincular(outroIdoso.id, deOutro.id, "familiar", "aprovado");
+    await vincular(idoso.id, naoVerificado.id, "familiar", "aprovado");
     const antes = await contar();
 
     const rCuidador = await avisar(cuidador.token);
@@ -90,7 +96,7 @@ async function main() {
     ok("cuidador e familiar = 403, nada enviado", rCuidador.status === 403 && rFamiliar.status === 403 && enviados.length === 0, `${rCuidador.status}/${rFamiliar.status}`);
 
     const r = await avisar(idoso.token);
-    ok("idoso = 200, avisados 2, falharam 0", r.status === 200 && r.body.avisados === 2 && r.body.falharam === 0, `status ${r.status}`);
+    ok("idoso = 200, avisados 2, falharam 0, nao_confirmados 1", r.status === 200 && r.body.avisados === 2 && r.body.falharam === 0 && r.body.nao_confirmados === 1, `status ${r.status}`);
     const esperados = [cuidador.email, familiar.email].sort();
     ok("só os 2 vínculos aprovados do próprio idoso receberam", JSON.stringify([...enviados].sort()) === JSON.stringify(esperados), `${enviados.length} envio(s)`);
     ok("resposta sem e-mail", !JSON.stringify(r.body).includes("@"), "");
