@@ -59,3 +59,20 @@ export function salvarPreferencia<K extends keyof Preferencias>(chave: K, valor:
   window.dispatchEvent(new Event(EVENTO_PREFERENCIAS))
   return guardou
 }
+
+// Agenda: "Ver como" (Calendário ou Lista) e, no calendário, Mês ou Dia. Sem escolha salva, Calendário em tela
+// larga (640 px ou mais) e Lista em tela estreita.
+export type VisaoAgenda = 'calendario' | 'lista'
+export type ModoCalendario = 'mes' | 'dia'
+
+export function lerVisaoAgenda(): { visao: VisaoAgenda; modo: ModoCalendario } {
+  const visao = ler('agendaVisao')
+  return {
+    visao: visao === 'calendario' || visao === 'lista' ? visao : midia('(min-width: 640px)') ? 'calendario' : 'lista',
+    modo: ler('agendaModo') === 'dia' ? 'dia' : 'mes',
+  }
+}
+
+export function salvarVisaoAgenda(chave: 'agendaVisao' | 'agendaModo', valor: VisaoAgenda | ModoCalendario) {
+  gravar(chave, valor)
+}
