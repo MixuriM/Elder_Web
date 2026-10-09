@@ -2,7 +2,9 @@ import {
   Bell,
   ChevronDown,
   Menu,
+  Phone,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
@@ -30,9 +32,19 @@ function Header({ abrirSidebar }: HeaderProps) {
   const { usuario } = useAuthUser();
   const { fotoPerfilUrl, carregandoFoto } = useFotoPerfil();
   // Perfil buscado uma vez pelo AcessoProvider; até ele chegar, o nome da sessão do Firebase.
-  const { nome: nomeAcesso, tipoPerfil } = useAcesso();
+  const { nome: nomeAcesso, tipoPerfil, estado } = useAcesso();
   const nome = nomeAcesso || usuario?.displayName || usuario?.email || "";
   const totalAvisos = useAvisos().avisos.length;
+  const [demorou, setDemorou] = useState(false);
+
+  useEffect(() => {
+    if (estado !== "carregando") return;
+    const timer = setTimeout(() => setDemorou(true), 3_000);
+    return () => clearTimeout(timer);
+  }, [estado]);
+
+  // Perfil desconhecido (passou de 3 s carregando ou falhou): só o atalho do 192, para qualquer usuário autenticado.
+  const so192 = tipoPerfil === null && (estado === "erro" || (estado === "carregando" && demorou));
 
   return (
     <header
@@ -104,6 +116,15 @@ function Header({ abrirSidebar }: HeaderProps) {
       <div className="flex shrink-0 items-center gap-2">
         {/* Só o idoso. Perfil ainda carregando ou com erro: não aparece (o backend também recusa os outros). */}
         {tipoPerfil === "idoso" && <BotaoAjuda />}
+        {so192 && (
+          <a
+            href="tel:192"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#B42318] px-3 text-sm font-bold text-white transition-colors hover:bg-[#912018] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#5F56EC] focus-visible:ring-offset-2 dark:bg-[#D92D20] dark:hover:bg-[#B42318] dark:focus-visible:ring-[#A89FFF] dark:focus-visible:ring-offset-[#181824] sm:px-4 sm:text-base"
+          >
+            <Phone size={18} aria-hidden="true" className="shrink-0" />
+            Ligar 192
+          </a>
+        )}
 
         {/* Avisos: a contagem vai no nome acessível; o número visível é só reforço. */}
         <Link

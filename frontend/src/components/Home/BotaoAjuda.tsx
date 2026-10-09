@@ -7,6 +7,12 @@ import { avisarEmergencia, type ResultadoAviso } from "../../services/emergencia
 
 type Estado = { tipo: "inicial" } | { tipo: "enviando" } | ResultadoAviso;
 
+function semConfirmacao(n: number): string {
+  return n === 1
+    ? "1 pessoa não recebeu porque ainda não confirmou o e-mail. Ligue para ela."
+    : `${n} pessoas não receberam porque ainda não confirmaram o e-mail. Ligue para elas.`;
+}
+
 // Textos fixos por resultado: nunca o texto que veio do servidor. Toda falha termina em "Ligue 192".
 function mensagem(estado: Estado): string {
   switch (estado.tipo) {
@@ -14,8 +20,12 @@ function mensagem(estado: Estado): string {
       return "";
     case "enviando":
       return "Enviando o aviso...";
-    case "enviado":
-      return `Avisamos ${estado.avisados} de ${estado.total} ${estado.total === 1 ? "pessoa" : "pessoas"}.`;
+    case "enviado": {
+      const base = `Avisamos ${estado.avisados} de ${estado.total} ${estado.total === 1 ? "pessoa" : "pessoas"}.`;
+      return estado.naoConfirmados > 0 ? `${base} ${semConfirmacao(estado.naoConfirmados)}` : base;
+    }
+    case "nao_confirmados":
+      return semConfirmacao(estado.naoConfirmados);
     case "sem_vinculo":
       return "Ninguém está vinculado para receber o aviso. Ligue 192. Depois, vincule alguém da família ou um cuidador.";
     case "limite":
