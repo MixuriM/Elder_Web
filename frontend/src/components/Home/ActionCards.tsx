@@ -40,7 +40,7 @@ function ActionCards() {
 
       <ActionCard
         title="Meus Medicamentos"
-        description="Veja seus remédios e horários."
+        description="Veja seus remédios e o histórico de doses."
         icon={Pill}
         onClick={() => navigate("/remedios")}
         color="
