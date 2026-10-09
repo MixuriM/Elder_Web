@@ -6,7 +6,8 @@ import {
 
 import { NavLink, useNavigate } from "react-router-dom";
 
-import { menuItems } from "../../data/menuItems";
+import { useAcesso } from "../../contexts/useAcesso";
+import { itensDoMenu } from "../../lib/menuPorPerfil";
 import { logoutUser } from "../../lib/auth";
 
 type SidebarProps = {
@@ -19,6 +20,7 @@ function Sidebar({
   setAberto,
 }: SidebarProps) {
   const navigate = useNavigate();
+  const acesso = useAcesso();
 
   async function handleLogout() {
     await logoutUser();
@@ -245,7 +247,7 @@ function Sidebar({
           </p>
 
           <div className="space-y-1">
-            {menuItems.map((item) => {
+            {itensDoMenu(acesso).map((item) => {
               const Icon = item.icon;
 
               return (
@@ -310,6 +312,12 @@ function Sidebar({
                 </NavLink>
               );
             })}
+          </div>
+
+          {/* Sempre no DOM, para o leitor de tela anunciar quando o texto aparecer */}
+          <div role="status" className="px-3 pt-4 text-sm text-slate-600 dark:text-[#C7C7D1]">
+            {acesso.estado === "erro" &&
+              "Não foi possível verificar o seu acesso agora. Alguns itens podem não funcionar."}
           </div>
         </nav>
 

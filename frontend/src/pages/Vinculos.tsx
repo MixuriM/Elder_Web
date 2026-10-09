@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { chamarApi } from "../lib/chamarApi";
 
@@ -6,6 +7,7 @@ import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
 import { useTitulo } from "../hooks/useTitulo";
+import { AVISO_SEM_VINCULO } from "../lib/avisoSemVinculo";
 
 type TipoVinculo = "familiar" | "cuidador";
 
@@ -34,6 +36,8 @@ const TEXTOS: Record<
 export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   const textos = TEXTOS[tipo];
   useTitulo(textos.titulo);
+  // Vindo da guarda RotaComVinculo: só um sinal no state, o texto é fixo.
+  const semVinculo = (useLocation().state as { semVinculo?: boolean } | null)?.semVinculo === true;
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -79,6 +83,15 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
       "
     >
       <div className="mx-auto max-w-7xl space-y-10">
+        {semVinculo && (
+          <p
+            role="status"
+            className="rounded-xl border border-[#DDD7FF] bg-[#F3F0FF] p-4 text-lg font-semibold text-[#071A38] dark:border-[#454A63] dark:bg-[#242A4A] dark:text-white"
+          >
+            {AVISO_SEM_VINCULO}
+          </p>
+        )}
+
         <CabecalhoVinculos
           titulo={textos.titulo}
           descricao={textos.descricao}
