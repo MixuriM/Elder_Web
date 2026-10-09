@@ -5,11 +5,16 @@ import DetalhesVinculo from "../components/Vinculos/DetalhesVinculo";
 import CabecalhoDetalheVinculo from "../components/Vinculos/CabecalhoDetalheVinculo";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
 import { chamarApi } from "../lib/chamarApi";
+import { useAcesso } from "../contexts/useAcesso";
+import { temAutoridade } from "../components/Vinculos/regrasVinculo";
+import { modoDe, useEstadoDecisao } from "../components/Vinculos/useEstadoDecisao";
 import { useTitulo } from "../hooks/useTitulo";
 
 export default function VinculoDetalhe() {
   useTitulo("Detalhes do vínculo");
   const { id } = useParams();
+  const { tipoPerfil } = useAcesso();
+  const decisao = useEstadoDecisao(tipoPerfil === "idoso");
   const [vinculo, setVinculo] = useState<Vinculo | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -86,5 +91,8 @@ export default function VinculoDetalhe() {
     );
   }
 
-  return <DetalhesVinculo vinculo={vinculo} />;
+  const podeEditarPermissoes =
+    decisao.pronto && temAutoridade(vinculo, tipoPerfil, modoDe(decisao.estado));
+
+  return <DetalhesVinculo vinculo={vinculo} podeEditarPermissoes={podeEditarPermissoes} />;
 }

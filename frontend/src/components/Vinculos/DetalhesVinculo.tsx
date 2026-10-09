@@ -2,10 +2,15 @@ import { CheckCircle2, CircleUserRound, Clock3, ShieldAlert } from "lucide-react
 
 import CabecalhoDetalheVinculo from "./CabecalhoDetalheVinculo";
 import type { Vinculo } from "./CardVinculo";
+import AvisoEmailPendente from "./AvisoEmailPendente";
+import PermissoesCuidador from "./PermissoesCuidador";
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
+import { emailNaoConfirmado } from "./regrasVinculo";
 
 type DetalhesVinculoProps = {
   vinculo: Vinculo;
+  // Quem decide pelo idoso (modo de decisão) edita as permissões do cuidador; os demais só leem.
+  podeEditarPermissoes?: boolean;
 };
 
 function formatarData(data: string | null | undefined) {
@@ -39,7 +44,7 @@ function obterPapel(vinculo: Vinculo) {
   return "Pessoa vinculada";
 }
 
-export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
+export default function DetalhesVinculo({ vinculo, podeEditarPermissoes = false }: DetalhesVinculoProps) {
   const { nome, email_mascarado: email } = pessoaDoVinculo(vinculo);
   const papel = obterPapel(vinculo);
   const status = formatarStatus(vinculo.status);
@@ -78,6 +83,8 @@ export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
             </div>
           </div>
 
+          {emailNaoConfirmado(vinculo) && <AvisoEmailPendente />}
+
           <dl className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
               <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tipo de vínculo</dt>
@@ -104,6 +111,15 @@ export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
               <dd className="mt-1 text-base text-[#071A38] dark:text-white">{vinculo.origem}</dd>
             </div>
           </dl>
+
+          {vinculo.tipo_vinculo === "cuidador" && vinculo.status === "aprovado" && (
+            <PermissoesCuidador
+              vinculoId={vinculo.id}
+              nome={nome}
+              permissoes={vinculo.permissoes}
+              podeEditar={podeEditarPermissoes}
+            />
+          )}
         </div>
       </section>
     </div>
