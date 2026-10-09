@@ -29,6 +29,15 @@ describe('ModalVinculo', () => {
     expect(dialogo).toHaveTextContent('conteúdo')
   })
 
+  it('sem <header> dentro do diálogo: o axe o lê como um segundo banner (landmark-no-duplicate-banner)', () => {
+    render(
+      <ModalVinculo aberto titulo="Adicionar pessoa" onFechar={() => {}}>
+        <p>conteúdo</p>
+      </ModalVinculo>,
+    )
+    expect(screen.getByRole('dialog').querySelector('header')).toBeNull()
+  })
+
   it('o foco vai para o diálogo ao abrir', () => {
     render(
       <ModalVinculo aberto titulo="Adicionar pessoa" onFechar={() => {}}>
