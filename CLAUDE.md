@@ -327,8 +327,13 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Telas de vínculo (2026-10-08, `components/Vinculos/`): `SolicitarVinculo` e `CadastrarIdoso` abrem em `ModalVinculo` pelo
   "Adicionar pessoa" (`AdicionarPessoa`); `SolicitacoesPendentes` e `ResumoVinculos` no topo de `/familia` e `/cuidadores`;
   `PermissoesCuidador` em `/vinculos/:id`; `ModoDecisao` em `/familia`. Botão só para quem tem autoridade
-  (`regrasVinculo.ts`); erro de `chamarApi` leva `status`, textos fixos por status. Lacunas do backend (sem tela): não há rota
-  para o idoso convidar familiar (`convite_idoso`), e o familiar não lê o `modo_decisao` nem o pedido de transferência do idoso.
+  (`regrasVinculo.ts`); erro de `chamarApi` leva `status`, textos fixos por status. Lacunas fechadas em 2026-10-09 (decisões
+  do Marcos, sob delegação "decisão do grupo"): (1) `POST /vinculo/convidar-familiar` (idoso, só com `modo_decisao` efetivo
+  `idoso`): grava `email_convite_familiar` (um convite por vez, o novo substitui o anterior) e, se há conta de familiar, cria o
+  vínculo pendente `convite_idoso`; resposta igual com ou sem conta, 409 só se já há vínculo; tela `ConvidarFamiliar`.
+  (2) `POST /vinculo/:id/aprovar` em origem `convite_idoso` ou `cadastro_familiar` responde 409 (só recusar ou contestar; a
+  aprovação vem do login com e-mail verificado). (3) `GET /vinculo` ganhou `decisao` (`modo` e `transferencia`, sem motivo nem id
+  de quem pediu) no vínculo aprovado de familiar do próprio chamador.
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (uso local via `docker-compose.yml`, com volume e
