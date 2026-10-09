@@ -7,7 +7,7 @@ function SobreCTA() {
         mt-14
         overflow-hidden
         rounded-3xl
-        bg-[#6C63FF]
+        bg-[#5F56EC]
         px-6
         py-10
         text-center
@@ -28,7 +28,7 @@ function SobreCTA() {
           max-w-2xl
           text-lg
           leading-8
-          text-white/90
+          text-white
         "
       >
         O Elder reúne informações importantes em um só lugar

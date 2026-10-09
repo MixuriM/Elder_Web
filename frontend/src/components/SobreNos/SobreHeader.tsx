@@ -83,13 +83,13 @@ function SobreHeader() {
               items-center
               justify-center
               rounded-xl
-              bg-[#6C63FF]
+              bg-[#5F56EC]
               px-5
               font-bold
               text-white
               transition-all
 
-              hover:bg-[#5C54E8]
+              hover:bg-[#554CD8]
               hover:shadow-md
 
               focus-visible:outline
