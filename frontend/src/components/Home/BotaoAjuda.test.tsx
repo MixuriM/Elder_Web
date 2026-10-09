@@ -101,6 +101,25 @@ describe("BotaoAjuda: avisar família e cuidadores", () => {
     expect(rolar.mock.contexts).toContain(screen.getByText("Avisamos 1 de 1 pessoa."));
   });
 
+  it("e-mail não confirmado: conta no total e diz quem não recebeu", async () => {
+    mockChamarApi.mockResolvedValue({ avisados: 2, falharam: 0, nao_confirmados: 1 });
+    const user = await abrir();
+    await user.click(botaoAvisar());
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent("Avisamos 2 de 3 pessoas.");
+    expect(status).toHaveTextContent("1 pessoa não recebeu porque ainda não confirmou o e-mail. Ligue para ela.");
+  });
+
+  it("ninguém com e-mail confirmado: só a orientação de ligar", async () => {
+    mockChamarApi.mockResolvedValue({ avisados: 0, falharam: 0, nao_confirmados: 3 });
+    const user = await abrir();
+    await user.click(botaoAvisar());
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent(
+      /^3 pessoas não receberam porque ainda não confirmaram o e-mail\. Ligue para elas\.$/,
+    );
+  });
+
   it("singular: Avisamos 1 de 1 pessoa.", async () => {
     mockChamarApi.mockResolvedValue({ avisados: 1, falharam: 0 });
     const user = await abrir();
