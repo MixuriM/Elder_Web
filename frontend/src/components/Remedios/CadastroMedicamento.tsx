@@ -10,6 +10,7 @@ import {
 
 import { chamarApi } from '../../lib/chamarApi'
 import Spinner from '../common/Spinner'
+import { statusDoErro } from '../Vinculos/mensagensVinculo'
 
 import FormMedicamento, {
   type CamposMedicamento,
@@ -21,6 +22,10 @@ interface CadastroMedicamentoProps {
   idosoNome?: string
   onSucesso?: () => void
 }
+
+// 403 (ex.: familiar quando quem decide é o idoso): texto fixo, nunca a mensagem técnica do backend.
+const ERRO_SEM_PERMISSAO =
+  'Você não tem permissão para fazer isso agora. Peça para a pessoa que decide pelo idoso.'
 
 const CAMPOS_VAZIOS: CamposMedicamento = {
   nome: '',
@@ -96,9 +101,11 @@ function CadastroMedicamento({
       onSucesso?.()
     } catch (err) {
       setErro(
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível cadastrar o medicamento.',
+        statusDoErro(err) === 403
+          ? ERRO_SEM_PERMISSAO
+          : err instanceof Error
+            ? err.message
+            : 'Não foi possível cadastrar o medicamento.',
       )
     } finally {
       setCarregando(false)

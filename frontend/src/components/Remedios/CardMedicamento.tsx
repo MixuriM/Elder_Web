@@ -19,7 +19,8 @@ export interface MedicamentoCard {
 
 interface CardMedicamentoProps {
   medicamento: MedicamentoCard
-  onMarcarDose: (
+  // Ausente quando o perfil não pode marcar dose (o botão some).
+  onMarcarDose?: (
     medicamento: MedicamentoCard,
   ) => void
   onVerDetalhes: (
@@ -337,47 +338,49 @@ function CardMedicamento({
           sm:grid-cols-2
         "
       >
-        <button
-          type="button"
-          onClick={() =>
-            onMarcarDose(medicamento)
-          }
-          disabled={!medicamento.ativo}
-          className="
-            inline-flex
-            min-h-11
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            bg-[#5F56EC]
-            px-4
-            py-2.5
-            text-sm
-            font-semibold
-            text-white
-            transition
+        {onMarcarDose && (
+          <button
+            type="button"
+            onClick={() =>
+              onMarcarDose(medicamento)
+            }
+            disabled={!medicamento.ativo}
+            className="
+              inline-flex
+              min-h-11
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              bg-[#5F56EC]
+              px-4
+              py-2.5
+              text-sm
+              font-semibold
+              text-white
+              transition
 
-            hover:bg-[#5A52E8]
+              hover:bg-[#5A52E8]
 
-            focus:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-[#6C63FF]/40
-            focus-visible:ring-offset-2
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-[#6C63FF]/40
+              focus-visible:ring-offset-2
 
-            disabled:cursor-not-allowed
-            disabled:opacity-50
+              disabled:cursor-not-allowed
+              disabled:opacity-50
 
-            dark:focus-visible:ring-offset-[#171721]
-          "
-        >
-          <CheckCircle2
-            size={18}
-            aria-hidden="true"
-          />
+              dark:focus-visible:ring-offset-[#171721]
+            "
+          >
+            <CheckCircle2
+              size={18}
+              aria-hidden="true"
+            />
 
-          Marcar dose
-        </button>
+            Marcar dose
+          </button>
+        )}
 
         <button
           type="button"
