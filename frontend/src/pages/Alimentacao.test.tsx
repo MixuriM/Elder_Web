@@ -186,7 +186,7 @@ describe("Alimentacao (item 7.1)", () => {
     const user = userEvent.setup();
     render(<MemoryRouter><Alimentacao /></MemoryRouter>);
     await preencherEEnviar(user);
-    expect(await screen.findByRole("status")).toHaveTextContent("Refeição registrada (id 41).");
+    expect(await screen.findByRole("status")).toHaveTextContent(/^Refeição registrada.$/);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -531,7 +531,7 @@ describe("Alimentacao: seção Ver histórico alimentar (item 7.2)", () => {
 
     (global.fetch as jest.Mock).mockResolvedValueOnce(respostaJson(201, { id: 50 }));
     await preencherEEnviar(user);
-    expect(await screen.findByText("Refeição registrada (id 50).")).toBeInTheDocument();
+    expect(await screen.findByText("Refeição registrada.")).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledTimes(2);
     expect((global.fetch as jest.Mock).mock.calls[1][1].method).toBe("POST");
     expect(within(verHistorico().regiao).getByRole("status")).toHaveTextContent("Nenhuma refeição registrada.");
