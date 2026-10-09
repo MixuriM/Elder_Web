@@ -1,4 +1,4 @@
-import { aplicarPreferencias, lerPreferencias, salvarPreferencia } from './preferencias'
+import { aplicarPreferencias, lerPreferencias, lerVisaoAgenda, salvarPreferencia, salvarVisaoAgenda } from './preferencias'
 
 function midia(reduzir: boolean, escuro = false) {
   window.matchMedia = ((query: string) => ({
@@ -79,5 +79,39 @@ describe('salvarPreferencia', () => {
     expect(salvarPreferencia('tamanhoTexto', 'grande')).toBe(false)
     expect(html).toHaveClass('texto-grande')
     expect(lerPreferencias().tamanhoTexto).toBe('grande')
+  })
+})
+
+describe('visão da Agenda', () => {
+  function largura(larga: boolean) {
+    window.matchMedia = ((query: string) => ({ matches: query.includes('min-width') ? larga : false })) as unknown as typeof window.matchMedia
+  }
+
+  it('sem nada salvo: Calendário em tela larga, Lista em tela estreita, sempre no Mês', () => {
+    largura(true)
+    expect(lerVisaoAgenda()).toEqual({ visao: 'calendario', modo: 'mes' })
+    largura(false)
+    expect(lerVisaoAgenda()).toEqual({ visao: 'lista', modo: 'mes' })
+  })
+
+  it('guarda a escolha e ignora valor desconhecido', () => {
+    largura(false)
+    salvarVisaoAgenda('agendaVisao', 'calendario')
+    salvarVisaoAgenda('agendaModo', 'dia')
+    expect(lerVisaoAgenda()).toEqual({ visao: 'calendario', modo: 'dia' })
+    localStorage.setItem('agendaModo', 'semana')
+    expect(lerVisaoAgenda().modo).toBe('mes')
+  })
+
+  it('storage indisponível: não lança e lembra até fechar a página', () => {
+    largura(true)
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('bloqueado')
+    })
+    jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('bloqueado')
+    })
+    expect(() => salvarVisaoAgenda('agendaVisao', 'lista')).not.toThrow()
+    expect(lerVisaoAgenda().visao).toBe('lista')
   })
 })
