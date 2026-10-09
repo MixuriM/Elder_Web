@@ -7,7 +7,13 @@ import ConfirmacaoInline from "./ConfirmacaoInline";
 import { BOTAO_PERIGO, BOTAO_PRIMARIO, MENSAGEM_ERRO, MENSAGEM_SUCESSO } from "./estilosVinculo";
 import { ERRO_PADRAO, mensagemPorStatus, statusDoErro } from "./mensagensVinculo";
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
-import { emailNaoConfirmado, podeContestar, temAutoridade, type ModoDecisao } from "./regrasVinculo";
+import {
+  emailNaoConfirmado,
+  formatarDataBR,
+  podeContestar,
+  temAutoridade,
+  type ModoDecisao,
+} from "./regrasVinculo";
 
 type SolicitacoesPendentesProps = {
   vinculos: Vinculo[];
@@ -30,12 +36,6 @@ const ERROS_CONTESTAR: Partial<Record<number, string>> = {
   404: "Este vínculo não foi encontrado. A lista foi atualizada.",
   409: "Este vínculo não está mais aprovado. A lista foi atualizada.",
 };
-
-function formatarData(data: string) {
-  const d = new Date(data);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
-}
 
 export default function SolicitacoesPendentes({
   vinculos,
@@ -139,7 +139,7 @@ export default function SolicitacoesPendentes({
           )}
           {email && <p className="text-base text-gray-700 dark:text-gray-200">E-mail: {email}</p>}
           <p className="text-base text-gray-700 dark:text-gray-200">
-            Pedido feito em {formatarData(v.data_solicitacao)}
+            Pedido feito em {formatarDataBR(v.data_solicitacao)}
           </p>
         </div>
 

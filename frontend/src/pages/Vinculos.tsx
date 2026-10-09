@@ -7,6 +7,7 @@ import { useAcesso } from "../contexts/useAcesso";
 import AdicionarPessoa from "../components/Vinculos/AdicionarPessoa";
 import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
+import ModoDecisao from "../components/Vinculos/ModoDecisao";
 import ModalVinculo from "../components/Vinculos/ModalVinculo";
 import ResumoVinculos from "../components/Vinculos/ResumoVinculos";
 import SolicitacoesPendentes from "../components/Vinculos/SolicitacoesPendentes";
@@ -126,6 +127,8 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
             onResolvido={() => carregarVinculos(true)}
           />
         )}
+
+        {tipo === "familiar" && <ModoDecisao tipoPerfil={tipoPerfil} vinculos={vinculos} decisao={decisao} />}
 
         <ListaVinculos
           vinculos={naLista}
