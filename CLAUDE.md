@@ -311,14 +311,12 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 ("decisão do grupo"); reabrir só se o grupo mandar. Pendências manuais ficam com o Marcos.
 
 **Pendências manuais (Marcos)**
-- Avisar Laureane e Jennifer (contrato novo do 5.4: `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf`,
-  `lib/baixarPdf.ts`, seção nova em `Remedios.tsx`).
-- Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura). Sobra: 50 `ring-` de foco com
-  opacidade (cobertos pelo contorno global).
+- Avisar Laureane e Jennifer: 5.4 (`GET /historico/pdf` e `/historico/idoso/:idosoId/pdf`, `lib/baixarPdf.ts`,
+  `Remedios.tsx`); PR #143 (9.1, cores em ~50 telas, Home mais escura; sobram 50 `ring-` de foco com opacidade,
+  cobertos pelo contorno global); layout único e revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`,
+  `/avisos`, `/configuracoes`, landing); calendário da Agenda e a nova ordem da página.
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
-- Avisar Laureane e Jennifer: layout único (2026-10-08), revisão visual (escrita escondida por perfil, Perfil,
-  Sobre Nós) e a rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing).
-- Frontend pendente: emergência e calendário.
+- Frontend pendente: emergência.
 - Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
   por `status`). Decisões de 2026-10-09 (Marcos): (1) `POST /vinculo/convidar-familiar` (idoso com `modo_decisao` efetivo
   `idoso`) grava `email_convite_familiar` (o novo substitui o anterior) e, se há conta de familiar, cria vínculo pendente
@@ -350,6 +348,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `'familiar'` (via resolver). Sem idempotência nem checagem de sobreposição (aceito).
 - Agenda (6.3): todos veem os 3 tipos, sem filtro (aceito). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone`
   explícito, nunca o do navegador. Evento aparece uma vez, no dia do início; passados em `<details>` fechado.
+- Calendário da Agenda (2026-10-09): Mês e Dia (`components/Agenda/`, `lib/calendario.ts`) sobre os mesmos grupos da
+  lista e a mesma busca (sem rota nova); "Ver como" e Mês/Dia em `lib/preferencias.ts`. Marca do tipo por cor e forma.
 - Agenda (6.2, delegação de 2026-10-04): cuidador cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda`
   segue 403), exigindo `tipo_vinculo` e `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito);
   nunca chama `resolverModoDecisao`. `pessoal`/`medico` pelo cuidador: 403; tipo ausente, não string, caixa diferente ou
