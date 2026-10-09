@@ -30,3 +30,10 @@ services:
       # no fallback localhost:5173 e bloqueia o frontend de produção.
       - key: FRONTEND_URL
         sync: false
+      # Aviso de emergência (POST /emergencia/avisar): e-mail por API HTTPS. Sem as três, só o aviso falha (503).
+      - key: EMAIL_API_KEY
+        sync: false
+      - key: EMAIL_REMETENTE_NOME
+        sync: false
+      - key: EMAIL_REMETENTE_ENDERECO
+        sync: false
