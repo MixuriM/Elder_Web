@@ -70,6 +70,7 @@ function Configuracoes() {
   const { tipoPerfil } = useAcesso();
   const [prefs, setPrefs] = useState(lerPreferencias);
   const [mensagem, setMensagem] = useState("");
+  const [erroSair, setErroSair] = useState(false);
 
   function mudar<K extends keyof Preferencias>(chave: K, valor: Preferencias[K]) {
     setPrefs((p) => ({ ...p, [chave]: valor }));
@@ -81,7 +82,14 @@ function Configuracoes() {
   }
 
   async function sair() {
-    await logoutUser();
+    setErroSair(false);
+    try {
+      await logoutUser();
+    } catch {
+      // Mensagem fixa: o erro do Firebase não é mostrado nem registrado.
+      setErroSair(true);
+      return;
+    }
     navigate("/login", { replace: true });
   }
 
@@ -160,6 +168,11 @@ function Configuracoes() {
           >
             Sair da conta
           </button>
+          {erroSair && (
+            <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-base font-medium text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+              Não foi possível sair da conta. Tente de novo.
+            </p>
+          )}
         </section>
       </div>
     </div>
