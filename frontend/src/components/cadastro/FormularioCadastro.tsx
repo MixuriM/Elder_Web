@@ -1,5 +1,6 @@
 // Importa o tipo utilizado pelo evento de envio do formulário
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 // Importa o tipo dos perfis disponíveis
 import type { TipoPerfil } from "../../lib/auth";
@@ -471,8 +472,8 @@ function FormularioCadastro({
         >
           Já tem uma conta?{" "}
 
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="
               inline-flex
               min-h-[44px]
@@ -491,7 +492,7 @@ function FormularioCadastro({
             "
           >
             Entrar
-          </a>
+          </Link>
         </p>
       </form>
     </section>

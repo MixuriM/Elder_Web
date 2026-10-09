@@ -1,7 +1,6 @@
 import {
   useEffect,
   useRef,
-  useState,
 } from 'react'
 
 import {
@@ -25,15 +24,10 @@ function ModalMedicamento({
   idosoId,
   idosoNome,
 }: ModalMedicamentoProps) {
-  const [cadastroConcluido, setCadastroConcluido] =
-    useState(false)
-
   useEffect(() => {
     if (!aberto) {
       return
     }
-
-    setCadastroConcluido(false)
 
     function fecharComEscape(
       event: KeyboardEvent,
@@ -66,14 +60,6 @@ function ModalMedicamento({
 
   if (!aberto) {
     return null
-  }
-
-  function handleSucesso() {
-    setCadastroConcluido(true)
-
-    window.setTimeout(() => {
-      onFechar()
-    }, 800)
   }
 
   return (
@@ -257,34 +243,9 @@ function ModalMedicamento({
             dark:[color-scheme:dark]
           "
         >
-          {cadastroConcluido && (
-            <div
-              role="status"
-              className="
-                mb-5
-                rounded-xl
-                border
-                border-green-200
-                bg-green-50
-                px-4
-                py-3
-                text-sm
-                font-semibold
-                text-green-700
-
-                dark:border-green-900/50
-                dark:bg-green-950/20
-                dark:text-green-300
-              "
-            >
-              Medicamento adicionado com sucesso.
-            </div>
-          )}
-
           <CadastroMedicamento
             idosoId={idosoId}
             idosoNome={idosoNome}
-            onSucesso={handleSucesso}
           />
         </div>
       </section>

@@ -113,7 +113,7 @@ function LandingWelcome() {
 
         <p
           className="
-            text-xs
+            text-sm
             font-bold
             uppercase
 
