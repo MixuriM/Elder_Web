@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
+import { isValidEmailFormat } from "../lib/authHelpers";
 import { mascararEmail } from "../lib/mascararEmail";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -19,6 +20,9 @@ const router = Router();
 function isDuplicateVinculoConstraint(e: unknown): boolean {
   return e instanceof Error && /UNIQUE constraint|duplicate key|Violation of/i.test(e.message);
 }
+
+// Origens cujo vínculo é aprovado pela confirmação de posse do e-mail (RF-025, RF-030), nunca por clique de aprovar.
+const ORIGENS_AUTOMATICAS = ["convite_idoso", "cadastro_familiar"];
 
 router.post("/solicitar-cuidador", requireAuth, async (req, res, next) => {
   try {
@@ -217,6 +221,74 @@ router.post("/solicitar-familiar", requireAuth, async (req, res, next) => {
   }
 });
 
+// O idoso convida um familiar pelo e-mail depois do cadastro (RF-024, RF-025). Guarda email_convite_familiar (uma
+// coluna só: um convite novo substitui o anterior ainda não usado) e, se já existe conta de familiar com esse e-mail,
+// cria o vínculo pendente de origem convite_idoso, que vira aprovado no login do familiar com e-mail verificado.
+// A resposta é a mesma com ou sem conta (sem oráculo de enumeração); o 409 só aparece quando já existe vínculo do
+// próprio idoso com essa pessoa, informação que ele já tem. Com a decisão transferida para a família o idoso não
+// adiciona familiar automático (403): quem tem a caneta é o familiar.
+router.post("/convidar-familiar", requireAuth, async (req, res, next) => {
+  try {
+    const idoso = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { id: true, tipo_perfil: true, email: true },
+    });
+    if (idoso?.tipo_perfil !== "idoso") {
+      return res.status(403).json({ error: "Apenas o idoso pode convidar um familiar." });
+    }
+
+    const bruto = req.body?.email;
+    const email = typeof bruto === "string" ? bruto.trim() : "";
+    if (!email || email.length > 255 || !isValidEmailFormat(email)) {
+      return res.status(400).json({ error: "E-mail inválido." });
+    }
+
+    if ((await resolverModoDecisao(idoso.id)) === "familiar") {
+      return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
+    }
+    if (idoso.email && idoso.email.toLowerCase() === email.toLowerCase()) {
+      return res.status(400).json({ error: "Você não pode convidar o seu próprio e-mail." });
+    }
+
+    const familiar = await prisma.usuario.findFirst({
+      where: { tipo_perfil: "familiar", email },
+      select: { id: true },
+    });
+    if (familiar) {
+      const existente = await prisma.vinculo.findFirst({
+        where: {
+          idoso_id: idoso.id,
+          vinculado_id: familiar.id,
+          tipo_vinculo: "familiar",
+          status: { in: ["pendente", "aprovado"] },
+        },
+        select: { status: true },
+      });
+      if (existente) {
+        return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
+      }
+      await prisma.vinculo.create({
+        data: {
+          idoso_id: idoso.id,
+          vinculado_id: familiar.id,
+          tipo_vinculo: "familiar",
+          origem: "convite_idoso",
+          status: "pendente",
+          data_solicitacao: new Date(),
+        },
+      });
+    }
+
+    await prisma.usuario.update({ where: { id: idoso.id }, data: { email_convite_familiar: email }, select: { id: true } });
+    res.status(201).json({ registrado: true });
+  } catch (e) {
+    if (isDuplicateVinculoConstraint(e)) {
+      return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
+    }
+    next(e);
+  }
+});
+
 // Tarefa 2.2 (RF-021, RF-022) — aprovar/recusar solicitação de vínculo de Cuidador.
 // Estendida pela tarefa 2.7 (RF-027) pra também cobrir vínculo de Familiar (Fluxo B,
 // tarefa 2.6). Compartilhada entre /aprovar e /recusar, e entre os dois tipo_vinculo:
@@ -357,7 +429,7 @@ async function responderSolicitacaoVinculo(
 
     const vinculo = await prisma.vinculo.findUnique({
       where: { id },
-      select: { id: true, idoso_id: true, status: true, tipo_vinculo: true },
+      select: { id: true, idoso_id: true, status: true, tipo_vinculo: true, origem: true },
     });
     if (!vinculo) {
       return res.status(404).json({ error: "Vínculo não encontrado." });
@@ -379,6 +451,11 @@ async function responderSolicitacaoVinculo(
       if (!(await familiarTemVinculoAprovado(vinculo.idoso_id, req.usuarioId))) {
         return res.status(403).json({ error: "Só familiar vinculado e aprovado pode responder esta solicitação." });
       }
+    }
+
+    // Depois da checagem de autoridade, para não revelar a origem a quem não decide.
+    if (novoStatus === "aprovado" && ORIGENS_AUTOMATICAS.includes(vinculo.origem)) {
+      return res.status(409).json({ error: "Este vínculo é aprovado sozinho quando a pessoa confirmar o e-mail." });
     }
 
     const atualizado = await prisma.vinculo.update({
@@ -423,7 +500,7 @@ router.post("/:id/contestar", requireAuth, async (req, res, next) => {
     if (!vinculo) {
       return res.status(404).json({ error: "Vínculo não encontrado." });
     }
-    if (vinculo.tipo_vinculo !== "familiar" || !["convite_idoso", "cadastro_familiar"].includes(vinculo.origem)) {
+    if (vinculo.tipo_vinculo !== "familiar" || !ORIGENS_AUTOMATICAS.includes(vinculo.origem)) {
       return res.status(400).json({ error: "Só é possível contestar vínculo automático de familiar." });
     }
     if (vinculo.status !== "aprovado") {
@@ -703,6 +780,40 @@ router.post("/:id/confirmar-transferencia-decisao", requireAuth, async (req, res
 // Efeito colateral conhecido: resolverEstadoModoDecisao pode gravar (efetivar ou lapsar
 // transferência vencida) durante este GET, igual a GET /usuario/me.
 // ponytail: sem paginação; uma consulta de resolverEstadoModoDecisao por idoso do titular.
+type DecisaoDoIdoso = {
+  modo: "idoso" | "familiar";
+  transferencia: null | {
+    solicitada_por_mim: boolean;
+    expira_em: Date | null;
+    exige_segunda_confirmacao: boolean;
+    segunda_confirmacao_feita: boolean;
+    confirmada_por_mim: boolean;
+  };
+};
+
+// Visão do familiar aprovado sobre quem decide pelo idoso. Nunca devolve motivo nem o id de quem pediu.
+async function descreverDecisao(
+  estado: ModoDecisaoEstado,
+  modo: "idoso" | "familiar",
+  idosoId: number,
+  familiarId: number,
+): Promise<DecisaoDoIdoso> {
+  if (estado.modo_decisao_solicitado !== "familiar") return { modo, transferencia: null };
+  const aprovados = await prisma.vinculo.count({
+    where: { idoso_id: idosoId, tipo_vinculo: "familiar", status: "aprovado" },
+  });
+  return {
+    modo,
+    transferencia: {
+      solicitada_por_mim: estado.modo_decisao_solicitado_por_id === familiarId,
+      expira_em: estado.modo_decisao_expira_em,
+      exige_segunda_confirmacao: aprovados >= 2,
+      segunda_confirmacao_feita: estado.modo_decisao_segunda_confirmacao_id !== null,
+      confirmada_por_mim: estado.modo_decisao_segunda_confirmacao_id === familiarId,
+    },
+  };
+}
+
 const STATUS_VALIDOS = ["pendente", "aprovado", "recusado"];
 const LADO_SELECT = { select: { id: true, nome: true, email: true } } as const;
 
@@ -726,6 +837,7 @@ router.get("/", requireAuth, async (req, res, next) => {
 
     const include = { idoso: LADO_SELECT, vinculado: LADO_SELECT } as const;
     const visiveis = new Map<number, { vinculo: VinculoComLados; papel: Papel }>();
+    const decisoes = new Map<number, DecisaoDoIdoso>();
 
     if (chamador.tipo_perfil === "idoso") {
       const donos = await prisma.vinculo.findMany({ where: { idoso_id: req.usuarioId }, include });
@@ -742,7 +854,10 @@ router.get("/", requireAuth, async (req, res, next) => {
         ];
         const titularDe: number[] = [];
         for (const idosoId of idosos) {
-          if ((await resolverModoDecisao(idosoId)) === "familiar") titularDe.push(idosoId);
+          const estado = await resolverEstadoModoDecisao(idosoId);
+          const modo = estado.modo_decisao === "familiar" ? "familiar" : "idoso";
+          if (modo === "familiar") titularDe.push(idosoId);
+          decisoes.set(idosoId, await descreverDecisao(estado, modo, idosoId, req.usuarioId));
         }
         if (titularDe.length > 0) {
           const doIdoso = await prisma.vinculo.findMany({ where: { idoso_id: { in: titularDe } }, include });
@@ -775,6 +890,11 @@ router.get("/", requireAuth, async (req, res, next) => {
           data_resposta: v.data_resposta,
           confirmado_em: v.confirmado_em,
           papel_do_chamador: papel,
+          // Só no vínculo aprovado de familiar do próprio chamador: quem decide pelo idoso e o pedido de transferência.
+          decisao:
+            papel === "vinculado" && v.tipo_vinculo === "familiar" && v.status === "aprovado"
+              ? (decisoes.get(v.idoso_id) ?? null)
+              : null,
           permissoes: expoePermissoes
             ? {
                 permite_registrar_saude: v.permite_registrar_saude,
