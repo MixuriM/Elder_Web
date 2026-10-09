@@ -2,7 +2,6 @@
 import type { ReactNode } from "react";
 
 // Importa o controle responsável pela troca de tema
-import ControleTema from "../layout/ControleTema";
 
 // Importa as folhas decorativas
 import folhasDecorativas from "../../Img/folhas_superior.webp";
@@ -87,20 +86,6 @@ function LayoutPerfil({
       />
 
 
-      {/* Botão responsável pela alteração do tema */}
-      <div
-        className="
-          absolute
-          right-3
-          top-3
-          z-20
-
-          lg:right-8
-          lg:top-8
-        "
-      >
-        <ControleTema responsivo />
-      </div>
 
 
       {/* Área principal do perfil */}

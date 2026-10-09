@@ -92,8 +92,8 @@ function FormularioPerfil({
             top-0
 
             flex
-            h-10
-            w-10
+            h-11
+            w-11
             items-center
             justify-center
 
@@ -281,7 +281,9 @@ function FormularioPerfil({
           }
           disabled={enviandoFoto}
           className="
-            mt-3
+            mt-1
+            min-h-11
+            px-3
 
             text-sm
             font-semibold
@@ -307,7 +309,8 @@ function FormularioPerfil({
             onClick={onRemoverFoto}
             disabled={enviandoFoto}
             className="
-              mt-2
+              min-h-11
+              px-3
 
               text-sm
               font-semibold
