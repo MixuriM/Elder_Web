@@ -154,3 +154,57 @@ describe("Header: botão Preciso de ajuda só para o idoso", () => {
     expect(screen.queryByRole("button", { name: "Preciso de ajuda" })).not.toBeInTheDocument();
   });
 });
+
+describe("Header: link Ligar 192 quando o perfil demora ou falha", () => {
+  const acesso = (tipoPerfil: string | null, estado: "carregando" | "ok" | "erro") => ({
+    tipoPerfil,
+    estado,
+    temVinculoAprovado: false,
+    temVinculoPendente: false,
+  });
+  const comAcesso = (valor: ReturnType<typeof acesso>) => (
+    <MemoryRouter>
+      <AcessoContext.Provider value={valor}>
+        <Header abrirSidebar={() => {}} />
+      </AcessoContext.Provider>
+    </MemoryRouter>
+  );
+  const link192 = () => screen.queryByRole("link", { name: "Ligar 192" });
+
+  afterEach(() => jest.useRealTimers());
+
+  it("carregando: nada antes de 3 s; depois, o link tel:192", () => {
+    jest.useFakeTimers();
+    render(comAcesso(acesso(null, "carregando")));
+    act(() => jest.advanceTimersByTime(2_900));
+    expect(link192()).not.toBeInTheDocument();
+    act(() => jest.advanceTimersByTime(200));
+    expect(link192()).toHaveAttribute("href", "tel:192");
+    expect(screen.queryByRole("button", { name: "Preciso de ajuda" })).not.toBeInTheDocument();
+  });
+
+  it("falha ao carregar o perfil: link na hora", () => {
+    render(comAcesso(acesso(null, "erro")));
+    expect(link192()).toHaveAttribute("href", "tel:192");
+  });
+
+  it("perfil chega depois do link: idoso troca pelo botão completo", () => {
+    jest.useFakeTimers();
+    const { rerender } = render(comAcesso(acesso(null, "carregando")));
+    act(() => jest.advanceTimersByTime(3_100));
+    rerender(comAcesso(acesso("idoso", "ok")));
+    expect(link192()).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preciso de ajuda" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["cuidador", "ok"],
+    ["familiar", "ok"],
+    // Perfil chegou e só os vínculos falharam (AcessoProvider devolve estado 'erro' com o tipo): o perfil não falhou.
+    ["cuidador", "erro"],
+  ] as const)("%s (%s) com perfil carregado: sem link e sem botão", (perfil, estado) => {
+    render(comAcesso(acesso(perfil, estado)));
+    expect(link192()).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Preciso de ajuda" })).not.toBeInTheDocument();
+  });
+});
