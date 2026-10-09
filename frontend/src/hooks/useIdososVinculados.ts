@@ -9,7 +9,7 @@ export type IdosoVinculado = {
   email_mascarado: string | null
 }
 
-type Busca = { ehIdoso: boolean; idosos: IdosoVinculado[] }
+type Busca = { ehIdoso: boolean; idosos: IdosoVinculado[]; tipoPerfil?: string }
 
 export type IdososVinculados = Busca & {
   estado: 'carregando' | 'erro' | 'ok'
@@ -40,7 +40,7 @@ async function buscar(): Promise<Busca> {
     }
   }
 
-  return { ehIdoso: false, idosos: [...porId.values()] }
+  return { ehIdoso: false, idosos: [...porId.values()], tipoPerfil: perfil.tipo_perfil }
 }
 
 // Só dedupa buscas simultâneas (vários seletores na mesma página). Zera ao terminar, então
