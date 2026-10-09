@@ -77,15 +77,21 @@ describe("Agenda: acessibilidade", () => {
     async function preencherEEnviar() {
       const user = userEvent.setup();
       const utils = renderAgenda();
-      if (sufixo !== "idoso") {
-        const regiao = screen.getByRole("region", {
-          name: sufixo === "familiar" ? "Criar compromisso para um idoso vinculado" : "Criar compromisso de cuidado (cuidador)",
-        });
-        await user.selectOptions(within(regiao).getByLabelText("Idoso", { exact: true }), "7");
-      }
-      await user.type(screen.getByLabelText(`Título (${sufixo})`, { exact: true }), "Consulta Ficticia");
-      fireEvent.change(screen.getByLabelText(`Início (${sufixo})`, { exact: true }), { target: { value: "2026-10-10T09:00" } });
-      await user.click(screen.getByRole("button", { name: new RegExp(`^criar compromisso \\(${sufixo}\\)$`, "i") }));
+      // Rótulos sem o papel: os campos são buscados dentro da seção do formulário.
+      const regiao = within(
+        screen.getByRole("region", {
+          name:
+            sufixo === "idoso"
+              ? "Criar compromisso"
+              : sufixo === "familiar"
+                ? "Criar compromisso para um idoso vinculado"
+                : "Criar compromisso de cuidado",
+        }),
+      );
+      if (sufixo !== "idoso") await user.selectOptions(regiao.getByLabelText("Idoso", { exact: true }), "7");
+      await user.type(regiao.getByLabelText("Título", { exact: true }), "Consulta Ficticia");
+      fireEvent.change(regiao.getByLabelText("Início", { exact: true }), { target: { value: "2026-10-10T09:00" } });
+      await user.click(regiao.getByRole("button", { name: /^criar compromisso$/i }));
       return utils;
     }
 
@@ -99,7 +105,7 @@ describe("Agenda: acessibilidade", () => {
     it("sucesso em role=status visível", async () => {
       (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 41 }));
       const { container } = await preencherEEnviar();
-      expect(await screen.findByRole("status")).toHaveTextContent("Compromisso criado (id 41).");
+      expect(await screen.findByRole("status")).toHaveTextContent(/^Compromisso criado.$/);
       expect(await axe(container, AXE)).toHaveNoViolations();
     });
 
