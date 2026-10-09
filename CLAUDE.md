@@ -185,15 +185,11 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
   após cada ação — não é opcional, é requisito de projeto
 
 ## Workflow
-- **Divisão de trabalho do grupo:** Marcos é responsável pelo backend; o
-  frontend "de verdade" (layout final, polish, UX) é da Laureane e da
-  Jennifer — não implementar telas completas/finais no lugar delas. Exceção:
-  Marcos pode pedir um **esqueleto de frontend cru** (formulário/página
-  mínima, sem estilo além do padrão de acessibilidade do projeto, sem
-  listagem/refinamento) só pra ele conseguir testar uma feature de backend
-  que acabou de implementar, sem depender do cronograma delas. Esse esqueleto
-  cobre só a(s) rota(s) da tarefa em questão — não adianta funcionalidade que
-  ainda não existe no backend, nem tenta ser a versão final da tela.
+- **Divisão de trabalho do grupo:** o backend está concluído (Marcos). O frontend
+  é feito pelo grupo todo (Marcos, Laureane, Jennifer). O Claude Code implementa
+  telas completas quando o prompt pedir, seguindo o padrão de acessibilidade do
+  projeto. Ainda vale avisar o grupo quando um arquivo de tela mudar de
+  comportamento ou de contrato HTTP.
 - **Antes de qualquer alteração (código, docs, config), sempre conferir em qual
   branch está** (`git branch --show-current` ou `git status`). Toda adição/mudança
   vai por padrão na branch `development` — só usar outra branch quando o usuário
@@ -372,51 +368,30 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   teste de caracterização; regra de ator vem do código (cuidador nunca cria medicamento nem refeição, familiar só com
   `modo_decisao` efetivo `'familiar'`, flag exata e estrita).
 
-**Itens implementados (resumo; detalhes e hashes no histórico)**
-- 5.2 marcar dose (PR #125), 5.3 histórico de remédios (PR #127), 5.4 exportar histórico em PDF (PR #129, mergeado em
-  `main` em 2026-10-04T18:46:01Z, rebase). Familiar só marca dose com `modo_decisao` efetivo `'familiar'` (via
-  resolver), como em 5.1. `GET /remedios`, `GET /remedios/idoso/:idosoId` e as rotas de PDF: vínculo aprovado basta. PDF montado inteiro em memória
-  (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
-- 6.1 criar compromisso (RF-015): `POST /agenda` (idoso) e `POST /agenda/idoso/:idosoId` (familiar) em
-  `routes/agenda.ts`; só `pessoal` e `medico` (`cuidado` dá 403, validado antes dos demais campos); datas ISO com
-  fuso, gravadas em UTC. Esqueleto `pages/Agenda.tsx` em `/agenda`.
-- 6.2 cuidador cria compromisso de cuidado (RF-016, RF-032): ramo do cuidador em `POST /agenda/idoso/:idosoId` (ver
-  decisões do 6.2); seção "Criar compromisso de cuidado (cuidador)" em `pages/Agenda.tsx`, sem select de tipo.
-- 6.3 visualizar agenda (RF-017, RNF-003): `GET /agenda` (idoso) e `GET /agenda/idoso/:idosoId` (vínculo aprovado
-  basta); `lib/agendaPorDia.ts` e seção "Ver agenda". Teste de fuso por subprocesso `node` com `TZ` real (exige Node
-  22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
-- 7.1 registrar refeição (RF-018): `POST /alimentacao` (idoso) e `POST /alimentacao/idoso/:idosoId` (familiar com
-  `modo_decisao` efetivo `'familiar'`, via resolver) em `routes/alimentacao.ts`. Cuidador nunca cria (403 com qualquer
-  vínculo e flags; resolver nunca chamado). `refeicao` com 6 valores só na aplicação (sem CHECK), `descricao` 1 a 500
-  (dado sensível), `data_hora` ISO com fuso. Decisões D1 a D12 no histórico. PR #135, mergeado em `main` em
-  2026-10-05T16:59:48Z por rebase.
-- 7.2 histórico alimentar (RF-019): `GET /alimentacao` (idoso) e `GET /alimentacao/idoso/:idosoId` (vínculo aprovado
-  basta: cuidador lê com as 3 flags `false`, sem `permite_*` nem resolver), ordem `data_hora` e `id` decrescentes.
-  `lib/alimentacaoFormato.ts` e seção "Ver histórico alimentar" em `Alimentacao.tsx`.
-- 8.1 "Sobre Nós" (RF-029, `/sobre-nos`, pública, PR #139), 8.2 Orientações Gerais (RF-031, `/orientacoes`, dentro de
-  `RotaProtegida`, PR #141) e testes de navegação da landing e da Welcome (botões em 2 cópias no DOM, mobile e
-  desktop): conteúdo provisório, texto e layout finais são da Laureane e da Jennifer.
-- 9.1 auditoria axe (RNF-007): jest-axe em 9 telas e Playwright com `@axe-core/playwright` (`npm run test:a11y`,
-  local); falha só em critical/serious. PR #143, mergeado em `main` em 2026-10-06T18:59:56Z.
-- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (HSTS `max-age=31536000` só com
-  `NODE_ENV=production`, sem `includeSubDomains` nem `preload`), `lib/segurancaTransporte.ts`, `lib/sondaHttp.ts` e
-  `scripts/smoke-*.ts`. O redirect HTTP para HTTPS é do Render; TDE só verificado (Azure: ativo, chave gerenciada pelo
-  serviço). PR #145, mergeado em `main` em 2026-10-07T00:36:35Z por rebase; smoke pós-deploy 6/6 PASS.
-- 9.3 CI builda a imagem do backend (RNF-010): último passo do job `backend`, `docker build -t elder-web-backend:ci
-  ./backend` com `working-directory: .`. Teste `backend/src/infra/dockerCi.test.ts` (8 testes; só roda no host e
-  no CI). Não publica nem executa a imagem: pega erro de build, não de boot. PR #149,
-  mergeado em `main` em 2026-10-07T20:19:58Z por rebase.
+**Itens implementados (resumo; detalhes, PRs e hashes no histórico)**
+- 5.2 marcar dose, 5.3 histórico de remédios, 5.4 PDF do histórico. Familiar só marca dose com `modo_decisao` efetivo
+  `'familiar'` (via resolver). Leituras (`GET /remedios*`, PDF): vínculo aprovado basta. PDF montado inteiro em
+  memória (`lib/historicoPdf.ts`, pdfkit) antes de enviar; nunca fazer pipe.
+- 6.1 a 6.3 agenda (RF-015 a RF-017, RNF-003): `routes/agenda.ts`; idoso e familiar criam `pessoal` e `medico`,
+  cuidador só `cuidado` (decisões do 6.2 acima); leituras com vínculo aprovado. `lib/agendaPorDia.ts`. Teste de fuso
+  por subprocesso `node` com `TZ` real (exige Node 22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
+- 7.1 e 7.2 alimentação (RF-018, RF-019): `routes/alimentacao.ts`. Cuidador nunca cria (403, resolver nunca chamado);
+  familiar só com `modo_decisao` efetivo `'familiar'`; `refeicao` com 6 valores só na aplicação, `descricao` 1 a 500
+  (dado sensível); leitura com vínculo aprovado, ordem `data_hora` e `id` decrescentes.
+- 8.1 "Sobre Nós" (`/sobre-nos`, pública) e 8.2 Orientações (`/orientacoes`, dentro de `RotaProtegida`): conteúdo
+  provisório, texto final é da Laureane e da Jennifer.
+- 9.1 auditoria axe (RNF-007): jest-axe em 9 telas e Playwright (`npm run test:a11y`, local); falha só em
+  critical/serious.
+- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (`max-age=31536000` só com `NODE_ENV=production`,
+  sem `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect HTTP para HTTPS é do Render; TDE só
+  verificado (ativo, chave gerenciada pelo serviço).
+- 9.3 CI builda a imagem do backend (RNF-010): último passo do job `backend`, sem publicar nem executar a imagem
+  (pega erro de build, não de boot). Teste `backend/src/infra/dockerCi.test.ts`.
 - 9.4 suíte de autorização no CI (RNF-003): `routes/autorizacaoRotas.test.ts` enumera as rotas de `app._router.stack`
-  e compara com `ROTAS_ESPERADAS` (rota nova sem classificação falha). Cobre 401 e 503 sem
-  token, 403 sem Usuario, 403 sem vínculo aprovado (corpo idêntico), 403 sem a flag exata do Cuidador, regra de ator
-  e 404 uniforme de registro, sempre sem escrita no Prisma. Também limiares de cobertura e contratos em `src/infra/`.
-  Backend 40 suítes e 2001 testes antes, 43 e 2550 depois; sem furo achado. PR #151.
-- PR #144 (`0165e20`, `main` em 2026-10-07T00:35:10Z, só `frontend/`): redesenho de Vínculos, Detalhes do Vínculo e
-  Agenda; alterou `Agenda.tsx`, o esqueleto do 6.1 a 6.3.
-- Os `backend/scripts/verify-rotas-*.ts` (dose 14/14, histórico de remédios 18/18, PDF 21/21 PASS no SQL Server
-  local) NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é substituído): limpam por
-  sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo `verify-dose-`,
-  `verify-hist-` ou `verify-pdf-` marca conta residual se o processo morrer no meio.
+  e compara com `ROTAS_ESPERADAS` (rota nova sem classificação falha). Também limiares de cobertura; sem furo achado.
+- Os `backend/scripts/verify-rotas-*.ts` NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é
+  substituído): limpam por sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo
+  `verify-dose-`, `verify-hist-` ou `verify-pdf-` marca conta residual se o processo morrer no meio.
 
 ## Histórico de implementação
 O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
