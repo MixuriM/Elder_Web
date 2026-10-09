@@ -1,8 +1,5 @@
 import { CalendarDays } from "lucide-react";
-import { useState } from "react";
 
-import Sidebar from "../components/Home/Sidebar";
-import Header from "../components/Home/Header";
 import ActionCards from "../components/Home/ActionCards";
 import BannerSaude from "../components/Home/BannerSaude";
 import CardAjuda from "../components/Home/CardAjuda";
@@ -11,13 +8,11 @@ import { useTitulo } from "../hooks/useTitulo";
 
 function Home() {
   useTitulo("Início");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeMenu, setActiveMenu] = useState("Início");
 
   return (
-    <main
+    <div
       className="
-        min-h-screen
+        flex-1
 
         bg-[#F5F7FF]
         text-[#071A38]
@@ -31,19 +26,6 @@ function Home() {
         dark:text-[#F5F5FA]
       "
     >
-      <div className="flex min-h-screen">
-        <Sidebar
-          aberto={sidebarOpen}
-          menuAtivo={activeMenu}
-          setAberto={setSidebarOpen}
-          setMenuAtivo={setActiveMenu}
-        />
-
-        <section className="min-w-0 flex-1">
-          <Header
-            abrirSidebar={() => setSidebarOpen(true)}
-          />
-
           <div
             className="
               mx-auto
@@ -166,9 +148,7 @@ function Home() {
             {/* Resumo do dia */}
             <ResumoDia />
           </div>
-        </section>
-      </div>
-    </main>
+    </div>
   );
 }
 

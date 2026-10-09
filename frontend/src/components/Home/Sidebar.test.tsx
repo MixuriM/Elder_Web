@@ -29,7 +29,7 @@ jest.mock("react-router-dom", () => ({
 function renderSidebar() {
   return render(
     <MemoryRouter>
-      <Sidebar aberto={true} menuAtivo="Início" setAberto={jest.fn()} setMenuAtivo={jest.fn()} />
+      <Sidebar aberto={true} setAberto={jest.fn()} />
     </MemoryRouter>
   );
 }
@@ -51,21 +51,25 @@ describe("Sidebar — logout", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true });
   });
 
-  it("clicar em 'Meu Perfil' navega para /perfil", async () => {
+  it("itens do menu são links reais (abrem em nova aba) e fecham o menu ao clicar", async () => {
+    const setAberto = jest.fn();
     const user = userEvent.setup();
-    renderSidebar();
+    render(
+      <MemoryRouter>
+        <Sidebar aberto={true} setAberto={setAberto} />
+      </MemoryRouter>
+    );
 
-    await user.click(screen.getByRole("button", { name: /meu perfil/i }));
+    expect(screen.getByRole("link", { name: "Meu Perfil" })).toHaveAttribute("href", "/perfil");
+    expect(screen.getByRole("link", { name: "Família" })).toHaveAttribute("href", "/familia");
+    expect(screen.getByRole("link", { name: "Cuidadores" })).toHaveAttribute("href", "/cuidadores");
 
-    expect(mockNavigate).toHaveBeenCalledWith("/perfil");
+    await user.click(screen.getByRole("link", { name: "Meu Perfil" }));
+    expect(setAberto).toHaveBeenCalledWith(false);
   });
 
-  it("clicar em 'Família' navega para /familia", async () => {
-    const user = userEvent.setup();
+  it("item do menu tem alvo mínimo de 44px", () => {
     renderSidebar();
-
-    await user.click(screen.getByRole("button", { name: /família/i }));
-
-    expect(mockNavigate).toHaveBeenCalledWith("/familia");
+    expect(screen.getByRole("link", { name: "Agenda" })).toHaveClass("min-h-11");
   });
 });

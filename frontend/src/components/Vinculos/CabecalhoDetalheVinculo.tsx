@@ -1,8 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import BotaoTema from "../layout/BotaoTema";
-
 // Volta para a lista do tipo do vínculo; sem tipo conhecido (carregando ou erro), volta para o início.
 const LISTA_POR_TIPO: Record<string, string> = {
   familiar: "/familia",
@@ -13,7 +11,7 @@ export default function CabecalhoDetalheVinculo({ tipo }: { tipo?: string }) {
   return (
     <nav
       aria-label="Navegação da página"
-      className="mx-auto mb-6 flex w-full max-w-2xl items-center justify-between"
+      className="mx-auto mb-6 flex w-full max-w-2xl items-center"
     >
       <Link
         to={(tipo && LISTA_POR_TIPO[tipo]) || "/Home"}
@@ -28,8 +26,6 @@ export default function CabecalhoDetalheVinculo({ tipo }: { tipo?: string }) {
         <ArrowLeft size={20} aria-hidden="true" />
         Voltar
       </Link>
-
-      <BotaoTema />
     </nav>
   );
 }

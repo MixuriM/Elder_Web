@@ -5,11 +5,18 @@ type Estado = { falhou: boolean }
 
 // Pega falha de chunk lazy (aba antiga depois de deploy) e qualquer erro de render das rotas.
 // Mensagem fixa: não mostra o texto do erro.
-class LimiteErro extends Component<{ children: ReactNode }, Estado> {
+// resetKey (a rota atual) limpa o erro ao navegar, sem remontar os filhos enquanto não há erro.
+class LimiteErro extends Component<{ children: ReactNode; resetKey: string }, Estado> {
   state: Estado = { falhou: false }
 
   static getDerivedStateFromError(): Estado {
     return { falhou: true }
+  }
+
+  componentDidUpdate(anterior: { resetKey: string }) {
+    if (this.state.falhou && anterior.resetKey !== this.props.resetKey) {
+      this.setState({ falhou: false })
+    }
   }
 
   render() {

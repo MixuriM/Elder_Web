@@ -36,4 +36,12 @@ describe('App: telas de vínculos por tipo', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Cuidadores' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/cuidadores')
   })
+
+  it('tela autenticada real tem menu, cabeçalho e um único main', async () => {
+    renderApp('/cuidadores')
+    await screen.findByRole('heading', { level: 1, name: 'Cuidadores' })
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(screen.getByRole('navigation', { name: 'Menu principal' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Cuidadores' })).toHaveAttribute('aria-current', 'page')
+  })
 })

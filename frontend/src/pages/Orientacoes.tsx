@@ -1,5 +1,4 @@
 // Conteúdo provisório (item 8.2, RF-031). Texto final e layout: Laureane e Jennifer.
-import { Link } from 'react-router-dom'
 import { useTitulo } from '../hooks/useTitulo'
 
 const foco =
@@ -38,16 +37,8 @@ const secoes = [
 export default function Orientacoes() {
   useTitulo('Orientações')
   return (
-    <div className="min-h-screen bg-white text-lg text-[#071A38] dark:bg-[#101018] dark:text-[#F5F5FA]">
-      <header className="flex flex-wrap gap-4 border-b-2 border-[#6C63FF] p-4">
-        <Link to="/Home" className={link}>
-          Voltar para o início
-        </Link>
-        <Link to="/perfil" className={link}>
-          Meu perfil
-        </Link>
-      </header>
-      <main className="mx-auto max-w-3xl space-y-8 p-4">
+    <div className="flex-1 bg-white text-lg text-[#071A38] dark:bg-[#101018] dark:text-[#F5F5FA]">
+      <div className="mx-auto max-w-3xl space-y-8 p-4">
         <h1 className="text-4xl font-bold text-[#5F56EC] dark:text-[#A18BFF]">Orientações gerais</h1>
         {secoes.map((s) => (
           <section key={s.id} aria-labelledby={s.id} className="space-y-2">
@@ -72,7 +63,7 @@ export default function Orientacoes() {
           <p>O Elder Web não substitui consulta nem orientação de profissionais de saúde.</p>
           <p>Em emergência, ligue para o SAMU, telefone 192.</p>
         </section>
-      </main>
+      </div>
     </div>
   )
 }

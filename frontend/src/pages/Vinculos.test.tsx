@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import VinculoDetalhe from "./VinculoDetalhe";
 import Vinculos from "./Vinculos";
@@ -99,6 +99,9 @@ describe("Vinculos", () => {
     renderComRotas();
 
     expect(await screen.findByText("Nenhum cuidador vinculado")).toBeInTheDocument();
+    // Menu e tema vêm do layout: a lista não tem botão que tire a pessoa da página.
+    expect(screen.queryByRole("link", { name: /voltar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /modo/i })).not.toBeInTheDocument();
   });
 
   it("cada rota mostra só os vínculos do seu tipo", async () => {
@@ -142,40 +145,7 @@ describe("Vinculos", () => {
     expect(document.title).toBe(`${titulo} | Elder Web`);
   });
 
-  it("alterna entre modo claro e escuro e salva a preferência", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(
-      respostaJson(200, { vinculos: [] })
-    );
 
-    renderComRotas();
-
-    const ativarModoEscuro = await screen.findByRole("button", {
-      name: "Ativar modo escuro",
-    });
-    fireEvent.click(ativarModoEscuro);
-
-    expect(document.documentElement).toHaveClass("dark");
-    expect(localStorage.getItem("tema")).toBe("escuro");
-    expect(
-      screen.getByRole("button", { name: "Ativar modo claro" })
-    ).toHaveAttribute("aria-pressed", "true");
-
-    fireEvent.click(screen.getByRole("button", { name: "Ativar modo claro" }));
-
-    expect(document.documentElement).not.toHaveClass("dark");
-    expect(localStorage.getItem("tema")).toBe("claro");
-  });
-
-  it("mostra o botão Voltar apontando para a Home", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(
-      respostaJson(200, { vinculos: [] })
-    );
-
-    renderComRotas();
-
-    const botaoVoltar = await screen.findByRole("link", { name: /voltar/i });
-    expect(botaoVoltar).toHaveAttribute("href", "/Home");
-  });
 
   it("mostra uma mensagem acessível quando a API falha", async () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
@@ -241,7 +211,6 @@ describe("VínculoDetalhe", () => {
       "href",
       "/cuidadores"
     );
-    expect(screen.getByRole("button", { name: "Ativar modo escuro" })).toBeInTheDocument();
   });
 
   it("Voltar leva à lista de família quando o vínculo é de familiar", async () => {

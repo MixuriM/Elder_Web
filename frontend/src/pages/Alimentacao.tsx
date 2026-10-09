@@ -1,8 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowLeft, ClipboardList, Utensils } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { ClipboardList, Utensils } from 'lucide-react'
 import Spinner from '../components/common/Spinner'
-import BotaoTema from '../components/layout/BotaoTema'
 import SeletorIdoso from '../components/common/SeletorIdoso'
 import { envioBloqueado } from '../lib/regrasIdosoVinculado'
 import { useIdososVinculados } from '../hooks/useIdososVinculados'
@@ -78,18 +76,8 @@ export default function Alimentacao() {
   const classeLabel = 'block text-base font-semibold text-[#071A38] dark:text-[#F5F5FA]'
 
   return (
-    <main className="min-h-screen bg-[#F8F7FF] px-4 py-6 dark:bg-[#0F0F17] sm:px-6 lg:px-8">
+    <div className="flex-1 bg-[#F8F7FF] px-4 py-6 dark:bg-[#0F0F17] sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-7xl">
-        <nav aria-label="Navegação da página" className="mb-6 flex items-center justify-between">
-          <Link
-            to="/Home"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 font-semibold text-[#071A38] transition hover:border-[#A18BFF] hover:bg-[#F3F0FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC]/40 dark:border-gray-700 dark:bg-[#151B35] dark:text-white dark:hover:bg-[#242A4A]"
-          >
-            <ArrowLeft size={20} aria-hidden="true" />
-            Voltar
-          </Link>
-          <BotaoTema />
-        </nav>
 
         <header className="mb-6 rounded-3xl border border-[#E5E2F5] bg-white px-6 py-7 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:mb-8 sm:px-8 sm:py-8">
           <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#5F56EC] dark:text-[#A89FFF]">
@@ -203,7 +191,7 @@ export default function Alimentacao() {
           <VerHistoricoAlimentar />
         </div>
       </div>
-    </main>
+    </div>
   )
 }
 

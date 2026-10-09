@@ -1,6 +1,4 @@
-import { ArrowLeft, UserPlus } from "lucide-react";
-import { Link } from "react-router-dom";
-import BotaoTema from "../layout/BotaoTema";
+import { UserPlus } from "lucide-react";
 
 type CabecalhoVinculosProps = {
   titulo: string;
@@ -14,25 +12,7 @@ export default function CabecalhoVinculos({
   onAdicionar,
 }: CabecalhoVinculosProps) {
   return (
-    <header className="space-y-6">
-      <nav aria-label="Navegação da página" className="flex items-center justify-between">
-        <Link
-          to="/Home"
-          className="
-            inline-flex min-h-11 items-center gap-2 rounded-xl
-            border border-gray-300 bg-white px-4 font-semibold text-[#071A38]
-            transition hover:border-[#A18BFF] hover:bg-[#F3F0FF]
-            focus:outline-none focus:ring-4 focus:ring-[#A18BFF]/40
-            dark:border-gray-700 dark:bg-[#151B35] dark:text-white dark:hover:bg-[#242A4A]
-          "
-        >
-          <ArrowLeft size={20} aria-hidden="true" />
-          Voltar
-        </Link>
-
-        <BotaoTema />
-      </nav>
-
+    <header>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA]">

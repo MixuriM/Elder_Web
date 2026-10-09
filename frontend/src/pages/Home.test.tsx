@@ -26,13 +26,15 @@ beforeAll(() => {
 })
 
 describe('Home', () => {
-  it('renderiza sem erros e exibe a marca Elder Web', () => {
+  it('renderiza sem erros e exibe a saudação (menu e cabeçalho vêm do layout)', () => {
     render(
       <MemoryRouter>
         <Home />
       </MemoryRouter>
     )
 
-    expect(screen.getByText('Cuidado e bem-estar')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Olá!' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
   })
 })

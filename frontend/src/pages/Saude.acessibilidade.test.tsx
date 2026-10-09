@@ -110,19 +110,6 @@ describe(
     )
 
     it(
-      'possui botão voltar acessível',
-      () => {
-        render(<Saude />)
-
-        expect(
-          screen.getByRole('button', {
-            name: /voltar/i,
-          }),
-        ).toBeInTheDocument()
-      },
-    )
-
-    it(
       'possui as principais seções com títulos',
       () => {
         render(<Saude />)

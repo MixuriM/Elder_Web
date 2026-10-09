@@ -24,11 +24,11 @@ function renderPagina() {
 }
 
 describe('Orientacoes', () => {
-  it('tem um único h1 "Orientações gerais" e um único main', () => {
+  it('tem um único h1 "Orientações gerais" e nenhum main próprio (vem do layout)', () => {
     renderPagina()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1, name: 'Orientações gerais' })).toBeInTheDocument()
-    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
   })
 
   it('tem os 5 h2 na ordem, cada um como region nomeada', () => {
@@ -38,11 +38,6 @@ describe('Orientacoes', () => {
     TITULOS.forEach((t) => expect(screen.getByRole('region', { name: t })).toBeInTheDocument())
   })
 
-  it('cabeçalho: links para /Home e /perfil', () => {
-    renderPagina()
-    expect(screen.getByRole('link', { name: 'Voltar para o início' })).toHaveAttribute('href', '/Home')
-    expect(screen.getByRole('link', { name: 'Meu perfil' })).toHaveAttribute('href', '/perfil')
-  })
 
   it('link de suporte é mailto: para o e-mail de suporte', () => {
     renderPagina()

@@ -45,20 +45,6 @@ jest.mock('../hooks/useIdososVinculados', () => ({
 }))
 
 /* =========================================================
-   MOCK DO BOTÃO DE TEMA
-========================================================= */
-
-jest.mock('../components/layout/BotaoTema', () => {
-  return function BotaoTemaMock() {
-    return (
-      <button type="button">
-        Alterar tema
-      </button>
-    )
-  }
-})
-
-/* =========================================================
    AUTH
 ========================================================= */
 
@@ -134,25 +120,7 @@ describe('Saude — estrutura da página', () => {
     ).toBeInTheDocument()
   })
 
-  it('renderiza botão voltar', () => {
-    render(<Saude />)
 
-    expect(
-      screen.getByRole('button', {
-        name: /voltar/i,
-      }),
-    ).toBeInTheDocument()
-  })
-
-  it('renderiza botão de tema', () => {
-    render(<Saude />)
-
-    expect(
-      screen.getByRole('button', {
-        name: /alterar tema/i,
-      }),
-    ).toBeInTheDocument()
-  })
 
   it('renderiza os principais cards', () => {
     render(<Saude />)

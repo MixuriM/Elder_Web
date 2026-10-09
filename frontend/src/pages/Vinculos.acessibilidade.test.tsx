@@ -19,7 +19,9 @@ const AXE = { rules: { 'color-contrast': { enabled: false } } }
 function renderVinculos() {
   return render(
     <MemoryRouter initialEntries={['/cuidadores']}>
-      <Vinculos tipo="cuidador" />
+      <main>
+        <Vinculos tipo="cuidador" />
+      </main>
     </MemoryRouter>
   )
 }
@@ -59,8 +61,6 @@ describe('Vinculos (acessibilidade)', () => {
 
     await screen.findByText('Nenhum cuidador vinculado')
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /voltar/i })).toHaveAttribute('href', '/Home')
-    expect(screen.getByRole('button', { name: 'Ativar modo escuro' })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 
@@ -90,16 +90,17 @@ describe('Vinculos (acessibilidade)', () => {
     jest.mocked(global.fetch).mockResolvedValue(respostaJson(200, { vinculos: [vinculo] }))
     const { container } = render(
       <MemoryRouter initialEntries={['/vinculos/12']}>
-        <Routes>
-          <Route path="/vinculos/:id" element={<VinculoDetalhe />} />
-        </Routes>
+        <main>
+          <Routes>
+            <Route path="/vinculos/:id" element={<VinculoDetalhe />} />
+          </Routes>
+        </main>
       </MemoryRouter>
     )
 
     await screen.findByRole('heading', { name: 'João da Silva' })
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute('href', '/cuidadores')
-    expect(screen.getByRole('button', { name: 'Ativar modo escuro' })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 })
