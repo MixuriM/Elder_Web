@@ -119,6 +119,33 @@ describe("Vinculos", () => {
     expect(screen.queryByText("João da Silva")).not.toBeInTheDocument();
   });
 
+  it("mostra o aviso fixo quando a guarda redirecionou por falta de vínculo", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { vinculos: [] }));
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: "/familia", state: { semVinculo: true } }]}>
+        <Routes>
+          <Route path="/familia" element={<Vinculos tipo="familiar" />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByText("Para usar esta área, vincule-se a um idoso.")
+    ).toHaveAttribute("role", "status");
+  });
+
+  it("sem o sinal da guarda não mostra aviso", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { vinculos: [] }));
+
+    renderComRotas("/familia");
+
+    await screen.findByText("Nenhum familiar vinculado");
+    expect(
+      screen.queryByText("Para usar esta área, vincule-se a um idoso.")
+    ).not.toBeInTheDocument();
+  });
+
   it("estado vazio é próprio do tipo e ignora vínculos do outro tipo", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(
       respostaJson(200, { vinculos: [vinculo] })

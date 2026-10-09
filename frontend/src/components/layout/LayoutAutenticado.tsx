@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom'
 import Header from '../Home/Header'
 import Sidebar from '../Home/Sidebar'
 import RotaProtegida from '../RotaProtegida'
+import { AcessoProvider } from '../../contexts/AcessoContext'
 
 // Moldura única das telas autenticadas: skip link, menu lateral, cabeçalho e UM <main>.
 // As páginas renderizam só o conteúdo (div ou section), nunca outro <main>.
@@ -19,6 +20,7 @@ function LayoutAutenticado() {
 
   return (
     <RotaProtegida>
+      <AcessoProvider>
       <a
         href="#conteudo"
         onClick={pularParaConteudo}
@@ -65,6 +67,7 @@ function LayoutAutenticado() {
           </main>
         </div>
       </div>
+      </AcessoProvider>
     </RotaProtegida>
   )
 }

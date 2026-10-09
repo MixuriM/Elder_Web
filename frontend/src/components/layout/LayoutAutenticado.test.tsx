@@ -58,6 +58,11 @@ function renderizar(inicial: string) {
   )
 }
 
+// O menu completo (idoso) só aparece depois que o AcessoProvider carrega o perfil.
+async function menuCompleto() {
+  await screen.findByRole('link', { name: 'Cuidadores' })
+}
+
 describe('LayoutAutenticado', () => {
   it('tem um único main (id conteudo) com o conteúdo da rota dentro', () => {
     renderizar('/agenda')
@@ -80,8 +85,9 @@ describe('LayoutAutenticado', () => {
     expect(screen.getByRole('main')).toHaveFocus()
   })
 
-  it.each(ROTAS)('menu: "%s" é um link para %s com aria-current só quando ativo', (rotulo, caminho) => {
+  it.each(ROTAS)('menu: "%s" é um link para %s com aria-current só quando ativo', async (rotulo, caminho) => {
     renderizar(caminho)
+    await menuCompleto()
 
     const nav = screen.getByRole('navigation', { name: 'Menu principal' })
     const link = screen.getByRole('link', { name: rotulo })
@@ -94,6 +100,7 @@ describe('LayoutAutenticado', () => {
   it('clicar em um item do menu navega para a rota e move o aria-current', async () => {
     const user = userEvent.setup()
     renderizar('/Home')
+    await menuCompleto()
 
     await user.click(screen.getByRole('link', { name: 'Cuidadores' }))
 
@@ -104,6 +111,7 @@ describe('LayoutAutenticado', () => {
 
   it('sem violações detectáveis pelo axe (landmarks sem duplicidade)', async () => {
     const { container } = renderizar('/saude')
+    await menuCompleto()
     expect(
       await axe(container, { rules: { 'color-contrast': { enabled: false } } }),
     ).toHaveNoViolations()

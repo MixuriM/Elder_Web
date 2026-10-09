@@ -3,11 +3,19 @@ import { CalendarDays } from "lucide-react";
 import ActionCards from "../components/Home/ActionCards";
 import BannerSaude from "../components/Home/BannerSaude";
 import CardAjuda from "../components/Home/CardAjuda";
+import CartaoSemVinculo from "../components/Home/CartaoSemVinculo";
 import ResumoDia from "../components/Home/ResumoDia";
+import { useAcesso } from "../contexts/useAcesso";
 import { useTitulo } from "../hooks/useTitulo";
 
 function Home() {
   useTitulo("Início");
+  const { estado, tipoPerfil, temVinculoAprovado, temVinculoPendente } = useAcesso();
+  // Em erro de carregamento nada é escondido (D3).
+  const semVinculo =
+    estado === "ok" &&
+    (tipoPerfil === "cuidador" || tipoPerfil === "familiar") &&
+    !temVinculoAprovado;
 
   return (
     <div
@@ -128,7 +136,11 @@ function Home() {
             </div>
 
             {/* Ações principais */}
-            <ActionCards />
+            {semVinculo ? (
+              <CartaoSemVinculo tipoPerfil={tipoPerfil} pendente={temVinculoPendente} />
+            ) : (
+              <ActionCards />
+            )}
 
             {/* Banner + ajuda */}
             <div
@@ -146,7 +158,7 @@ function Home() {
             </div>
 
             {/* Resumo do dia */}
-            <ResumoDia />
+            {!semVinculo && <ResumoDia />}
           </div>
     </div>
   );
