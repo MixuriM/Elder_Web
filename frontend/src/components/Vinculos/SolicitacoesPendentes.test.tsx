@@ -150,6 +150,13 @@ describe('SolicitacoesPendentes', () => {
     ).toBeInTheDocument()
   })
 
+  it('origem automática pendente só pode ser recusada: a aprovação vem da confirmação do e-mail', () => {
+    montar([conviteFamiliar])
+    const item = screen.getByRole('article', { name: /Ana Familiar/ })
+    expect(within(item).queryByRole('button', { name: /aprovar/i })).not.toBeInTheDocument()
+    expect(within(item).getByRole('button', { name: /recusar o pedido de Ana/i })).toBeInTheDocument()
+  })
+
   it.each([
     [403, 'Você não pode responder a este pedido.'],
     [404, 'Este pedido não foi encontrado. A lista foi atualizada.'],

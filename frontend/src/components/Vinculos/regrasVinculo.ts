@@ -1,13 +1,14 @@
 import type { Vinculo } from "./CardVinculo";
 
 export type TipoVinculo = "familiar" | "cuidador";
-export type AcaoAdicionar = "solicitar" | "cadastrar";
+export type AcaoAdicionar = "solicitar" | "cadastrar" | "convidar";
 
 // Só o que o backend deixa cada perfil fazer: cuidador pede vínculo de cuidador; familiar pede vínculo de
-// familiar ou cadastra idoso. Idoso não tem rota para isso (não existe rota de convite do idoso).
+// familiar ou cadastra idoso; idoso convida um familiar (cuidador sempre pede, e o idoso aprova).
 export function acoesDoPerfil(tipoPerfil: string | null, tipo: TipoVinculo): AcaoAdicionar[] {
   if (tipoPerfil === "cuidador" && tipo === "cuidador") return ["solicitar"];
   if (tipoPerfil === "familiar" && tipo === "familiar") return ["solicitar", "cadastrar"];
+  if (tipoPerfil === "idoso" && tipo === "familiar") return ["convidar"];
   return [];
 }
 
@@ -35,6 +36,11 @@ export function podeContestar(v: Vinculo, tipoPerfil: string | null, modo: ModoD
     ORIGENS_AUTOMATICAS.includes(v.origem) &&
     temAutoridade(v, tipoPerfil, modo)
   );
+}
+
+// Vínculo de origem automática só se aprova pela confirmação do e-mail (o backend responde 409 ao aprovar à mão).
+export function podeAprovarManual(v: Vinculo): boolean {
+  return !ORIGENS_AUTOMATICAS.includes(v.origem);
 }
 
 // Aviso "e-mail ainda não confirmado": só nos vínculos de aprovação automática, ainda pendentes e sem confirmação.

@@ -7,6 +7,18 @@ import AvisoEmailPendente from "./AvisoEmailPendente";
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
 import { emailNaoConfirmado } from "./regrasVinculo";
 
+// Só no vínculo aprovado de familiar do próprio chamador: quem decide pelo idoso e o pedido de transferência em curso.
+export type DecisaoDoIdoso = {
+  modo: "idoso" | "familiar";
+  transferencia: {
+    solicitada_por_mim: boolean;
+    expira_em: string | null;
+    exige_segunda_confirmacao: boolean;
+    segunda_confirmacao_feita: boolean;
+    confirmada_por_mim: boolean;
+  } | null;
+};
+
 export type Vinculo = {
   id: number;
   tipo_vinculo: string;
@@ -16,6 +28,7 @@ export type Vinculo = {
   data_resposta: string | null;
   confirmado_em: string | null;
   papel_do_chamador: string;
+  decisao?: DecisaoDoIdoso | null;
   // Só em vínculo de cuidador aprovado; fora disso o backend devolve null.
   permissoes?: {
     permite_registrar_saude: boolean;

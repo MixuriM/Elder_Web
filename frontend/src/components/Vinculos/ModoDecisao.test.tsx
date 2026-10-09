@@ -341,3 +341,65 @@ describe('ModoDecisao: familiar', () => {
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 })
+
+describe('ModoDecisao: familiar com o estado devolvido pelo backend (decisao)', () => {
+  beforeEach(() => {
+    mockApi.mockReset()
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+  })
+  afterEach(() => jest.restoreAllMocks())
+
+  const base = { exige_segunda_confirmacao: true, segunda_confirmacao_feita: false, confirmada_por_mim: false }
+  const transf = (extra: object) => ({
+    modo: 'idoso' as const,
+    transferencia: { solicitada_por_mim: false, expira_em: '2026-10-25T12:00:00.000Z', ...base, ...extra },
+  })
+  const proprio = (decisao: Vinculo['decisao']) =>
+    familiarDoIdoso(1, 'Eu Familiar', { papel_do_chamador: 'vinculado', decisao })
+
+  function montar(decisao: Vinculo['decisao']) {
+    const d = decisaoDe(null)
+    return render(<ModoDecisao tipoPerfil="familiar" vinculos={[proprio(decisao)]} decisao={d.decisao} />)
+  }
+  const pedir = () => screen.queryByRole('button', { name: /^pedir para decidir por/i })
+  const confirmar = () => screen.queryByRole('button', { name: /^confirmar o pedido de outro familiar/i })
+
+  it('modo familiar: diz que a decisão está com a família e não oferece ações', () => {
+    montar({ modo: 'familiar', transferencia: null })
+    expect(screen.getByText(/a decisão já está com a família/i)).toBeInTheDocument()
+    expect(pedir()).not.toBeInTheDocument()
+    expect(confirmar()).not.toBeInTheDocument()
+  })
+
+  it('sem pedido em curso: só oferece pedir, e não mostra o aviso de tela cega', () => {
+    montar({ modo: 'idoso', transferencia: null })
+    expect(pedir()).toBeInTheDocument()
+    expect(confirmar()).not.toBeInTheDocument()
+    expect(screen.queryByText(/esta tela não mostra/i)).not.toBeInTheDocument()
+  })
+
+  it('pedido feito por mim: mostra o prazo e a falta de confirmação, sem ações', () => {
+    montar(transf({ solicitada_por_mim: true }))
+    expect(screen.getByText(/você pediu para decidir por maria idosa/i)).toBeInTheDocument()
+    expect(screen.getByText(/25\/10\/2026/)).toBeInTheDocument()
+    expect(screen.getByText(/falta outro familiar confirmar/i)).toBeInTheDocument()
+    expect(pedir()).not.toBeInTheDocument()
+    expect(confirmar()).not.toBeInTheDocument()
+  })
+
+  it('pedido de outro familiar que precisa da minha confirmação: oferece confirmar', () => {
+    montar(transf({}))
+    expect(screen.getByText(/outro familiar pediu para decidir por maria idosa/i)).toBeInTheDocument()
+    expect(confirmar()).toBeInTheDocument()
+    expect(pedir()).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['eu já confirmei', { segunda_confirmacao_feita: true, confirmada_por_mim: true }, /você já confirmou este pedido/i],
+    ['outro já confirmou', { segunda_confirmacao_feita: true }, /já foi confirmado por outro familiar/i],
+  ])('pedido de outro, %s: informa e não oferece confirmar', (_nome, extra, texto) => {
+    montar(transf(extra))
+    expect(screen.getByText(texto)).toBeInTheDocument()
+    expect(confirmar()).not.toBeInTheDocument()
+  })
+})

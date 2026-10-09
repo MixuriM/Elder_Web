@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
 
 import { chamarApi } from "../../lib/chamarApi";
-import type { Vinculo } from "./CardVinculo";
+import type { DecisaoDoIdoso, Vinculo } from "./CardVinculo";
 import ConfirmacaoInline from "./ConfirmacaoInline";
 import {
   BOTAO_PRIMARIO,
@@ -310,8 +310,13 @@ function ModoDoFamiliar({ vinculos }: { vinculos: Vinculo[] }) {
       </h2>
       <p className="text-lg text-gray-700 dark:text-gray-200">
         Se o idoso precisar de ajuda para decidir, um familiar pode pedir para decidir no lugar dele. O idoso pode
-        cancelar o pedido. Esta tela não mostra se já existe um pedido em curso.
+        cancelar o pedido.
       </p>
+      {[...porIdoso.values()].some((v) => !v.decisao) && (
+        <p className="text-lg text-gray-700 dark:text-gray-200">
+          Esta tela não mostra se já existe um pedido em curso.
+        </p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {[...porIdoso.values()].map((v) => {
@@ -325,22 +330,13 @@ function ModoDoFamiliar({ vinculos }: { vinculos: Vinculo[] }) {
             >
               <h3 className="text-xl font-bold text-[#071A38] dark:text-white">{nome}</h3>
 
-              {jaComFamilia.has(v.idoso.id) ? (
-                <p className="text-lg text-gray-700 dark:text-gray-200">A decisão já está com a família.</p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <button
-                    type="button"
-                    onClick={() => abrir(v.id, "pedir")}
-                    className={BOTAO_PRIMARIO}
-                  >
-                    {`Pedir para decidir por ${nome}`}
-                  </button>
-                  <button type="button" onClick={() => abrir(v.id, "confirmar")} className={BOTAO_SECUNDARIO}>
-                    {`Confirmar o pedido de outro familiar para ${nome}`}
-                  </button>
-                </div>
-              )}
+              <EstadoDoPedido
+                nome={nome}
+                decisao={v.decisao}
+                jaComFamilia={jaComFamilia.has(v.idoso.id)}
+                onPedir={() => abrir(v.id, "pedir")}
+                onConfirmar={() => abrir(v.id, "confirmar")}
+              />
 
               {ativo === "pedir" && (
                 <ConfirmacaoInline
@@ -390,5 +386,63 @@ function ModoDoFamiliar({ vinculos }: { vinculos: Vinculo[] }) {
         </p>
       )}
     </section>
+  );
+}
+
+type EstadoDoPedidoProps = {
+  nome: string;
+  decisao: DecisaoDoIdoso | null | undefined;
+  jaComFamilia: boolean;
+  onPedir: () => void;
+  onConfirmar: () => void;
+};
+
+// O backend informa ao familiar aprovado quem decide e se há pedido em curso. Sem esse dado (resposta antiga),
+// a tela volta a oferecer as duas ações e deixa o 409 explicar.
+function EstadoDoPedido({ nome, decisao, jaComFamilia, onPedir, onConfirmar }: EstadoDoPedidoProps) {
+  const texto = "text-lg text-gray-700 dark:text-gray-200";
+  const pedir = (
+    <button type="button" onClick={onPedir} className={BOTAO_PRIMARIO}>
+      {`Pedir para decidir por ${nome}`}
+    </button>
+  );
+  const confirmar = (
+    <button type="button" onClick={onConfirmar} className={BOTAO_SECUNDARIO}>
+      {`Confirmar o pedido de outro familiar para ${nome}`}
+    </button>
+  );
+
+  if (jaComFamilia || decisao?.modo === "familiar") return <p className={texto}>A decisão já está com a família.</p>;
+  if (!decisao) return <div className="flex flex-col gap-3">{pedir}{confirmar}</div>;
+
+  const t = decisao.transferencia;
+  if (!t) return pedir;
+
+  const prazo = formatarDataBR(t.expira_em);
+  const quando = prazo ? ` O prazo termina em ${prazo}.` : "";
+
+  if (t.solicitada_por_mim) {
+    return (
+      <>
+        <p className={texto}>{`Você pediu para decidir por ${nome}.${quando}`}</p>
+        {t.exige_segunda_confirmacao && !t.segunda_confirmacao_feita && (
+          <p className={texto}>Falta outro familiar confirmar o seu pedido.</p>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p className={texto}>{`Outro familiar pediu para decidir por ${nome}.${quando}`}</p>
+      {t.exige_segunda_confirmacao &&
+        (t.confirmada_por_mim ? (
+          <p className={texto}>Você já confirmou este pedido.</p>
+        ) : t.segunda_confirmacao_feita ? (
+          <p className={texto}>O pedido já foi confirmado por outro familiar.</p>
+        ) : (
+          confirmar
+        ))}
+    </>
   );
 }

@@ -10,6 +10,7 @@ import { pessoaDoVinculo } from "./pessoaDoVinculo";
 import {
   emailNaoConfirmado,
   formatarDataBR,
+  podeAprovarManual,
   podeContestar,
   temAutoridade,
   type ModoDecisao,
@@ -231,7 +232,7 @@ export default function SolicitacoesPendentes({
             Pedidos para você responder
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
-            {paraResponder.map((v) => renderItem(v, ["aprovar", "recusar"]))}
+            {paraResponder.map((v) => renderItem(v, podeAprovarManual(v) ? ["aprovar", "recusar"] : ["recusar"]))}
           </div>
         </section>
       )}
