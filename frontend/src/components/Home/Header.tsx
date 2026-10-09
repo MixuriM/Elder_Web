@@ -6,6 +6,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
+import BotaoAjuda from "./BotaoAjuda";
 import { useAuthUser } from "../../hooks/useAuthUser";
 import { useFotoPerfil } from "../../contexts/useFotoPerfil";
 import { useAcesso } from "../../contexts/useAcesso";
@@ -29,7 +30,8 @@ function Header({ abrirSidebar }: HeaderProps) {
   const { usuario } = useAuthUser();
   const { fotoPerfilUrl, carregandoFoto } = useFotoPerfil();
   // Perfil buscado uma vez pelo AcessoProvider; até ele chegar, o nome da sessão do Firebase.
-  const nome = useAcesso().nome || usuario?.displayName || usuario?.email || "";
+  const { nome: nomeAcesso, tipoPerfil } = useAcesso();
+  const nome = nomeAcesso || usuario?.displayName || usuario?.email || "";
   const totalAvisos = useAvisos().avisos.length;
 
   return (
@@ -100,6 +102,9 @@ function Header({ abrirSidebar }: HeaderProps) {
 
       {/* Lado direito */}
       <div className="flex shrink-0 items-center gap-2">
+        {/* Só o idoso. Perfil ainda carregando ou com erro: não aparece (o backend também recusa os outros). */}
+        {tipoPerfil === "idoso" && <BotaoAjuda />}
+
         {/* Avisos: a contagem vai no nome acessível; o número visível é só reforço. */}
         <Link
           to="/avisos"
