@@ -62,6 +62,8 @@ type Regra = {
   // Corpo mínimo válido (cuidador pode ter corpo próprio: a agenda do cuidador só cria 'cuidado').
   corpo?: object;
   corpoCuidador?: object;
+  // Status de sucesso quando não segue a regra POST 201 / demais 200 (ação sem recurso criado).
+  statusOk?: number;
 };
 
 const SAUDE = { tipo_medicao: "pressao", valor_1: 120, valor_2: 80, unidade: "mmHg" };
@@ -158,6 +160,9 @@ const ROTAS_ESPERADAS: Regra[] = [
     corpo: REFEICAO,
   },
   { rota: "GET /alimentacao/idoso/:idosoId", categoria: "vinculo", cuidador: "leitura", familiar: "leitura" },
+
+  // Sem vínculo no fake: o controle positivo do idoso termina em 200 sem chegar ao provedor de e-mail.
+  { rota: "POST /emergencia/avisar", categoria: "autenticada", soIdoso: true, statusOk: 200 },
 ];
 
 const metodoDe = (r: Regra) => r.rota.split(" ")[0];
@@ -280,7 +285,7 @@ function chamar(r: Regra, o: Opcoes = {}) {
 }
 
 const bearer = (id: number) => `Bearer ${tokenDe(id)}`;
-const statusOk = (r: Regra) => (metodoDe(r) === "POST" ? 201 : 200);
+const statusOk = (r: Regra) => r.statusOk ?? (metodoDe(r) === "POST" ? 201 : 200);
 
 function corpoDoAtor(r: Regra, ator: "cuidador" | "familiar" | "idoso"): object | undefined {
   return ator === "cuidador" && r.corpoCuidador ? r.corpoCuidador : r.corpo;
