@@ -8,10 +8,14 @@ import AvisoPermissaoSaude from '../components/Saude/AvisoPermissaoSaude'
 
 import { usePermissoesSaude } from '../lib/permissoesSaude'
 import { useTitulo } from '../hooks/useTitulo'
+import { useAcesso } from '../contexts/useAcesso'
 
 function Saude() {
   useTitulo('Saúde')
   const permissoes = usePermissoesSaude()
+  // Registro próprio de saúde só existe para o idoso (o backend recusa os outros perfis). Perfil desconhecido: mostra.
+  const { tipoPerfil } = useAcesso()
+  const ehTerceiro = tipoPerfil === 'cuidador' || tipoPerfil === 'familiar'
 
   const mostrarEscritaDeTerceiros =
     permissoes.estado === 'erro' ||
@@ -92,12 +96,13 @@ function Saude() {
           </span>
 
           <h1 className="mt-2 text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA] md:text-4xl">
-            Minha Saúde
+            {ehTerceiro ? 'Saúde do idoso' : 'Minha Saúde'}
           </h1>
 
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1] md:text-lg">
-            Registre, acompanhe e mantenha suas informações
-            de saúde organizadas em um só lugar.
+            {ehTerceiro
+              ? 'Acompanhe as informações de saúde do idoso em um só lugar.'
+              : 'Registre, acompanhe e mantenha suas informações de saúde organizadas em um só lugar.'}
           </p>
         </header>
 
@@ -115,7 +120,7 @@ function Saude() {
           {/* COLUNA ESQUERDA */}
 
           <div className="space-y-6">
-            <RegistrarMinhaSaude />
+            {!ehTerceiro && <RegistrarMinhaSaude />}
 
             {mostrarEscritaDeTerceiros && (
               <RegistrarSaudeIdoso />
@@ -127,10 +132,12 @@ function Saude() {
           <div className="space-y-6">
             <HistoricoSaude />
 
-            <EditarSaude
-              titulo="Editar meu registro"
-              comIdoso={false}
-            />
+            {!ehTerceiro && (
+              <EditarSaude
+                titulo="Editar meu registro"
+                comIdoso={false}
+              />
+            )}
 
             {mostrarEscritaDeTerceiros && (
               <EditarSaude

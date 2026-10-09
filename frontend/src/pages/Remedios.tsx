@@ -26,6 +26,7 @@ import HistoricoDoses, {
 import ModalMarcarDose from "../components/Remedios/ModalMarcarDose";
 import ModalMedicamento from "../components/Remedios/ModalMedicamento";
 import { useTitulo } from "../hooks/useTitulo";
+import { useAcesso } from "../contexts/useAcesso";
 
 interface Medicamento extends MedicamentoCard {
   doses: DoseHistorico[];
@@ -66,6 +67,12 @@ export default function Remedios() {
   const bloqueado = envioBloqueado(idosos, idosoEscolhido);
   const idosoId = ehIdoso ? "" : idosoEscolhido;
   const idosoNome = idosos.idosos.find((i) => String(i.id) === idosoId)?.nome;
+
+  // Regras fixas de ator (o backend recusa o resto): cuidador nunca cadastra medicamento; terceiro só marca
+  // dose com a permissão do vínculo. Perfil ou permissão desconhecidos: mostra (o 403 vira mensagem).
+  const { tipoPerfil } = useAcesso();
+  const podeCadastrar = tipoPerfil !== "cuidador";
+  const podeMarcarDose = ehIdoso || permissoes.estado !== "ok" || permissoes.escrita;
 
   const carregarMedicamentos = useCallback(async () => {
     setErro(null);
@@ -162,11 +169,13 @@ export default function Remedios() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-[#56657D] dark:text-[#C7C7D1]">
-              Organize seus medicamentos, registre doses e acompanhe seu
-              histórico.
+              {ehIdoso
+                ? "Organize seus medicamentos, registre doses e acompanhe seu histórico."
+                : "Acompanhe os medicamentos do idoso e o histórico de doses."}
             </p>
           </div>
 
+          {podeCadastrar && (
           <button
             type="button"
             onClick={() => setModalMedicamentoAberto(true)}
@@ -202,6 +211,7 @@ export default function Remedios() {
             <Plus size={20} aria-hidden="true" />
             Adicionar medicamento
           </button>
+          )}
         </header>
 
         {/* PERMISSÕES */}
@@ -335,10 +345,14 @@ export default function Remedios() {
             </h2>
 
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#56657D] dark:text-[#C7C7D1]">
-              Adicione seu primeiro medicamento para começar a acompanhar suas
-              doses.
+              {ehIdoso
+                ? "Adicione seu primeiro medicamento para começar a acompanhar suas doses."
+                : podeCadastrar
+                  ? "Adicione o primeiro medicamento do idoso para começar a acompanhar as doses."
+                  : "Quando um medicamento for cadastrado, ele aparece aqui."}
             </p>
 
+            {podeCadastrar && (
             <button
               type="button"
               onClick={() => setModalMedicamentoAberto(true)}
@@ -364,6 +378,7 @@ export default function Remedios() {
               <Plus size={19} aria-hidden="true" />
               Adicionar medicamento
             </button>
+            )}
           </section>
         )}
 
@@ -376,7 +391,7 @@ export default function Remedios() {
                 id="titulo-meus-medicamentos"
                 className="text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]"
               >
-                Meus medicamentos
+                {ehIdoso ? "Meus medicamentos" : "Medicamentos do idoso"}
               </h2>
 
               <p className="mt-1 text-sm text-[#56657D] dark:text-[#C7C7D1]">
@@ -392,7 +407,7 @@ export default function Remedios() {
                 <CardMedicamento
                   key={medicamento.id}
                   medicamento={medicamento}
-                  onMarcarDose={abrirDose}
+                  onMarcarDose={podeMarcarDose ? abrirDose : undefined}
                   onVerDetalhes={abrirDetalhes}
                 />
               ))}
