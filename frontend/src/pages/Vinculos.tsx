@@ -9,7 +9,9 @@ import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
 import ModalVinculo from "../components/Vinculos/ModalVinculo";
 import ResumoVinculos from "../components/Vinculos/ResumoVinculos";
-import { acoesDoPerfil, type TipoVinculo } from "../components/Vinculos/regrasVinculo";
+import SolicitacoesPendentes from "../components/Vinculos/SolicitacoesPendentes";
+import { acoesDoPerfil, temAutoridade, type TipoVinculo } from "../components/Vinculos/regrasVinculo";
+import { modoDe, useEstadoDecisao } from "../components/Vinculos/useEstadoDecisao";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
 import { useTitulo } from "../hooks/useTitulo";
 import { AVISO_SEM_VINCULO } from "../lib/avisoSemVinculo";
@@ -47,6 +49,8 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   const semVinculo = (useLocation().state as { semVinculo?: boolean } | null)?.semVinculo === true;
   const { tipoPerfil } = useAcesso();
   const acoes = acoesDoPerfil(tipoPerfil, tipo);
+  const decisao = useEstadoDecisao(tipoPerfil === "idoso");
+  const modoDoIdoso = modoDe(decisao.estado);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -77,6 +81,10 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   }, []);
 
   const doTipo = vinculos.filter((v) => v.tipo_vinculo === tipo);
+  // O pedido que a pessoa pode decidir aparece só na seção de pedidos, não de novo na lista.
+  const naLista = doTipo.filter(
+    (v) => !(decisao.pronto && v.status === "pendente" && temAutoridade(v, tipoPerfil, modoDoIdoso))
+  );
 
   return (
     <div
@@ -110,8 +118,17 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
 
         <ResumoVinculos tipo={tipo} vinculos={doTipo} />
 
+        {decisao.pronto && (
+          <SolicitacoesPendentes
+            vinculos={doTipo}
+            tipoPerfil={tipoPerfil}
+            modoDoIdoso={modoDoIdoso}
+            onResolvido={() => carregarVinculos(true)}
+          />
+        )}
+
         <ListaVinculos
-          vinculos={doTipo}
+          vinculos={naLista}
           vazio={textos.vazio}
           carregando={carregando}
           erro={erro}
