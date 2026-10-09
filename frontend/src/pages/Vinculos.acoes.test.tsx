@@ -77,7 +77,6 @@ describe("Vinculos: Adicionar pessoa e resumo", () => {
 
   it.each([
     ["idoso", "cuidador"],
-    ["idoso", "familiar"],
     ["familiar", "cuidador"],
     [null, "familiar"],
   ] as const)("perfil %s na tela %s: sem botão", async (perfil, tipo) => {
@@ -122,5 +121,16 @@ describe("Vinculos: pedir vínculo pelo modal", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Concluir" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("Vinculos: idoso convida familiar", () => {
+  it("idoso na tela de família vê o botão e o modal abre direto o convite", async () => {
+    global.fetch = jest.fn().mockResolvedValue(respostaJson(200, { vinculos: [] }));
+    renderComPerfil("idoso", "familiar");
+    await userEvent.click(await screen.findByRole("button", { name: "Adicionar pessoa" }));
+    const dialogo = screen.getByRole("dialog", { name: "Adicionar pessoa" });
+    expect(within(dialogo).getByLabelText(/e-mail do familiar/i)).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Enviar convite" })).toBeInTheDocument();
   });
 });

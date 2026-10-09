@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import CadastrarIdoso from "./CadastrarIdoso";
+import ConvidarFamiliar from "./ConvidarFamiliar";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "./estilosVinculo";
 import type { AcaoAdicionar, TipoVinculo } from "./regrasVinculo";
 import SolicitarVinculo from "./SolicitarVinculo";
@@ -15,6 +16,7 @@ type AdicionarPessoaProps = {
 const ROTULOS: Record<AcaoAdicionar, string> = {
   solicitar: "Pedir vínculo com um idoso",
   cadastrar: "Cadastrar um idoso",
+  convidar: "Convidar um familiar",
 };
 
 // Conteúdo do modal "Adicionar pessoa": com uma só ação abre direto o formulário; com duas, pergunta primeiro.
@@ -64,6 +66,7 @@ export default function AdicionarPessoa({ tipo, acoes, onConcluido, onFechar }: 
           onFechar={onFechar}
         />
       )}
+      {escolha === "convidar" && <ConvidarFamiliar onConcluido={onConcluido} onFechar={onFechar} />}
       {escolha === "cadastrar" && (
         <CadastrarIdoso
           onConcluido={onConcluido}

@@ -29,7 +29,7 @@ const TEXTOS: Record<
       texto: "Quando um familiar for vinculado, ele aparecerá aqui.",
     },
     comoEntra:
-      "Para um familiar aparecer aqui, o familiar pede o vínculo usando o seu e-mail e você responde ao pedido.",
+      "Para um familiar aparecer aqui, convide-o pelo botão Adicionar pessoa ou espere o pedido dele pelo seu e-mail e responda aqui.",
   },
   cuidador: {
     titulo: "Cuidadores",
