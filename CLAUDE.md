@@ -321,10 +321,14 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Avisar Laureane e Jennifer da mudança estrutural do frontend (2026-10-08, `development`): `Sidebar`, `Header` e `main`
   únicos no `LayoutAutenticado`, rotas `/familia` e `/cuidadores`, menu e guarda por perfil, texto mínimo de 14px.
-- Frontend pendente (próximos prompts): telas funcionais de vínculo (solicitar, aprovar, permissões, modo de decisão,
-  cadastrar idoso), cards da Home com dados, avisos, Configurações, sino e busca do `Header` (hoje mortos), botão de
+- Frontend pendente (próximos prompts): cards da Home com dados, avisos, Configurações, sino e busca do `Header` (hoje mortos), botão de
   emergência, texto da landing e calendário da Agenda. `useAcesso` busca uma vez ao montar o layout: não atualiza
   sozinho após aprovar vínculo (precisará de um `recarregar`).
+- Telas de vínculo (2026-10-08, `components/Vinculos/`): `SolicitarVinculo` e `CadastrarIdoso` abrem em `ModalVinculo` pelo
+  "Adicionar pessoa" (`AdicionarPessoa`); `SolicitacoesPendentes` e `ResumoVinculos` no topo de `/familia` e `/cuidadores`;
+  `PermissoesCuidador` em `/vinculos/:id`; `ModoDecisao` em `/familia`. Botão só para quem tem autoridade
+  (`regrasVinculo.ts`); erro de `chamarApi` leva `status`, textos fixos por status. Lacunas do backend (sem tela): não há rota
+  para o idoso convidar familiar (`convite_idoso`), e o familiar não lê o `modo_decisao` nem o pedido de transferência do idoso.
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (uso local via `docker-compose.yml`, com volume e
