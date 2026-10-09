@@ -68,6 +68,17 @@ export async function sendEmailVerification(): Promise<boolean> {
   return true;
 }
 
+// E-mail confirmado no Firebase, depois de recarregar o usuário (a pessoa pode ter clicado o link em outra aba).
+// Falha do reload não lança: fica o valor que o SDK já tinha.
+export async function emailConfirmado(): Promise<boolean> {
+  try {
+    await auth.currentUser?.reload();
+  } catch {
+    // sem rede: segue com o valor em cache
+  }
+  return auth.currentUser?.emailVerified === true;
+}
+
 export type TipoPerfil = "idoso" | "cuidador" | "familiar";
 
 // Sincroniza com o backend logo após login/cadastro (POST /auth/sync).

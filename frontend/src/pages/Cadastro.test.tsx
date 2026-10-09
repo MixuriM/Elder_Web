@@ -164,7 +164,7 @@ describe("Cadastro", () => {
     }
   );
 
-  it.each(["familiar", "idoso"])(
+  it.each(["familiar", "idoso", "cuidador"])(
     "perfil %s: dispara sendEmailVerification antes de sincronizar",
     async (perfil) => {
       mockRegisterUser.mockResolvedValue(undefined);
@@ -179,7 +179,7 @@ describe("Cadastro", () => {
 
       await preencherCamposBase(
         user,
-        perfil as "idoso" | "familiar"
+        perfil as "idoso" | "familiar" | "cuidador"
       );
 
       await user.click(
@@ -205,7 +205,8 @@ describe("Cadastro", () => {
   );
 
   it(
-    "perfil cuidador: NÃO dispara sendEmailVerification",
+    // Cuidador também confirma o e-mail: o aviso de emergência só vai para e-mail verificado.
+    "perfil cuidador: também dispara sendEmailVerification",
     async () => {
       mockRegisterUser.mockResolvedValue(undefined);
 
@@ -236,7 +237,7 @@ describe("Cadastro", () => {
 
       expect(
         mockSendEmailVerification
-      ).not.toHaveBeenCalled();
+      ).toHaveBeenCalledTimes(1);
     }
   );
 
@@ -477,4 +478,50 @@ describe("Cadastro", () => {
       );
     }
   );
+
+  it.each(["idoso", "familiar", "cuidador"] as const)(
+    "perfil %s: falha ao enviar o e-mail de confirmação não derruba o cadastro",
+    async (perfil) => {
+      mockRegisterUser.mockResolvedValue(undefined);
+      mockSendEmailVerification.mockRejectedValue(
+        Object.assign(new Error("falhou para ana@a.com"), { code: "auth/too-many-requests" })
+      );
+      mockSyncUser.mockResolvedValue({ criado: true });
+      const espiao = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      const user = userEvent.setup();
+      renderCadastro();
+      await preencherCamposBase(user, perfil);
+      await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith("/welcome", {
+          state: {
+            cadastroSucesso: true,
+            confirmarEmail: false,
+            confirmacaoFalhou: true,
+            reenviarNoPerfil: perfil !== "idoso",
+          },
+        })
+      );
+      expect(mockSyncUser).toHaveBeenCalledWith(expect.objectContaining({ tipoPerfil: perfil }));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(JSON.stringify(espiao.mock.calls)).not.toContain("ana@a.com");
+      espiao.mockRestore();
+    }
+  );
+
+  it("Google, perfil cuidador: também pede a confirmação (no-op se o Google já confirmou)", async () => {
+    mockLoginWithGoogle.mockResolvedValue(undefined);
+    mockSendEmailVerification.mockResolvedValue(false);
+    mockSyncUser.mockResolvedValue({ criado: true });
+
+    const user = userEvent.setup();
+    renderCadastro();
+    await user.click(screen.getByRole("radio", { name: /cuidador/i }));
+    await user.click(screen.getByRole("button", { name: /google/i }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
+    expect(mockSendEmailVerification).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,10 +1,16 @@
-import { SyncError, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, syncUser } from './auth'
+import { SyncError, emailConfirmado, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, syncUser } from './auth'
 
 // lib/auth.ts inicializa o Firebase de verdade no import; mocks evitam isso (mesmo
 // padrão de Home.test.tsx / RotaProtegida.test.tsx).
 const mockGetIdToken = jest.fn().mockResolvedValue('token-fake')
+// Usuário atual do Firebase (fake), trocável por teste; getter para o auth do import ver a troca.
+let mockUsuarioAtual: Record<string, unknown> | null = null
 jest.mock('firebase/auth', () => ({
-  getAuth: jest.fn(() => ({ currentUser: { getIdToken: (...args: unknown[]) => mockGetIdToken(...args) } })),
+  getAuth: jest.fn(() => ({
+    get currentUser() {
+      return mockUsuarioAtual ?? { getIdToken: (...args: unknown[]) => mockGetIdToken(...args) }
+    },
+  })),
   GoogleAuthProvider: jest.fn(),
 }))
 jest.mock('./firebase', () => ({ app: {} }))
@@ -167,5 +173,26 @@ describe('mensagemErroLogin / erroSemContaNoLogin', () => {
   it('SyncError 400 de outro motivo não sugere o cadastro; erro desconhecido: mensagem genérica', () => {
     expect(erroSemContaNoLogin(new SyncError(400, 'nome obrigatório ao criar conta.'))).toBe(false)
     expect(mensagemErroLogin(new Error('x'))).toMatch(/não foi possível entrar/i)
+  })
+})
+
+describe('emailConfirmado: recarrega o usuário do Firebase', () => {
+  afterEach(() => {
+    mockUsuarioAtual = null
+  })
+
+  it('chama reload e devolve o emailVerified já atualizado', async () => {
+    const usuario: Record<string, unknown> = { emailVerified: false }
+    usuario.reload = jest.fn(async () => {
+      usuario.emailVerified = true
+    })
+    mockUsuarioAtual = usuario
+    await expect(emailConfirmado()).resolves.toBe(true)
+    expect(usuario.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('reload falha: não lança e devolve o valor que já tinha', async () => {
+    mockUsuarioAtual = { emailVerified: false, reload: jest.fn().mockRejectedValue(new Error('rede')) }
+    await expect(emailConfirmado()).resolves.toBe(false)
   })
 })
