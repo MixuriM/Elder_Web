@@ -21,10 +21,13 @@ import FormularioPerfil from "../components/perfil/FormularioPerfil";
 
 // Importa o layout da página de perfil
 import LayoutPerfil from "../components/perfil/LayoutPerfil";
+import SituacaoEmail from "../components/perfil/SituacaoEmail";
+import { useAcesso } from "../contexts/useAcesso";
 import { useTitulo } from "../hooks/useTitulo";
 
 function Perfil() {
   useTitulo("Meu perfil");
+  const { tipoPerfil } = useAcesso();
   // Dados do usuário
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -204,6 +207,9 @@ function Perfil() {
         // Envio do formulário
         onSubmit={handleSubmit}
       />
+
+      {/* Aviso de emergência só vai para e-mail confirmado: quem recebe (cuidador e familiar) vê a situação. */}
+      {(tipoPerfil === "cuidador" || tipoPerfil === "familiar") && <SituacaoEmail />}
     </LayoutPerfil>
   );
 }

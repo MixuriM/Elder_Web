@@ -5,6 +5,10 @@ import { MemoryRouter } from "react-router-dom";
 import { useState, type ReactNode } from "react";
 import Perfil from "./Perfil";
 import { FotoPerfilContext, useFotoPerfil } from "../contexts/useFotoPerfil";
+import { AcessoContext } from "../contexts/useAcesso";
+
+// A seção de e-mail tem teste próprio (SituacaoEmail.test.tsx); aqui só importa onde ela aparece.
+jest.mock("../components/perfil/SituacaoEmail", () => () => <p>secao-situacao-email</p>);
 
 // O contexto de foto importa useAuthUser (Firebase); o teste não precisa dele.
 jest.mock("../hooks/useAuthUser", () => ({
@@ -194,5 +198,26 @@ describe("Perfil", () => {
       render(<Sonda />);
       expect(screen.getByText("nada")).toBeInTheDocument();
     });
+  });
+});
+
+describe("Perfil: situação do e-mail só para cuidador e familiar", () => {
+  beforeEach(() => mockBuscarPerfil.mockReset().mockResolvedValue(DADOS));
+
+  it.each([
+    ["cuidador", true],
+    ["familiar", true],
+    ["idoso", false],
+    [null, false],
+  ])("%s: seção %s", async (tipoPerfil, aparece) => {
+    render(
+      <MemoryRouter>
+        <AcessoContext.Provider value={{ tipoPerfil, estado: "ok", temVinculoAprovado: false, temVinculoPendente: false }}>
+          <Perfil />
+        </AcessoContext.Provider>
+      </MemoryRouter>
+    );
+    await screen.findByDisplayValue("Ana");
+    expect(screen.queryByText("secao-situacao-email") !== null).toBe(aparece);
   });
 });
