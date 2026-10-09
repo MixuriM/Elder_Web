@@ -1,4 +1,4 @@
-import { acoesDoPerfil, emailNaoConfirmado, podeContestar, temAutoridade } from './regrasVinculo'
+import { acoesDoPerfil, emailNaoConfirmado, podeAprovarManual, podeContestar, temAutoridade } from './regrasVinculo'
 import type { Vinculo } from './CardVinculo'
 
 describe('acoesDoPerfil', () => {
@@ -7,7 +7,7 @@ describe('acoesDoPerfil', () => {
     ['familiar', 'familiar', ['solicitar', 'cadastrar']],
     ['familiar', 'cuidador', []],
     ['cuidador', 'familiar', []],
-    ['idoso', 'familiar', []],
+    ['idoso', 'familiar', ['convidar']],
     ['idoso', 'cuidador', []],
     [null, 'familiar', []],
   ] as const)('perfil %s na tela %s: %j', (perfil, tipo, esperado) => {
@@ -76,5 +76,16 @@ describe('emailNaoConfirmado: só origem automática, pendente e sem confirmado_
     ['convite_idoso', 'recusado', null, false],
   ])('origem %s, status %s, confirmado_em %s: %s', (origem, status, confirmado_em, esperado) => {
     expect(emailNaoConfirmado(v({ origem, status, confirmado_em }))).toBe(esperado)
+  })
+})
+
+describe('podeAprovarManual: origem automática só se aprova pela confirmação do e-mail', () => {
+  it.each([
+    ['convite_idoso', false],
+    ['cadastro_familiar', false],
+    ['solicitacao_familiar', true],
+    ['solicitacao_cuidador', true],
+  ])('origem %s: %s', (origem, esperado) => {
+    expect(podeAprovarManual(v({ origem }))).toBe(esperado)
   })
 })
