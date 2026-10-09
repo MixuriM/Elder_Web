@@ -48,7 +48,7 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   useTitulo(textos.titulo);
   // Vindo da guarda RotaComVinculo: só um sinal no state, o texto é fixo.
   const semVinculo = (useLocation().state as { semVinculo?: boolean } | null)?.semVinculo === true;
-  const { tipoPerfil } = useAcesso();
+  const { tipoPerfil, recarregar } = useAcesso();
   const acoes = acoesDoPerfil(tipoPerfil, tipo);
   const decisao = useEstadoDecisao(tipoPerfil === "idoso");
   const modoDoIdoso = modoDe(decisao.estado);
@@ -80,6 +80,12 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   useEffect(() => {
     carregarVinculos();
   }, []);
+
+  // Toda ação (pedir, cadastrar, aprovar, recusar, contestar) pode mudar o acesso: menu e guardas recarregam junto.
+  function depoisDeAcao() {
+    recarregar?.();
+    carregarVinculos(true);
+  }
 
   const doTipo = vinculos.filter((v) => v.tipo_vinculo === tipo);
   // O pedido que a pessoa pode decidir aparece só na seção de pedidos, não de novo na lista.
@@ -117,14 +123,14 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
           <p className="text-lg text-gray-700 dark:text-gray-200">{textos.comoEntra}</p>
         )}
 
-        <ResumoVinculos tipo={tipo} vinculos={doTipo} />
+        {!erro && <ResumoVinculos tipo={tipo} vinculos={doTipo} />}
 
         {decisao.pronto && (
           <SolicitacoesPendentes
             vinculos={doTipo}
             tipoPerfil={tipoPerfil}
             modoDoIdoso={modoDoIdoso}
-            onResolvido={() => carregarVinculos(true)}
+            onResolvido={depoisDeAcao}
           />
         )}
 
@@ -142,7 +148,7 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
         <AdicionarPessoa
           tipo={tipo}
           acoes={acoes}
-          onConcluido={() => carregarVinculos(true)}
+          onConcluido={depoisDeAcao}
           onFechar={() => setModalAberto(false)}
         />
       </ModalVinculo>
