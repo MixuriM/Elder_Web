@@ -450,6 +450,7 @@ describe("GET /vinculo", () => {
               "confirmado_em",
               "data_resposta",
               "data_solicitacao",
+              "decisao",
               "id",
               "idoso",
               "origem",
@@ -473,5 +474,97 @@ describe("GET /vinculo", () => {
       const pend = await listarOk(A, "?status=pendente");
       expect(ids(pend)).toEqual([]);
     });
+  });
+});
+
+// Gap fechado: o familiar aprovado precisa saber quem decide pelo idoso e se há pedido de transferência em curso,
+// sem ler motivo nem id de quem pediu. Só aparece no vínculo aprovado de familiar do próprio chamador.
+describe("GET /vinculo: decisao do idoso para o familiar", () => {
+  type Decisao = {
+    modo: string;
+    transferencia: null | {
+      solicitada_por_mim: boolean;
+      expira_em: string | null;
+      exige_segunda_confirmacao: boolean;
+      segunda_confirmacao_feita: boolean;
+      confirmada_por_mim: boolean;
+    };
+  } | null;
+  const decisaoDe = (res: request.Response, id: number) =>
+    (res.body.vinculos as Array<{ id: number; decisao: Decisao }>).find((v) => v.id === id)?.decisao;
+  const FUTURO = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+  it("modo idoso sem pedido: modo idoso e transferencia nula", async () => {
+    const res = await listarOk(F1);
+    expect(decisaoDe(res, 2)).toEqual({ modo: "idoso", transferencia: null });
+  });
+
+  it("modo familiar: o familiar vê modo familiar", async () => {
+    usuarios[A].modo_decisao = "familiar";
+    const res = await listarOk(F1);
+    expect(decisaoDe(res, 2)).toEqual({ modo: "familiar", transferencia: null });
+  });
+
+  it("pedido em curso: quem pediu e quem pode confirmar veem estados diferentes", async () => {
+    Object.assign(usuarios[A], {
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: F1,
+      modo_decisao_expira_em: FUTURO,
+      modo_decisao_motivo: "MOTIVO-PRIVADO",
+    });
+
+    const quemPediu = await listarOk(F1);
+    expect(decisaoDe(quemPediu, 2)).toEqual({
+      modo: "idoso",
+      transferencia: {
+        solicitada_por_mim: true,
+        expira_em: FUTURO.toISOString(),
+        exige_segunda_confirmacao: true,
+        segunda_confirmacao_feita: false,
+        confirmada_por_mim: false,
+      },
+    });
+
+    const outro = await listarOk(F2);
+    expect(decisaoDe(outro, 3)?.transferencia).toMatchObject({
+      solicitada_por_mim: false,
+      exige_segunda_confirmacao: true,
+      segunda_confirmacao_feita: false,
+      confirmada_por_mim: false,
+    });
+    expect(JSON.stringify([quemPediu.body, outro.body])).not.toContain("MOTIVO-PRIVADO");
+  });
+
+  it("segunda confirmação feita pelo outro familiar", async () => {
+    Object.assign(usuarios[A], {
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: F1,
+      modo_decisao_expira_em: FUTURO,
+      modo_decisao_segunda_confirmacao_id: F2,
+    });
+    const res = await listarOk(F2);
+    expect(decisaoDe(res, 3)?.transferencia).toMatchObject({ segunda_confirmacao_feita: true, confirmada_por_mim: true });
+  });
+
+  it("com um só familiar aprovado não exige segunda confirmação", async () => {
+    vinculos = vinculos.filter((v) => v.id !== 3);
+    Object.assign(usuarios[A], {
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: F1,
+      modo_decisao_expira_em: FUTURO,
+    });
+    const res = await listarOk(F1);
+    expect(decisaoDe(res, 2)?.transferencia).toMatchObject({ exige_segunda_confirmacao: false });
+  });
+
+  it("fora do vínculo aprovado de familiar do próprio chamador a decisao é nula", async () => {
+    usuarios[A].modo_decisao = "familiar";
+    const f2 = await listarOk(F2);
+    expect(decisaoDe(f2, 5)).toBeNull(); // pendente
+    expect(decisaoDe(f2, 1)).toBeNull(); // cuidador do idoso que ele conduz (titular)
+    const idoso = await listarOk(A);
+    for (const v of idoso.body.vinculos as Array<{ decisao: unknown }>) expect(v.decisao).toBeNull();
+    const cuidador = await listarOk(C1);
+    for (const v of cuidador.body.vinculos as Array<{ decisao: unknown }>) expect(v.decisao).toBeNull();
   });
 });
