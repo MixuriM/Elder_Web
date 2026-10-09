@@ -73,7 +73,7 @@ describe('Vinculos (acessibilidade)', () => {
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 
-  it('link para detalhes: abre uma URL separada sem substituir a lista', async () => {
+  it('link para detalhes: abre na mesma aba, sem aviso de nova aba no nome', async () => {
     jest.mocked(global.fetch).mockResolvedValue(respostaJson(200, { vinculos: [vinculo] }))
     const { container } = renderVinculos()
 
@@ -81,7 +81,8 @@ describe('Vinculos (acessibilidade)', () => {
 
     const link = screen.getByRole('link', { name: /ver detalhes de joão da silva/i })
     expect(link).toHaveAttribute('href', '/vinculos/12')
-    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).not.toHaveAttribute('target')
+    expect(link).toHaveAccessibleName('Ver detalhes de João da Silva')
     expect(screen.getByRole('heading', { name: 'Pessoas vinculadas' })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
