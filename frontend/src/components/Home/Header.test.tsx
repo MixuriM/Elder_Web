@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import Header from "./Header";
 import { FotoPerfilContext } from "../../contexts/useFotoPerfil";
 import { AcessoProvider } from "../../contexts/AcessoContext";
+import { AcessoContext } from "../../contexts/useAcesso";
 import { AvisosContext } from "../../contexts/useAvisos";
 
 const mockBuscarPerfil = jest.fn();
@@ -124,5 +125,32 @@ describe("Header: sino de avisos e sem busca", () => {
     comAvisos(0);
     const sino = screen.getByRole("link", { name: "Avisos" });
     expect(sino).not.toHaveTextContent("0");
+  });
+});
+
+describe("Header: botão Preciso de ajuda só para o idoso", () => {
+  function comPerfil(tipoPerfil: string | null, estado: "carregando" | "ok" | "erro" = "ok") {
+    return render(
+      <MemoryRouter>
+        <AcessoContext.Provider value={{ tipoPerfil, estado, temVinculoAprovado: true, temVinculoPendente: false }}>
+          <Header abrirSidebar={() => {}} />
+        </AcessoContext.Provider>
+      </MemoryRouter>
+    );
+  }
+
+  it("idoso vê o botão", () => {
+    comPerfil("idoso");
+    expect(screen.getByRole("button", { name: "Preciso de ajuda" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["cuidador", "ok"],
+    ["familiar", "ok"],
+    [null, "carregando"],
+    [null, "erro"],
+  ] as const)("%s (%s) não vê o botão", (perfil, estado) => {
+    comPerfil(perfil, estado);
+    expect(screen.queryByRole("button", { name: "Preciso de ajuda" })).not.toBeInTheDocument();
   });
 });
