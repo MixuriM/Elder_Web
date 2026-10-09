@@ -51,8 +51,8 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
         }),
       })
       setResultado(corpo)
-      // Próximo compromisso começa no Tipo padrão; os outros campos ficam como estão.
-      setCampos((atual) => ({ ...atual, tipo: VAZIO.tipo }))
+      // Próximo compromisso começa do zero (com 1 idoso só, o SeletorIdoso escolhe ele de novo).
+      setCampos(VAZIO)
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Falha ao criar compromisso.')
     } finally {

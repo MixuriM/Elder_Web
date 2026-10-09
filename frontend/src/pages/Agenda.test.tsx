@@ -220,6 +220,8 @@ describe("Agenda (item 6.1)", () => {
     await preencher(c, user);
     await user.click(c.botao);
     expect(await screen.findByRole("status")).toBeInTheDocument();
+    // Depois do sucesso o formulário fica limpo: preenche de novo para reenviar.
+    await preencher(c, user);
     await user.click(c.botao);
     await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
   });
@@ -364,6 +366,8 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
     await user.click(c.botao);
     expect(await screen.findByRole("status")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // Depois do sucesso o formulário fica limpo: preenche de novo para reenviar.
+    await preencherCuidador(c, user);
     await user.click(c.botao);
     await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -722,8 +726,8 @@ describe("Agenda: ver como Calendário ou Lista", () => {
   });
 });
 
-describe("Agenda: Tipo volta ao padrão depois de criar", () => {
-  it.each(["idoso", "familiar"] as const)("%s: depois do sucesso o Tipo volta a Pessoal", async (sufixo) => {
+describe("Agenda: formulário limpo depois de criar", () => {
+  it.each(["idoso", "familiar"] as const)("%s: depois do sucesso todos os campos voltam ao padrão", async (sufixo) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 51 }));
     const user = userEvent.setup();
     renderAgenda();
@@ -734,9 +738,15 @@ describe("Agenda: Tipo volta ao padrão depois de criar", () => {
     await screen.findByRole("status");
     expect(chamada().corpo.tipo_evento).toBe("medico");
     expect(c.tipo).toHaveValue("pessoal");
+    expect(c.titulo).toHaveValue("");
+    expect(c.descricao).toHaveValue("");
+    expect(c.inicio).toHaveValue("");
+    expect(c.fim).toHaveValue("");
+    // Com 1 idoso só (fixture padrão), o SeletorIdoso escolhe ele de novo.
+    if (c.idosoId) expect(c.idosoId).toHaveValue("7");
   });
 
-  it("no erro o Tipo escolhido continua (nada do que a pessoa escolheu se perde)", async () => {
+  it("no erro tudo o que a pessoa preencheu continua", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(400, { error: "Mensagem de erro de teste." }));
     const user = userEvent.setup();
     renderAgenda();
@@ -746,5 +756,7 @@ describe("Agenda: Tipo volta ao padrão depois de criar", () => {
     await user.click(c.botao);
     await screen.findByRole("alert");
     expect(c.tipo).toHaveValue("medico");
+    expect(c.titulo).toHaveValue("Consulta Ficticia");
+    expect(c.inicio).toHaveValue(INICIO_LOCAL);
   });
 });
