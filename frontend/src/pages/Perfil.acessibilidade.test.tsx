@@ -12,6 +12,12 @@ jest.mock('../hooks/useAuthUser', () => ({
   useAuthUser: () => ({ usuario: null, carregando: false }),
 }))
 
+// A seção de e-mail (SituacaoEmail) importa lib/auth, que inicializa o Firebase: mock, nenhum e-mail sai.
+jest.mock('../lib/auth', () => ({
+  emailConfirmado: jest.fn().mockResolvedValue(false),
+  sendEmailVerification: jest.fn(),
+}))
+
 const mockBuscarPerfil = jest.fn()
 jest.mock('../services/perfilService', () => ({
   buscarPerfil: (...args: unknown[]) => mockBuscarPerfil(...args),
