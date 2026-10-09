@@ -304,7 +304,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Avisar Laureane e Jennifer: 5.4 (`GET /historico/pdf` e `/historico/idoso/:idosoId/pdf`, `lib/baixarPdf.ts`,
   `Remedios.tsx`); PR #143 (9.1, cores em ~50 telas, Home mais escura; sobram 50 `ring-` de foco com opacidade,
   cobertos pelo contorno global); layout único e revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`,
-  `/avisos`, `/configuracoes`, landing); calendário da Agenda; botão de emergência.
+  `/avisos`, `/configuracoes`, landing); calendário da Agenda; botão de emergência; confirmação de e-mail.
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio do remetente (SPF/DKIM), conta no provedor e os 3 `EMAIL_*` no Render.
 - Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
