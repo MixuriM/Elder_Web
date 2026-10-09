@@ -1,0 +1,116 @@
+import '@testing-library/jest-dom'
+import { act, render, screen } from '@testing-library/react'
+import { AcessoProvider } from './AcessoContext'
+import { useAcesso } from './useAcesso'
+
+const mockBuscarPerfil = jest.fn()
+const mockChamarApi = jest.fn()
+jest.mock('../services/perfilService', () => ({
+  buscarPerfil: (...a: unknown[]) => mockBuscarPerfil(...a),
+}))
+jest.mock('../lib/chamarApi', () => ({
+  chamarApi: (...a: unknown[]) => mockChamarApi(...a),
+}))
+
+function Mostra() {
+  const a = useAcesso()
+  return (
+    <output data-testid="acesso">
+      {[a.estado, a.tipoPerfil, a.temVinculoAprovado, a.temVinculoPendente].join('|')}
+    </output>
+  )
+}
+
+async function renderizar() {
+  render(
+    <AcessoProvider>
+      <Mostra />
+      <Mostra />
+    </AcessoProvider>,
+  )
+  // deixa as promessas resolverem
+  await act(async () => {})
+  return screen.getAllByTestId('acesso')[0].textContent
+}
+
+// Dados fake só para o teste.
+const vinculo = (status: string, papel = 'vinculado') => ({ status, papel_do_chamador: papel })
+
+describe('AcessoProvider', () => {
+  beforeEach(() => {
+    mockBuscarPerfil.mockReset()
+    mockChamarApi.mockReset()
+  })
+
+  it('começa em carregando', () => {
+    mockBuscarPerfil.mockReturnValue(new Promise(() => {}))
+    render(
+      <AcessoProvider>
+        <Mostra />
+      </AcessoProvider>,
+    )
+    expect(screen.getByTestId('acesso')).toHaveTextContent('carregando')
+  })
+
+  it('idoso: ok, sem buscar vínculos', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'idoso' })
+    expect(await renderizar()).toBe('ok|idoso|false|false')
+    expect(mockChamarApi).not.toHaveBeenCalled()
+  })
+
+  it('busca perfil e vínculos uma única vez, mesmo com 2 consumidores', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'familiar' })
+    mockChamarApi.mockResolvedValue({ vinculos: [] })
+    await renderizar()
+    expect(mockBuscarPerfil).toHaveBeenCalledTimes(1)
+    expect(mockChamarApi).toHaveBeenCalledTimes(1)
+  })
+
+  it('cuidador com vínculo próprio aprovado', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo('aprovado')] })
+    expect(await renderizar()).toBe('ok|cuidador|true|false')
+  })
+
+  it('só pendente: sem vínculo aprovado e com pendente', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo('pendente'), vinculo('recusado')] })
+    expect(await renderizar()).toBe('ok|cuidador|false|true')
+  })
+
+  it('vínculo de outra pessoa (titular) não conta como acesso próprio', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'familiar' })
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo('aprovado', 'titular')] })
+    expect(await renderizar()).toBe('ok|familiar|false|false')
+  })
+
+  it('falha nos vínculos: erro, mas mantém o perfil conhecido', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+    mockChamarApi.mockRejectedValue(new Error('500'))
+    expect(await renderizar()).toBe('erro|cuidador|false|false')
+  })
+
+  it('falha no perfil: erro sem perfil, sem buscar vínculos', async () => {
+    mockBuscarPerfil.mockRejectedValue(new Error('500'))
+    expect(await renderizar()).toBe('erro||false|false')
+    expect(mockChamarApi).not.toHaveBeenCalled()
+  })
+
+  it('requisição que nunca responde vira erro depois do timeout', async () => {
+    jest.useFakeTimers()
+    try {
+      mockBuscarPerfil.mockReturnValue(new Promise(() => {}))
+      render(
+        <AcessoProvider>
+          <Mostra />
+        </AcessoProvider>,
+      )
+      await act(async () => {
+        jest.advanceTimersByTime(60_001)
+      })
+      expect(screen.getByTestId('acesso')).toHaveTextContent('erro')
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+})

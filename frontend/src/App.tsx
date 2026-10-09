@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import LimiteErro from './components/LimiteErro'
+import RotaComVinculo from './components/RotaComVinculo'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 
 // Landing e Login ficam no bundle inicial (entrada e retorno do usuário); o resto carrega por rota.
@@ -56,10 +57,13 @@ function App() {
         <Route path="/familia" element={<Vinculos tipo="familiar" />} />
         <Route path="/cuidadores" element={<Vinculos tipo="cuidador" />} />
         <Route path="/vinculos/:id" element={<VinculoDetalhe />} />
-        <Route path="/saude" element={<Saude />} />
-        <Route path="/remedios" element={<Remedios />} />
-        <Route path="/agenda" element={<Agenda />} />
-        <Route path="/alimentacao" element={<Alimentacao />} />
+        {/* Telas de dados: cuidador e familiar só com ao menos 1 vínculo aprovado. */}
+        <Route element={<RotaComVinculo />}>
+          <Route path="/saude" element={<Saude />} />
+          <Route path="/remedios" element={<Remedios />} />
+          <Route path="/agenda" element={<Agenda />} />
+          <Route path="/alimentacao" element={<Alimentacao />} />
+        </Route>
         <Route path="/orientacoes" element={<Orientacoes />} />
       </Route>
     </Routes>
