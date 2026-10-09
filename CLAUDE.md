@@ -134,16 +134,13 @@ Vinculo
   (RF-022, Fluxo A, via `notificado_em`), quem tem autoridade pra agir é o
   mesmo campo que já controla as 3 flags de permissão do Cuidador:
   `modo_decisao='idoso'` → só o idoso; `modo_decisao='familiar'` → só
-  familiar(es) com vínculo aprovado, idoso recebe 403. Não é o Idoso e o
-  Familiar decidindo em paralelo sempre, é sempre um dos dois com a caneta.
+  familiar(es) com vínculo aprovado, idoso recebe 403 (nunca os dois em paralelo).
   Mecanismo completo em `Elder Web - Modelagem ER.md` seção 3.
 - **Permissões granulares do cuidador.** Cada vínculo de cuidador tem 3 flags
   (`permite_registrar_saude`, `permite_marcar_dose`,
   `permite_criar_evento_cuidado`), todas nascendo `false`. Quem tem autoridade
   para ligá-las é `Usuario.modo_decisao` do idoso (`'idoso'` ou `'familiar'`),
-  com transferência de autoridade sujeita a salvaguardas (janela de carência,
-  possível segunda confirmação). Mecanismo completo em
-  `Elder Web - Modelagem ER.md` seção 3.
+  com transferência sujeita a salvaguardas (carência, possível segunda confirmação). Ver ER.md seção 3.
 
 ## Estrutura de pastas (proposta — ver lacuna abaixo)
 
@@ -400,7 +397,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Limite em memória por
   idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso. Resposta só com contagens
   (`nao_confirmados` inclusive). `BotaoAjuda` no `Header` só para idoso; perfil com mais de 3 s ou falha: só o link
-  "Ligar 192". Remetente gmail não é entregue; provedor definitivo em aberto.
+  "Ligar 192". Remetente gmail não é entregue; provedor definitivo em aberto. Cadastro pede a confirmação de e-mail
+  aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no Perfil (só cuidador e familiar) reenvia e recarrega.
 
 ## Histórico de implementação
 O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
