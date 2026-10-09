@@ -1,3 +1,5 @@
+import type { Vinculo } from "./CardVinculo";
+
 export type TipoVinculo = "familiar" | "cuidador";
 export type AcaoAdicionar = "solicitar" | "cadastrar";
 
@@ -7,4 +9,35 @@ export function acoesDoPerfil(tipoPerfil: string | null, tipo: TipoVinculo): Aca
   if (tipoPerfil === "cuidador" && tipo === "cuidador") return ["solicitar"];
   if (tipoPerfil === "familiar" && tipo === "familiar") return ["solicitar", "cadastrar"];
   return [];
+}
+
+export type ModoDecisao = "idoso" | "familiar";
+
+// Quem pode aprovar, recusar e contestar segue o modo de decisão do idoso dono do vínculo. O backend continua
+// sendo a barreira real (403); aqui só se decide quando mostrar o botão.
+// - dono (idoso logado): só com o modo "idoso".
+// - titular (familiar com vínculo aprovado): o backend só devolve esses vínculos quando o modo já é "familiar".
+// - vinculado (a própria pessoa que pediu): nunca decide o próprio vínculo.
+export function temAutoridade(v: Vinculo, tipoPerfil: string | null, modo: ModoDecisao): boolean {
+  if (v.papel_do_chamador === "dono") return tipoPerfil === "idoso" && modo === "idoso";
+  if (v.papel_do_chamador === "titular") return tipoPerfil === "familiar";
+  return false;
+}
+
+const ORIGENS_AUTOMATICAS = ["convite_idoso", "cadastro_familiar"];
+
+// Contestar vale só para vínculo de familiar já aprovado sem decisão humana (convite do idoso ou cadastro feito
+// pelo familiar). O backend não exige janela de notificação para isso.
+export function podeContestar(v: Vinculo, tipoPerfil: string | null, modo: ModoDecisao): boolean {
+  return (
+    v.tipo_vinculo === "familiar" &&
+    v.status === "aprovado" &&
+    ORIGENS_AUTOMATICAS.includes(v.origem) &&
+    temAutoridade(v, tipoPerfil, modo)
+  );
+}
+
+// Aviso "e-mail ainda não confirmado": só nos vínculos de aprovação automática, ainda pendentes e sem confirmação.
+export function emailNaoConfirmado(v: Vinculo): boolean {
+  return ORIGENS_AUTOMATICAS.includes(v.origem) && v.status === "pendente" && v.confirmado_em === null;
 }
