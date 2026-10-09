@@ -86,7 +86,7 @@ describe("Vinculos", () => {
     expect(screen.getByText("João da Silva")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /ver detalhes de joão da silva/i });
     expect(link).toHaveAttribute("href", "/vinculos/12");
-    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).not.toHaveAttribute("target");
     expect(screen.getByTestId("localizacao")).toHaveTextContent("/cuidadores");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -185,6 +185,18 @@ describe("Vinculos", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Falha ao carregar vínculos."
     );
+  });
+
+  it("com falha ao carregar, não mostra o resumo zerado (seria informação falsa)", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      respostaJson(500, { error: "Falha ao carregar vínculos." })
+    );
+
+    renderComRotas();
+
+    await screen.findByRole("alert");
+    expect(screen.queryByText("Nenhum cuidador vinculado")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nenhum pedido aguardando resposta")).not.toBeInTheDocument();
   });
 
   it("abre os detalhes ao acessar diretamente a URL do vínculo", async () => {

@@ -1,4 +1,4 @@
-import { acoesDoPerfil, emailNaoConfirmado, podeAprovarManual, podeContestar, temAutoridade } from './regrasVinculo'
+import { acoesDoPerfil, emailNaoConfirmado, podeAprovarManual, podeContestar, temAutoridade, textoOrigem } from './regrasVinculo'
 import type { Vinculo } from './CardVinculo'
 
 describe('acoesDoPerfil', () => {
@@ -87,5 +87,20 @@ describe('podeAprovarManual: origem automática só se aprova pela confirmação
     ['solicitacao_cuidador', true],
   ])('origem %s: %s', (origem, esperado) => {
     expect(podeAprovarManual(v({ origem }))).toBe(esperado)
+  })
+})
+
+describe('textoOrigem: origem em linguagem simples, nunca o valor cru do banco', () => {
+  it.each([
+    ['solicitacao_cuidador', 'Pedido do cuidador'],
+    ['solicitacao_familiar', 'Pedido do familiar'],
+    ['convite_idoso', 'Convite do idoso'],
+    ['cadastro_familiar', 'Cadastro feito pelo familiar'],
+  ])('%s', (origem, texto) => {
+    expect(textoOrigem(origem)).toBe(texto)
+  })
+
+  it('origem desconhecida não aparece crua', () => {
+    expect(textoOrigem('outra_coisa')).toBe('Não informado')
   })
 })

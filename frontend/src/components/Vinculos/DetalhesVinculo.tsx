@@ -5,7 +5,7 @@ import type { Vinculo } from "./CardVinculo";
 import AvisoEmailPendente from "./AvisoEmailPendente";
 import PermissoesCuidador from "./PermissoesCuidador";
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
-import { emailNaoConfirmado } from "./regrasVinculo";
+import { emailNaoConfirmado, textoOrigem } from "./regrasVinculo";
 
 type DetalhesVinculoProps = {
   vinculo: Vinculo;
@@ -59,11 +59,11 @@ export default function DetalhesVinculo({ vinculo, podeEditarPermissoes = false 
       >
         <header className="flex items-center justify-between gap-4 border-b border-gray-200 bg-[#F3F0FF] p-5 dark:border-gray-700 dark:bg-[#242A4A]">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#5F56EC] dark:bg-[#151B35]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#5F56EC] dark:text-[#A89FFF] dark:bg-[#151B35]">
               <CircleUserRound size={28} aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-[#5F56EC]">Detalhes do vínculo</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#5F56EC] dark:text-[#A89FFF]">Detalhes do vínculo</p>
               <h1 id="detalhes-vinculo-titulo" className="text-2xl font-bold text-[#071A38] dark:text-white">
                 {nome}
               </h1>
@@ -74,7 +74,7 @@ export default function DetalhesVinculo({ vinculo, podeEditarPermissoes = false 
 
         <div className="space-y-5 p-5 sm:p-6">
           <div className="flex items-center gap-3 rounded-2xl bg-[#F7F7FC] p-4 dark:bg-[#1C233F]">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E8E3FF] text-[#5F56EC] dark:bg-[#2F3555]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E8E3FF] text-[#5F56EC] dark:text-[#A89FFF] dark:bg-[#2F3555]">
               {vinculo.status === "aprovado" ? <CheckCircle2 aria-hidden="true" /> : vinculo.status === "pendente" ? <Clock3 aria-hidden="true" /> : <ShieldAlert aria-hidden="true" />}
             </div>
             <div>
@@ -107,8 +107,8 @@ export default function DetalhesVinculo({ vinculo, podeEditarPermissoes = false 
             </div>
 
             <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-              <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">Origem do convite</dt>
-              <dd className="mt-1 text-base text-[#071A38] dark:text-white">{vinculo.origem}</dd>
+              <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">Como o vínculo começou</dt>
+              <dd className="mt-1 text-base text-[#071A38] dark:text-white">{textoOrigem(vinculo.origem)}</dd>
             </div>
           </dl>
 
