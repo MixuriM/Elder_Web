@@ -4,13 +4,12 @@ import {
   Menu,
   Search,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
 import { useAuthUser } from "../../hooks/useAuthUser";
 import { useFotoPerfil } from "../../contexts/useFotoPerfil";
-import { buscarPerfil } from "../../services/perfilService";
+import { useAcesso } from "../../contexts/useAcesso";
 
 type HeaderProps = {
   abrirSidebar: () => void;
@@ -28,31 +27,9 @@ function obterIniciais(nome: string) {
 function Header({ abrirSidebar }: HeaderProps) {
   const navigate = useNavigate();
   const { usuario } = useAuthUser();
-  const [nome, setNome] = useState("");
   const { fotoPerfilUrl, carregandoFoto } = useFotoPerfil();
-
-  useEffect(() => {
-    let ativo = true;
-
-    if (!usuario) {
-      setNome("");
-      return () => {
-        ativo = false;
-      };
-    }
-
-    setNome(usuario.displayName ?? usuario.email ?? "");
-
-    buscarPerfil()
-      .then((perfil) => {
-        if (ativo) setNome(perfil.nome);
-      })
-      .catch(() => {});
-
-    return () => {
-      ativo = false;
-    };
-  }, [usuario]);
+  // Perfil buscado uma vez pelo AcessoProvider; até ele chegar, o nome da sessão do Firebase.
+  const nome = useAcesso().nome || usuario?.displayName || usuario?.email || "";
 
   return (
     <header
@@ -93,6 +70,11 @@ function Header({ abrirSidebar }: HeaderProps) {
           onClick={abrirSidebar}
           aria-label="Abrir menu"
           className="
+            inline-flex
+            min-h-11
+            min-w-11
+            items-center
+            justify-center
             rounded-xl
             p-2.5
 
@@ -134,7 +116,7 @@ function Header({ abrirSidebar }: HeaderProps) {
             type="text"
             placeholder="Buscar no sistema..."
             className="
-              h-10
+              h-11
               w-[clamp(180px,28vw,320px)]
 
               rounded-xl
@@ -147,7 +129,7 @@ function Header({ abrirSidebar }: HeaderProps) {
               pl-9
               pr-4
 
-              text-sm
+              text-base
               text-[#071A38]
 
               outline-none
@@ -185,6 +167,11 @@ function Header({ abrirSidebar }: HeaderProps) {
           aria-label="Notificações"
           className="
             relative
+            inline-flex
+            min-h-11
+            min-w-11
+            items-center
+            justify-center
 
             rounded-xl
 

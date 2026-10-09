@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { chamarApi } from "../lib/chamarApi";
 import { buscarPerfil } from "../services/perfilService";
-import { AcessoContext, type Acesso } from "./useAcesso";
+import { AcessoContext, type Acesso, type ContextoAcesso } from "./useAcesso";
 
 // Nem buscarPerfil nem chamarApi têm timeout (mesmo limite de useIdososVinculados): 60 s cobre o cold
 // start do Render free e impede o menu de ficar em "carregando" para sempre.
@@ -10,10 +10,12 @@ const TIMEOUT_MS = 60_000;
 
 type VinculoApi = { status: string; papel_do_chamador: string };
 
-async function buscar(): Promise<Acesso> {
+type Resultado = Acesso & { nome: string | null };
+
+async function buscar(): Promise<Resultado> {
   const perfil = await buscarPerfil();
   const tipoPerfil = perfil.tipo_perfil;
-  const base = { tipoPerfil, temVinculoAprovado: false, temVinculoPendente: false };
+  const base = { tipoPerfil, nome: perfil.nome ?? null, temVinculoAprovado: false, temVinculoPendente: false };
 
   // Idoso nunca é bloqueado: não precisa dos vínculos para decidir nada.
   if (tipoPerfil === "idoso") return { ...base, estado: "ok" };
@@ -35,12 +37,16 @@ async function buscar(): Promise<Acesso> {
 }
 
 export function AcessoProvider({ children }: { children: ReactNode }) {
-  const [acesso, setAcesso] = useState<Acesso>({
+  const [acesso, setAcesso] = useState<Resultado>({
     tipoPerfil: null,
+    nome: null,
     temVinculoAprovado: false,
     temVinculoPendente: false,
     estado: "carregando",
   });
+  const [versao, setVersao] = useState(0);
+  // Recarga silenciosa: o acesso anterior fica na tela até a nova resposta (o menu não pisca).
+  const recarregar = useCallback(() => setVersao((v) => v + 1), []);
 
   useEffect(() => {
     let ativo = true;
@@ -51,7 +57,7 @@ export function AcessoProvider({ children }: { children: ReactNode }) {
 
     Promise.race([buscar(), limite])
       // Nunca loga o erro: a mensagem do backend pode trazer dado do vínculo.
-      .catch((): Acesso => ({ tipoPerfil: null, temVinculoAprovado: false, temVinculoPendente: false, estado: "erro" }))
+      .catch((): Resultado => ({ tipoPerfil: null, nome: null, temVinculoAprovado: false, temVinculoPendente: false, estado: "erro" }))
       .then((resultado) => {
         clearTimeout(timer);
         if (ativo) setAcesso(resultado);
@@ -61,7 +67,8 @@ export function AcessoProvider({ children }: { children: ReactNode }) {
       ativo = false;
       clearTimeout(timer);
     };
-  }, []);
+  }, [versao]);
 
-  return <AcessoContext.Provider value={acesso}>{children}</AcessoContext.Provider>;
+  const valor = useMemo((): ContextoAcesso => ({ ...acesso, recarregar }), [acesso, recarregar]);
+  return <AcessoContext.Provider value={valor}>{children}</AcessoContext.Provider>;
 }

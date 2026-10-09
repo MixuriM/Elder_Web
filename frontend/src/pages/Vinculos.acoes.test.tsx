@@ -29,10 +29,10 @@ const aprovado = {
   vinculado: { id: 8, nome: "João da Silva", email_mascarado: "jo***@mail.com" },
 };
 
-function renderComPerfil(tipoPerfil: string | null, tipo: "familiar" | "cuidador") {
+function renderComPerfil(tipoPerfil: string | null, tipo: "familiar" | "cuidador", recarregar?: () => void) {
   return render(
     <AcessoContext.Provider
-      value={{ tipoPerfil, temVinculoAprovado: true, temVinculoPendente: false, estado: "ok" }}
+      value={{ tipoPerfil, temVinculoAprovado: true, temVinculoPendente: false, estado: "ok", recarregar }}
     >
       <MemoryRouter>
         <Vinculos tipo={tipo} />
@@ -106,9 +106,11 @@ describe("Vinculos: pedir vínculo pelo modal", () => {
       return Promise.resolve(respostaJson(200, { vinculos: enviado ? [aprovado, pendente] : [aprovado] }));
     }) as jest.Mock;
 
-    renderComPerfil("cuidador", "cuidador");
+    const recarregar = jest.fn();
+    renderComPerfil("cuidador", "cuidador", recarregar);
     await screen.findByText("1 cuidador vinculado");
     await userEvent.click(screen.getByRole("button", { name: "Adicionar pessoa" }));
+    expect(recarregar).not.toHaveBeenCalled();
 
     await userEvent.type(screen.getByLabelText(/e-mail do idoso/i), "idoso.teste@exemplo.test");
     await userEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
@@ -117,6 +119,8 @@ describe("Vinculos: pedir vínculo pelo modal", () => {
     expect(await within(dialogo).findByRole("status")).toHaveTextContent("Pedido enviado.");
     expect(await screen.findByText("1 pedido aguardando resposta")).toBeInTheDocument();
     expect(screen.getByText("Pendente")).toBeInTheDocument();
+    // O pedido pendente muda o acesso de quem pediu: menu e Início se atualizam sem recarregar a página.
+    expect(recarregar).toHaveBeenCalledTimes(1);
     // A mensagem permanece e o modal continua aberto até a pessoa concluir.
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Concluir" }));
