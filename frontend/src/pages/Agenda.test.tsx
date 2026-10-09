@@ -45,18 +45,23 @@ function regiaoDe(nome: string) {
   return within(screen.getByRole("region", { name: nome }));
 }
 
+const REGIAO = {
+  idoso: "Criar compromisso",
+  familiar: "Criar compromisso para um idoso vinculado",
+  cuidador: "Criar compromisso de cuidado",
+} as const;
+
+// Rótulos sem o papel: cada campo é buscado dentro da seção (região) do seu formulário.
 function secao(sufixo: "idoso" | "familiar") {
+  const r = regiaoDe(REGIAO[sufixo]);
   return {
-    idosoId:
-      sufixo === "familiar"
-        ? regiaoDe("Criar compromisso para um idoso vinculado").getByLabelText("Idoso", { exact: true })
-        : null,
-    tipo: screen.getByLabelText(`Tipo (${sufixo})`, { exact: true }) as HTMLSelectElement,
-    titulo: screen.getByLabelText(`Título (${sufixo})`, { exact: true }),
-    descricao: screen.getByLabelText(`Descrição (opcional, ${sufixo})`, { exact: true }),
-    inicio: screen.getByLabelText(`Início (${sufixo})`, { exact: true }),
-    fim: screen.getByLabelText(`Fim (opcional, ${sufixo})`, { exact: true }),
-    botao: screen.getByRole("button", { name: new RegExp(`^criar compromisso \\(${sufixo}\\)$`, "i") }),
+    idosoId: sufixo === "familiar" ? r.getByLabelText("Idoso", { exact: true }) : null,
+    tipo: r.getByLabelText("Tipo", { exact: true }) as HTMLSelectElement,
+    titulo: r.getByLabelText("Título", { exact: true }),
+    descricao: r.getByLabelText("Descrição (opcional)", { exact: true }),
+    inicio: r.getByLabelText("Início", { exact: true }),
+    fim: r.getByLabelText("Fim (opcional)", { exact: true }),
+    botao: r.getByRole("button", { name: /^criar compromisso$/i }),
   };
 }
 
@@ -163,7 +168,7 @@ describe("Agenda (item 6.1)", () => {
     const c = secao("idoso");
     await preencher(c, user);
     await user.click(c.botao);
-    expect(await screen.findByRole("status")).toHaveTextContent("Compromisso criado (id 41).");
+    expect(await screen.findByRole("status")).toHaveTextContent(/^Compromisso criado.$/);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -236,13 +241,14 @@ describe("Agenda (item 6.1)", () => {
 
 describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
   function secaoCuidador() {
+    const r = regiaoDe(REGIAO.cuidador);
     return {
-      idosoId: regiaoDe("Criar compromisso de cuidado (cuidador)").getByLabelText("Idoso", { exact: true }),
-      titulo: screen.getByLabelText("Título (cuidador)", { exact: true }),
-      descricao: screen.getByLabelText("Descrição (opcional, cuidador)", { exact: true }),
-      inicio: screen.getByLabelText("Início (cuidador)", { exact: true }),
-      fim: screen.getByLabelText("Fim (opcional, cuidador)", { exact: true }),
-      botao: screen.getByRole("button", { name: /^criar compromisso \(cuidador\)$/i }),
+      idosoId: r.getByLabelText("Idoso", { exact: true }),
+      titulo: r.getByLabelText("Título", { exact: true }),
+      descricao: r.getByLabelText("Descrição (opcional)", { exact: true }),
+      inicio: r.getByLabelText("Início", { exact: true }),
+      fim: r.getByLabelText("Fim (opcional)", { exact: true }),
+      botao: r.getByRole("button", { name: /^criar compromisso$/i }),
     };
   }
 
@@ -254,7 +260,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
 
   it("renderiza o título da seção e os campos acessíveis por label, sem select de tipo", () => {
     renderAgenda();
-    expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado" })).toBeInTheDocument();
     Object.values(secaoCuidador()).forEach((el) => expect(el).toBeInTheDocument());
     expect(screen.queryByLabelText(/Tipo \(cuidador\)/)).not.toBeInTheDocument();
     // Só as duas seções antigas têm select de tipo (os demais comboboxes são seletores de idoso).
@@ -317,7 +323,7 @@ describe("Agenda: compromisso de cuidado do cuidador (item 6.2)", () => {
     const c = secaoCuidador();
     await preencherCuidador(c, user);
     await user.click(c.botao);
-    expect(await screen.findByRole("status")).toHaveTextContent("Compromisso criado (id 53).");
+    expect(await screen.findByRole("status")).toHaveTextContent(/^Compromisso criado.$/);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -612,7 +618,7 @@ describe("Agenda: seção Ver agenda (item 6.3)", () => {
   it("C5: as seções de criação seguem presentes", () => {
     renderAgenda();
     expect(screen.getByRole("heading", { name: "Criar compromisso" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Criar compromisso de cuidado" })).toBeInTheDocument();
   });
 });
 
@@ -639,14 +645,14 @@ describe("Agenda: seletor de idoso", () => {
   it("1 idoso: vem pré-selecionado nas seções de escrita", () => {
     renderAgenda();
     expect(secao("familiar").idosoId).toHaveValue("7");
-    expect(regiaoDe("Criar compromisso de cuidado (cuidador)").getByLabelText("Idoso")).toHaveValue("7");
+    expect(regiaoDe("Criar compromisso de cuidado").getByLabelText("Idoso")).toHaveValue("7");
   });
 
   it("0 idosos: orienta a solicitar vínculo e desabilita o envio", () => {
     mockUseIdosos.mockReturnValue(listaSemIdosos);
     renderAgenda();
     expect(screen.getAllByRole("link", { name: /solicite um vínculo/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /^criar compromisso \(familiar\)$/i })).toBeDisabled();
+    expect(regiaoDe(REGIAO.familiar).getByRole("button", { name: /^criar compromisso$/i })).toBeDisabled();
     expect(verAgenda().botao).toBeDisabled();
   });
 
@@ -654,7 +660,7 @@ describe("Agenda: seletor de idoso", () => {
     mockUseIdosos.mockReturnValue(listaPerfilIdoso);
     renderAgenda();
     expect(screen.queryByRole("heading", { name: "Criar compromisso para um idoso vinculado" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Criar compromisso de cuidado (cuidador)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Criar compromisso de cuidado" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Criar compromisso" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ver agenda" })).toBeInTheDocument();
   });

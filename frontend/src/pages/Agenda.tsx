@@ -8,13 +8,16 @@ import Spinner from '../components/common/Spinner'
 import { getCurrentUserToken } from '../lib/auth'
 import { agruparEventosPorDia, formatarIntervalo, rotuloTipo, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
 import { useTitulo } from '../hooks/useTitulo'
+import { useAcesso } from '../contexts/useAcesso'
 
 const VAZIO = { idosoId: '', tipo: 'pessoal', titulo: '', descricao: '', inicio: '', fim: '' }
 
 type Modo = 'idoso' | 'familiar' | 'cuidador'
 
 function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
-  const sufixo = modo
+  // Cada formulário é de um ator (o backend recusa os outros com 403): com o perfil conhecido só a seção dele
+  // aparece. Rótulos sem o papel; cada formulário fica numa seção com título próprio.
+  const { tipoPerfil } = useAcesso()
   const comIdoso = modo !== 'idoso'
   const idosos = useIdososVinculados()
   const [campos, setCampos] = useState(VAZIO)
@@ -68,6 +71,7 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
       <input id={`${nome}_${slug}`} {...atributos} value={campos[nome]} onChange={setCampo(nome)} className={classe} />
     </div>
   )
+  if (tipoPerfil && tipoPerfil !== modo) return null
   // Criar em nome de terceiros não existe para o perfil idoso.
   if (comIdoso && ocultarSecaoDeTerceiros(idosos)) return null
 
@@ -110,7 +114,7 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
         {modo !== 'cuidador' && (
           <div>
             <label htmlFor={`tipo_${slug}`} className={classeLabel}>
-              Tipo ({sufixo})
+              Tipo
             </label>
             <select id={`tipo_${slug}`} value={campos.tipo} onChange={setCampo('tipo')} className={classe}>
               <option value="pessoal">Pessoal</option>
@@ -118,10 +122,10 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
             </select>
           </div>
         )}
-        {campo(`Título (${sufixo})`, 'titulo', { type: 'text', required: true, maxLength: 150 }, 'sm:col-span-2')}
-        {campo(`Descrição (opcional, ${sufixo})`, 'descricao', { type: 'text', maxLength: 500 }, 'sm:col-span-2')}
-        {campo(`Início (${sufixo})`, 'inicio', { type: 'datetime-local', required: true })}
-        {campo(`Fim (opcional, ${sufixo})`, 'fim', { type: 'datetime-local' })}
+        {campo('Título', 'titulo', { type: 'text', required: true, maxLength: 150 }, 'sm:col-span-2')}
+        {campo('Descrição (opcional)', 'descricao', { type: 'text', maxLength: 500 }, 'sm:col-span-2')}
+        {campo('Início', 'inicio', { type: 'datetime-local', required: true })}
+        {campo('Fim (opcional)', 'fim', { type: 'datetime-local' })}
         <button
           type="submit"
           disabled={carregando || (comIdoso && envioBloqueado(idosos, campos.idosoId))}
@@ -129,7 +133,7 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
           className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus:ring-2 focus:ring-[#5F56EC]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-[#171721] sm:col-span-2"
         >
           {carregando && <Spinner />}
-          {carregando ? 'Criando...' : `Criar compromisso (${sufixo})`}
+          {carregando ? 'Criando...' : 'Criar compromisso'}
         </button>
       </form>
       {erro && (
@@ -139,7 +143,7 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
       )}
       {resultado && (
         <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-base font-medium text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-          Compromisso criado (id {resultado.id}).
+          Compromisso criado.
         </p>
       )}
     </section>
@@ -314,7 +318,7 @@ export default function Agenda() {
         <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
           <CriarCompromisso titulo="Criar compromisso" modo="idoso" />
           <CriarCompromisso titulo="Criar compromisso para um idoso vinculado" modo="familiar" />
-          <CriarCompromisso titulo="Criar compromisso de cuidado (cuidador)" modo="cuidador" />
+          <CriarCompromisso titulo="Criar compromisso de cuidado" modo="cuidador" />
           <VerAgenda />
         </div>
       </div>
