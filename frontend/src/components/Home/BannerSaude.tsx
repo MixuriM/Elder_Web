@@ -127,7 +127,7 @@ function BannerSaude() {
             className="
               mt-1
 
-              text-xs
+              text-sm
               text-white
 
               transition-colors

@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import RotaProtegida from './components/RotaProtegida'
+import LimiteErro from './components/LimiteErro'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 
 // Landing e Login ficam no bundle inicial (entrada e retorno do usuário); o resto carrega por rota.
@@ -32,8 +33,12 @@ function CarregandoPagina() {
 }
 
 function App() {
+  const { pathname } = useLocation()
+
   return (
     <FotoPerfilProvider>
+    {/* key: trocar de rota limpa o erro anterior */}
+    <LimiteErro key={pathname}>
     <Suspense fallback={<CarregandoPagina />}>
     <Routes>
       <Route path="/" element={<LandingPage/>} />
@@ -117,6 +122,7 @@ function App() {
       />
     </Routes>
     </Suspense>
+    </LimiteErro>
     </FotoPerfilProvider>
   )
 }

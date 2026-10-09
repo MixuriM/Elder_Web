@@ -541,6 +541,52 @@ describe("Remedios - cadastro", () => {
     });
   });
 
+  it("mantém o modal aberto com a confirmação até a pessoa fechar", async () => {
+    const user = userEvent.setup();
+
+    mockChamarApi
+      .mockResolvedValueOnce({ medicamentos: [] })
+      .mockResolvedValueOnce({ id: 33 })
+      .mockResolvedValue({ medicamentos: [] });
+
+    render(<Remedios />);
+
+    await screen.findByRole("heading", {
+      name: "Nenhum medicamento cadastrado",
+    });
+
+    await user.click(
+      screen.getAllByRole("button", { name: /adicionar medicamento/i })[0],
+    );
+
+    await user.type(screen.getByLabelText("Nome do medicamento"), "Losartana");
+    await user.type(screen.getByLabelText("Dosagem"), "50 mg");
+    await user.type(screen.getByLabelText("Frequência"), "1 vez ao dia");
+    fireEvent.change(screen.getByLabelText("Data de início"), {
+      target: { value: "2026-10-05" },
+    });
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /^adicionar medicamento$/i,
+      }),
+    );
+
+    await screen.findByText("Medicamento cadastrado com sucesso.");
+
+    // O fechamento automático antigo disparava aos 800 ms.
+    await new Promise((resolver) => setTimeout(resolver, 1000));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.getByText("Medicamento cadastrado com sucesso."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Fechar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("envia campos opcionais quando preenchidos", async () => {
     const user = userEvent.setup();
 
