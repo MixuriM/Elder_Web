@@ -301,7 +301,7 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   `#5F56EC` em `text-`/`bg-` e `#554CD8` no hover com texto branco.
 - A matriz `backend/src/testSupport/matrizAcessoLeitura.ts` é compartilhada por `saudeHistorico` e
   `remediosHistorico`. Toda nova rota de leitura por vínculo deve entrar nela.
-- O e2e cria contas `e2e-*@e2e.elderweb.test` no Firebase real, sem limpeza automática.
+- O e2e cria contas `e2e-*@e2e.elderweb.test` no Firebase real, sem limpeza; o `test:a11y` cria 3 e as vincula pela UI.
 - Em merge por rebase os hashes de commit mudam. Não tratar hash de commit local como
   definitivo.
 
@@ -319,11 +319,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Avisar Laureane e Jennifer do PR #143 (9.1, cores em ~50 telas; Home mais escura). Resolvidos na `development` (2026-10-08):
   `heading-order`, 2 `h1`, 9px do `Sidebar`. Sobra: 50 `ring-` de foco com opacidade (35 `focus:`, 15 `focus-visible:`).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
-- Avisar Laureane e Jennifer da mudança estrutural do frontend (2026-10-08, `development`): `Sidebar`, `Header` e `main`
-  únicos no `LayoutAutenticado`, rotas `/familia` e `/cuidadores`, menu e guarda por perfil, texto mínimo de 14px.
-- Frontend pendente (próximos prompts): cards da Home com dados, avisos, Configurações, sino e busca do `Header` (hoje mortos), botão de
-  emergência, texto da landing e calendário da Agenda. `useAcesso` busca uma vez ao montar o layout: não atualiza
-  sozinho após aprovar vínculo (precisará de um `recarregar`).
+- Avisar Laureane e Jennifer: layout único (2026-10-08) e revisão visual (2026-10-09): Saúde, Remédios, Agenda e Alimentação
+  escondem a escrita que o backend recusa ao perfil (`useAcesso`); Perfil sem tema duplicado; Sobre Nós com contraste.
+- Frontend pendente: Home com dados, avisos, Configurações, sino e busca do `Header`, emergência, landing, calendário.
+  `useAcesso` expõe `nome` (o `Header` não busca o perfil) e `recarregar` (chamado após ação em `Vinculos.tsx`).
 - Telas de vínculo (2026-10-08, `components/Vinculos/`): `SolicitarVinculo` e `CadastrarIdoso` abrem em `ModalVinculo` pelo
   "Adicionar pessoa" (`AdicionarPessoa`); `SolicitacoesPendentes` e `ResumoVinculos` no topo de `/familia` e `/cuidadores`;
   `PermissoesCuidador` em `/vinculos/:id`; `ModoDecisao` em `/familia`. Botão só para quem tem autoridade
