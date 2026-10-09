@@ -721,3 +721,30 @@ describe("Agenda: ver como Calendário ou Lista", () => {
     expect(String((global.fetch as jest.Mock).mock.calls[0][0])).toMatch(/\/agenda\/idoso\/9$/);
   });
 });
+
+describe("Agenda: Tipo volta ao padrão depois de criar", () => {
+  it.each(["idoso", "familiar"] as const)("%s: depois do sucesso o Tipo volta a Pessoal", async (sufixo) => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 51 }));
+    const user = userEvent.setup();
+    renderAgenda();
+    const c = secao(sufixo);
+    await preencher(c, user);
+    await user.selectOptions(c.tipo, "medico");
+    await user.click(c.botao);
+    await screen.findByRole("status");
+    expect(chamada().corpo.tipo_evento).toBe("medico");
+    expect(c.tipo).toHaveValue("pessoal");
+  });
+
+  it("no erro o Tipo escolhido continua (nada do que a pessoa escolheu se perde)", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(400, { error: "Mensagem de erro de teste." }));
+    const user = userEvent.setup();
+    renderAgenda();
+    const c = secao("idoso");
+    await preencher(c, user);
+    await user.selectOptions(c.tipo, "medico");
+    await user.click(c.botao);
+    await screen.findByRole("alert");
+    expect(c.tipo).toHaveValue("medico");
+  });
+});
