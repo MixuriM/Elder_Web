@@ -1,5 +1,8 @@
 import { createContext, useContext } from "react";
 
+import type { Vinculo } from "../components/Vinculos/CardVinculo";
+import type { ModoDecisao } from "../components/Vinculos/regrasVinculo";
+
 // Perfil e vínculos do usuário logado, buscados uma única vez pelo AcessoProvider (dentro do layout).
 // estado 'erro' = falhou ao carregar: menu e guardas falham abertos (a barreira real é o 403 do backend).
 export type Acesso = {
@@ -15,6 +18,10 @@ export type ContextoAcesso = Acesso & {
   // Busca perfil e vínculos de novo depois de uma ação que muda o acesso (pedir, aprovar, recusar vínculo).
   // Opcional: sem Provider não há o que recarregar.
   recarregar?: () => void;
+  // Corpo de GET /vinculo da mesma busca (avisos, resumo da Home): null = não carregou.
+  vinculos?: Vinculo[] | null;
+  // Só do idoso, de GET /usuario/me (já resolvido pelo backend). NULL vale "idoso".
+  modoDecisao?: ModoDecisao;
 };
 
 // Sem Provider (telas e testes isolados): estado 'erro', ou seja, nada é escondido.

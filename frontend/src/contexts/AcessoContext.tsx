@@ -2,38 +2,45 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 
 import { chamarApi } from "../lib/chamarApi";
 import { buscarPerfil } from "../services/perfilService";
+import type { Vinculo } from "../components/Vinculos/CardVinculo";
 import { AcessoContext, type Acesso, type ContextoAcesso } from "./useAcesso";
 
 // Nem buscarPerfil nem chamarApi têm timeout (mesmo limite de useIdososVinculados): 60 s cobre o cold
 // start do Render free e impede o menu de ficar em "carregando" para sempre.
 const TIMEOUT_MS = 60_000;
 
-type VinculoApi = { status: string; papel_do_chamador: string };
-
-type Resultado = Acesso & { nome: string | null };
+type Resultado = Acesso & Pick<ContextoAcesso, "vinculos" | "modoDecisao"> & { nome: string | null };
 
 async function buscar(): Promise<Resultado> {
   const perfil = await buscarPerfil();
   const tipoPerfil = perfil.tipo_perfil;
-  const base = { tipoPerfil, nome: perfil.nome ?? null, temVinculoAprovado: false, temVinculoPendente: false };
+  const base = {
+    tipoPerfil,
+    nome: perfil.nome ?? null,
+    modoDecisao: perfil.modo_decisao === "familiar" ? ("familiar" as const) : ("idoso" as const),
+    temVinculoAprovado: false,
+    temVinculoPendente: false,
+    vinculos: null,
+  };
 
-  // Idoso nunca é bloqueado: não precisa dos vínculos para decidir nada.
-  if (tipoPerfil === "idoso") return { ...base, estado: "ok" };
-
+  let vinculos: Vinculo[];
   try {
-    const corpo = await chamarApi("/vinculo");
-    // Só os vínculos em que a própria pessoa é o cuidador ou familiar contam como acesso dela.
-    const proprios = (corpo.vinculos as VinculoApi[]).filter((v) => v.papel_do_chamador === "vinculado");
-    return {
-      ...base,
-      temVinculoAprovado: proprios.some((v) => v.status === "aprovado"),
-      temVinculoPendente: proprios.some((v) => v.status === "pendente"),
-      estado: "ok",
-    };
+    vinculos = (await chamarApi("/vinculo")).vinculos;
   } catch {
+    // Idoso nunca é bloqueado: sem os vínculos só os avisos de pedido ficam desconhecidos.
     // Perfil conhecido, vínculos não: o menu mostra o completo do perfil (D3).
-    return { ...base, estado: "erro" };
+    return { ...base, estado: tipoPerfil === "idoso" ? "ok" : "erro" };
   }
+
+  // Só os vínculos em que a própria pessoa é o cuidador ou familiar contam como acesso dela.
+  const proprios = vinculos.filter((v) => v.papel_do_chamador === "vinculado");
+  return {
+    ...base,
+    vinculos,
+    temVinculoAprovado: proprios.some((v) => v.status === "aprovado"),
+    temVinculoPendente: proprios.some((v) => v.status === "pendente"),
+    estado: "ok",
+  };
 }
 
 export function AcessoProvider({ children }: { children: ReactNode }) {
@@ -42,6 +49,7 @@ export function AcessoProvider({ children }: { children: ReactNode }) {
     nome: null,
     temVinculoAprovado: false,
     temVinculoPendente: false,
+    vinculos: null,
     estado: "carregando",
   });
   const [versao, setVersao] = useState(0);
@@ -57,7 +65,14 @@ export function AcessoProvider({ children }: { children: ReactNode }) {
 
     Promise.race([buscar(), limite])
       // Nunca loga o erro: a mensagem do backend pode trazer dado do vínculo.
-      .catch((): Resultado => ({ tipoPerfil: null, nome: null, temVinculoAprovado: false, temVinculoPendente: false, estado: "erro" }))
+      .catch((): Resultado => ({
+        tipoPerfil: null,
+        nome: null,
+        temVinculoAprovado: false,
+        temVinculoPendente: false,
+        vinculos: null,
+        estado: "erro",
+      }))
       .then((resultado) => {
         clearTimeout(timer);
         if (ativo) setAcesso(resultado);
