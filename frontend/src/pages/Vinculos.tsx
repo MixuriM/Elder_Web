@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { chamarApi } from "../lib/chamarApi";
 import { useAcesso } from "../contexts/useAcesso";
 
+import AdicionarPessoa from "../components/Vinculos/AdicionarPessoa";
 import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
 import ModalVinculo from "../components/Vinculos/ModalVinculo";
@@ -118,7 +119,12 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
       </div>
 
       <ModalVinculo aberto={modalAberto} titulo="Adicionar pessoa" onFechar={() => setModalAberto(false)}>
-        <p className="text-lg text-gray-700 dark:text-gray-200">Escolha o que deseja fazer.</p>
+        <AdicionarPessoa
+          tipo={tipo}
+          acoes={acoes}
+          onConcluido={() => carregarVinculos(true)}
+          onFechar={() => setModalAberto(false)}
+        />
       </ModalVinculo>
     </div>
   );
