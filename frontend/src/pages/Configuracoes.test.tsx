@@ -119,4 +119,16 @@ describe('Configurações', () => {
     expect(mockLogout).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(screen.getByText('Tela de login')).toBeInTheDocument())
   })
+
+  it('falha ao sair: mensagem simples, continua na tela e deixa tentar de novo', async () => {
+    mockLogout.mockRejectedValueOnce(new Error('detalhe-interno-falso'))
+    renderizar()
+    await userEvent.click(screen.getByRole('button', { name: 'Sair da conta' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível sair da conta. Tente de novo.')
+    expect(screen.queryByText('detalhe-interno-falso')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tela de login')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Sair da conta' }))
+    await waitFor(() => expect(screen.getByText('Tela de login')).toBeInTheDocument())
+    expect(mockLogout).toHaveBeenCalledTimes(2)
+  })
 })
