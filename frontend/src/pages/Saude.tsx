@@ -1,5 +1,4 @@
 import Spinner from '../components/common/Spinner'
-import BotaoTema from '../components/layout/BotaoTema'
 
 import RegistrarMinhaSaude from '../components/Saude/RegistrarMinhaSaude'
 import RegistrarSaudeIdoso from '../components/Saude/RegistrarSaudeIdoso'
@@ -18,16 +17,12 @@ function Saude() {
     permissoes.estado === 'erro' ||
     permissoes.escrita
 
-  function voltarPagina() {
-    window.history.back()
-  }
-
   if (permissoes.estado === 'carregando') {
     return (
-      <main
+      <div
         className="
           relative
-          flex min-h-screen
+          flex flex-1
           items-center justify-center
           bg-[#F8F7FF]
           px-4
@@ -35,9 +30,6 @@ function Saude() {
           dark:bg-[#0F0F17]
         "
       >
-        <div className="fixed right-5 top-5 z-50">
-          <BotaoTema />
-        </div>
 
         <div
           className="
@@ -60,14 +52,14 @@ function Saude() {
             Carregando informações de saúde...
           </p>
         </div>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main
+    <div
       className="
-        min-h-screen
+        flex-1
         bg-[#F8F7FF]
         px-4 py-5
 
@@ -78,48 +70,6 @@ function Saude() {
       "
     >
       <div className="mx-auto w-full max-w-7xl">
-        {/* TOPO */}
-
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={voltarPagina}
-            className="
-              flex min-h-[48px]
-              items-center gap-3
-              rounded-2xl
-              border border-[#DDD9F2]
-              bg-white
-              px-5 py-3
-              font-semibold
-              text-[#071A38]
-              shadow-sm
-              transition
-
-              hover:border-[#6C63FF]
-              hover:text-[#554CD8]
-
-              dark:border-[#393947]
-              dark:bg-[#171721]
-              dark:text-[#F5F5FA]
-
-              dark:hover:border-[#9B96FF]
-              dark:hover:text-[#9B96FF]
-            "
-          >
-            <span
-              className="text-xl"
-              aria-hidden="true"
-            >
-              ←
-            </span>
-
-            Voltar
-          </button>
-
-          <BotaoTema />
-        </div>
-
         {/* CABEÇALHO */}
 
         <header
@@ -191,7 +141,7 @@ function Saude() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   )
 }
 

@@ -46,7 +46,7 @@ export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
   const data = formatarData(vinculo.data_resposta ?? vinculo.confirmado_em);
 
   return (
-    <main className="min-h-screen bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
+    <div className="flex-1 bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
       <CabecalhoDetalheVinculo tipo={vinculo.tipo_vinculo} />
       <section
         aria-labelledby="detalhes-vinculo-titulo"
@@ -106,6 +106,6 @@ export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
           </dl>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

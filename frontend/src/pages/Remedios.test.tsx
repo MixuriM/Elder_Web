@@ -24,15 +24,9 @@ import {
    MOCKS
 ========================================================= */
 
-const mockNavigate = jest.fn();
 const mockChamarApi = jest.fn();
 const mockUsePermissoesDose = jest.fn();
 const mockGetCurrentUserToken = jest.fn();
-
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockNavigate,
-}));
 
 const mockUseIdosos = jest.fn();
 
@@ -269,22 +263,6 @@ describe("Remedios - página principal", () => {
         mockChamarApi,
       ).toHaveBeenCalledTimes(2);
     });
-  });
-
-  it("botão voltar chama navigate(-1)", async () => {
-    const user = userEvent.setup();
-
-    render(<Remedios />);
-
-    await user.click(
-      screen.getByRole("button", {
-        name: /voltar/i,
-      }),
-    );
-
-    expect(
-      mockNavigate,
-    ).toHaveBeenCalledWith(-1);
   });
 });
 
@@ -1194,12 +1172,6 @@ describe("Remedios - acessibilidade básica", () => {
     await screen.findByRole("heading", {
       name: "Losartana Teste",
     });
-
-    expect(
-      screen.getByRole("button", {
-        name: /voltar/i,
-      }),
-    ).toBeInTheDocument();
 
     expect(
       screen.getByRole("button", {

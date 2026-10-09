@@ -2,7 +2,7 @@ import "@testing-library/jest-dom";
 
 import {
   fireEvent,
-  render,
+  render as renderRtl,
   screen,
   waitFor,
   within,
@@ -10,9 +10,16 @@ import {
 
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
+import type { ReactElement } from "react";
 
 import Remedios from "./Remedios";
 import { listaPerfilIdoso } from "../hooks/idososFixtures";
+
+// A página não tem <main> próprio: o LayoutAutenticado fornece. O wrapper reproduz isso,
+// senão o <header> da página viraria landmark banner fora de um main.
+function render(ui: ReactElement) {
+  return renderRtl(<main>{ui}</main>);
+}
 
 /* =========================================================
    AXE
@@ -334,25 +341,6 @@ describe(
         ).toHaveTextContent(
           "Falha ao carregar medicamentos.",
         );
-
-        await esperarSemViolacoes(
-          container,
-        );
-      },
-    );
-
-    it(
-      "botão voltar possui nome acessível",
-      async () => {
-        const { container } = render(
-          <Remedios />,
-        );
-
-        expect(
-          screen.getByRole("button", {
-            name: /voltar/i,
-          }),
-        ).toBeInTheDocument();
 
         await esperarSemViolacoes(
           container,

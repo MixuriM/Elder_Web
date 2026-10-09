@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   FileText,
+  HeartHandshake,
   HeartPulse,
   Home,
   LifeBuoy,
@@ -11,12 +12,13 @@ import {
 import type { MenuItem } from "../components/types/home";
 
 export const menuItems: MenuItem[] = [
-  { label: "Início", icon: Home },
-  { label: "Meu Perfil", icon: Users },
-  { label: "Saúde", icon: HeartPulse },
-  { label: "Medicamentos", icon: Pill },
-  { label: "Agenda", icon: CalendarDays },
-  { label: "Alimentação e Nutrição", icon: FileText },
-  { label: "Família", icon: Users },
-  { label: "Orientações", icon: LifeBuoy },
+  { label: "Início", to: "/Home", icon: Home },
+  { label: "Meu Perfil", to: "/perfil", icon: Users },
+  { label: "Saúde", to: "/saude", icon: HeartPulse },
+  { label: "Medicamentos", to: "/remedios", icon: Pill },
+  { label: "Agenda", to: "/agenda", icon: CalendarDays },
+  { label: "Alimentação e Nutrição", to: "/alimentacao", icon: FileText },
+  { label: "Família", to: "/familia", icon: Users },
+  { label: "Cuidadores", to: "/cuidadores", icon: HeartHandshake },
+  { label: "Orientações", to: "/orientacoes", icon: LifeBuoy },
 ];

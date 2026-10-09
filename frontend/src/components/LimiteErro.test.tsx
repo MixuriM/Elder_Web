@@ -27,17 +27,38 @@ describe('LimiteErro', () => {
 
   it('renderiza os filhos quando não há erro', () => {
     render(
-      <LimiteErro>
+      <LimiteErro resetKey="/">
         <p>Tudo certo</p>
       </LimiteErro>,
     )
     expect(screen.getByText('Tudo certo')).toBeInTheDocument()
   })
 
+  it('limpa o erro quando resetKey muda (troca de rota) sem remontar os filhos sadios', () => {
+    function Tela({ quebra }: { quebra: boolean }) {
+      if (quebra) throw new Error('falha de chunk')
+      return <p>Tela sadia</p>
+    }
+    const { rerender } = render(
+      <LimiteErro resetKey="/a">
+        <Tela quebra />
+      </LimiteErro>,
+    )
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    rerender(
+      <LimiteErro resetKey="/b">
+        <Tela quebra={false} />
+      </LimiteErro>,
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Tela sadia')).toBeInTheDocument()
+  })
+
   it('mostra mensagem em português e botão de recarregar quando um filho quebra', async () => {
     const user = userEvent.setup()
     render(
-      <LimiteErro>
+      <LimiteErro resetKey="/">
         <Quebrado />
       </LimiteErro>,
     )
