@@ -81,7 +81,7 @@ function SeletorIdoso({
       <div role="status" className={tema(CLASSE_AVISO)}>
         Você ainda não tem nenhum idoso vinculado.{' '}
         <Link
-          to="/vinculos"
+          to={lista.tipoPerfil === 'cuidador' ? '/cuidadores' : '/familia'}
           className={tema(
             'font-semibold text-[#554CD8] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC] dark:text-[#B6B0FF] dark:focus-visible:ring-[#A89FFF]',
           )}

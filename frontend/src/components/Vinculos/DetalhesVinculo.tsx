@@ -2,6 +2,7 @@ import { CheckCircle2, CircleUserRound, Clock3, ShieldAlert } from "lucide-react
 
 import CabecalhoDetalheVinculo from "./CabecalhoDetalheVinculo";
 import type { Vinculo } from "./CardVinculo";
+import { pessoaDoVinculo } from "./pessoaDoVinculo";
 
 type DetalhesVinculoProps = {
   vinculo: Vinculo;
@@ -39,14 +40,14 @@ function obterPapel(vinculo: Vinculo) {
 }
 
 export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
-  const nome = vinculo.vinculado.nome ?? vinculo.idoso.nome ?? "Pessoa vinculada";
+  const { nome, email_mascarado: email } = pessoaDoVinculo(vinculo);
   const papel = obterPapel(vinculo);
   const status = formatarStatus(vinculo.status);
   const data = formatarData(vinculo.data_resposta ?? vinculo.confirmado_em);
 
   return (
     <main className="min-h-screen bg-[#FAFAFF] px-4 py-8 dark:bg-[#10101A] sm:px-6 lg:px-8">
-      <CabecalhoDetalheVinculo />
+      <CabecalhoDetalheVinculo tipo={vinculo.tipo_vinculo} />
       <section
         aria-labelledby="detalhes-vinculo-titulo"
         className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#151B35]"
@@ -90,7 +91,7 @@ export default function DetalhesVinculo({ vinculo }: DetalhesVinculoProps) {
 
             <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:col-span-2">
               <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">E-mail</dt>
-              <dd className="mt-1 text-base text-[#071A38] dark:text-white">{vinculo.vinculado.email_mascarado ?? "Não informado"}</dd>
+              <dd className="mt-1 text-base text-[#071A38] dark:text-white">{email ?? "Não informado"}</dd>
             </div>
 
             <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">

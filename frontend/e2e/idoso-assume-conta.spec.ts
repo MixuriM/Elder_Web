@@ -62,7 +62,7 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
   await page.waitForURL(/\/Home$/, { timeout: 20_000 });
 
   // --- FAMILIAR: cadastra o Idoso (POST /usuario/cadastrar-idoso) ---
-  await page.goto("/vinculos");
+  await page.goto("/familia");
   await page.getByLabel("Nome do idoso", { exact: true }).fill("E2E Idoso Teste");
   await page.getByLabel("E-mail do idoso (opcional se informar telefone)").fill(emailIdoso);
   await page.getByLabel(/declaro que sou responsável/i).check();

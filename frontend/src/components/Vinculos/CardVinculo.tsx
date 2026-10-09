@@ -3,6 +3,8 @@
     import { ChevronRight, UserRound } from "lucide-react";
     import { Link } from "react-router-dom";
 
+import { pessoaDoVinculo } from "./pessoaDoVinculo";
+
 export type Vinculo = {
   id: number;
   tipo_vinculo: string;
@@ -31,13 +33,12 @@ type CardVinculoProps = {
 };
 
 export default function CardVinculo({ vinculo }: CardVinculoProps) {
-  const nome =
-    vinculo.vinculado.nome ??
-    vinculo.idoso.nome ??
-    "Pessoa vinculada";
+  const { nome } = pessoaDoVinculo(vinculo);
+  const ehVinculado = vinculo.papel_do_chamador === "vinculado";
 
-  const tipo =
-    vinculo.tipo_vinculo === "familiar"
+  const tipo = ehVinculado
+    ? "Idoso"
+    : vinculo.tipo_vinculo === "familiar"
       ? "Familiar"
       : vinculo.tipo_vinculo === "cuidador"
         ? "Cuidador"
@@ -71,6 +72,9 @@ export default function CardVinculo({ vinculo }: CardVinculoProps) {
 
           <p className="text-base text-gray-600 dark:text-gray-300">
             {tipo}
+            {vinculo.papel_do_chamador === "titular" && vinculo.idoso.nome
+              ? ` · Idoso: ${vinculo.idoso.nome}`
+              : ""}
           </p>
         </div>
 

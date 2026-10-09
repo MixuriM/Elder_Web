@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import RotaProtegida from './components/RotaProtegida'
@@ -64,11 +64,20 @@ function App() {
           </RotaProtegida>
         }
       />
+      <Route path="/vinculos" element={<Navigate to="/familia" replace />} />
       <Route
-        path="/vinculos"
+        path="/familia"
         element={
           <RotaProtegida>
-            <Vinculos />
+            <Vinculos tipo="familiar" />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/cuidadores"
+        element={
+          <RotaProtegida>
+            <Vinculos tipo="cuidador" />
           </RotaProtegida>
         }
       />

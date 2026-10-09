@@ -3,14 +3,20 @@ import { Link } from "react-router-dom";
 
 import BotaoTema from "../layout/BotaoTema";
 
-export default function CabecalhoDetalheVinculo() {
+// Volta para a lista do tipo do vínculo; sem tipo conhecido (carregando ou erro), volta para o início.
+const LISTA_POR_TIPO: Record<string, string> = {
+  familiar: "/familia",
+  cuidador: "/cuidadores",
+};
+
+export default function CabecalhoDetalheVinculo({ tipo }: { tipo?: string }) {
   return (
     <nav
       aria-label="Navegação da página"
       className="mx-auto mb-6 flex w-full max-w-2xl items-center justify-between"
     >
       <Link
-        to="/vinculos"
+        to={(tipo && LISTA_POR_TIPO[tipo]) || "/Home"}
         className="
           inline-flex min-h-11 items-center gap-2 rounded-xl
           border border-gray-300 bg-white px-4 font-semibold text-[#071A38]
