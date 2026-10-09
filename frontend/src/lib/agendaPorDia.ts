@@ -43,7 +43,7 @@ function partes(fmt: Intl.DateTimeFormat, d: Date) {
 }
 
 // 'YYYY-MM-DD' do dia em São Paulo.
-function diaSP(d: Date): string {
+export function diaSP(d: Date): string {
   const p = partes(fmtDia, d)
   return `${p.year}-${p.month}-${p.day}`
 }
