@@ -2,18 +2,20 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { chamarApi } from "../lib/chamarApi";
+import { useAcesso } from "../contexts/useAcesso";
 
 import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
+import ModalVinculo from "../components/Vinculos/ModalVinculo";
+import ResumoVinculos from "../components/Vinculos/ResumoVinculos";
+import { acoesDoPerfil, type TipoVinculo } from "../components/Vinculos/regrasVinculo";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
 import { useTitulo } from "../hooks/useTitulo";
 import { AVISO_SEM_VINCULO } from "../lib/avisoSemVinculo";
 
-type TipoVinculo = "familiar" | "cuidador";
-
 const TEXTOS: Record<
   TipoVinculo,
-  { titulo: string; descricao: string; vazio: { titulo: string; texto: string } }
+  { titulo: string; descricao: string; vazio: { titulo: string; texto: string }; comoEntra: string }
 > = {
   familiar: {
     titulo: "Família",
@@ -22,6 +24,8 @@ const TEXTOS: Record<
       titulo: "Nenhum familiar vinculado",
       texto: "Quando um familiar for vinculado, ele aparecerá aqui.",
     },
+    comoEntra:
+      "Para um familiar aparecer aqui, o familiar pede o vínculo usando o seu e-mail e você responde ao pedido.",
   },
   cuidador: {
     titulo: "Cuidadores",
@@ -30,6 +34,8 @@ const TEXTOS: Record<
       titulo: "Nenhum cuidador vinculado",
       texto: "Quando um cuidador for vinculado, ele aparecerá aqui.",
     },
+    comoEntra:
+      "Para um cuidador aparecer aqui, o cuidador pede o vínculo usando o seu e-mail e você responde ao pedido.",
   },
 };
 
@@ -38,12 +44,16 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   useTitulo(textos.titulo);
   // Vindo da guarda RotaComVinculo: só um sinal no state, o texto é fixo.
   const semVinculo = (useLocation().state as { semVinculo?: boolean } | null)?.semVinculo === true;
+  const { tipoPerfil } = useAcesso();
+  const acoes = acoesDoPerfil(tipoPerfil, tipo);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [modalAberto, setModalAberto] = useState(false);
 
-  async function carregarVinculos() {
-    setCarregando(true);
+  // silencioso: recarga depois de uma ação, sem trocar a lista por "Carregando".
+  async function carregarVinculos(silencioso = false) {
+    if (!silencioso) setCarregando(true);
     setErro(null);
 
     try {
@@ -51,8 +61,6 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
 
       setVinculos(corpo.vinculos ?? []);
     } catch (err) {
-      console.error("Falha ao carregar vínculos:", err);
-
       setErro(
         err instanceof Error
           ? err.message
@@ -67,10 +75,7 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
     carregarVinculos();
   }, []);
 
-  function abrirAdicionarPessoa() {
-    // Depois vamos abrir o modal de adicionar
-    console.log("Adicionar pessoa");
-  }
+  const doTipo = vinculos.filter((v) => v.tipo_vinculo === tipo);
 
   return (
     <div
@@ -95,16 +100,26 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
         <CabecalhoVinculos
           titulo={textos.titulo}
           descricao={textos.descricao}
-          onAdicionar={abrirAdicionarPessoa}
+          onAdicionar={acoes.length > 0 ? () => setModalAberto(true) : undefined}
         />
 
+        {tipoPerfil === "idoso" && (
+          <p className="text-lg text-gray-700 dark:text-gray-200">{textos.comoEntra}</p>
+        )}
+
+        <ResumoVinculos tipo={tipo} vinculos={doTipo} />
+
         <ListaVinculos
-          vinculos={vinculos.filter((v) => v.tipo_vinculo === tipo)}
+          vinculos={doTipo}
           vazio={textos.vazio}
           carregando={carregando}
           erro={erro}
         />
       </div>
+
+      <ModalVinculo aberto={modalAberto} titulo="Adicionar pessoa" onFechar={() => setModalAberto(false)}>
+        <p className="text-lg text-gray-700 dark:text-gray-200">Escolha o que deseja fazer.</p>
+      </ModalVinculo>
     </div>
   );
 }
