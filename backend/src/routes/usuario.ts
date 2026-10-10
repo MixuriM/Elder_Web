@@ -55,19 +55,51 @@ const MSG_FOTO_INVALIDA: Record<MotivoFotoInvalida, string> = {
 const MSG_FOTO_OCUPADO = "Muitos envios de foto neste momento. Tente de novo em instantes.";
 const FOTO_TIPO_INVALIDO = "FOTO_TIPO_INVALIDO";
 
-// No máximo 2 envios de foto em andamento no processo inteiro: cada um pode ocupar o buffer de 15 MB mais
-// a decodificação (pico medido de cerca de 141 MB num PNG de 40 MP), e o Render free tem 512 MB. Antes do
-// multer, para limitar também o buffer. Desce no "close", que vem uma vez por resposta (normal, erro ou
-// cliente que abortou).
+// No máximo 2 envios de foto em andamento no processo inteiro e 1 por usuário: cada um pode ocupar o buffer
+// de 15 MB mais a decodificação (pico medido de cerca de 141 MB num PNG de 40 MP), e o Render free tem 512 MB.
+// Antes do multer, para limitar também o buffer. A vaga nasce aqui e só volta quando a rota termina de
+// processar (o sharp não para se o cliente aborta); o "close" só a devolve se a rota nem começou. O corpo tem
+// 60 s para chegar, senão 408: um envio lento não segura a vaga até o limite do Node.
 const MAX_FOTOS_EM_ANDAMENTO = 2;
+const PRAZO_CORPO_FOTO_MS = 60_000;
+const MSG_FOTO_PRAZO = "O envio da foto demorou demais. Tente de novo com uma conexão melhor.";
 let fotosEmAndamento = 0;
+const usuariosEnviandoFoto = new Set<number>();
 
-function limitarConcorrenciaFoto(_req: Request, res: Response, next: NextFunction) {
-  if (fotosEmAndamento >= MAX_FOTOS_EM_ANDAMENTO) {
+function limitarConcorrenciaFoto(req: Request, res: Response, next: NextFunction) {
+  const usuarioId = req.usuarioId;
+  if (fotosEmAndamento >= MAX_FOTOS_EM_ANDAMENTO || usuariosEnviandoFoto.has(usuarioId)) {
     return res.status(429).json({ error: MSG_FOTO_OCUPADO });
   }
   fotosEmAndamento++;
-  res.once("close", () => fotosEmAndamento--);
+  usuariosEnviandoFoto.add(usuarioId);
+
+  let liberada = false;
+  let rotaComecou = false;
+  const liberar = () => {
+    clearTimeout(prazo);
+    if (liberada) return;
+    liberada = true;
+    fotosEmAndamento--;
+    usuariosEnviandoFoto.delete(usuarioId);
+  };
+  const prazo = setTimeout(() => {
+    if (!res.headersSent) {
+      res.status(408).set("Connection", "close").json({ error: MSG_FOTO_PRAZO });
+      res.once("finish", () => req.destroy());
+    }
+    liberar();
+  }, PRAZO_CORPO_FOTO_MS);
+  // A rota chama ao começar: cancela o prazo e passa a ser ela quem libera a vaga (no finally).
+  res.locals.comecarProcessamentoFoto = () => {
+    rotaComecou = true;
+    clearTimeout(prazo);
+    return liberar;
+  };
+  res.once("close", () => {
+    clearTimeout(prazo);
+    if (!rotaComecou) liberar();
+  });
   next();
 }
 
@@ -101,6 +133,8 @@ const uploadFoto = multer({
 
 function receberFoto(req: Request, res: Response, next: NextFunction) {
   uploadFoto(req, res, (err) => {
+    // Depois do 408 o multer ainda reclama do corpo cortado: a resposta já foi, nada a fazer.
+    if (res.headersSent) return;
     if (!err) return next();
     if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({ error: MSG_FOTO_TAMANHO });
@@ -130,7 +164,10 @@ router.get("/me/foto", requireAuth, async (req, res, next) => {
 });
 
 router.post("/me/foto", requireAuth, limitarConcorrenciaFoto, limitarEnviosFoto, receberFoto, async (req, res, next) => {
+  const liberarVaga: () => void = res.locals.comecarProcessamentoFoto();
   try {
+    // res.destroyed, não req.destroyed: o req já vem destruído quando o multer termina de ler o corpo.
+    if (res.headersSent || res.destroyed) return;
     if (!req.file) return res.status(400).json({ error: MSG_FOTO_SEM_ARQUIVO });
     let foto: Awaited<ReturnType<typeof normalizarFoto>>;
     try {
@@ -139,6 +176,8 @@ router.post("/me/foto", requireAuth, limitarConcorrenciaFoto, limitarEnviosFoto,
       if (e instanceof FotoInvalida) return res.status(400).json({ error: MSG_FOTO_INVALIDA[e.motivo] });
       throw e;
     }
+    // Cliente saiu durante a decodificação: não grava.
+    if (res.destroyed) return;
     await prisma.usuario.update({
       where: { id: req.usuarioId },
       data: {
@@ -151,6 +190,8 @@ router.post("/me/foto", requireAuth, limitarConcorrenciaFoto, limitarEnviosFoto,
     res.status(200).json({ foto_perfil_url: montarFotoPerfilUrl(foto.buffer, foto.mimeType) });
   } catch (e) {
     next(e);
+  } finally {
+    liberarVaga();
   }
 });
 
