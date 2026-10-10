@@ -13,6 +13,9 @@ import {
   salvarPerfil,
 } from "../services/perfilService";
 
+// Confere e converte a foto no navegador antes do envio
+import { prepararFoto } from "../lib/prepararFoto";
+
 // Foto compartilhada com o Header (/home) sem reload
 import { useFotoPerfil } from "../contexts/useFotoPerfil";
 
@@ -38,6 +41,7 @@ function Perfil() {
 
   // Estado do envio/remoção da foto (mensagens separadas das do formulário)
   const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [preparandoFoto, setPreparandoFoto] = useState(false);
   const [erroFoto, setErroFoto] = useState<string | null>(null);
   const [sucessoFoto, setSucessoFoto] = useState<string | null>(null);
 
@@ -75,14 +79,21 @@ function Perfil() {
       });
   }, []);
 
-  // Envia a foto escolhida e atualiza o contexto (Header)
+  // Prepara a foto escolhida (confere e converte), envia e atualiza o contexto (Header)
   async function handleEnviarFoto(arquivo: File) {
     setErroFoto(null);
     setSucessoFoto(null);
     setEnviandoFoto(true);
 
     try {
-      definirFotoPerfil(await enviarFotoPerfil(arquivo));
+      setPreparandoFoto(true);
+      let pronta: File;
+      try {
+        pronta = await prepararFoto(arquivo);
+      } finally {
+        setPreparandoFoto(false);
+      }
+      definirFotoPerfil(await enviarFotoPerfil(pronta));
       setSucessoFoto("Foto de perfil atualizada.");
     } catch (err) {
       // Só a mensagem: nunca o arquivo nem a data URI
@@ -190,6 +201,7 @@ function Perfil() {
         telefone={telefone}
         foto={fotoPerfilUrl}
         enviandoFoto={enviandoFoto}
+        preparandoFoto={preparandoFoto}
         erroFoto={erroFoto}
         sucessoFoto={sucessoFoto}
 
