@@ -250,9 +250,11 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   `tipo_vinculo` for amarrado ao `tipo_perfil` fixo na criação do vínculo. Qualquer novo
   fluxo de criação de vínculo precisa manter essa garantia.
 - Foto de perfil é BLOB no SQL Server, sempre WebP de até 1024 px vindo de `normalizarFoto` (sharp; formato pelos
-  bytes: jpeg, png, webp, gif, avif, tiff; até 15 MB e 50 MP; EXIF descartado; 10 envios por hora por usuário e 2 em
-  andamento no processo, antes do multer). HEIC e BMP só
-  convertidos no navegador (`lib/prepararFoto.ts`, `heic-to` sob demanda). `GET /usuario/me` não devolve foto (há
+  bytes: jpeg, png, webp, gif, avif, tiff; até 15 MB e 50 MP; EXIF descartado; 10 envios por hora por usuário). Antes do multer:
+  2 envios em andamento no processo e 1 por usuário, vaga liberada só ao fim do processamento (abort não libera
+  com o sharp rodando), prazo de 60 s para receber o corpo (408). Risco aceito: N contas seguram as vagas por até
+  60 s por tentativa, só a foto fica indisponível. HEIC e BMP só convertidos no navegador (`lib/prepararFoto.ts`,
+  `heic-to` sob demanda). `GET /usuario/me` não devolve foto (há
   `GET /usuario/me/foto` separado). Respostas de `/auth/sync` passam por `semFotoPerfil`
   e `requireAuth` usa `select` mínimo, para não carregar o BLOB à toa.
 - Valor de `req.body`, `req.query` ou `req.params` só entra em `where` ou `data` do Prisma depois de checagem de tipo
