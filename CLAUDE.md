@@ -27,9 +27,8 @@ cofre Obsidian:**
 - Cofre Obsidian do projeto (ER.md e demais notas do TCC):
   `C:\Users\Marcos Castelli\Documents\Notas\TCC - Elder Web`
 
-Existe um protótipo antigo em https://github.com/MixuriM/Prototipo-Elder-App
-(mobile, hospedado via GitHub Pages). Ele é **apenas referência visual** — não
-reaproveitar código dele. Este é um repositório novo, do zero.
+Protótipo antigo (mobile, GitHub Pages): https://github.com/MixuriM/Prototipo-Elder-App. É **só referência
+visual**; este repositório é novo, sem código dele.
 
 ## Perfis de usuário
 Três perfis com login/cadastro próprios: **idoso**, **cuidador**, **familiar**.
@@ -69,9 +68,8 @@ login para os 3 perfis, interface dedicada de cuidador.
 Decisão fechada pelo grupo (Marcos, Laureane, Jennifer): onde cada parte da
 aplicação roda em produção.
 
-- **Banco de dados:** Azure SQL Database (confirmado em 2026-10-06, item 9.2: `EngineEdition` 5, TDE ativo com
-  chave gerenciada pelo serviço, TLS mínimo 1.2 no portal). A `DATABASE_URL` de produção usa `encrypt=true` e
-  `trustServerCertificate=false`.
+- **Banco de dados:** Azure SQL Database (item 9.2: TDE com chave do serviço, TLS mínimo 1.2). A `DATABASE_URL` de
+  produção usa `encrypt=true` e `trustServerCertificate=false`.
 - **Backend:** Render.
 - **Frontend:** Vercel.
 
@@ -104,9 +102,7 @@ Decisão travada — não reabrir sem discutir com o grupo.
 - `Vinculo` é uma tabela genérica que cobre tanto cuidador↔idoso quanto
   familiar↔idoso (não são tabelas separadas):
 
-_(Modelo simplificado/ilustrativo — ver `Elder Web - Modelagem ER.md` seções 1–2
-para a estrutura completa, incluindo campos de auditoria e do fluxo de
-confirmação por e-mail.)_
+_(Ilustrativo; estrutura completa em `Elder Web - Modelagem ER.md` seções 1 e 2.)_
 
 ```
 Vinculo
@@ -142,7 +138,7 @@ Vinculo
   para ligá-las é `Usuario.modo_decisao` do idoso (`'idoso'` ou `'familiar'`),
   com transferência sujeita a salvaguardas (carência, possível segunda confirmação). Ver ER.md seção 3.
 
-## Estrutura de pastas (proposta — ver lacuna abaixo)
+## Estrutura de pastas (confirmada pelo grupo, não reabrir)
 
 ```
 elder-web/
@@ -163,12 +159,8 @@ elder-web/
 - Frontend test: `npm test` (dentro de `frontend/`)
 - Backend test: `npm test` (dentro de `backend/`); com cobertura: `npm run test:coverage` (é o que o CI roda)
 
-`backend/src/index.ts` foi dividido em `app.ts` (monta e exporta o Express app)
-e `index.ts` (só chama `app.listen`) especificamente para viabilizar Supertest
-— qualquer teste de rota deve importar de `./app`, nunca de `./index`.
-O frontend usa Babel (`babel.config.cjs`) só no transform de teste do Jest,
-não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
-`import.meta.env` nativamente.
+`backend/src/app.ts` monta e exporta o Express app; `index.ts` só chama `app.listen` (para o Supertest). O frontend
+usa Babel (`babel.config.cjs`) só no transform do Jest, que não entende `import.meta.env`; o build segue Vite/`tsc`.
 
 ## Code Style
 - TypeScript em modo estrito (frontend e backend)
@@ -179,17 +171,12 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
   após cada ação — não é opcional, é requisito de projeto
 
 ## Workflow
-- **Divisão de trabalho do grupo:** o backend está concluído (Marcos). O frontend
-  é feito pelo grupo todo (Marcos, Laureane, Jennifer). O Claude Code implementa
-  telas completas quando o prompt pedir, seguindo o padrão de acessibilidade do
-  projeto. Ainda vale avisar o grupo quando um arquivo de tela mudar de
-  comportamento ou de contrato HTTP.
-- **Antes de qualquer alteração (código, docs, config), sempre conferir em qual
-  branch está** (`git branch --show-current` ou `git status`). Toda adição/mudança
-  vai por padrão na branch `development` — só usar outra branch quando o usuário
-  pedir explicitamente. Se já estiver numa branch diferente sem pedido explícito
-  pra isso, trocar para `development` antes de começar (confirmando antes se
-  houver mudanças não commitadas na branch atual).
+- **Divisão de trabalho do grupo:** backend concluído (Marcos); frontend é do grupo todo (Marcos, Laureane,
+  Jennifer). O Claude Code implementa telas completas quando o prompt pedir, no padrão de acessibilidade do projeto
+  (aviso ao grupo: ver "Frontend e grupo").
+- **Antes de qualquer alteração (código, docs, config), conferir a branch** (`git branch --show-current`). Padrão:
+  `development`; outra só a pedido explícito. Se estiver em outra sem pedido, trocar para `development` antes de
+  começar (confirmando antes se houver mudanças não commitadas).
 - Planejar a estrutura antes de criar múltiplos arquivos/componentes de uma vez
 - Pode criar pastas e arquivos livremente durante o scaffold inicial
 - **Sempre pedir confirmação antes de**: `git init`, `git remote add`,
@@ -202,19 +189,12 @@ não no build (que continua Vite/`tsc`) — necessário porque Jest não entende
 - Não usar a extensão Claude in Chrome neste projeto
 
 ## Lacunas em aberto — NÃO decidir sozinho, perguntar ao grupo
-- Estrutura de pastas (`frontend/` + `backend/` monorepo) confirmada pelo
-  grupo (Marcos, Laureane, Jennifer) — não reabrir.
-- Risco de colisão de e-mail entre contas: tratado no código (`/auth/sync` responde 409, item 3.2); registrar
-  no `Elder Web - Modelagem ER.md` (até a REV.9 sem registro) fica com o Marcos, ver Decisões fechadas.
+Nenhuma no momento (colisão de e-mail entre contas: ver Decisões fechadas).
 
-**Riscos aceitos conscientemente (não é pendência técnica):** consentimento
-do idoso quando a conta é criada por um familiar, perda progressiva de
-capacidade do idoso após autocadastro, e a janela de autoridade vazia entre o
-cadastro de um idoso via RF-030 e a confirmação de e-mail do Familiar
-cadastrante (nessa janela, nenhum vínculo novo de Cuidador ou de outro
-Familiar pode ser aprovado). O grupo decidiu não mitigar tecnicamente além de
-certo ponto — ver `Elder Web - Modelagem ER.md` seção 5.2 para o raciocínio
-completo.
+**Riscos aceitos conscientemente (não é pendência técnica):** consentimento do idoso quando a conta é criada por
+um familiar, perda progressiva de capacidade do idoso após autocadastro, e a janela de autoridade vazia entre o
+cadastro de um idoso via RF-030 e a confirmação de e-mail do Familiar cadastrante (nela, nenhum vínculo novo de
+Cuidador ou de outro Familiar pode ser aprovado). Sem mitigação técnica além disso: `Elder Web - Modelagem ER.md` 5.2.
 
 **Decisões fechadas (não reabrir):** não existe tabela `Instituicao` no modelo
 de dados — removida do escopo. A funcionalidade de microfone foi excluída
@@ -230,8 +210,7 @@ descrito em `Elder Web - Modelagem ER.md` (ver nota no início). `attribution.se
 deve permanecer com `provider = "mssql"`, mesmo o datasource em `schema.prisma` usando
 `provider = "sqlserver"`, não é erro. O Prisma 5.22.0 espera "mssql" nesse arquivo; trocar
 quebra `prisma migrate status` (P3019, testado e revertido). Ver prisma/prisma#12087 (o Prisma
-pretende unificar em versão futura — não decidir isso sozinho antes de
-discutir upgrade de dependência com o grupo).
+pretende unificar; não decidir sozinho, upgrade de dependência se discute com o grupo).
 
 
 ## Convenções e regras técnicas estabelecidas
@@ -270,9 +249,15 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - `requireVinculoAprovado` não filtra `tipo_vinculo`. Isso só é seguro enquanto
   `tipo_vinculo` for amarrado ao `tipo_perfil` fixo na criação do vínculo. Qualquer novo
   fluxo de criação de vínculo precisa manter essa garantia.
-- Foto de perfil é BLOB no SQL Server. `GET /usuario/me` não devolve foto (há
+- Foto de perfil é BLOB no SQL Server, sempre WebP de até 1024 px vindo de `normalizarFoto` (sharp; formato pelos
+  bytes: jpeg, png, webp, gif, avif, tiff; até 15 MB e 50 MP; EXIF descartado; 10 envios por hora por usuário e 2 em
+  andamento no processo, antes do multer). HEIC e BMP só
+  convertidos no navegador (`lib/prepararFoto.ts`, `heic-to` sob demanda). `GET /usuario/me` não devolve foto (há
   `GET /usuario/me/foto` separado). Respostas de `/auth/sync` passam por `semFotoPerfil`
   e `requireAuth` usa `select` mínimo, para não carregar o BLOB à toa.
+- Valor de `req.body`, `req.query` ou `req.params` só entra em `where` ou `data` do Prisma depois de checagem de tipo
+  (`typeof`, `Number.isInteger`, lista fechada): objeto como `{ set: "" }` vira operador. `infra/semSqlCru.test.ts`
+  barra `$queryRawUnsafe`, `$executeRawUnsafe` e `Prisma.raw` em `src` (e as `Unsafe` em `scripts`).
 - Medicamento também é dado sensível (mesmas regras de log de `RegistroSaude`). Cuidador
   nunca cria medicamento (regra fixa de ator, independe das flags `permite_*`). Familiar só
   cria com `modo_decisao` efetivo `'familiar'` (via `resolverModoDecisao`).
@@ -301,10 +286,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 ("decisão do grupo"); reabrir só se o grupo mandar. Pendências manuais ficam com o Marcos.
 
 **Pendências manuais (Marcos)**
-- Avisar Laureane e Jennifer: 5.4 (`GET /historico/pdf` e `/historico/idoso/:idosoId/pdf`, `lib/baixarPdf.ts`,
-  `Remedios.tsx`); PR #143 (9.1, cores em ~50 telas, Home mais escura; sobram 50 `ring-` de foco com opacidade,
-  cobertos pelo contorno global); layout único e revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`,
-  `/avisos`, `/configuracoes`, landing); calendário da Agenda; botão de emergência; confirmação de e-mail.
+- Avisar Laureane e Jennifer: PDF do histórico (5.4, `lib/baixarPdf.ts`, `Remedios.tsx`); cores (PR #143); layout e
+  revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing); calendário
+  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10).
+- Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; apagar as contas `e2e-*@e2e.elderweb.test` do Firebase;
   cuidadores e familiares cadastrados antes do PR #162 confirmarem o e-mail no Perfil.
@@ -316,9 +301,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   motivo nem id) no vínculo aprovado de familiar do chamador.
 
 **Decisões fechadas**
-- `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local, `docker-compose.yml`); o Render usa `dockerCommand: npm
-  start` e é o único com `NODE_ENV=production` (`render.yaml`). `backend/.dockerignore` tira `node_modules`, `dist` e
-  `.env*` (menos `.env.example`) da imagem.
+- `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
+  com `NODE_ENV=production`. `backend/.dockerignore` tira `node_modules`, `dist` e `.env*` (menos `.env.example`).
 - Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem tabela de auditoria.
 - Aceite de termos de uso e política de privacidade no cadastro (LGPD): fora do escopo do TCC (sem RF no plano);
   registrado como trabalho futuro (exigiria RF, migration e tela).
@@ -353,8 +337,9 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   Sem busca no `Header`; o sino leva a `/avisos` (`lib/avisos.ts`, `AvisosProvider`): pedidos que a pessoa decide e
   compromissos de hoje e amanhã, sem aviso de dose. `/configuracoes`: tema, tamanho do texto e menos movimento em
   `lib/preferencias.ts` (classes no `<html>`, mesmas chaves do script de `index.html`, storage em try/catch).
-- Item 9.3: pendência de `pdfjs-dist` (`canvas` opcional sem binário) e dos 3 avisos de `npm audit` só de dev encerrada
-  como aceita; sem `npm audit` no CI (`--omit=dev` dá 0).
+- Item 9.3: `pdfjs-dist` (`canvas` opcional sem binário) e os avisos de `npm audit` só de dev aceitos; sem `npm audit` no
+  CI. `--omit=dev` do backend dá 0 (`proxy-addr` 2.0.8, 2026-10-10). `npm audit --omit=dev` do frontend acusa 4 altos em
+  `@grpc/grpc-js` via firebase; Firestore e gRPC não entram no bundle; correção exige rebaixar o firebase, recusada.
 - Item 9.4 (D1 a D9, fechadas): o item só vai a ✅ com o CI remoto verde num push em `development`; sem dependência
   nova; código de produção só muda se um teste novo provar furo real de autorização (RED, correção mínima, commit
   `fix(auth):` separado; 400 antes de 403 não é furo); testes com Prisma mockado (não prova o filtro do SQL Server
@@ -383,12 +368,11 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   provisório, texto final é da Laureane e da Jennifer.
 - 9.1 auditoria axe (RNF-007): jest-axe e `npm run test:a11y`; falha só em critical/serious.
 - 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (`max-age=31536000` só com `NODE_ENV=production`,
-  sem `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect HTTP para HTTPS é do Render; TDE só
-  verificado (ativo, chave gerenciada pelo serviço).
-- 9.3 CI builda a imagem do backend (RNF-010): último passo do job `backend`, sem publicar nem executar a imagem
-  (pega erro de build, não de boot). Teste `backend/src/infra/dockerCi.test.ts`.
-- 9.4 suíte de autorização no CI (RNF-003): `routes/autorizacaoRotas.test.ts` enumera as rotas de `app._router.stack`
-  e compara com `ROTAS_ESPERADAS` (rota nova sem classificação falha). Também limiares de cobertura; sem furo achado.
+  sem `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect para HTTPS é do Render; TDE só verificado.
+- 9.3 CI builda a imagem do backend (RNF-010), último passo do job `backend`, sem publicar nem rodar
+  (`infra/dockerCi.test.ts`).
+- 9.4 suíte de autorização no CI (RNF-003): `routes/autorizacaoRotas.test.ts` compara as rotas de `app._router.stack`
+  com `ROTAS_ESPERADAS` (rota nova sem classificação falha), mais limiares de cobertura.
 - Os `backend/scripts/verify-rotas-*.ts` NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é
   substituído): limpam por sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo
   `verify-dose-`, `verify-hist-`, `verify-pdf-` ou `verify-emerg-` marca conta residual se o processo morrer no meio.
@@ -399,15 +383,11 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso. Resposta só com contagens
   (`nao_confirmados` inclusive). `BotaoAjuda` no `Header` só para idoso; perfil com mais de 3 s ou falha: só o link
   "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no
-  Perfil (só cuidador e familiar) reenvia e recarrega. Verificado em 2026-10-10 (no ar,
-  caixa de entrada): causa era `EMAIL_*` ausentes e bloqueio de IP da Brevo (`HTTP_401`, "unrecognised IP address"; saída:
-  desativar o bloqueio de IPs, o do Render free muda). Remetente Gmail validado na Brevo chega, mas aparece como
-  `@brevosend.com` (Gmail não autentica); entrega confiável em escala exige domínio próprio (aceito no TCC). Teste:
-  `backend/scripts/testar-email.ts <endereço>` (só ao e-mail do Marcos; imprime `code` e `message` da Brevo).
+  Perfil (só cuidador e familiar) reenvia e recarrega. No ar desde 2026-10-10. Bloqueio de IPs da Brevo fica desligado
+  (o IP do Render free muda; ligado dá `HTTP_401`). Remetente Gmail aparece como `@brevosend.com`; entrega em escala exige
+  domínio próprio (aceito). Teste: `backend/scripts/testar-email.ts <endereço>` (só ao e-mail do Marcos).
 
 ## Histórico de implementação
-O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
-está em `docs/historico-implementacao.md`. **Não ler por padrão.** Consultar só quando a
-tarefa tocar uma feature já implementada e for preciso entender como e por que ela foi
-feita. Ao concluir uma tarefa, registrar o resumo lá, não aqui. Este arquivo deve ficar
-abaixo de 30k caracteres.
+O diário por tarefa (bugs, testes, limitações, hashes) está em `docs/historico-implementacao.md`. **Não ler por
+padrão**, só quando a tarefa tocar uma feature já feita. Ao concluir uma tarefa, registrar o resumo lá, não aqui. Este
+arquivo deve ficar abaixo de 30k caracteres.
