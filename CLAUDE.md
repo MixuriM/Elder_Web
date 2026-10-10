@@ -306,7 +306,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   cobertos pelo contorno global); layout único e revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`,
   `/avisos`, `/configuracoes`, landing); calendário da Agenda; botão de emergência; confirmação de e-mail.
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
-- Emergência: domínio próprio do remetente (SPF/DKIM), conta no provedor e os 3 `EMAIL_*` no Render.
+- Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; apagar as contas `e2e-*@e2e.elderweb.test` do Firebase;
+  cuidadores e familiares cadastrados antes do PR #162 confirmarem o e-mail no Perfil.
 - Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
   por `status`). Decisões de 2026-10-09 (Marcos): (1) `POST /vinculo/convidar-familiar` (idoso com `modo_decisao` efetivo
   `idoso`) grava `email_convite_familiar` (o novo substitui o anterior) e, se há conta de familiar, cria vínculo pendente
@@ -397,8 +398,12 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Limite em memória por
   idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso. Resposta só com contagens
   (`nao_confirmados` inclusive). `BotaoAjuda` no `Header` só para idoso; perfil com mais de 3 s ou falha: só o link
-  "Ligar 192". Remetente gmail não é entregue; provedor definitivo em aberto. Cadastro pede a confirmação de e-mail
-  aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no Perfil (só cuidador e familiar) reenvia e recarrega.
+  "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no
+  Perfil (só cuidador e familiar) reenvia e recarrega. Verificado em 2026-10-10 (no ar,
+  caixa de entrada): causa era `EMAIL_*` ausentes e bloqueio de IP da Brevo (`HTTP_401`, "unrecognised IP address"; saída:
+  desativar o bloqueio de IPs, o do Render free muda). Remetente Gmail validado na Brevo chega, mas aparece como
+  `@brevosend.com` (Gmail não autentica); entrega confiável em escala exige domínio próprio (aceito no TCC). Teste:
+  `backend/scripts/testar-email.ts <endereço>` (só ao e-mail do Marcos; imprime `code` e `message` da Brevo).
 
 ## Histórico de implementação
 O diário por tarefa (itens das Fases 1 a 4, bugs achados, testes, limitações, hashes)
