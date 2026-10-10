@@ -114,9 +114,16 @@ router.delete("/me/foto", requireAuth, async (req, res, next) => {
 router.patch("/me", requireAuth, async (req, res, next) => {
   try {
     const { nome, email, telefone } = req.body ?? {};
+    // Só string (ou null em email/telefone) chega ao Prisma: um objeto como { set: "" } seria aceito
+    // como operador no data e pularia as checagens abaixo.
+    const naoTexto = (v: unknown, aceitaNull: boolean) =>
+      v !== undefined && typeof v !== "string" && !(aceitaNull && v === null);
+    if (naoTexto(nome, false) || naoTexto(email, true) || naoTexto(telefone, true)) {
+      return res.status(400).json({ error: "Nome, e-mail e telefone precisam ser texto." });
+    }
 
     const data: { nome?: string; email?: string | null; telefone?: string | null } = {};
-    if (nome !== undefined) data.nome = typeof nome === "string" ? nome.trim() : nome;
+    if (nome !== undefined) data.nome = nome.trim();
     if ("nome" in data && !data.nome) {
       return res.status(400).json({ error: "Nome não pode ficar vazio." });
     }
