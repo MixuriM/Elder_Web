@@ -191,6 +191,36 @@ describe("PATCH /usuario/me", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  // Injeção de operador: o Prisma aceita objeto no data ({ set: "" }), o que pularia a checagem de
+  // nome vazio. Só string (ou null em email/telefone, para limpar) chega ao Prisma.
+  it.each([
+    ["nome objeto { set: '' }", { nome: { set: "" } }],
+    ["nome array", { nome: ["Ana"] }],
+    ["nome número", { nome: 123 }],
+    ["email objeto", { email: { set: "x@a.com" } }],
+    ["telefone objeto", { telefone: { set: null } }],
+    ["telefone array", { telefone: ["123"] }],
+  ])("400 com %s, sem tocar banco nem Firebase", async (_nome, corpo) => {
+    findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+
+    const res = await request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send(corpo);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Nome, e-mail e telefone precisam ser texto." });
+    expect(update).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("email e telefone null continuam aceitos (limpar o campo)", async () => {
+    findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+    update.mockResolvedValue({ id: 42, nome: "Ana", email: "a@a.com", telefone: null, tipo_perfil: "idoso" });
+
+    const res = await request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send({ telefone: null });
+
+    expect(res.status).toBe(200);
+    expect(update.mock.calls[0][0].data).toEqual({ telefone: null });
+  });
+
   it("corpo sem campo nenhum: não quebra, chama update sem tocar nada", async () => {
     update.mockResolvedValue({ id: 42, nome: "Ana", email: "a@a.com", telefone: "123", tipo_perfil: "idoso" });
 
