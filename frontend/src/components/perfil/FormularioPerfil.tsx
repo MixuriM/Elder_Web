@@ -12,6 +12,8 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+import { FOTO_ACCEPT } from "../../lib/prepararFoto";
+
 type FormularioPerfilProps = {
   nome: string;
   email: string;
@@ -20,6 +22,7 @@ type FormularioPerfilProps = {
   sucesso: boolean;
   foto: string | null;
   enviandoFoto: boolean;
+  preparandoFoto: boolean;
   erroFoto: string | null;
   sucessoFoto: string | null;
 
@@ -40,6 +43,7 @@ function FormularioPerfil({
   sucesso,
   foto,
   enviandoFoto,
+  preparandoFoto,
   erroFoto,
   sucessoFoto,
   setNome,
@@ -266,8 +270,8 @@ function FormularioPerfil({
           ref={inputFotoRef}
           id="foto-perfil"
           type="file"
-          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-          aria-label="Escolher foto de perfil (JPEG ou PNG, até 2 MB)"
+          accept={FOTO_ACCEPT}
+          aria-label="Escolher foto de perfil (formatos comuns de foto, até 15 MB)"
           onChange={handleFoto}
           className="hidden"
         />
@@ -336,8 +340,24 @@ function FormularioPerfil({
             dark:text-gray-300
           "
         >
-          JPEG ou PNG, até 2 MB.
+          Formatos comuns de foto, até 15 MB.
         </p>
+
+        {/* Conversão no navegador: fotos grandes de celular podem levar alguns segundos */}
+        {preparandoFoto && (
+          <p
+            role="status"
+            className="
+              mt-3
+              text-base
+              font-semibold
+              text-gray-800
+              dark:text-gray-100
+            "
+          >
+            Preparando a foto, aguarde.
+          </p>
+        )}
 
         {/* Feedback da foto */}
         {erroFoto && (

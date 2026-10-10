@@ -113,7 +113,8 @@ async function chamarFoto(metodo: "POST" | "DELETE", corpo?: FormData) {
   return (json?.foto_perfil_url ?? null) as string | null;
 }
 
-// Envia a foto (JPEG/PNG até 2 MB) e devolve a data URI salva
+// Envia a foto já preparada por lib/prepararFoto (até 15 MB) e devolve a data URI salva; o servidor
+// confere os bytes e grava sempre um WebP de até 1024 px
 export function enviarFotoPerfil(arquivo: File) {
   const form = new FormData();
   form.append("foto", arquivo);
