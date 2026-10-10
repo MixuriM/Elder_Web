@@ -7,7 +7,14 @@ import { isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
-import { FOTO_LIMITE_BYTES, FOTO_MIME_PERMITIDOS, montarFotoPerfilUrl } from "../lib/fotoPerfil";
+import {
+  FOTO_LIMITE_BYTES,
+  FOTO_MIME_TRIAGEM,
+  FotoInvalida,
+  montarFotoPerfilUrl,
+  normalizarFoto,
+  type MotivoFotoInvalida,
+} from "../lib/fotoPerfil";
 
 const router = Router();
 
@@ -34,18 +41,60 @@ router.get("/me", requireAuth, async (req, res, next) => {
 });
 
 // Foto de perfil — qualquer tipo_perfil, sempre no próprio usuário autenticado. memoryStorage
-// (nunca disco: o filesystem do Render é efêmero). Só o Content-Type declarado é conferido;
-// os bytes não são validados nem redimensionados.
+// (nunca disco: o filesystem do Render é efêmero). O Content-Type declarado é só triagem; os bytes
+// passam por normalizarFoto, e o banco recebe sempre o WebP reduzido, com o mime do servidor.
 const MSG_FOTO_SEM_ARQUIVO = "Nenhuma foto enviada.";
-const MSG_FOTO_TIPO = "Formato de foto não suportado. Envie JPEG ou PNG.";
-const MSG_FOTO_TAMANHO = "Foto acima do limite de 2 MB.";
+const MSG_FOTO_TIPO = "Formato de foto não aceito. Envie uma foto em JPEG, PNG, WebP, GIF, AVIF ou TIFF.";
+const MSG_FOTO_TAMANHO = "Foto acima do limite de 15 MB. Escolha uma foto menor.";
+const MSG_FOTO_LIMITE = "Você já enviou muitas fotos na última hora. Tente de novo mais tarde.";
+const MSG_FOTO_INVALIDA: Record<MotivoFotoInvalida, string> = {
+  formato: MSG_FOTO_TIPO,
+  resolucao: "Foto com resolução grande demais. Escolha uma foto menor.",
+  corrompida: "Não foi possível abrir a foto. O arquivo pode estar danificado. Tente outra foto.",
+};
+const MSG_FOTO_OCUPADO = "Muitos envios de foto neste momento. Tente de novo em instantes.";
 const FOTO_TIPO_INVALIDO = "FOTO_TIPO_INVALIDO";
+
+// No máximo 2 envios de foto em andamento no processo inteiro: cada um pode ocupar o buffer de 15 MB mais
+// a decodificação (pico medido de cerca de 141 MB num PNG de 40 MP), e o Render free tem 512 MB. Antes do
+// multer, para limitar também o buffer. Desce no "close", que vem uma vez por resposta (normal, erro ou
+// cliente que abortou).
+const MAX_FOTOS_EM_ANDAMENTO = 2;
+let fotosEmAndamento = 0;
+
+function limitarConcorrenciaFoto(_req: Request, res: Response, next: NextFunction) {
+  if (fotosEmAndamento >= MAX_FOTOS_EM_ANDAMENTO) {
+    return res.status(429).json({ error: MSG_FOTO_OCUPADO });
+  }
+  fotosEmAndamento++;
+  res.once("close", () => fotosEmAndamento--);
+  next();
+}
+
+// Até 10 envios por hora por usuário; toda tentativa conta, inclusive a recusada. Roda antes do
+// multer, então o envio barrado nem chega a ocupar memória.
+// ponytail: em memória, zera quando o servidor reinicia (e o Render free dorme); tabela própria se isso importar.
+const JANELA_FOTO_MS = 60 * 60_000;
+const MAX_FOTOS_POR_JANELA = 10;
+const enviosFoto = new Map<number, number[]>();
+
+function limitarEnviosFoto(req: Request, res: Response, next: NextFunction) {
+  const agora = Date.now();
+  const recentes = (enviosFoto.get(req.usuarioId) ?? []).filter((t) => agora - t < JANELA_FOTO_MS);
+  enviosFoto.set(req.usuarioId, recentes);
+  if (recentes.length >= MAX_FOTOS_POR_JANELA) {
+    res.set("Retry-After", String(Math.ceil((recentes[0] + JANELA_FOTO_MS - agora) / 1000)));
+    return res.status(429).json({ error: MSG_FOTO_LIMITE });
+  }
+  recentes.push(agora);
+  next();
+}
 
 const uploadFoto = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: FOTO_LIMITE_BYTES, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (FOTO_MIME_PERMITIDOS.includes(file.mimetype)) return cb(null, true);
+    if (FOTO_MIME_TRIAGEM.includes(file.mimetype)) return cb(null, true);
     cb(new Error(FOTO_TIPO_INVALIDO));
   },
 }).single("foto");
@@ -66,8 +115,8 @@ function receberFoto(req: Request, res: Response, next: NextFunction) {
   });
 }
 
-// Rota separada de GET /usuario/me de propósito: a foto é o payload pesado (até ~2,7 MB em
-// base64) e só quem exibe a foto precisa dela.
+// Rota separada de GET /usuario/me de propósito: a foto é o payload pesado (WebP de até 1024 px,
+// em base64) e só quem exibe a foto precisa dela.
 router.get("/me/foto", requireAuth, async (req, res, next) => {
   try {
     const usuario = await prisma.usuario.findUnique({
@@ -80,19 +129,26 @@ router.get("/me/foto", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/me/foto", requireAuth, receberFoto, async (req, res, next) => {
+router.post("/me/foto", requireAuth, limitarConcorrenciaFoto, limitarEnviosFoto, receberFoto, async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: MSG_FOTO_SEM_ARQUIVO });
+    let foto: Awaited<ReturnType<typeof normalizarFoto>>;
+    try {
+      foto = await normalizarFoto(req.file.buffer);
+    } catch (e) {
+      if (e instanceof FotoInvalida) return res.status(400).json({ error: MSG_FOTO_INVALIDA[e.motivo] });
+      throw e;
+    }
     await prisma.usuario.update({
       where: { id: req.usuarioId },
       data: {
-        foto_perfil: req.file.buffer,
-        foto_perfil_mime_type: req.file.mimetype,
+        foto_perfil: foto.buffer,
+        foto_perfil_mime_type: foto.mimeType,
         foto_perfil_atualizada_em: new Date(),
       },
       select: { id: true },
     });
-    res.status(200).json({ foto_perfil_url: montarFotoPerfilUrl(req.file.buffer, req.file.mimetype) });
+    res.status(200).json({ foto_perfil_url: montarFotoPerfilUrl(foto.buffer, foto.mimeType) });
   } catch (e) {
     next(e);
   }
