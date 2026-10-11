@@ -98,7 +98,7 @@ export default function DetalhesVinculo({ vinculo, podeEditarPermissoes = false 
 
             <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:col-span-2">
               <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">E-mail</dt>
-              <dd className="mt-1 text-base text-[#071A38] dark:text-white">{email ?? "Não informado"}</dd>
+              <dd className="mt-1 text-base text-[#071A38] [overflow-wrap:anywhere] dark:text-white">{email ?? "Não informado"}</dd>
             </div>
 
             <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">

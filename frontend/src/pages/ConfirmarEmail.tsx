@@ -148,7 +148,7 @@ function ConfirmarEmail() {
               E-mail da conta
             </p>
 
-            <p className="break-all text-base font-semibold text-[#071A38] dark:text-[#F5F5FA]">
+            <p className="text-base font-semibold text-[#071A38] [overflow-wrap:anywhere] dark:text-[#F5F5FA]">
               {usuario.email}
             </p>
           </div>
