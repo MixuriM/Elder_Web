@@ -10,6 +10,7 @@ import { useTitulo } from "../hooks/useTitulo";
 import FormularioEsqueciSenha
   from "../components/EsqueciSenha/FormularioEsqueciSenha";
 
+import BotaoVoltar from "../components/Informativo/BotaoVoltar";
 import LadoInformativo
   from "../components/Informativo/LadoInformativo";
 
@@ -85,6 +86,7 @@ function EsqueciSenha() {
   return (
     <main
       className="
+        relative
         grid grid-cols-1
         min-h-dvh
         bg-white
@@ -93,8 +95,8 @@ function EsqueciSenha() {
       "
     >
 
-      {/* Lado informativo utilizado pelo Elder */}
-      <LadoInformativo tipo="login" />
+      {/* Voltar: primeiro no DOM e no canto superior esquerdo em todas as larguras. */}
+      <BotaoVoltar tipo="login" />
 
       {/* Lado direito da página */}
       <section
@@ -104,9 +106,13 @@ function EsqueciSenha() {
           items-center
           justify-center
           px-6
-          py-12
+          pb-12
+          pt-20
           sm:px-10
+          lg:col-start-2
+          lg:row-start-1
           lg:px-16
+          lg:pt-12
         "
       >
 
@@ -126,6 +132,10 @@ function EsqueciSenha() {
 
       </section>
 
+      {/* Lado informativo: no celular vem depois do formulário (no DOM e na tela); no desktop, coluna da esquerda. */}
+      <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+        <LadoInformativo tipo="login" comBotaoVoltar={false} />
+      </div>
     </main>
   );
 }
