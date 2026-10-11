@@ -181,6 +181,24 @@ export async function medir(page: Page, escopo?: string): Promise<Falha[]> {
       // Também texto acima do topo com a página no início: não há como rolar até ele.
       const fora = retangulosTexto(t).find((r) => r.left < -TOL || r.right > W + TOL || r.top < -TOL);
       if (fora) falhas.push({ regra: "estouro-texto", seletor: seletor(pai), numeros: `top=${px(fora.top)} right=${px(fora.right)} W=${W}` });
+      // Texto que passa da largura de uma caixa que o contém (palavra maior que o cartão), mesmo sem sair da tela.
+      // Sobe até o primeiro ancestral absolute ou fixed: dali para cima a caixa não precisa conter o texto.
+      if (!fora) {
+        const linhas = retangulosTexto(t);
+        for (let e: Element | null = pai; e && e !== document.body; e = e.parentElement) {
+          const s = est(e);
+          if (!["inline", "contents"].includes(s.display)) {
+            const c = e.getBoundingClientRect();
+            const vaza = linhas.find((r) => r.right > c.right + TOL || r.left < c.left - TOL);
+            if (vaza) {
+              falhas.push({ regra: "texto-vaza", seletor: seletor(e), numeros: `texto=${px(vaza.left)}..${px(vaza.right)} caixa=${px(c.left)}..${px(c.right)}` });
+              break;
+            }
+          }
+          // Parar também em margem negativa: o elemento sai da caixa do pai de propósito (grade do calendário).
+          if (["absolute", "fixed"].includes(s.position) || rola(e) || parseFloat(s.marginLeft) < 0 || parseFloat(s.marginRight) < 0) break;
+        }
+      }
     }
 
     // c) Texto visível abaixo de 14 px; campo de formulário abaixo de 16 px (D4).
