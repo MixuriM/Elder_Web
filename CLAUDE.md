@@ -279,7 +279,8 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Celular (2026-10-10): menor largura 320 px, mobile-first; alvo 44x44 com 8 px livres (exceção: link em texto corrido e
   dias da grade do calendário); `input`/`select`/`textarea` com 16 px; `min-h-dvh` (não `min-h-screen`); `grid-cols-1`
   no base de grid responsivo; estouro se corrige na origem, nunca com `overflow-x-hidden`. `npm run test:responsivo`
-  (local, fora do CI, mesmas exigências do `test:a11y`; cria 4 contas) mede tudo isso em 22 variantes.
+  (local, fora do CI, mesmas exigências do `test:a11y`; cria 4 contas) mede tudo isso em 22 variantes; WebKit com
+  `--browser=webkit` e `RESPONSIVO_VARIANTES=<regex>`.
 - Em merge por rebase os hashes de commit mudam. Não tratar hash de commit local como
   definitivo.
 
