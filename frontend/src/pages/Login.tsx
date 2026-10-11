@@ -20,6 +20,7 @@ import {
 } from "../lib/auth";
 
 // Componentes
+import BotaoVoltar from "../components/Informativo/BotaoVoltar";
 import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioLogin from "../components/login/FormularioLogin";
 import BotaoTema from "../components/layout/BotaoTema";
@@ -161,6 +162,9 @@ function Login() {
         dark:bg-[#101018]
       "
     >
+      {/* Voltar: primeiro no DOM e no canto superior esquerdo em todas as larguras. */}
+      <BotaoVoltar tipo="login" />
+
       {/* =====================================================
           BOTÃO DE TEMA - MOBILE / TABLET
 
@@ -207,8 +211,8 @@ function Login() {
           ESTRUTURA PRINCIPAL
 
           MOBILE / TABLET:
-          LadoInformativo
           Formulário
+          LadoInformativo (depois, no DOM e na tela)
 
           DESKTOP:
           LadoInformativo | Formulário
@@ -226,24 +230,6 @@ function Login() {
           lg:items-stretch
         "
       >
-        {/* ===================================================
-            LADO INFORMATIVO
-        ==================================================== */}
-
-        <div
-          className="
-            relative
-            w-full
-            min-w-0
-
-            lg:h-full
-          "
-        >
-          <LadoInformativo
-            tipo="login"
-          />
-        </div>
-
         {/* ===================================================
             ÁREA DO LOGIN
         ==================================================== */}
@@ -264,7 +250,7 @@ function Login() {
 
             px-4
             pb-10
-            pt-8
+            pt-20
 
             transition-colors
             duration-300
@@ -273,12 +259,13 @@ function Login() {
 
             sm:px-6
             sm:pb-12
-            sm:pt-10
+            sm:pt-24
 
             md:px-8
             md:pb-14
-            md:pt-12
 
+            lg:col-start-2
+            lg:row-start-1
             lg:h-full
             lg:items-center
             lg:px-8
@@ -332,6 +319,27 @@ function Login() {
             />
           </div>
         </section>
+
+        {/* ===================================================
+            LADO INFORMATIVO
+        ==================================================== */}
+
+        <div
+          className="
+            relative
+            w-full
+            min-w-0
+
+            lg:col-start-1
+            lg:row-start-1
+            lg:h-full
+          "
+        >
+          <LadoInformativo
+            tipo="login"
+            comBotaoVoltar={false}
+          />
+        </div>
       </div>
     </main>
   );
