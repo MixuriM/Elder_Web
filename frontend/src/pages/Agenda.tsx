@@ -86,13 +86,13 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
   return (
     <section
       aria-labelledby={`titulo_criar_${slug}`}
-      className="rounded-3xl border border-[#E5E2F5] bg-white p-5 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
+      className="rounded-3xl border border-[#E5E2F5] bg-white p-4 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
     >
-      <div className="mb-6 flex items-start gap-4">
+      <div className="mb-6 flex flex-wrap items-start gap-4">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#5F56EC] dark:bg-[#29263D] dark:text-[#A89FFF]">
           <IconeModo size={24} aria-hidden="true" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1 basis-48">
           <h2 id={`titulo_criar_${slug}`} className="text-xl font-bold leading-snug text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
             {titulo}
           </h2>
@@ -244,13 +244,13 @@ function VerAgenda() {
   return (
     <section
       aria-labelledby="titulo_ver_agenda"
-      className="rounded-3xl border border-[#E5E2F5] bg-white p-5 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
+      className="rounded-3xl border border-[#E5E2F5] bg-white p-4 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
     >
-      <div className="mb-6 flex items-start gap-4">
+      <div className="mb-6 flex flex-wrap items-start gap-4">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#5F56EC] dark:bg-[#29263D] dark:text-[#A89FFF]">
           <CalendarDays size={24} aria-hidden="true" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1 basis-48">
           <h2 id="titulo_ver_agenda" className="text-xl font-bold text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
             Ver agenda
           </h2>
@@ -301,7 +301,7 @@ function VerAgenda() {
       {visao === 'lista' && (proximos.length > 0 || passados.length > 0) && (
         <div className="mt-6 space-y-6">
           {passados.length > 0 && (
-            <details className="space-y-4 rounded-2xl border border-[#E5E2F5] bg-[#FCFBFF] p-4 dark:border-[#393947] dark:bg-[#1D1D29] sm:p-5">
+            <details className="space-y-4 sm:rounded-2xl sm:border sm:border-[#E5E2F5] sm:bg-[#FCFBFF] sm:p-5 sm:dark:border-[#393947] sm:dark:bg-[#1D1D29]">
               <summary className="min-h-11 cursor-pointer py-2 text-base font-bold text-[#554CD8] outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC] dark:text-[#B6B0FF] dark:focus-visible:ring-[#A89FFF]">
                 Compromissos anteriores
               </summary>
@@ -326,7 +326,7 @@ export default function Agenda() {
   return (
     <div className="flex-1 bg-[#F8F7FF] px-4 py-6 dark:bg-[#0F0F17] sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-7xl">
-        <header className="mb-6 rounded-3xl border border-[#E5E2F5] bg-white px-6 py-7 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:mb-8 sm:px-8 sm:py-8">
+        <header className="mb-6 rounded-3xl border border-[#E5E2F5] bg-white px-5 py-7 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:mb-8 sm:px-8 sm:py-8">
           <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#5F56EC] dark:text-[#A89FFF]">
             Organização e rotina
           </span>

@@ -82,7 +82,7 @@ export default function Alimentacao() {
     <div className="flex-1 bg-[#F8F7FF] px-4 py-6 dark:bg-[#0F0F17] sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-7xl">
 
-        <header className="mb-6 rounded-3xl border border-[#E5E2F5] bg-white px-6 py-7 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:mb-8 sm:px-8 sm:py-8">
+        <header className="mb-6 rounded-3xl border border-[#E5E2F5] bg-white px-5 py-7 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:mb-8 sm:px-8 sm:py-8">
           <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#5F56EC] dark:text-[#A89FFF]">
             Cuidado e acompanhamento
           </span>
@@ -96,13 +96,13 @@ export default function Alimentacao() {
           {podeRegistrar && (
             <section
               aria-labelledby="titulo_registrar_refeicao"
-              className="rounded-3xl border border-[#E5E2F5] bg-white p-5 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
+              className="rounded-3xl border border-[#E5E2F5] bg-white p-4 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
             >
-              <div className="mb-6 flex items-start gap-4">
+              <div className="mb-6 flex flex-wrap items-start gap-4">
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#5F56EC] dark:bg-[#29263D] dark:text-[#A89FFF]">
                   <Utensils size={24} aria-hidden="true" />
                 </span>
-                <div>
+                <div className="min-w-0 flex-1 basis-48">
                   <h2 id="titulo_registrar_refeicao" className="text-xl font-bold leading-snug text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
                     Registrar refeição
                   </h2>
@@ -264,13 +264,13 @@ function VerHistoricoAlimentar() {
   return (
     <section
       aria-labelledby="titulo_ver_historico_alimentar"
-      className="rounded-3xl border border-[#E5E2F5] bg-white p-5 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
+      className="rounded-3xl border border-[#E5E2F5] bg-white p-4 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
     >
-      <div className="mb-6 flex items-start gap-4">
+      <div className="mb-6 flex flex-wrap items-start gap-4">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#5F56EC] dark:bg-[#29263D] dark:text-[#A89FFF]">
           <ClipboardList size={24} aria-hidden="true" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1 basis-48">
           <h2 id="titulo_ver_historico_alimentar" className="text-xl font-bold leading-snug text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
             Ver histórico alimentar
           </h2>
@@ -309,7 +309,7 @@ function VerHistoricoAlimentar() {
       {itens && itens.length > 0 && (
         <ul className="mt-5 space-y-3">
           {itens.map((i) => (
-            <li key={i.id} className="rounded-2xl border border-[#E5E2F5] bg-[#F8F7FF] p-4 dark:border-[#393947] dark:bg-[#20202D]">
+            <li key={i.id} className="rounded-2xl border border-[#E5E2F5] bg-[#F8F7FF] p-3 dark:border-[#393947] dark:bg-[#20202D] sm:p-4">
               <p className="font-bold text-[#071A38] dark:text-[#F5F5FA]">
                 <strong>{i.rotulo}</strong>
               </p>
