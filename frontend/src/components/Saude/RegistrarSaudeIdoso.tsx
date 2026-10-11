@@ -189,6 +189,9 @@ function RegistrarSaudeIdoso() {
           id="unidade_cuid"
           label="Unidade"
           type="text"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           required
           maxLength={20}
           placeholder="Ex.: mg/dL"

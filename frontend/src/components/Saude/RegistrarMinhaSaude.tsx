@@ -151,6 +151,9 @@ function RegistrarMinhaSaude() {
           id="unidade_saude"
           label="Unidade"
           type="text"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           required
           maxLength={20}
           placeholder="Ex.: mmHg"
