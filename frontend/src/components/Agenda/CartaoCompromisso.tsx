@@ -6,7 +6,7 @@ import MarcaTipo from './MarcaTipo'
 // O título fica só no texto da tela, nunca em atributo (title, aria-label de fora): pode ser dado de saúde.
 export default function CartaoCompromisso({ evento: e }: { evento: EventoAgenda }) {
   return (
-    <div className="rounded-2xl border border-[#E5E2F5] bg-[#FCFBFF] p-4 dark:border-[#393947] dark:bg-[#1D1D29] sm:p-5">
+    <div className="rounded-2xl border border-[#E5E2F5] bg-[#FCFBFF] p-3 dark:border-[#393947] dark:bg-[#1D1D29] sm:p-5">
       <div className="flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center gap-2 rounded-full bg-[#F0EDFF] px-3 py-1 text-sm font-bold text-[#554CD8] dark:bg-[#29263D] dark:text-[#B6B0FF]">
           <MarcaTipo tipo={e.tipo_evento} />
