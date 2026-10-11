@@ -331,7 +331,7 @@ function CardMedicamento({
       <div
         className="
           mt-auto
-          grid
+          grid grid-cols-1
           gap-3
           pt-6
 

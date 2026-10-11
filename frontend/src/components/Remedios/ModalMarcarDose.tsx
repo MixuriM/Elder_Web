@@ -102,11 +102,16 @@ function ModalMarcarDose({
       fecharComEscape,
     )
 
+    // Fundo travado enquanto o modal está aberto (como em ModalMedicamento e ModalVinculo).
+    document.body.style.overflow = 'hidden'
+
     return () => {
       document.removeEventListener(
         'keydown',
         fecharComEscape,
       )
+
+      document.body.style.overflow = ''
     }
   }, [aberto, carregando, onFechar])
 
@@ -261,8 +266,9 @@ function ModalMarcarDose({
         aria-labelledby="titulo-modal-dose"
         className="
           focus:!outline-none
-          max-h-[90vh]
+          max-h-full
           w-full
+          min-w-0
           max-w-lg
           overflow-y-auto
           rounded-3xl
@@ -365,8 +371,8 @@ function ModalMarcarDose({
             aria-label="Fechar"
             className="
               flex
-              h-10
-              w-10
+              h-11
+              w-11
               shrink-0
               items-center
               justify-center
@@ -421,7 +427,7 @@ function ModalMarcarDose({
               Situação da dose
             </legend>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
               {(
                 [
                   {

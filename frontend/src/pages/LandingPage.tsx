@@ -43,7 +43,7 @@ function LandingPage() {
   return (
     <div
       className="
-        min-h-screen
+        min-h-dvh
         bg-white
         text-[#101828]
         transition-colors

@@ -9,7 +9,7 @@ function SobreNos() {
   return (
     <main
       className="
-        min-h-screen
+        min-h-dvh
         bg-[#F8F7FF]
         text-[#071A38]
         transition-colors

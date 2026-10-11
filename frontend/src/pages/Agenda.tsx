@@ -105,7 +105,7 @@ function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
           </p>
         </div>
       </div>
-      <form onSubmit={handleCriar} className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={handleCriar} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {comIdoso && (
           <div className="sm:col-span-2">
             <SeletorIdoso

@@ -111,7 +111,7 @@ export default function Alimentacao() {
                   </p>
                 </div>
               </div>
-              <form onSubmit={handleRegistrar} className="grid gap-4 sm:grid-cols-2">
+              <form onSubmit={handleRegistrar} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2 empty:hidden">
                   <SeletorIdoso
                     id="idoso_id_alimentacao"

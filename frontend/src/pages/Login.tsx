@@ -147,7 +147,7 @@ function Login() {
     <main
       className="
         relative
-        min-h-screen
+        min-h-dvh
         w-full
         overflow-x-hidden
 
@@ -221,7 +221,7 @@ function Login() {
           flex-col
 
           lg:grid
-          lg:min-h-screen
+          lg:min-h-dvh
           lg:grid-cols-2
           lg:items-stretch
         "

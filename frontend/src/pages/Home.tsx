@@ -147,7 +147,7 @@ function Home() {
               className="
                 mt-4
 
-                grid
+                grid grid-cols-1
                 gap-4
 
                 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.85fr)]

@@ -61,7 +61,7 @@ function ResumoSection() {
       <div
         className="
           mx-auto
-          grid
+          grid grid-cols-1
           max-w-7xl
 
           gap-6
