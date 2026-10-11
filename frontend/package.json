@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "test": "jest",
     "test:e2e": "playwright test",
-    "test:a11y": "playwright test acessibilidade"
+    "test:a11y": "playwright test acessibilidade",
+    "test:responsivo": "playwright test responsivo"
   },
   "dependencies": {
     "firebase": "^12.18.0",

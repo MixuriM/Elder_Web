@@ -25,10 +25,11 @@ export function exigirBancoLocal() {
 // chamador mantém aberto: a sessão do Firebase fica no navegador. Sem storageState em disco (tem token).
 export type Conta = { context: BrowserContext; email: string };
 
-export async function criarContaELogar(browser: Browser, { tipoPerfil, radio }: Perfil): Promise<Conta> {
+// `apelido` deixa o e-mail mais longo (pior caso de layout), sempre com o prefixo e2e-.
+export async function criarContaELogar(browser: Browser, { tipoPerfil, radio }: Perfil, apelido?: string): Promise<Conta> {
   const context = await browser.newContext();
   const page = await context.newPage();
-  const email = `e2e-${tipoPerfil}-${Date.now()}@e2e.elderweb.test`;
+  const email = `e2e-${tipoPerfil}${apelido ? `-${apelido}` : ""}-${Date.now()}@e2e.elderweb.test`;
 
   await page.goto("/cadastro");
   await page.getByText(radio, { exact: true }).click();
