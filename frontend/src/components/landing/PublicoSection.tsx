@@ -143,7 +143,7 @@ function PublicoSection() {
                   <Icone size={28} />
                 </div>
 
-                <div>
+                <div className="min-w-0 break-words">
                   <h3
                     className="
                       text-xl

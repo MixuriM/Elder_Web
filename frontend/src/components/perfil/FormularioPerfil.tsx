@@ -133,7 +133,8 @@ function FormularioPerfil({
 
 
         {/* Título */}
-        <div className="px-12 text-center">
+        {/* No celular o título fica abaixo do botão voltar: ao lado dele, com texto grande, não cabia. */}
+        <div className="pt-14 text-center sm:px-12 sm:pt-0">
 
           <h1
             className="

@@ -49,7 +49,8 @@ function TipoPerfilCampo({
       </legend>
 
       {/* Cards */}
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      {/* Três colunas iguais; com texto grande em tela estreita viram duas, para "Cuidador" e "Familiar" caberem no cartão. */}
+      <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(5.25rem,1fr))] gap-3">
         {opcoes.map((opcao) => {
           // Verifica qual opção está selecionada
           const selecionado = tipoPerfil === opcao.valor;
