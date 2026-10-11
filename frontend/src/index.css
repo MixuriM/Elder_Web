@@ -58,6 +58,23 @@ textarea {
   max-width: 100%;
 }
 
+/* Safari do iPhone: o controle nativo de data e hora tem largura mínima própria, ignora o w-full e passa da
+   tela. Só lá (-webkit-touch-callout existe só no iOS), sem mudar o visual no computador nem no Android. */
+@supports (-webkit-touch-callout: none) {
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'] {
+    display: block;
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
+
 /* ================================
    RESPONSIVIDADE
 ================================ */
