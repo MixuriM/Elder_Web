@@ -167,6 +167,7 @@ function FormMedicamento({
           }
           placeholder="Ex.: 50 mg"
           autoComplete="off"
+          autoCapitalize="none"
           className={classeInput}
         />
       </div>
@@ -201,7 +202,7 @@ function FormMedicamento({
 
       {/* DATAS */}
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label
             htmlFor="medicamento-data-inicio"

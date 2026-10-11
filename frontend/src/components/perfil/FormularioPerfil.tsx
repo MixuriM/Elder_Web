@@ -313,6 +313,7 @@ function FormularioPerfil({
             onClick={onRemoverFoto}
             disabled={enviandoFoto}
             className="
+              mt-2
               min-h-11
               px-3
 
@@ -441,6 +442,8 @@ function FormularioPerfil({
           <input
             id="nome"
             type="text"
+            autoComplete="name"
+            autoCapitalize="words"
             required
             value={nome}
             onChange={(e) =>
@@ -501,6 +504,7 @@ function FormularioPerfil({
           <input
             id="email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) =>
               setEmail(e.target.value)
@@ -560,6 +564,7 @@ function FormularioPerfil({
           <input
             id="telefone"
             type="tel"
+            autoComplete="tel"
             value={telefone}
             onChange={(e) =>
               setTelefone(e.target.value)

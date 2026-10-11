@@ -101,6 +101,7 @@ function FormularioEsqueciSenha({
             <input
               id="email"
               type="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

@@ -293,6 +293,9 @@ function EditarSaude({
               id={`unidade_${prefixo}`}
               label="Unidade"
               type="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               maxLength={20}
               value={campos.unidade}
               onChange={(e) =>
