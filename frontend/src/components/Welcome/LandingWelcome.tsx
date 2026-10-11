@@ -24,7 +24,7 @@ function LandingWelcome() {
         sm:px-6
         sm:py-12
 
-        md:min-h-screen
+        md:min-h-dvh
         md:px-6
 
         lg:px-10

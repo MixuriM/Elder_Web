@@ -73,7 +73,7 @@ function Welcome() {
     <main
       className="
         relative
-        min-h-screen
+        min-h-dvh
         w-full
         overflow-x-hidden
 
@@ -213,7 +213,7 @@ function Welcome() {
 
           bg-[#F3F0FF]
 
-          md:min-h-screen
+          md:min-h-dvh
 
           dark:bg-[#151522]
         "
@@ -375,7 +375,7 @@ function Welcome() {
       <section
         className="
           hidden
-          min-h-screen
+          min-h-dvh
           min-w-0
           w-full
 

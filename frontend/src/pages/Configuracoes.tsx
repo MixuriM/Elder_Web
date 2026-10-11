@@ -45,7 +45,7 @@ function Grupo<K extends "tema" | "tamanhoTexto">({
     <fieldset className={CARTAO}>
       <legend className={`float-left w-full ${TITULO_SECAO}`}>{legenda}</legend>
       <p className={`clear-left ${AJUDA}`}>{ajuda}</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {opcoes.map((o) => (
           <label key={o.valor} className={OPCAO}>
             <input

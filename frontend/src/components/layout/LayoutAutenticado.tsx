@@ -45,7 +45,7 @@ function LayoutAutenticado() {
         Pular para o conteúdo
       </a>
 
-      <div className="flex min-h-screen bg-white dark:bg-[#0F0F17]">
+      <div className="flex min-h-dvh bg-white dark:bg-[#0F0F17]">
         <Sidebar aberto={sidebarAberta} setAberto={setSidebarAberta} />
 
         <div className="flex min-w-0 flex-1 flex-col">

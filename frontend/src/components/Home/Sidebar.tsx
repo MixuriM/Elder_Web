@@ -92,7 +92,8 @@ function Sidebar({
         <div
           className="
             flex
-            h-[68px]
+            min-h-[68px]
+            py-2
             shrink-0
             items-center
 
@@ -246,7 +247,7 @@ function Sidebar({
             Menu principal
           </p>
 
-          <div className="space-y-1">
+          <div className="space-y-2 lg:space-y-1">
             {itensDoMenu(acesso).map((item) => {
               const Icon = item.icon;
 
@@ -386,7 +387,8 @@ function Sidebar({
             type="button"
             onClick={handleLogout}
             className="
-              mt-1
+              mt-2
+              lg:mt-1
 
               flex
               min-h-11

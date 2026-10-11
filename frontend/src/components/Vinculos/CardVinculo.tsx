@@ -74,7 +74,8 @@ export default function CardVinculo({ vinculo }: CardVinculoProps) {
         dark:border-gray-700 dark:bg-[#151B35]
       "
     >
-      <div className="flex items-center gap-4">
+      {/* Em tela estreita o selo de status desce de linha, para o nome não quebrar no meio da palavra. */}
+      <div className="flex flex-wrap items-center gap-4">
         <div
           className="
             flex h-14 w-14 shrink-0 items-center justify-center
@@ -86,7 +87,7 @@ export default function CardVinculo({ vinculo }: CardVinculoProps) {
           <UserRound size={28} />
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-40">
           <h2 className="break-words text-xl font-bold text-[#071A38] dark:text-white">
             {nome}
           </h2>

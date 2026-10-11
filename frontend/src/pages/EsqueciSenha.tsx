@@ -85,8 +85,8 @@ function EsqueciSenha() {
   return (
     <main
       className="
-        grid
-        min-h-screen
+        grid grid-cols-1
+        min-h-dvh
         bg-white
         lg:grid-cols-2
         dark:bg-gray-900

@@ -85,7 +85,7 @@ export default function DetalhesVinculo({ vinculo, podeEditarPermissoes = false 
 
           {emailNaoConfirmado(vinculo) && <AvisoEmailPendente />}
 
-          <dl className="grid gap-4 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
               <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tipo de vínculo</dt>
               <dd className="mt-1 text-base font-bold text-[#071A38] dark:text-white">{formatarTipo(vinculo.tipo_vinculo)}</dd>

@@ -23,7 +23,7 @@ class LimiteErro extends Component<{ children: ReactNode; resetKey: string }, Es
     if (!this.state.falhou) return this.props.children
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-[#0F0F17]">
+      <main className="flex min-h-dvh items-center justify-center bg-white p-8 dark:bg-[#0F0F17]">
         <div role="alert" className="max-w-md text-center text-gray-900 dark:text-[#F5F5FA]">
           <h1 className="text-2xl font-bold">Algo deu errado</h1>
           <p className="mt-3 text-lg">

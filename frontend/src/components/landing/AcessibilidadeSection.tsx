@@ -20,7 +20,7 @@ function AcessibilidadeSection() {
       <div
         className="
           mx-auto
-          grid
+          grid grid-cols-1
           max-w-7xl
           gap-14
           lg:grid-cols-2
@@ -79,7 +79,7 @@ function AcessibilidadeSection() {
         {/* Recursos */}
         <div
           className="
-            grid
+            grid grid-cols-1
             gap-4
             sm:grid-cols-2
           "

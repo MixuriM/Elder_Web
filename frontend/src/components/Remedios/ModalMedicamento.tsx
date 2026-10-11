@@ -92,11 +92,12 @@ function ModalMedicamento({
         className="
           focus:!outline-none
           flex
-          max-h-[92vh]
+          max-h-full
           w-full
+          min-w-0
           max-w-2xl
           flex-col
-          overflow-hidden
+          overflow-y-auto
           rounded-3xl
           border
           border-[#E5E2F5]
@@ -198,8 +199,8 @@ function ModalMedicamento({
             aria-label="Fechar"
             className="
               flex
-              h-10
-              w-10
+              h-11
+              w-11
               shrink-0
               items-center
               justify-center
@@ -230,11 +231,11 @@ function ModalMedicamento({
           </button>
         </header>
 
-        {/* CONTEÚDO ROLÁVEL */}
+        {/* CONTEÚDO: o painel inteiro rola, com o cabeçalho junto. Com o teclado aberto, um cabeçalho fixo
+            deixava só uma fresta para os campos. */}
 
         <div
           className="
-            overflow-y-auto
             px-5
             py-6
 

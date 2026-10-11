@@ -52,7 +52,7 @@ function ConfirmarEmail() {
 
   if (carregando) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F6FF] p-6 dark:bg-[#10101A]">
+      <main className="flex min-h-dvh items-center justify-center bg-[#F7F6FF] p-6 dark:bg-[#10101A]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-[#5F56EC]" />
 
@@ -70,7 +70,7 @@ function ConfirmarEmail() {
 
   if (!usuario) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F6FF] p-6 dark:bg-[#10101A]">
+      <main className="flex min-h-dvh items-center justify-center bg-[#F7F6FF] p-6 dark:bg-[#10101A]">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-lg dark:bg-[#151B35] sm:p-10">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#F3F0FF] dark:bg-[#6C63FF]/15">
             <AlertCircle className="h-10 w-10 text-[#5F56EC]" />
@@ -96,7 +96,7 @@ function ConfirmarEmail() {
   // =========================================================
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F7F6FF] px-5 py-10 dark:bg-[#10101A]">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#F7F6FF] px-5 py-10 dark:bg-[#10101A]">
 
       {/* Decoração de fundo */}
 

@@ -57,6 +57,9 @@ function Header({ abrirSidebar }: HeaderProps) {
         min-h-[68px]
         items-center
         justify-between
+        gap-2
+
+        py-2
 
         border-b
         border-[#EDE7FF]
@@ -77,8 +80,8 @@ function Header({ abrirSidebar }: HeaderProps) {
         lg:px-8
       "
     >
-      {/* Lado esquerdo */}
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      {/* Lado esquerdo: nunca encolhe, senão o lado direito cobre o botão do menu em 320 px. */}
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         {/* Botão do menu no celular */}
         <button
           type="button"
@@ -112,8 +115,8 @@ function Header({ abrirSidebar }: HeaderProps) {
         </button>
       </div>
 
-      {/* Lado direito */}
-      <div className="flex shrink-0 items-center gap-2">
+      {/* Lado direito: com texto grande em tela estreita, quebra linha em vez de passar da tela. */}
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
         {/* Só o idoso. Perfil ainda carregando ou com erro: não aparece (o backend também recusa os outros). */}
         {tipoPerfil === "idoso" && <BotaoAjuda />}
         {so192 && (
@@ -186,8 +189,10 @@ function Header({ abrirSidebar }: HeaderProps) {
           )}
         </Link>
 
-        {/* Mesmo estilo de tema do Cadastro */}
-        <BotaoTema compacto />
+        {/* Mesmo estilo de tema do Cadastro. No celular fica só em Configurações: não cabe ao lado do pedido de ajuda. */}
+        <div className="hidden sm:block">
+          <BotaoTema compacto />
+        </div>
 
         {/* Perfil */}
         <button

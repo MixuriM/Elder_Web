@@ -231,7 +231,7 @@ export default function SolicitacoesPendentes({
           <h2 id={idPedidos} className="mb-5 text-2xl font-bold text-[#071A38] dark:text-white">
             Pedidos para você responder
           </h2>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {paraResponder.map((v) => renderItem(v, podeAprovarManual(v) ? ["aprovar", "recusar"] : ["recusar"]))}
           </div>
         </section>
@@ -245,7 +245,7 @@ export default function SolicitacoesPendentes({
           <p className="mb-5 text-lg text-gray-700 dark:text-gray-200">
             Estes familiares entraram sem pedido manual. Se não reconhece alguém, você pode contestar.
           </p>
-          <div className="grid gap-4 md:grid-cols-2">{paraConferir.map((v) => renderItem(v, ["contestar"]))}</div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{paraConferir.map((v) => renderItem(v, ["contestar"]))}</div>
         </section>
       )}
     </div>
