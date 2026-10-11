@@ -227,6 +227,7 @@ export default function CadastrarIdoso({ onConcluido, onFechar, onPedirVinculo }
           type="text"
           maxLength={150}
           autoComplete="off"
+          autoCapitalize="words"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           aria-invalid={Boolean(errosCampo.nome)}

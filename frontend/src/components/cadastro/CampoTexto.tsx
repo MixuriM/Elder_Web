@@ -13,6 +13,7 @@ type CampoTextoProps = {
   maxLength?: number; // Limite de caracteres
   minLength?: number; // Mínimo de caracteres
   autoComplete?: string; // Dica de preenchimento automático do navegador
+  autoCapitalize?: "none" | "words"; // Teclado do celular: maiúscula em cada palavra (nomes) ou nunca
   hint?: string; // Texto de ajuda exibido abaixo do campo
 };
 
@@ -27,6 +28,7 @@ function CampoTexto({
   maxLength,
   minLength,
   autoComplete,
+  autoCapitalize,
   hint,
 }: CampoTextoProps) {
   // Campos de senha ganham botão para mostrar/ocultar o que foi digitado
@@ -64,6 +66,7 @@ function CampoTexto({
           maxLength={maxLength}
           minLength={minLength}
           autoComplete={autoComplete}
+          autoCapitalize={autoCapitalize}
           aria-describedby={idHint}
           value={value}
           onChange={(e) => onChange(e.target.value)}

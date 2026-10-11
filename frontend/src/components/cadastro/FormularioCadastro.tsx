@@ -228,6 +228,7 @@ function FormularioCadastro({
             onChange={setNome}
             maxLength={150}
             autoComplete="name"
+            autoCapitalize="words"
           />
 
           {/* E-mail */}
@@ -477,7 +478,9 @@ function FormularioCadastro({
             className="
               inline-flex
               min-h-[44px]
+              min-w-11
               items-center
+              justify-center
               font-bold
 
               text-[#5F56EC]
