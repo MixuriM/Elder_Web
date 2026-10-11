@@ -4,6 +4,11 @@ export default {
   // Permite controlar o modo escuro pela classe "dark"
   darkMode: 'class',
 
+  // hover: só onde existe ponteiro que paira (mouse). No toque o estilo de hover não fica "grudado" depois do toque.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
+
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}'
