@@ -1,5 +1,4 @@
-import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import BotaoVoltar from "./BotaoVoltar";
 
 import folhasDecorativas from "../../Img/folhaInformativo.webp";
 import florCadastro from "../../Img/flor_cadastro.svg";
@@ -10,29 +9,17 @@ import type { TipoPerfil } from "../../lib/auth";
 type LadoInformativoProps = {
   tipo: "landing" | "cadastro" | "login";
   tipoPerfil?: TipoPerfil;
+  // Falso quando a página põe o BotaoVoltar no topo dela (o bloco informativo vem depois do formulário no celular).
+  comBotaoVoltar?: boolean;
 };
 
 function LadoInformativo({
   tipo,
   tipoPerfil,
+  comBotaoVoltar = true,
 }: LadoInformativoProps) {
-  const navigate = useNavigate();
-
   // Só a tela de boas-vindas usa este título como h1: em Login e Cadastro o h1 é o do formulário.
   const Titulo = tipo === "landing" ? "h1" : "h2";
-
-  // =========================================================
-  // NAVEGAÇÃO
-  // =========================================================
-
-  const handleVoltar = () => {
-    if (tipo === "landing") {
-      navigate("/");
-      return;
-    }
-
-    navigate("/welcome");
-  };
 
   // =========================================================
   // CONTEÚDOS GERAIS
@@ -105,7 +92,7 @@ function LadoInformativo({
 
   return (
     <section
-      className="
+      className={`
         relative
         flex
         w-full
@@ -115,7 +102,7 @@ function LadoInformativo({
 
         px-4
         pb-10
-        pt-20
+        ${comBotaoVoltar ? "pt-20 sm:pt-24" : "pt-10 sm:pt-12"}
 
         transition-colors
         duration-300
@@ -125,7 +112,6 @@ function LadoInformativo({
 
         sm:px-6
         sm:pb-12
-        sm:pt-24
 
         md:px-8
         md:py-12
@@ -138,83 +124,9 @@ function LadoInformativo({
         xl:px-16
 
         dark:bg-[#151522]
-      "
+      `}
     >
-      {/* =====================================================
-          BOTÃO VOLTAR
-      ====================================================== */}
-
-      <button
-        type="button"
-        onClick={handleVoltar}
-        aria-label={
-          tipo === "landing"
-            ? "Voltar para a página inicial"
-            : "Voltar para a tela de boas-vindas"
-        }
-        className="
-          absolute
-          left-4
-          top-4
-          z-50
-
-          flex
-          h-11
-          items-center
-          justify-center
-          gap-2
-
-          rounded-xl
-
-          border
-          border-[#D8D4F0]
-
-          bg-white/70
-
-          px-3
-
-          text-sm
-          font-semibold
-          text-[#071A38]
-
-          shadow-sm
-          backdrop-blur-sm
-
-          transition-all
-          duration-200
-
-          hover:border-[#6C63FF]
-          hover:bg-white
-          hover:text-[#554CD8]
-
-          sm:left-5
-          sm:top-5
-          sm:h-11
-          sm:px-4
-
-          lg:left-6
-          lg:top-6
-
-          dark:border-[#343447]
-          dark:bg-[#1D1D2B]/80
-          dark:text-[#F5F5FA]
-
-          dark:hover:border-[#A89FFF]
-          dark:hover:bg-[#252536]
-          dark:hover:text-[#A89FFF]
-        "
-      >
-        <ArrowLeft
-          size={18}
-          strokeWidth={2.2}
-        />
-
-        <span className="hidden sm:inline">
-          {tipo === "landing"
-            ? "Página inicial"
-            : "Voltar"}
-        </span>
-      </button>
+      {comBotaoVoltar && <BotaoVoltar tipo={tipo} />}
 
       {/* =====================================================
           FOLHAS DECORATIVAS SUPERIORES
