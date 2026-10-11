@@ -151,7 +151,7 @@ function SobreCard({
                 <UserRound size={24} />
               </div>
 
-              <div>
+              <div className="min-w-0 break-words">
                 <p
                   className="
                     font-bold
@@ -208,7 +208,7 @@ function SobreCard({
                 <UserRound size={24} />
               </div>
 
-              <div>
+              <div className="min-w-0 break-words">
                 <p
                   className="
                     font-bold
@@ -265,7 +265,7 @@ function SobreCard({
                 <UserRound size={24} />
               </div>
 
-              <div>
+              <div className="min-w-0 break-words">
                 <p
                   className="
                     font-bold
