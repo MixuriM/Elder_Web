@@ -8,8 +8,11 @@ import { MATRIZ, aplicarVariante, congelarAnimacoes, contextoCelular, falhasMeta
 // test:a11y): Firebase real e SQL Server LOCAL. Cria 4 contas e2e-*@e2e.elderweb.test por execução, sem limpeza, e
 // os dados de pior caso (nomes e textos longos, todos com "E2E Teste") pelas rotas do backend local.
 // Rodar: npm run test:responsivo   (RESPONSIVO_SO=<regex> mede só as telas cujo rótulo casar;
-// RESPONSIVO_FOTOS=<pasta> também salva capturas para conferir a olho, inclusive do desktop 1440)
+// RESPONSIVO_FOTOS=<pasta> também salva capturas para conferir a olho, inclusive do desktop 1440;
+// RESPONSIVO_VARIANTES=<regex> mede só as variantes cujo nome casar. Outro navegador: --browser=webkit)
 const SO = process.env.RESPONSIVO_SO ? new RegExp(process.env.RESPONSIVO_SO, "i") : null;
+const VARIANTES = process.env.RESPONSIVO_VARIANTES ? new RegExp(process.env.RESPONSIVO_VARIANTES) : null;
+const MATRIZ_USADA = VARIANTES ? MATRIZ.filter((v) => VARIANTES.test(v.nome)) : MATRIZ;
 // Clique bloqueado por elemento sobreposto falha logo, em vez de esperar o tempo do teste inteiro.
 test.use({ actionTimeout: 15_000 });
 const FOTOS = process.env.RESPONSIVO_FOTOS;
@@ -19,11 +22,11 @@ const arquivo = (rotulo: string, variante: string) => `${FOTOS}/${`${rotulo} ${v
 async function auditar(page: Page, rotulo: string, escopo?: string) {
   if (SO && !SO.test(rotulo)) return;
   await test.step(rotulo, async () => {
-    const linhas = await medirMatriz(page, MATRIZ, escopo);
+    const linhas = await medirMatriz(page, MATRIZ_USADA, escopo);
     for (const l of linhas) console.log(`[responsivo] ${rotulo} | ${l}`);
     expect.soft(linhas, rotulo).toEqual([]);
     if (FOTOS) {
-      for (const v of MATRIZ.filter((m) => VARIANTES_FOTO.includes(m.nome))) {
+      for (const v of MATRIZ_USADA.filter((m) => VARIANTES_FOTO.includes(m.nome))) {
         await aplicarVariante(page, v);
         // Uma captura por altura de tela, rolando de verdade (o fullPage desenha errado o que é fixo ou sticky).
         const total = escopo ? 1 : Math.min(8, Math.ceil((await page.evaluate(() => document.documentElement.scrollHeight)) / v.viewport.height));
@@ -37,9 +40,11 @@ async function auditar(page: Page, rotulo: string, escopo?: string) {
 }
 
 // Desktop (contexto sem isMobile): só capturas, para provar que 1440 não mudou.
-async function fotosDesktop(context: BrowserContext, rota: string, rotulo: string) {
+async function fotosDesktop(context: BrowserContext, rota: string, rotulo: string, estado?: (p: Page) => Promise<unknown>) {
   if (!FOTOS || (SO && !SO.test(rotulo))) return;
   const page = await abrir(context, rota);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await estado?.(page);
   for (const escuro of [false, true]) {
     await aplicarVariante(page, { nome: "", viewport: { width: 1440, height: 900 }, escuro, texto: "padrao" });
     await page.screenshot({ path: arquivo(rotulo, `1440 ${escuro ? "escuro" : "claro"}`), fullPage: true });
@@ -211,6 +216,26 @@ test("hover só com mouse (D10)", async ({ browser }) => {
   }
 });
 
+// D8: quantas palavras de um elemento ficam partidas entre duas linhas (nome nunca; e-mail só quando não cabe).
+async function palavrasPartidas(page: Page, seletor: string) {
+  return page.locator(seletor).evaluateAll((els) => {
+    let partidas = 0;
+    for (const el of els) {
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let t = w.nextNode(); t; t = w.nextNode()) {
+        for (const m of (t.textContent ?? "").matchAll(/\S+/g)) {
+          const r = document.createRange();
+          r.setStart(t, m.index ?? 0);
+          r.setEnd(t, (m.index ?? 0) + m[0].length);
+          const linhas = new Set([...r.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top)));
+          if (linhas.size > 1) partidas++;
+        }
+      }
+    }
+    return partidas;
+  });
+}
+
 // D11: teclado e preenchimento certos em cada campo (atributos lidos da tela, sem enviar nada).
 async function atributos(page: Page, seletor: string) {
   return page.locator(seletor).first().evaluate((e) => ({
@@ -259,6 +284,9 @@ test("responsivo: telas públicas", async ({ browser }) => {
     const desktop = await browser.newContext();
     await fotosDesktop(desktop, "/", "desktop /");
     await fotosDesktop(desktop, "/login", "desktop /login");
+    await fotosDesktop(desktop, "/cadastro", "desktop /cadastro");
+    await fotosDesktop(desktop, "/esqueci-senha", "desktop /esqueci-senha");
+    await fotosDesktop(desktop, "/sobre-nos", "desktop /sobre-nos");
     await desktop.close();
   } finally {
     await ctx.close();
@@ -308,6 +336,47 @@ test("responsivo: telas autenticadas (idoso, cuidador e familiar com dados de pi
       }
     }
     const [idoso, cuidador, familiar] = celulares;
+    await test.step("nome quebra entre palavras, e-mail só quando não cabe (D8)", async () => {
+      const lista = await abrir(idoso, "/cuidadores");
+      await aplicarVariante(lista, { nome: "", viewport: { width: 320, height: 640 }, escuro: false, texto: "muito-grande" });
+      expect(await lista.locator("article h2").count()).toBeGreaterThan(0);
+      expect(await palavrasPartidas(lista, "article h2"), "nomes nos cartões de vínculo").toBe(0);
+      await lista.close();
+      const orientacoes = await abrir(idoso, "/orientacoes");
+      const email = 'a[href^="mailto:"]';
+      await aplicarVariante(orientacoes, { nome: "", viewport: { width: 320, height: 640 }, escuro: false, texto: "muito-grande" });
+      expect(await palavrasPartidas(orientacoes, email), "e-mail longo em 320 precisa partir").toBe(1);
+      await aplicarVariante(orientacoes, { nome: "", viewport: { width: 1440, height: 900 }, escuro: false, texto: "padrao" });
+      expect(await palavrasPartidas(orientacoes, email), "e-mail que cabe não parte").toBe(0);
+      await orientacoes.close();
+    });
+    await test.step("hover com mouse no desktop e sem hover no toque: botão, cartão e menu (D10)", async () => {
+      // Estilo computado antes e depois de passar o ponteiro, sem transição (o valor é o final).
+      const alvos = (p: Page) => [
+        { nome: "botão", el: p.getByRole("button", { name: "Abrir perfil" }), prop: "background-color" },
+        { nome: "cartão", el: p.locator("main button.group").first(), prop: "box-shadow" },
+        { nome: "menu", el: p.locator("aside nav a:not([aria-current])").first(), prop: "background-color" },
+      ];
+      const medirHover = async (context: BrowserContext, largura: number) => {
+        const page = await abrir(context, "/Home");
+        await page.setViewportSize({ width: largura, height: 900 });
+        await congelarAnimacoes(page);
+        const mudou: Record<string, boolean> = {};
+        for (const { nome, el, prop } of alvos(page)) {
+          // No celular o menu é a gaveta: abre só agora, porque o fundo dela cobre o botão e o cartão.
+          if (nome === "menu" && largura < 1024) await page.getByRole("button", { name: "Abrir menu" }).click();
+          const antes = await el.evaluate((e, pr) => getComputedStyle(e).getPropertyValue(pr), prop);
+          await el.hover();
+          const depois = await el.evaluate((e, pr) => getComputedStyle(e).getPropertyValue(pr), prop);
+          mudou[nome] = antes !== depois;
+          await page.mouse.move(0, 0);
+        }
+        await page.close();
+        return mudou;
+      };
+      expect(await medirHover(contas.idoso.context, 1440), "desktop com mouse").toEqual({ botão: true, cartão: true, menu: true });
+      expect(await medirHover(idoso, 412), "celular com toque").toEqual({ botão: false, cartão: false, menu: false });
+    });
     await test.step("teclado certo nos campos autenticados (D11)", async () => {
       const perfil = await abrir(idoso, "/perfil");
       expect(await atributos(perfil, "#nome")).toMatchObject({ autoComplete: "name", autoCapitalize: "words" });
@@ -325,6 +394,12 @@ test("responsivo: telas autenticadas (idoso, cuidador e familiar com dados de pi
     });
     await fotosDesktop(contas.idoso.context, "/Home", "desktop idoso /Home");
     await fotosDesktop(contas.idoso.context, "/agenda", "desktop idoso /agenda");
+    await fotosDesktop(contas.idoso.context, "/agenda", "desktop idoso /agenda Lista", async (p) => {
+      await p.getByRole("button", { name: "Ver agenda" }).click();
+      await p.getByRole("radio", { name: "Lista" }).check();
+    });
+    await fotosDesktop(contas.idoso.context, "/alimentacao", "desktop idoso /alimentacao");
+    await fotosDesktop(contas.idoso.context, "/perfil", "desktop idoso /perfil");
 
     await emTela(idoso, "/Home", "idoso BotaoAjuda", (p) => abrirDialogo(p, /preciso de ajuda/i));
     await emTela(idoso, "/remedios", "idoso ModalMedicamento", (p) => abrirDialogo(p, "Adicionar medicamento"));
