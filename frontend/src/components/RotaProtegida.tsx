@@ -7,7 +7,7 @@ function RotaProtegida({ children }: { children: ReactNode }) {
 
   if (carregando) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-white p-8">
+      <main className="flex min-h-dvh items-center justify-center bg-white p-8">
         <p className="text-lg text-gray-900">Carregando...</p>
       </main>
     )

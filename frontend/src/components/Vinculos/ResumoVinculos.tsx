@@ -23,7 +23,7 @@ export default function ResumoVinculos({ vinculos, tipo }: ResumoVinculosProps) 
       : `${pendentes} ${pendentes === 1 ? "pedido aguardando" : "pedidos aguardando"} resposta`;
 
   return (
-    <section aria-label="Resumo" className="grid gap-3 sm:grid-cols-2">
+    <section aria-label="Resumo" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <p className="rounded-2xl bg-[#F3F0FF] p-4 text-lg font-semibold text-[#071A38] dark:bg-[#242A4A] dark:text-white">
         {textoAprovados}
       </p>

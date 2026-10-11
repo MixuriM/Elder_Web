@@ -29,7 +29,7 @@ const Configuracoes = lazy(() => import('./pages/Configuracoes').then(carregouCh
 
 function CarregandoPagina() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-[#0F0F17]">
+    <main className="flex min-h-dvh items-center justify-center bg-white p-8 dark:bg-[#0F0F17]">
       <p role="status" className="text-lg text-gray-900 dark:text-[#F5F5FA]">
         Carregando...
       </p>

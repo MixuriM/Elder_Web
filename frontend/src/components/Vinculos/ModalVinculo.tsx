@@ -43,7 +43,7 @@ export default function ModalVinculo({ aberto, titulo, onFechar, children }: Mod
         role="dialog"
         aria-modal="true"
         aria-labelledby={idTitulo}
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[#E5E2F5] bg-white shadow-2xl focus:!outline-none dark:border-[#393947] dark:bg-[#171721]"
+        className="flex max-h-full w-full min-w-0 max-w-2xl flex-col overflow-y-auto rounded-3xl border border-[#E5E2F5] bg-white shadow-2xl focus:!outline-none dark:border-[#393947] dark:bg-[#171721]"
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#EEEAF8] px-5 py-5 sm:px-7 dark:border-[#393947]">
           <h2 id={idTitulo} className="text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
@@ -60,7 +60,8 @@ export default function ModalVinculo({ aberto, titulo, onFechar, children }: Mod
           </button>
         </div>
 
-        <div className="overflow-y-auto px-5 py-6 sm:px-7 dark:[color-scheme:dark]">{children}</div>
+        {/* O painel inteiro rola, com o cabeçalho junto: com o teclado aberto sobra pouca altura. */}
+        <div className="px-5 py-6 sm:px-7 dark:[color-scheme:dark]">{children}</div>
       </section>
     </div>
   );

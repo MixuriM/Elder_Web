@@ -92,7 +92,7 @@ function PublicoSection() {
         {/* Cards */}
         <div
           className="
-            grid
+            grid grid-cols-1
             gap-6
 
             md:grid-cols-3

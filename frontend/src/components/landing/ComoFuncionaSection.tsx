@@ -90,7 +90,7 @@ function ComoFuncionaSection() {
         <div
           className="
             relative
-            grid
+            grid grid-cols-1
             gap-8
 
             md:grid-cols-3
