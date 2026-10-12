@@ -6,7 +6,7 @@ import ConfirmacaoInline from "./ConfirmacaoInline";
 import { BOTAO_PERIGO, BOTAO_PRIMARIO, MENSAGEM_ERRO, MENSAGEM_SUCESSO } from "./estilosVinculo";
 import { ERRO_PADRAO, mensagemPorStatus, statusDoErro } from "./mensagensVinculo";
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
-import { ehConviteDeCuidador, formatarDataBR } from "./regrasVinculo";
+import { ehConviteDeCuidador, ehConviteVencido, formatarDataBR } from "./regrasVinculo";
 
 type ConvitesRecebidosProps = {
   vinculos: Vinculo[];
@@ -101,6 +101,7 @@ export default function ConvitesRecebidos({ vinculos, onResolvido }: ConvitesRec
             {convites.map((v) => {
               const { nome, email_mascarado: email } = pessoaDoVinculo(v);
               const enviando = enviandoId === v.id;
+              const vencido = ehConviteVencido(v);
               const idNome = `${idTitulo}-nome-${v.id}`;
 
               return (
@@ -118,6 +119,12 @@ export default function ConvitesRecebidos({ vinculos, onResolvido }: ConvitesRec
                     <p className="text-base text-gray-700 dark:text-gray-200">
                       Convite enviado em {formatarDataBR(v.data_solicitacao)}
                     </p>
+                    {/* Texto, não só cor: o backend continua sendo a barreira (409 ao aceitar convite vencido). */}
+                    {vencido && (
+                      <p className="mt-2 text-lg font-semibold text-[#071A38] dark:text-white">
+                        Convite vencido. Peça um novo convite ao idoso.
+                      </p>
+                    )}
                   </div>
 
                   {confirmandoId === v.id && (
@@ -140,16 +147,18 @@ export default function ConvitesRecebidos({ vinculos, onResolvido }: ConvitesRec
 
                   {confirmandoId !== v.id && (
                     <div className="flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        disabled={enviando}
-                        aria-busy={enviando}
-                        aria-label={`Aceitar o convite de ${nome}`}
-                        onClick={() => executar(v, "aceitar")}
-                        className={BOTAO_PRIMARIO}
-                      >
-                        Aceitar
-                      </button>
+                      {!vencido && (
+                        <button
+                          type="button"
+                          disabled={enviando}
+                          aria-busy={enviando}
+                          aria-label={`Aceitar o convite de ${nome}`}
+                          onClick={() => executar(v, "aceitar")}
+                          className={BOTAO_PRIMARIO}
+                        >
+                          Aceitar
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={enviando}

@@ -23,7 +23,8 @@ const convite = {
   tipo_vinculo: "cuidador",
   origem: "convite_idoso",
   status: "pendente",
-  data_solicitacao: "2026-10-10T10:00:00.000Z",
+  // Relativa a agora: o convite vale 7 dias, então uma data fixa viraria "vencido" com o tempo.
+  data_solicitacao: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
   data_resposta: null,
   confirmado_em: null,
   papel_do_chamador: "vinculado",

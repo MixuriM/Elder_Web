@@ -222,8 +222,11 @@ describe('SolicitacoesPendentes', () => {
 })
 
 describe('SolicitacoesPendentes: convites de cuidador enviados pelo idoso', () => {
-  // Convite do idoso ao cuidador: não há o que aprovar, só esperar o aceite (ou cancelar).
-  const conviteCuidador = v({ id: 30, origem: 'convite_idoso' })
+  // Convite do idoso ao cuidador: não há o que aprovar, só esperar o aceite (ou cancelar). Data relativa a agora:
+  // o prazo é de 7 dias, então uma data fixa viraria "vencido" com o tempo.
+  const DIA = 24 * 60 * 60 * 1000
+  const conviteCuidador = v({ id: 30, origem: 'convite_idoso', data_solicitacao: new Date(Date.now() - DIA).toISOString() })
+  const conviteVencido = { ...conviteCuidador, data_solicitacao: new Date(Date.now() - 30 * DIA).toISOString() }
 
   beforeEach(() => {
     mockApi.mockReset()
@@ -271,6 +274,30 @@ describe('SolicitacoesPendentes: convites de cuidador enviados pelo idoso', () =
     montar([conviteCuidador], opcoes)
     expect(screen.queryByRole('heading', { name: 'Convites enviados' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /cancelar convite/i })).not.toBeInTheDocument()
+  })
+
+  it('convite vencido: diz que venceu e como convidar de novo, e mantém Cancelar convite', () => {
+    montar([conviteVencido])
+    const item = screen.getByRole('article', { name: /João Cuidador/ })
+    expect(within(item).getByText('Convite vencido. Convide de novo pelo botão Adicionar pessoa.')).toBeInTheDocument()
+    expect(within(item).queryByText(/esperando o cuidador aceitar/i)).not.toBeInTheDocument()
+    expect(within(item).getAllByRole('button')).toHaveLength(1)
+    expect(within(item).getByRole('button', { name: 'Cancelar convite para João Cuidador' })).toBeInTheDocument()
+  })
+
+  it('convite válido segue com o texto de espera', () => {
+    montar([conviteCuidador])
+    expect(screen.getByText('Convite enviado. Esperando o cuidador aceitar.')).toBeInTheDocument()
+    expect(screen.queryByText(/convite vencido/i)).not.toBeInTheDocument()
+  })
+
+  it('cancelar o convite vencido usa /recusar como o válido', async () => {
+    mockApi.mockImplementation(apiFalsa({ 'POST /vinculo/30/recusar': () => ({ id: 30 }) }))
+    const { onResolvido } = montar([conviteVencido])
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar convite para João Cuidador' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Sim, cancelar o convite' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Convite para João Cuidador cancelado.')
+    expect(onResolvido).toHaveBeenCalledTimes(1)
   })
 
   it('convite recusado ou aprovado não aparece como enviado', () => {

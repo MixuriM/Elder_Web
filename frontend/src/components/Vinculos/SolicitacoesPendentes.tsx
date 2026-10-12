@@ -9,6 +9,7 @@ import { ERRO_PADRAO, mensagemPorStatus, statusDoErro } from "./mensagensVinculo
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
 import {
   ehConviteDeCuidador,
+  ehConviteVencido,
   emailNaoConfirmado,
   formatarDataBR,
   podeAprovarManual,
@@ -137,7 +138,9 @@ export default function SolicitacoesPendentes({
           </h3>
           {v.status === "pendente" && ehConviteDeCuidador(v) ? (
             <p className="text-lg text-gray-700 dark:text-gray-200">
-              Convite enviado. Esperando o cuidador aceitar.
+              {ehConviteVencido(v)
+                ? "Convite vencido. Convide de novo pelo botão Adicionar pessoa."
+                : "Convite enviado. Esperando o cuidador aceitar."}
               {v.papel_do_chamador === "titular" && v.idoso.nome ? ` · Idoso: ${v.idoso.nome}` : ""}
             </p>
           ) : v.status === "pendente" ? (

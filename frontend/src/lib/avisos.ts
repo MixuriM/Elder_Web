@@ -1,6 +1,11 @@
 import type { Vinculo } from '../components/Vinculos/CardVinculo'
 import { pessoaDoVinculo } from '../components/Vinculos/pessoaDoVinculo'
-import { ehConviteDeCuidador, temAutoridade, type ModoDecisao } from '../components/Vinculos/regrasVinculo'
+import {
+  conviteAguardaAceite,
+  ehConviteDeCuidador,
+  temAutoridade,
+  type ModoDecisao,
+} from '../components/Vinculos/regrasVinculo'
 import { agruparEventosPorDia, diaSP, formatarIntervalo, type EventoAgenda } from './agendaPorDia'
 
 // Avisos calculados só com o que já existe: pedidos de vínculo que a pessoa pode responder, convites de idoso que o
@@ -32,12 +37,8 @@ export function calcularAvisos({ tipoPerfil, modoDecisao = 'idoso', vinculos, ag
   const pedidos = (vinculos ?? []).filter(
     (v) => v.status === 'pendente' && !ehConviteDeCuidador(v) && temAutoridade(v, tipoPerfil, modoDecisao),
   )
-  const convites =
-    tipoPerfil === 'cuidador'
-      ? (vinculos ?? []).filter(
-          (v) => v.papel_do_chamador === 'vinculado' && v.status === 'pendente' && ehConviteDeCuidador(v),
-        )
-      : []
+  // Convite vencido não vira aviso: não há mais o que aceitar.
+  const convites = tipoPerfil === 'cuidador' ? (vinculos ?? []).filter((v) => conviteAguardaAceite(v, agora)) : []
   const avisos: Aviso[] = (['cuidador', 'familiar'] as const).flatMap((tipo) => {
     const n = pedidos.filter((v) => v.tipo_vinculo === tipo).length
     if (n === 0) return []

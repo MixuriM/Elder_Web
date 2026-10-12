@@ -44,6 +44,24 @@ export function ehConviteDeCuidador(v: Pick<Vinculo, "tipo_vinculo" | "origem">)
   return v.tipo_vinculo === "cuidador" && v.origem === "convite_idoso";
 }
 
+// Prazo do convite do idoso ao cuidador. Mesmo valor de VALIDADE_CONVITE_CUIDADOR_MS no backend (routes/vinculo.ts):
+// o backend é a barreira real (409 ao aceitar); aqui só se decide o que mostrar.
+export const VALIDADE_CONVITE_CUIDADOR_DIAS = 7;
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+// Convite de cuidador ainda pendente, mas com mais de 7 dias. Sem job: o banco o mantém 'pendente'.
+export function ehConviteVencido(v: Vinculo, agora: Date = new Date()): boolean {
+  if (!ehConviteDeCuidador(v) || v.status !== "pendente") return false;
+  return agora.getTime() - new Date(v.data_solicitacao).getTime() > VALIDADE_CONVITE_CUIDADOR_DIAS * UM_DIA_MS;
+}
+
+// O convite que o cuidador logado ainda pode aceitar: recebido por ele, pendente e dentro do prazo.
+export function conviteAguardaAceite(v: Vinculo, agora: Date = new Date()): boolean {
+  return (
+    v.papel_do_chamador === "vinculado" && v.status === "pendente" && ehConviteDeCuidador(v) && !ehConviteVencido(v, agora)
+  );
+}
+
 // Vínculo de origem automática só se aprova pela confirmação do e-mail (o backend responde 409 ao aprovar à mão).
 // Convite de cuidador também não se aprova à mão: o idoso já consentiu ao convidar e só o cuidador aceita.
 export function podeAprovarManual(v: Vinculo): boolean {

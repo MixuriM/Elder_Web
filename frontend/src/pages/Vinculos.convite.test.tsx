@@ -14,12 +14,14 @@ function respostaJson(status: number, corpo: unknown) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response;
 }
 
+// Data relativa a agora: o convite vale 7 dias, então uma data fixa viraria "vencido" com o tempo.
+const DIA = 24 * 60 * 60 * 1000;
 const baseConvite = {
   id: 40,
   tipo_vinculo: "cuidador",
   origem: "convite_idoso",
   status: "pendente",
-  data_solicitacao: "2026-10-10T10:00:00.000Z",
+  data_solicitacao: new Date(Date.now() - DIA).toISOString(),
   data_resposta: null,
   confirmado_em: null,
   permissoes: null,
@@ -204,6 +206,25 @@ describe("Vinculos: cuidador recebe convite", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Confirme o seu e-mail no Meu Perfil antes de aceitar.");
     expect(document.body).not.toHaveTextContent("SEGREDO-do-corpo");
     expect(screen.getByRole("heading", { name: "Convites para você" })).toBeInTheDocument();
+  });
+
+  it("convite vencido: o cuidador só pode recusar e o idoso vê como convidar de novo", async () => {
+    const vencido = { data_solicitacao: new Date(Date.now() - 30 * DIA).toISOString() };
+    fetchPorRota({ "GET /vinculo": () => respostaJson(200, { vinculos: [{ ...conviteRecebido, ...vencido }] }) });
+    const { unmount } = renderComPerfil("cuidador", "cuidador");
+
+    expect(await screen.findByText("Convite vencido. Peça um novo convite ao idoso.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /aceitar/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recusar o convite de Maria Idosa" })).toBeInTheDocument();
+    unmount();
+
+    fetchPorRota({
+      "GET /usuario/me": perfilIdoso,
+      "GET /vinculo": () => respostaJson(200, { vinculos: [{ ...conviteEnviado, ...vencido }] }),
+    });
+    renderComPerfil("idoso", "cuidador");
+    expect(await screen.findByText("Convite vencido. Convide de novo pelo botão Adicionar pessoa.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cancelar convite para João/i })).toBeInTheDocument();
   });
 
   it("na tela de família o cuidador não vê a seção de convites", async () => {
