@@ -10,6 +10,8 @@ const updateUser = jest.fn();
 const findFirstVinculo = jest.fn();
 const countVinculo = jest.fn();
 const createUsuario = jest.fn();
+const updateManyVinculo = jest.fn();
+const transaction = jest.fn();
 
 jest.mock("../lib/firebaseAdmin", () => ({
   auth: {
@@ -31,7 +33,9 @@ jest.mock("../lib/prisma", () => ({
     vinculo: {
       findFirst: (...args: unknown[]) => findFirstVinculo(...args),
       count: (...args: unknown[]) => countVinculo(...args),
+      updateMany: (...args: unknown[]) => updateManyVinculo(...args),
     },
+    $transaction: (...args: unknown[]) => transaction(...args),
   },
 }));
 
@@ -134,6 +138,9 @@ describe("PATCH /usuario/me", () => {
     findUniqueOrThrow.mockReset();
     update.mockReset();
     updateUser.mockReset();
+    updateManyVinculo.mockReset();
+    transaction.mockReset();
+    transaction.mockImplementation((operacoes: unknown[]) => Promise.all(operacoes));
     verifyIdToken.mockResolvedValue({ uid: "uid-42" });
     // findFirst é compartilhado entre requireAuth (por firebase_uid) e a checagem de e-mail em uso: este fake filtra de
     // verdade pelo where (e-mail sem diferenciar caixa, como o SQL Server; exclui o id em NOT), senão os testes de
@@ -265,11 +272,12 @@ describe("PATCH /usuario/me", () => {
       expect(chamada?.[0]).toEqual({ where: { email: "novo@a.com", id: { not: 42 } }, select: { id: true } });
     });
 
-    it("o próprio e-mail em outra caixa não conta como duplicado: 200 e chama o Firebase", async () => {
+    it("o próprio e-mail em outra caixa não conta como duplicado: 200, grava como digitado, sem tocar no Firebase", async () => {
       const res = await patchEmail("A@A.com");
 
       expect(res.status).toBe(200);
-      expect(updateUser).toHaveBeenCalledWith("uid-42", { email: "A@A.com", emailVerified: false });
+      expect(update.mock.calls[0][0].data).toEqual({ email: "A@A.com" });
+      expect(updateUser).not.toHaveBeenCalled();
     });
 
     it("e-mail igual ao atual não é revalidado (cadastro antigo fora do formato não trava o perfil)", async () => {
@@ -313,6 +321,129 @@ describe("PATCH /usuario/me", () => {
       expect(update).not.toHaveBeenCalled();
     });
   });
+
+  // B1: o vínculo pendente de convite do idoso foi criado para a conta que tinha o e-mail ANTIGO. Trocar o e-mail
+  // cancela esses convites (o idoso convida de novo), na mesma transação que grava o e-mail novo. Troca só de caixa não
+  // é troca. O fake de vínculos filtra de verdade pelo where, senão os testes de escopo passariam por vacuidade.
+  describe("troca de e-mail cancela convites pendentes do próprio usuário", () => {
+    type LinhaVinculo = Record<string, unknown> & { id: number; status: string };
+    let vinculos: LinhaVinculo[];
+
+    function patch(corpo: object) {
+      return request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send(corpo);
+    }
+    const status = (id: number) => vinculos.find((v) => v.id === id)?.status;
+
+    beforeEach(() => {
+      vinculos = [
+        { id: 1, vinculado_id: 42, tipo_vinculo: "familiar", origem: "convite_idoso", status: "pendente" },
+        { id: 2, vinculado_id: 42, tipo_vinculo: "cuidador", origem: "convite_idoso", status: "pendente" },
+        { id: 3, vinculado_id: 42, tipo_vinculo: "familiar", origem: "solicitacao_familiar", status: "pendente" },
+        { id: 4, vinculado_id: 42, tipo_vinculo: "cuidador", origem: "solicitacao_cuidador", status: "pendente" },
+        { id: 5, vinculado_id: 42, tipo_vinculo: "familiar", origem: "cadastro_familiar", status: "pendente" },
+        { id: 6, vinculado_id: 42, tipo_vinculo: "familiar", origem: "convite_idoso", status: "aprovado" },
+        { id: 7, vinculado_id: 99, tipo_vinculo: "familiar", origem: "convite_idoso", status: "pendente" },
+        { id: 8, vinculado_id: 42, tipo_vinculo: "familiar", origem: "convite_idoso", status: "recusado" },
+      ];
+      updateManyVinculo.mockImplementation(
+        async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+          const alvo = vinculos.filter((v) => Object.entries(args.where).every(([campo, valor]) => v[campo] === valor));
+          alvo.forEach((v) => Object.assign(v, args.data));
+          return { count: alvo.length };
+        },
+      );
+      findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+      updateUser.mockResolvedValue(undefined);
+      update.mockResolvedValue({ id: 42, nome: "Ana", email: "novo@a.com", telefone: "123", tipo_perfil: "familiar" });
+    });
+
+    it("e-mail novo: recusa só os convite_idoso pendentes do próprio usuário (familiar e cuidador), numa única transação com o update", async () => {
+      const res = await patch({ email: "novo@a.com" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.email).toBe("novo@a.com");
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect(transaction.mock.calls[0][0]).toHaveLength(2);
+      expect(updateManyVinculo).toHaveBeenCalledTimes(1);
+      expect(updateManyVinculo).toHaveBeenCalledWith({
+        where: { vinculado_id: 42, origem: "convite_idoso", status: "pendente" },
+        data: { status: "recusado", aprovador_id: 42, data_resposta: expect.any(Date) },
+      });
+      expect(update).toHaveBeenCalledTimes(1);
+      expect([1, 2].map(status)).toEqual(["recusado", "recusado"]);
+      // intocados: outras origens, aprovado, recusado antigo e vínculo de outro usuário
+      expect([3, 4, 5, 6, 7, 8].map(status)).toEqual([
+        "pendente",
+        "pendente",
+        "pendente",
+        "aprovado",
+        "pendente",
+        "recusado",
+      ]);
+    });
+
+    it("e-mail apagado (com telefone preenchido): também recusa os convites pendentes", async () => {
+      update.mockResolvedValue({ id: 42, nome: "Ana", email: null, telefone: "123", tipo_perfil: "familiar" });
+
+      const res = await patch({ email: "" });
+
+      expect(res.status).toBe(200);
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect([1, 2].map(status)).toEqual(["recusado", "recusado"]);
+      expect(status(7)).toBe("pendente");
+    });
+
+    it("troca só de caixa: não chama o Firebase, não cancela nada e grava o e-mail como digitado", async () => {
+      const res = await patch({ email: "  A@A.com  " });
+
+      expect(res.status).toBe(200);
+      expect(updateUser).not.toHaveBeenCalled();
+      expect(transaction).not.toHaveBeenCalled();
+      expect(updateManyVinculo).not.toHaveBeenCalled();
+      expect(update.mock.calls[0][0].data).toEqual({ email: "A@A.com" });
+      expect(status(1)).toBe("pendente");
+    });
+
+    it("e-mail igual ao atual, ou só nome e telefone: não cancela nada", async () => {
+      await patch({ email: "a@a.com" });
+      await patch({ nome: "Ana Souza", telefone: "999" });
+
+      expect(transaction).not.toHaveBeenCalled();
+      expect(updateManyVinculo).not.toHaveBeenCalled();
+      expect(vinculos.filter((v) => v.status === "pendente")).toHaveLength(6);
+    });
+
+    it("falha do Firebase: nada é cancelado nem gravado (500)", async () => {
+      updateUser.mockRejectedValue(Object.assign(new Error("interno"), { code: "auth/internal-error" }));
+
+      const res = await patch({ email: "novo@a.com" });
+
+      expect(res.status).toBe(500);
+      expect(transaction).not.toHaveBeenCalled();
+      expect(updateManyVinculo).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(status(1)).toBe("pendente");
+    });
+
+    it("e-mail em uso detectado antes do Firebase (409): nada é cancelado", async () => {
+      const res = await patch({ email: "ocupado@a.com" });
+
+      expect(res.status).toBe(409);
+      expect(transaction).not.toHaveBeenCalled();
+      expect(updateManyVinculo).not.toHaveBeenCalled();
+      expect(status(1)).toBe("pendente");
+    });
+
+    it("falha da transação (índice único do banco): 409 tratado", async () => {
+      transaction.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint 'Usuario_email_key'"));
+
+      const res = await patch({ email: "novo@a.com" });
+
+      expect(res.status).toBe(409);
+      expect(res.body).toEqual({ error: "Este e-mail já está em uso por outra conta." });
+    });
+  });
+
 
   it("só o telefone muda: não chama o Firebase", async () => {
     findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
