@@ -208,6 +208,9 @@ router.delete("/me/foto", requireAuth, async (req, res, next) => {
   }
 });
 
+const MSG_EMAIL_INVALIDO = "E-mail inválido.";
+const MSG_EMAIL_EM_USO = "Este e-mail já está em uso por outra conta.";
+
 router.patch("/me", requireAuth, async (req, res, next) => {
   try {
     const { nome, email, telefone } = req.body ?? {};
@@ -241,6 +244,22 @@ router.patch("/me", requireAuth, async (req, res, next) => {
           .json({ error: "Informe ao menos um e-mail ou telefone — os dois não podem ficar vazios." });
       }
 
+      // E-mail novo: formato e unicidade no banco ANTES do Firebase. Assim o Firebase só é alterado com e-mail válido e livre
+      // no banco, e o 409 e o 400 abaixo são os mesmos quando é o Firebase que acusa o problema (a resposta não revela em
+      // qual sistema o e-mail existe). E-mail igual ao atual não é revalidado (cadastro antigo fora do formato).
+      if (data.email && data.email !== atual.email) {
+        if (data.email.length > 255 || !isValidEmailFormat(data.email)) {
+          return res.status(400).json({ error: MSG_EMAIL_INVALIDO });
+        }
+        const ocupado = await prisma.usuario.findFirst({
+          where: { email: data.email, id: { not: req.usuarioId } },
+          select: { id: true },
+        });
+        if (ocupado) {
+          return res.status(409).json({ error: MSG_EMAIL_EM_USO });
+        }
+      }
+
       // req.usuarioId sempre tem firebase_uid preenchido: requireAuth só resolve o id
       // buscando por firebase_uid, então um Usuario sem essa coluna nunca autentica
       // como si mesmo (caso do idoso cadastrado por familiar via RF-030, fora deste fluxo).
@@ -248,10 +267,18 @@ router.patch("/me", requireAuth, async (req, res, next) => {
         // E-mail novo (texto não vazio) ainda não foi provado: emailVerified false de forma explícita, sem depender do que
         // o Firebase faz sozinho. Sem isso a verificação do e-mail antigo valeria para o novo (e o aceite de convite e o
         // aviso de emergência confiam em "e-mail verificado"). Apagar o e-mail não manda emailVerified.
-        await firebaseAuth.updateUser(
-          atual.firebase_uid,
-          data.email ? { email: data.email, emailVerified: false } : { email: undefined },
-        );
+        try {
+          await firebaseAuth.updateUser(
+            atual.firebase_uid,
+            data.email ? { email: data.email, emailVerified: false } : { email: undefined },
+          );
+        } catch (e) {
+          // Só estes dois códigos viram resposta tratada; o resto (rede, serviço) segue para o errorHandler.
+          const codigo = (e as { code?: unknown }).code;
+          if (codigo === "auth/email-already-exists") return res.status(409).json({ error: MSG_EMAIL_EM_USO });
+          if (codigo === "auth/invalid-email") return res.status(400).json({ error: MSG_EMAIL_INVALIDO });
+          throw e;
+        }
       }
     }
 
@@ -263,7 +290,7 @@ router.patch("/me", requireAuth, async (req, res, next) => {
     res.json(usuario);
   } catch (e) {
     if (isDuplicateEmail(e)) {
-      return res.status(409).json({ error: "Este e-mail já está em uso por outra conta." });
+      return res.status(409).json({ error: MSG_EMAIL_EM_USO });
     }
     next(e);
   }
