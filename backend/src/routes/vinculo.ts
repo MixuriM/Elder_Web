@@ -32,6 +32,12 @@ function ehConviteDeCuidador(v: { tipo_vinculo: string; origem: string }): boole
 
 const VALIDADE_CONVITE_CUIDADOR_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Sem job: o convite vencido continua 'pendente' no banco e só é tratado como vencido quando alguém o lê.
+// O frontend repete o prazo em regrasVinculo.ts (VALIDADE_CONVITE_CUIDADOR_DIAS).
+function conviteVenceu(dataSolicitacao: Date): boolean {
+  return Date.now() - dataSolicitacao.getTime() > VALIDADE_CONVITE_CUIDADOR_MS;
+}
+
 router.post("/solicitar-cuidador", requireAuth, async (req, res, next) => {
   try {
     const cuidador = await prisma.usuario.findUnique({
@@ -336,21 +342,39 @@ router.post("/convidar-cuidador", requireAuth, async (req, res, next) => {
           tipo_vinculo: "cuidador",
           status: { in: ["pendente", "aprovado"] },
         },
-        select: { status: true },
+        select: { id: true, status: true, origem: true, data_solicitacao: true },
       });
-      if (existente) {
+      // Só o convite do idoso vencido e ainda pendente abre espaço para um novo; qualquer outro vínculo ativo dá 409.
+      const vencido =
+        existente?.status === "pendente" &&
+        ehConviteDeCuidador({ tipo_vinculo: "cuidador", origem: existente.origem }) &&
+        conviteVenceu(existente.data_solicitacao);
+      if (existente && !vencido) {
         return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
       }
-      await prisma.vinculo.create({
-        data: {
-          idoso_id: idoso.id,
-          vinculado_id: cuidador.id,
-          tipo_vinculo: "cuidador",
-          origem: "convite_idoso",
-          status: "pendente",
-          data_solicitacao: new Date(),
-        },
-      });
+      const criar = () =>
+        prisma.vinculo.create({
+          data: {
+            idoso_id: idoso.id,
+            vinculado_id: cuidador.id,
+            tipo_vinculo: "cuidador",
+            origem: "convite_idoso",
+            status: "pendente",
+            data_solicitacao: new Date(),
+          },
+        });
+      if (existente && vencido) {
+        // Numa transação: o índice único filtrado só admite um pendente por par, então o velho sai junto com a entrada do novo.
+        await prisma.$transaction([
+          prisma.vinculo.updateMany({
+            where: { id: existente.id, status: "pendente" },
+            data: { status: "recusado", aprovador_id: req.usuarioId, data_resposta: new Date() },
+          }),
+          criar(),
+        ]);
+      } else {
+        await criar();
+      }
     }
 
     res.status(201).json({ registrado: true });
@@ -582,8 +606,7 @@ async function responderConviteCuidador(
     if (aceitar) {
       // Vencido, ou a autoridade passou para a família: o convite do idoso deixa de valer e o caminho passa a ser o
       // pedido do cuidador, aprovado pelo titular.
-      const venceu = Date.now() - vinculo.data_solicitacao.getTime() > VALIDADE_CONVITE_CUIDADOR_MS;
-      if (venceu || (await resolverModoDecisao(vinculo.idoso_id)) === "familiar") {
+      if (conviteVenceu(vinculo.data_solicitacao) || (await resolverModoDecisao(vinculo.idoso_id)) === "familiar") {
         return res.status(409).json({ error: "Este convite não vale mais. Peça um novo convite ao idoso." });
       }
       if (req.emailVerificado !== true) {
