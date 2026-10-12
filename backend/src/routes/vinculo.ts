@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
-import { isValidEmailFormat } from "../lib/authHelpers";
+import { emailDoTokenConfere, isValidEmailFormat } from "../lib/authHelpers";
 import { mascararEmail } from "../lib/mascararEmail";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -647,7 +647,7 @@ async function responderConviteCuidador(
       // O convite foi enviado ao e-mail do cadastro: o e-mail verificado do token tem que ser o mesmo (um token antigo ou
       // um cadastro com e-mail diferente do Firebase não aceita o convite de outra pessoa). Mesma regra do aviso de emergência.
       const cuidador = await prisma.usuario.findUnique({ where: { id: req.usuarioId }, select: { email: true } });
-      if (!cuidador?.email || req.emailDoToken?.toLowerCase() !== cuidador.email.toLowerCase()) {
+      if (!emailDoTokenConfere(req.emailDoToken, cuidador?.email)) {
         return res.status(403).json({ error: "Confirme o seu e-mail antes de aceitar o convite." });
       }
     }

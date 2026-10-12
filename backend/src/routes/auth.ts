@@ -5,6 +5,7 @@ import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
 import { baixarFotoDoGoogle, semFotoPerfil, USUARIO_SEM_FOTO_SELECT } from "../lib/fotoPerfil";
 import {
   isTipoPerfil,
+  emailDoTokenConfere,
   isDuplicateEmail,
   isDuplicateFirebaseUid,
   isValidEmailFormat,
@@ -90,7 +91,7 @@ router.post("/sync", async (req, res, next) => {
     // é filtrado e manual, ver schema.prisma) — o client não conhece essa constraint.
     const usuarioExistente = await prisma.usuario.findFirst({
       where: { firebase_uid: decoded.uid },
-      select: { id: true, tipo_perfil: true, modo_decisao_solicitado: true },
+      select: { id: true, tipo_perfil: true, email: true, modo_decisao_solicitado: true },
     });
 
     if (usuarioExistente) {
@@ -114,7 +115,12 @@ router.post("/sync", async (req, res, next) => {
       // RF-025 (Fluxo A): promove no login do Familiar os vínculos que ficaram
       // pendentes por falta de e-mail confirmado no momento do cadastro. Idempotente
       // por construção — updateMany só afeta linhas ainda 'pendente'.
-      if (usuarioExistente.tipo_perfil === "familiar" && decoded.email_verified) {
+      // O e-mail do token tem que ser o do cadastro: token anterior a uma troca de e-mail ainda diz verificado.
+      if (
+        usuarioExistente.tipo_perfil === "familiar" &&
+        decoded.email_verified &&
+        emailDoTokenConfere(decoded.email, usuarioExistente.email)
+      ) {
         await prisma.vinculo.updateMany({
           where: {
             vinculado_id: usuarioExistente.id,

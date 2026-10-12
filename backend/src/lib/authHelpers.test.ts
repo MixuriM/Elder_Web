@@ -5,6 +5,7 @@ jest.mock("./firebaseAdmin", () => ({
 }));
 
 import {
+  emailDoTokenConfere,
   isTipoPerfil,
   isValidEmailFormat,
   isDuplicateEmail,
@@ -103,5 +104,21 @@ describe("verifyFirebaseToken", () => {
 
     expect(resultado.ok).toBe(false);
     expect((resultado as { status: number }).status).toBe(503);
+  });
+});
+
+describe("emailDoTokenConfere", () => {
+  it.each([
+    ["mesmo e-mail", "a@a.com", "a@a.com", true],
+    ["caixa diferente", "A@A.com", "a@a.com", true],
+    ["e-mail diferente", "antigo@a.com", "novo@a.com", false],
+    ["token sem e-mail", undefined, "a@a.com", false],
+    ["token com e-mail vazio", "", "a@a.com", false],
+    ["token com e-mail não texto", 5, "a@a.com", false],
+    ["cadastro sem e-mail", "a@a.com", null, false],
+    ["cadastro indefinido", "a@a.com", undefined, false],
+    ["cadastro vazio", "", "", false],
+  ])("%s -> %p", (_nome, token, cadastro, esperado) => {
+    expect(emailDoTokenConfere(token, cadastro as string | null | undefined)).toBe(esperado);
   });
 });

@@ -605,7 +605,7 @@ describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
     findFirst.mockImplementation((args: { where: { email?: string } }) =>
       Promise.resolve(args.where.email !== undefined ? null : USUARIO_LOGADO)
     );
-    findUnique.mockResolvedValue({ tipo_perfil: "familiar" });
+    findUnique.mockResolvedValue({ tipo_perfil: "familiar", email: "familiar-fixture@a.com" });
     createUsuario.mockResolvedValue(CRIADO);
   });
 
@@ -716,7 +716,7 @@ describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
   });
 
   it("familiar com e-mail verificado: vínculo aprovado com confirmado_em", async () => {
-    verifyIdToken.mockResolvedValue({ uid: "uid-42", email_verified: true });
+    verifyIdToken.mockResolvedValue({ uid: "uid-42", email: "familiar-fixture@a.com", email_verified: true });
 
     const res = await post(BODY_OK);
 
@@ -724,6 +724,59 @@ describe("POST /usuario/cadastrar-idoso (RF-030)", () => {
     expect(createUsuario.mock.calls[0][0].data.vinculos_como_idoso.create).toMatchObject({
       status: "aprovado",
       confirmado_em: expect.any(Date),
+    });
+  });
+
+  // Token antigo (até 1 h) segue com email_verified=true depois da troca de e-mail: só vale se o e-mail do token for o do
+  // cadastro. Senão o vínculo nasce pendente, com o mesmo 201 e o mesmo corpo.
+  describe("e-mail do token precisa ser o do cadastro para aprovar", () => {
+    it("e-mail do token diferente do cadastro: 201 igual, vínculo pendente sem confirmado_em", async () => {
+      verifyIdToken.mockResolvedValue({ uid: "uid-42", email: "antigo-fixture@a.com", email_verified: true });
+
+      const res = await post(BODY_OK);
+
+      expect(res.status).toBe(201);
+      expect(res.body.vinculo).toEqual({ id: 7, status: "pendente", origem: "cadastro_familiar" });
+      const criado = createUsuario.mock.calls[0][0].data.vinculos_como_idoso.create;
+      expect(criado.status).toBe("pendente");
+      expect(criado.confirmado_em).toBeUndefined();
+    });
+
+    it("mesmo e-mail com caixa diferente: aprovado", async () => {
+      verifyIdToken.mockResolvedValue({ uid: "uid-42", email: "FAMILIAR-Fixture@A.com", email_verified: true });
+
+      const res = await post(BODY_OK);
+
+      expect(res.status).toBe(201);
+      expect(createUsuario.mock.calls[0][0].data.vinculos_como_idoso.create.status).toBe("aprovado");
+    });
+
+    it("e-mail do token igual ao do cadastro mas NÃO verificado: pendente", async () => {
+      verifyIdToken.mockResolvedValue({ uid: "uid-42", email: "familiar-fixture@a.com", email_verified: false });
+
+      const res = await post(BODY_OK);
+
+      expect(res.status).toBe(201);
+      expect(createUsuario.mock.calls[0][0].data.vinculos_como_idoso.create.status).toBe("pendente");
+    });
+
+    it("token sem claim de e-mail: pendente", async () => {
+      verifyIdToken.mockResolvedValue({ uid: "uid-42", email_verified: true });
+
+      const res = await post(BODY_OK);
+
+      expect(res.status).toBe(201);
+      expect(createUsuario.mock.calls[0][0].data.vinculos_como_idoso.create.status).toBe("pendente");
+    });
+
+    it("cadastro do familiar sem e-mail: pendente", async () => {
+      findUnique.mockResolvedValue({ tipo_perfil: "familiar", email: null });
+      verifyIdToken.mockResolvedValue({ uid: "uid-42", email: "familiar-fixture@a.com", email_verified: true });
+
+      const res = await post(BODY_OK);
+
+      expect(res.status).toBe(201);
+      expect(createUsuario.mock.calls[0][0].data.vinculos_como_idoso.create.status).toBe("pendente");
     });
   });
 
