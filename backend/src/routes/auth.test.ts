@@ -281,6 +281,20 @@ describe("POST /auth/sync — email_convite_familiar (RF-024)", () => {
     expect(create.mock.calls[0][0].data.email_convite_familiar).toBe("familiar.ficticio@exemplo.test");
   });
 
+  // "İ" (U+0130) vira 2 unidades em minúsculas: o limite de 255 (coluna NVarChar(255)) vale para o valor GRAVADO.
+  it("email_convite_familiar que passa de 255 caracteres só depois das minúsculas: 400, sem criar", async () => {
+    const email = `${"İ".repeat(130)}@a.co`; // 135 antes, 265 depois de toLowerCase
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "idoso", nome: "Ana", email_convite_familiar: email });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/255/);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("idoso sem email_convite_familiar: campo não é enviado ao Prisma", async () => {
     create.mockResolvedValue({ id: 1, tipo_perfil: "idoso" });
 

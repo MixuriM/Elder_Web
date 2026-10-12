@@ -274,7 +274,8 @@ router.post("/convidar-familiar", requireAuth, async (req, res, next) => {
 
     const bruto = req.body?.email;
     const email = typeof bruto === "string" ? bruto.trim() : "";
-    if (!email || email.length > 255 || !isValidEmailFormat(email)) {
+    // O limite vale para o valor gravado em minúsculas (İ ganha uma unidade a mais ao virar minúscula).
+    if (!email || email.toLowerCase().length > 255 || !isValidEmailFormat(email)) {
       return res.status(400).json({ error: "E-mail inválido." });
     }
 

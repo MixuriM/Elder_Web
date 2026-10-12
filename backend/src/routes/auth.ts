@@ -173,11 +173,13 @@ router.post("/sync", async (req, res, next) => {
       if (typeof emailConviteFamiliarRaw !== "string" || !isValidEmailFormat(emailConviteFamiliarRaw.trim())) {
         return res.status(400).json({ error: "email_convite_familiar em formato inválido." });
       }
-      if (emailConviteFamiliarRaw.trim().length > 255) {
+      // Minúsculas, como em /vinculo/convidar-familiar: o casamento (vincularFamiliarConvidado) compara em minúsculas. O
+      // limite vale para o valor gravado: certas letras (İ) ganham uma unidade a mais ao virar minúscula.
+      const minusculo = emailConviteFamiliarRaw.trim().toLowerCase();
+      if (minusculo.length > 255) {
         return res.status(400).json({ error: "email_convite_familiar deve ter até 255 caracteres." });
       }
-      // Minúsculas, como em /vinculo/convidar-familiar: o casamento (vincularFamiliarConvidado) compara em minúsculas.
-      emailConviteFamiliar = emailConviteFamiliarRaw.trim().toLowerCase();
+      emailConviteFamiliar = minusculo;
     }
 
     // RNF-011 (3.2) / RF-030 extensão (3.3): valida o e-mail ANTES do INSERT. Quando a

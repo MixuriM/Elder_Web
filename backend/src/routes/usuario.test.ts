@@ -363,7 +363,11 @@ describe("PATCH /usuario/me", () => {
       expect(res.status).toBe(200);
       expect(res.body.email).toBe("novo@a.com");
       expect(transaction).toHaveBeenCalledTimes(1);
-      expect(transaction.mock.calls[0][0]).toHaveLength(2);
+      // As duas operações passadas à transação, nesta ordem: o cancelamento (count dos 2 convites) e o update do usuário.
+      expect(await Promise.all(transaction.mock.calls[0][0])).toEqual([
+        { count: 2 },
+        { id: 42, nome: "Ana", email: "novo@a.com", telefone: "123", tipo_perfil: "familiar" },
+      ]);
       expect(updateManyVinculo).toHaveBeenCalledTimes(1);
       expect(updateManyVinculo).toHaveBeenCalledWith({
         where: { vinculado_id: 42, origem: "convite_idoso", status: "pendente" },
