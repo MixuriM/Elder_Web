@@ -49,3 +49,40 @@ describe('AdicionarPessoa', () => {
     expect(screen.getByRole('button', { name: 'Enviar pedido' })).toBeInTheDocument()
   })
 })
+
+describe('AdicionarPessoa: ação convidar', () => {
+  const mockApi = chamarApi as jest.Mock
+  beforeEach(() => mockApi.mockReset())
+
+  it('na tela de cuidadores abre direto o convite de cuidador e chama a rota de cuidador', async () => {
+    mockApi.mockResolvedValue({ registrado: true })
+    render(<AdicionarPessoa tipo="cuidador" acoes={['convidar']} onConcluido={() => {}} onFechar={() => {}} />)
+
+    // Uma só ação: abre o formulário direto, sem o botão de escolha.
+    await userEvent.type(screen.getByLabelText(/e-mail do cuidador/i), 'cuidador.teste@exemplo.test')
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite' }))
+
+    expect(mockApi).toHaveBeenCalledWith('/vinculo/convidar-cuidador', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('na tela de família continua convidando familiar', async () => {
+    mockApi.mockResolvedValue({ registrado: true })
+    render(<AdicionarPessoa tipo="familiar" acoes={['convidar']} onConcluido={() => {}} onFechar={() => {}} />)
+
+    await userEvent.type(screen.getByLabelText(/e-mail do familiar/i), 'familiar.teste@exemplo.test')
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite' }))
+
+    expect(mockApi).toHaveBeenCalledWith('/vinculo/convidar-familiar', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it.each([
+    ['cuidador', 'Convidar um cuidador'],
+    ['familiar', 'Convidar um familiar'],
+  ] as const)('rótulo da escolha na tela %s: %s', (tipo, rotulo) => {
+    // Com duas ações o modal pergunta primeiro; "convidar" ao lado de "solicitar" mostra o rótulo do tipo.
+    render(
+      <AdicionarPessoa tipo={tipo} acoes={['solicitar', 'convidar']} onConcluido={() => {}} onFechar={() => {}} />,
+    )
+    expect(screen.getByRole('button', { name: rotulo })).toBeInTheDocument()
+  })
+})

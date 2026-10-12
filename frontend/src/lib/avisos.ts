@@ -1,14 +1,15 @@
 import type { Vinculo } from '../components/Vinculos/CardVinculo'
-import { temAutoridade, type ModoDecisao } from '../components/Vinculos/regrasVinculo'
+import { pessoaDoVinculo } from '../components/Vinculos/pessoaDoVinculo'
+import { ehConviteDeCuidador, temAutoridade, type ModoDecisao } from '../components/Vinculos/regrasVinculo'
 import { agruparEventosPorDia, diaSP, formatarIntervalo, type EventoAgenda } from './agendaPorDia'
 
-// Avisos calculados só com o que já existe: pedidos de vínculo que a pessoa pode responder e compromissos de hoje e
-// de amanhã. Sem aviso de dose: o medicamento não tem horário estruturado, seria alarme falso. Função pura, sem log
+// Avisos calculados só com o que já existe: pedidos de vínculo que a pessoa pode responder, convites de idoso que o
+// cuidador recebeu e compromissos de hoje e de amanhã. Sem aviso de dose: o medicamento não tem horário estruturado, seria alarme falso. Função pura, sem log
 // (título de compromisso médico pode ser dado de saúde, RNF-001).
 
 export type Aviso = {
   id: string
-  tipo: 'pedido' | 'compromisso'
+  tipo: 'pedido' | 'convite' | 'compromisso'
   texto: string
   link: string
   rotuloLink: string
@@ -27,7 +28,16 @@ type Entrada = {
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
 export function calcularAvisos({ tipoPerfil, modoDecisao = 'idoso', vinculos, agendas, agora = new Date() }: Entrada): Aviso[] {
-  const pedidos = (vinculos ?? []).filter((v) => v.status === 'pendente' && temAutoridade(v, tipoPerfil, modoDecisao))
+  // Convite de cuidador não é "pedido para responder": o idoso já consentiu ao convidar, só falta o aceite do cuidador.
+  const pedidos = (vinculos ?? []).filter(
+    (v) => v.status === 'pendente' && !ehConviteDeCuidador(v) && temAutoridade(v, tipoPerfil, modoDecisao),
+  )
+  const convites =
+    tipoPerfil === 'cuidador'
+      ? (vinculos ?? []).filter(
+          (v) => v.papel_do_chamador === 'vinculado' && v.status === 'pendente' && ehConviteDeCuidador(v),
+        )
+      : []
   const avisos: Aviso[] = (['cuidador', 'familiar'] as const).flatMap((tipo) => {
     const n = pedidos.filter((v) => v.tipo_vinculo === tipo).length
     if (n === 0) return []
@@ -41,6 +51,16 @@ export function calcularAvisos({ tipoPerfil, modoDecisao = 'idoso', vinculos, ag
       },
     ]
   })
+
+  for (const v of convites) {
+    avisos.push({
+      id: `convite-${v.id}`,
+      tipo: 'convite',
+      texto: `${pessoaDoVinculo(v).nome} convidou você para ser cuidador.`,
+      link: '/cuidadores',
+      rotuloLink: 'Responder',
+    })
+  }
 
   // ponytail: amanhã = agora + 24 h; vale porque São Paulo não tem horário de verão desde 2019.
   const amanha = diaSP(new Date(agora.getTime() + UM_DIA_MS))

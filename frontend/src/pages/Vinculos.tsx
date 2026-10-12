@@ -6,12 +6,13 @@ import { useAcesso } from "../contexts/useAcesso";
 
 import AdicionarPessoa from "../components/Vinculos/AdicionarPessoa";
 import CabecalhoVinculos from "../components/Vinculos/CabecalhoVinculos";
+import ConvitesRecebidos from "../components/Vinculos/ConvitesRecebidos";
 import ListaVinculos from "../components/Vinculos/ListaVinculos";
 import ModoDecisao from "../components/Vinculos/ModoDecisao";
 import ModalVinculo from "../components/Vinculos/ModalVinculo";
 import ResumoVinculos from "../components/Vinculos/ResumoVinculos";
 import SolicitacoesPendentes from "../components/Vinculos/SolicitacoesPendentes";
-import { acoesDoPerfil, temAutoridade, type TipoVinculo } from "../components/Vinculos/regrasVinculo";
+import { acoesDoPerfil, ehConviteDeCuidador, temAutoridade, type TipoVinculo } from "../components/Vinculos/regrasVinculo";
 import { modoDe, useEstadoDecisao } from "../components/Vinculos/useEstadoDecisao";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
 import { useTitulo } from "../hooks/useTitulo";
@@ -39,7 +40,7 @@ const TEXTOS: Record<
       texto: "Quando um cuidador for vinculado, ele aparecerá aqui.",
     },
     comoEntra:
-      "Para um cuidador aparecer aqui, o cuidador pede o vínculo usando o seu e-mail e você responde ao pedido.",
+      "Para um cuidador aparecer aqui, adicione-o pelo botão Adicionar pessoa (a pessoa precisa já ter conta de cuidador e aceitar o convite) ou espere o pedido do cuidador e responda aqui.",
   },
 };
 
@@ -88,9 +89,13 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
   }
 
   const doTipo = vinculos.filter((v) => v.tipo_vinculo === tipo);
-  // O pedido que a pessoa pode decidir aparece só na seção de pedidos, não de novo na lista.
+  // O cuidador responde aos convites do idoso na própria seção, em vez da lista comum.
+  const mostraConvites = tipoPerfil === "cuidador" && tipo === "cuidador";
+  // O pedido que a pessoa pode decidir (e o convite que o cuidador recebeu) aparece só na sua seção, não de novo na lista.
   const naLista = doTipo.filter(
-    (v) => !(decisao.pronto && v.status === "pendente" && temAutoridade(v, tipoPerfil, modoDoIdoso))
+    (v) =>
+      !(decisao.pronto && v.status === "pendente" && temAutoridade(v, tipoPerfil, modoDoIdoso)) &&
+      !(mostraConvites && v.papel_do_chamador === "vinculado" && v.status === "pendente" && ehConviteDeCuidador(v))
   );
 
   return (
@@ -124,6 +129,8 @@ export default function Vinculos({ tipo }: { tipo: TipoVinculo }) {
         )}
 
         {!erro && <ResumoVinculos tipo={tipo} vinculos={doTipo} />}
+
+        {mostraConvites && <ConvitesRecebidos vinculos={doTipo} onResolvido={depoisDeAcao} />}
 
         {decisao.pronto && (
           <SolicitacoesPendentes

@@ -1,4 +1,12 @@
-import { acoesDoPerfil, emailNaoConfirmado, podeAprovarManual, podeContestar, temAutoridade, textoOrigem } from './regrasVinculo'
+import {
+  acoesDoPerfil,
+  ehConviteDeCuidador,
+  emailNaoConfirmado,
+  podeAprovarManual,
+  podeContestar,
+  temAutoridade,
+  textoOrigem,
+} from './regrasVinculo'
 import type { Vinculo } from './CardVinculo'
 
 describe('acoesDoPerfil', () => {
@@ -8,8 +16,9 @@ describe('acoesDoPerfil', () => {
     ['familiar', 'cuidador', []],
     ['cuidador', 'familiar', []],
     ['idoso', 'familiar', ['convidar']],
-    ['idoso', 'cuidador', []],
+    ['idoso', 'cuidador', ['convidar']],
     [null, 'familiar', []],
+    [null, 'cuidador', []],
   ] as const)('perfil %s na tela %s: %j', (perfil, tipo, esperado) => {
     expect(acoesDoPerfil(perfil, tipo)).toEqual(esperado)
   })
@@ -65,28 +74,44 @@ describe('podeContestar', () => {
   })
 })
 
-describe('emailNaoConfirmado: só origem automática, pendente e sem confirmado_em', () => {
+describe('ehConviteDeCuidador: só (cuidador, convite_idoso)', () => {
   it.each([
-    ['convite_idoso', 'pendente', null, true],
-    ['cadastro_familiar', 'pendente', null, true],
-    ['solicitacao_familiar', 'pendente', null, false],
-    ['solicitacao_cuidador', 'pendente', null, false],
-    ['convite_idoso', 'pendente', '2026-10-02T10:00:00.000Z', false],
-    ['convite_idoso', 'aprovado', null, false],
-    ['convite_idoso', 'recusado', null, false],
-  ])('origem %s, status %s, confirmado_em %s: %s', (origem, status, confirmado_em, esperado) => {
-    expect(emailNaoConfirmado(v({ origem, status, confirmado_em }))).toBe(esperado)
+    ['cuidador', 'convite_idoso', true],
+    ['familiar', 'convite_idoso', false],
+    ['cuidador', 'solicitacao_cuidador', false],
+    ['cuidador', 'cadastro_familiar', false],
+    ['familiar', 'solicitacao_familiar', false],
+  ])('tipo %s, origem %s: %s', (tipo_vinculo, origem, esperado) => {
+    expect(ehConviteDeCuidador(v({ tipo_vinculo, origem }))).toBe(esperado)
   })
 })
 
-describe('podeAprovarManual: origem automática só se aprova pela confirmação do e-mail', () => {
+describe('emailNaoConfirmado: só origem automática de familiar, pendente e sem confirmado_em', () => {
   it.each([
-    ['convite_idoso', false],
-    ['cadastro_familiar', false],
-    ['solicitacao_familiar', true],
-    ['solicitacao_cuidador', true],
-  ])('origem %s: %s', (origem, esperado) => {
-    expect(podeAprovarManual(v({ origem }))).toBe(esperado)
+    ['familiar', 'convite_idoso', 'pendente', null, true],
+    ['familiar', 'cadastro_familiar', 'pendente', null, true],
+    ['familiar', 'solicitacao_familiar', 'pendente', null, false],
+    ['cuidador', 'solicitacao_cuidador', 'pendente', null, false],
+    ['familiar', 'convite_idoso', 'pendente', '2026-10-02T10:00:00.000Z', false],
+    ['familiar', 'convite_idoso', 'aprovado', null, false],
+    ['familiar', 'convite_idoso', 'recusado', null, false],
+    // O aviso é do familiar automático: o convite de cuidador espera o aceite, não o e-mail do idoso.
+    ['cuidador', 'convite_idoso', 'pendente', null, false],
+  ])('tipo %s, origem %s, status %s, confirmado_em %s: %s', (tipo_vinculo, origem, status, confirmado_em, esperado) => {
+    expect(emailNaoConfirmado(v({ tipo_vinculo, origem, status, confirmado_em }))).toBe(esperado)
+  })
+})
+
+describe('podeAprovarManual: origem automática só se aprova pela confirmação do e-mail ou pelo aceite do cuidador', () => {
+  it.each([
+    ['familiar', 'convite_idoso', false],
+    ['familiar', 'cadastro_familiar', false],
+    ['familiar', 'solicitacao_familiar', true],
+    ['cuidador', 'solicitacao_cuidador', true],
+    // Convite de cuidador: o idoso não tem o que aprovar, só o cuidador aceita.
+    ['cuidador', 'convite_idoso', false],
+  ])('tipo %s, origem %s: %s', (tipo_vinculo, origem, esperado) => {
+    expect(podeAprovarManual(v({ tipo_vinculo, origem }))).toBe(esperado)
   })
 })
 
