@@ -250,13 +250,11 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   `tipo_vinculo` for amarrado ao `tipo_perfil` fixo na criação do vínculo. Qualquer novo
   fluxo de criação de vínculo precisa manter essa garantia.
 - Foto de perfil é BLOB no SQL Server, sempre WebP de até 1024 px vindo de `normalizarFoto` (sharp; formato pelos
-  bytes: jpeg, png, webp, gif, avif, tiff; até 15 MB e 50 MP; EXIF descartado; 10 envios por hora por usuário). Antes do multer:
-  2 envios em andamento no processo e 1 por usuário, vaga liberada só ao fim do processamento (abort não libera
-  com o sharp rodando), prazo de 60 s para receber o corpo (408). Risco aceito: N contas seguram as vagas por até
-  60 s por tentativa, só a foto fica indisponível. HEIC e BMP só convertidos no navegador (`lib/prepararFoto.ts`,
-  `heic-to` sob demanda). `GET /usuario/me` não devolve foto (há
-  `GET /usuario/me/foto` separado). Respostas de `/auth/sync` passam por `semFotoPerfil`
-  e `requireAuth` usa `select` mínimo, para não carregar o BLOB à toa.
+  bytes; limites de tamanho e de envios por hora no código). Antes do multer: 2 envios em andamento no processo e 1 por
+  usuário, vaga liberada só ao fim do processamento, prazo de 60 s para receber o corpo (408). Risco aceito: N contas
+  seguram as vagas por até 60 s por tentativa, só a foto fica indisponível. HEIC e BMP só convertidos no navegador
+  (`lib/prepararFoto.ts`). `GET /usuario/me` não devolve foto (há `GET /usuario/me/foto`); `/auth/sync` passa por
+  `semFotoPerfil` e `requireAuth` usa `select` mínimo, para não carregar o BLOB à toa.
 - Valor de `req.body`, `req.query` ou `req.params` só entra em `where` ou `data` do Prisma depois de checagem de tipo
   (`typeof`, `Number.isInteger`, lista fechada): objeto como `{ set: "" }` vira operador. `infra/semSqlCru.test.ts`
   barra `$queryRawUnsafe`, `$executeRawUnsafe` e `Prisma.raw` em `src` (e as `Unsafe` em `scripts`).
@@ -280,7 +278,7 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   dias da grade do calendário); `input`/`select`/`textarea` com 16 px; `min-h-dvh` (não `min-h-screen`); `grid-cols-1`
   no base de grid responsivo; estouro se corrige na origem, nunca com `overflow-x-hidden`. `npm run test:responsivo`
   (local, fora do CI, mesmas exigências do `test:a11y`; cria 4 contas) mede tudo isso em 22 variantes; WebKit com
-  `--browser=webkit` e `RESPONSIVO_VARIANTES=<regex>`.
+  `--browser=webkit`.
 - Em merge por rebase os hashes de commit mudam. Não tratar hash de commit local como
   definitivo.
 
@@ -301,15 +299,14 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; apagar as contas `e2e-*@e2e.elderweb.test` do Firebase;
   cuidadores e familiares cadastrados antes do PR #162 confirmarem o e-mail no Perfil.
 - Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
-  por `status`). Decisões de 2026-10-09 (Marcos): (1) `POST /vinculo/convidar-familiar` (idoso com `modo_decisao` efetivo
-  `idoso`) grava `email_convite_familiar` (o novo substitui o anterior) e, se há conta de familiar, cria vínculo pendente
-  `convite_idoso`; resposta igual com ou sem conta, 409 só se já há vínculo. (2) Aprovar vínculo de origem `convite_idoso` ou
-  `cadastro_familiar` dá 409 (só recusar ou contestar). (3) `GET /vinculo` traz `decisao` (`modo`, `transferencia`, sem
-  motivo nem id) no vínculo aprovado de familiar do chamador.
+  por `status`). Decisões de 2026-10-09 (Marcos, no histórico): `convidar-familiar` com `modo_decisao` efetivo `idoso` e
+  resposta igual com ou sem conta; aprovar origem `convite_idoso` ou `cadastro_familiar` dá 409 (só recusar ou contestar);
+  `GET /vinculo` traz `decisao` (sem motivo nem id) no vínculo aprovado de familiar do chamador.
 - Convite do idoso ao cuidador (2026-10-12): `POST /vinculo/convidar-cuidador` (só `modo_decisao` efetivo `idoso`; familiar
-  titular não convida) cria `Vinculo` pendente (cuidador, `convite_idoso`) só se há conta de cuidador; sem conta some em
-  silêncio. O cuidador aprova em `aceitar-convite` (e-mail verificado, convite de até 7 dias). Riscos aceitos: idoso falso
-  convida e-mail adivinhado (cuidador só recusa); sem limite de convites pendentes.
+  titular não convida) cria `Vinculo` pendente (cuidador, `convite_idoso`) só se há conta de cuidador. O cuidador aprova em
+  `aceitar-convite` (e-mail verificado, até 7 dias). Convite vencido é substituído ao convidar de novo (pendente de
+  `solicitacao_cuidador` ou aprovado dá 409). Riscos aceitos: sem conta some em silêncio; idoso falso convida e-mail
+  adivinhado (cuidador só recusa); sem limite de convites pendentes.
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
@@ -319,13 +316,12 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   registrado como trabalho futuro (exigiria RF, migration e tela).
 - Exclusão de registro, paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC
   não justifica. O PDF é montado em memória, sem limite (aceito); fora de Latin-1 vira `?` (aceito).
-- Dose (5.2): sem idempotência no servidor (o frontend desabilita o botão durante o envio; duplicata aceita); o
-  CHECK de `status_administracao` é case-insensitive (collation) e só a rota barra `'ADMINISTRADO'`: aceito, sem
-  migration. Histórico de remédios mostra só ids de autor, sem nome (aceito).
-- `modo_decisao` NULL de idosos autocadastrados antes da mudança: sem backfill. O resolver já trata `NULL` como
-  `'idoso'`, então nada muda no comportamento e o backfill exigiria tocar o Azure sem ganho.
-- Foto do Google não é semeada no fluxo de anexo do item 3.3: o idoso anexado por e-mail e senha não tem foto
-  Google; a foto vem só do upload no perfil.
+- Dose (5.2): sem idempotência no servidor (duplicata aceita; o frontend desabilita o botão); CHECK de
+  `status_administracao` case-insensitive, só a rota barra `'ADMINISTRADO'` (aceito); histórico de remédios mostra só
+  ids de autor (aceito).
+- `modo_decisao` NULL de idosos autocadastrados antes da mudança: sem backfill (o resolver trata `NULL` como `'idoso'`;
+  o backfill tocaria o Azure sem ganho).
+- Foto do Google não é semeada no anexo do item 3.3; a foto vem só do upload no perfil.
 - Risco de colisão de e-mail entre contas: tratado no código, `/auth/sync` responde 409 (`CONFLITO_EMAIL`, item
   3.2) quando o e-mail já está em uso. Registrar isso no `Elder Web - Modelagem ER.md` fica com o Marcos.
 - JSON malformado e corpo acima do limite: 400 e 413 fixos no `errorHandler` (sem eco nem log). `nome` em branco em
@@ -334,30 +330,23 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `'familiar'` (via resolver). Sem idempotência nem checagem de sobreposição (aceito).
 - Agenda (6.3): todos veem os 3 tipos, sem filtro (aceito). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone`
   explícito, nunca o do navegador. Evento aparece uma vez, no dia do início; passados em `<details>` fechado.
-- Calendário da Agenda (2026-10-09): Mês e Dia (`components/Agenda/`, `lib/calendario.ts`) sobre os mesmos grupos da
-  lista e a mesma busca (sem rota nova); "Ver como" e Mês/Dia em `lib/preferencias.ts`. Marca do tipo por cor e forma.
 - Agenda (6.2, delegação de 2026-10-04): cuidador cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda`
   segue 403), exigindo `tipo_vinculo` e `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito);
-  nunca chama `resolverModoDecisao`. `pessoal`/`medico` pelo cuidador: 403; tipo ausente, não string, caixa diferente ou
-  fora da CHECK: 400; idoso e familiar não criam `cuidado` (403). Ordem: 403 vínculo, 403 ator ou flag, 400 tipo, 403 tipo,
-  400 campos (sem a flag, corpo inválido dá 403). Campos e limites do 6.1. A seção do cuidador sempre aparece (403 vira
-  mensagem).
-- Frontend (2026-10-09): Home com 3 cards (`ResumoDia`, `lib/resumoDia.ts`): compromissos de hoje, últimas medições,
-  medicamentos ativos e doses registradas hoje (nunca "faltam" nem atraso: sem horário estruturado).
-  `AcessoProvider` busca `/vinculo` também para o idoso e expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso).
-  Sem busca no `Header`; o sino leva a `/avisos` (`lib/avisos.ts`, `AvisosProvider`): pedidos que a pessoa decide e
-  compromissos de hoje e amanhã, sem aviso de dose. `/configuracoes`: tema, tamanho do texto e menos movimento em
-  `lib/preferencias.ts` (classes no `<html>`, mesmas chaves do script de `index.html`, storage em try/catch).
-- Item 9.3: `pdfjs-dist` (`canvas` opcional sem binário) e os avisos de `npm audit` só de dev aceitos; sem `npm audit` no
-  CI. `--omit=dev` do backend dá 0 (`proxy-addr` 2.0.8, 2026-10-10). `npm audit --omit=dev` do frontend acusa 4 altos em
-  `@grpc/grpc-js` via firebase; Firestore e gRPC não entram no bundle; correção exige rebaixar o firebase, recusada.
+  nunca chama `resolverModoDecisao`. `pessoal`/`medico` pelo cuidador: 403; idoso e familiar não criam `cuidado` (403).
+  Sem a flag, corpo inválido dá 403 (ordem das checagens e erros 400 no histórico). Campos e limites do 6.1.
+- Frontend (2026-10-09): Home, `/avisos` e `/configuracoes` (detalhes no histórico). Nunca "faltam doses" nem atraso (sem
+  horário estruturado, sem aviso de dose); `AcessoProvider` expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso);
+  `lib/preferencias.ts` usa as mesmas chaves do script de `index.html`, com storage em try/catch.
+- Item 9.3: avisos de `npm audit` só de dev aceitos; sem `npm audit` no CI. `@grpc/grpc-js` (4 altos via firebase) fica
+  aceito: não entra no bundle e corrigir exige rebaixar o firebase, recusado.
 - Item 9.4 (D1 a D9, fechadas): o item só vai a ✅ com o CI remoto verde num push em `development`; sem dependência
   nova; código de produção só muda se um teste novo provar furo real de autorização (RED, correção mínima, commit
   `fix(auth):` separado; 400 antes de 403 não é furo); testes com Prisma mockado (não prova o filtro do SQL Server
   real, aceito); `npm test` segue `jest` e o CI roda `npm run test:coverage` no lugar dele; CI em push de todas as
-  branches mais PR para `main`, com `concurrency` (execução duplicada aceita); limiares = floor(medido) menos 1
-  (routes 95/92/99/96, middleware 99; metas mínimas 85/75/85/85 e 90/80/90/90); mutação local vale como RED em
-  teste de caracterização; regra de ator vem do código.
+  branches mais PR para `main`, com `concurrency` (execução duplicada aceita); limiares = floor(medido) menos 1 (valores
+  em `backend/jest.config.js`, metas mínimas em `infra/ciAutorizacao.test.ts`); mutação local vale como RED em
+  teste de caracterização; regra de ator vem do código (cuidador nunca cria medicamento nem refeição, familiar só com
+  `modo_decisao` efetivo `'familiar'`, flag exata e estrita).
 
 - Frontend (2026-10-08, decisões do grupo): menu por perfil (D1, D2): idoso vê tudo; cuidador ou familiar sem vínculo
   aprovado vê só Início, Meu Perfil, a lista do seu tipo (Família ou Cuidadores) e Orientações; Saúde, Medicamentos,
@@ -377,25 +366,23 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - 8.1 "Sobre Nós" (`/sobre-nos`, pública) e 8.2 Orientações (`/orientacoes`, dentro de `RotaProtegida`): conteúdo
   provisório, texto final é da Laureane e da Jennifer.
 - 9.1 auditoria axe (RNF-007): jest-axe e `npm run test:a11y`; falha só em critical/serious.
-- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (`max-age=31536000` só com `NODE_ENV=production`,
-  sem `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect para HTTPS é do Render; TDE só verificado.
+- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (HSTS só com `NODE_ENV=production`, sem
+  `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect para HTTPS é do Render; TDE só verificado.
 - 9.3 CI builda a imagem do backend (RNF-010), último passo do job `backend`, sem publicar nem rodar
   (`infra/dockerCi.test.ts`).
 - 9.4 suíte de autorização no CI (RNF-003): `routes/autorizacaoRotas.test.ts` compara as rotas de `app._router.stack`
   com `ROTAS_ESPERADAS` (rota nova sem classificação falha), mais limiares de cobertura.
 - Os `backend/scripts/verify-rotas-*.ts` NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é
   substituído): limpam por sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo
-  `verify-dose-`, `verify-hist-`, `verify-pdf-` ou `verify-emerg-` marca conta residual se o processo morrer no meio.
+  `verify-*-` marca conta residual se o processo morrer no meio.
 - Emergência (RF novo, número a definir pelo grupo): `POST /emergencia/avisar` (só idoso; 403 nos outros) manda
   e-mail aos vínculos aprovados com e-mail verificado no Firebase (`auth.getUsers`, mesmo e-mail do cadastro; erro do
   Firebase: 503, ninguém recebe) via `lib/enviarEmail.ts` (único ponto do provedor, API HTTPS: Render free bloqueia
-  SMTP). Env `EMAIL_*` (em `render.yaml`; sem elas, 503). Limite em memória por
-  idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso. Resposta só com contagens
+  SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Resposta só com contagens
   (`nao_confirmados` inclusive). `BotaoAjuda` no `Header` só para idoso; perfil com mais de 3 s ou falha: só o link
-  "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no
-  Perfil (só cuidador e familiar) reenvia e recarrega. No ar desde 2026-10-10. Bloqueio de IPs da Brevo fica desligado
-  (o IP do Render free muda; ligado dá `HTTP_401`). Remetente Gmail aparece como `@brevosend.com`; entrega em escala exige
-  domínio próprio (aceito). Teste: `backend/scripts/testar-email.ts <endereço>` (só ao e-mail do Marcos).
+  "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (`SituacaoEmail` no Perfil, só cuidador e
+  familiar). No ar desde 2026-10-10. Bloqueio de IPs da Brevo fica desligado
+  (o IP do Render free muda); entrega em escala exige domínio próprio (aceito). Teste: `backend/scripts/testar-email.ts <endereço>` (só ao e-mail do Marcos).
 
 ## Histórico de implementação
 O diário por tarefa (bugs, testes, limitações, hashes) está em `docs/historico-implementacao.md`. **Não ler por
