@@ -231,6 +231,35 @@ describe("POST /vinculo/convidar-familiar", () => {
     });
   });
 
+  // O casamento no cadastro do familiar (auth.ts) compara em minúsculas: o convite é gravado já normalizado, em todos os
+  // caminhos, para a caixa digitada não decidir se o convite é encontrado.
+  it("grava email_convite_familiar em minúsculas e sem espaços nas pontas, em todos os caminhos", async () => {
+    const caminhos: [string, () => void][] = [
+      ["criou", () => familiarExiste(true)],
+      ["sem conta", () => familiarExiste(false)],
+      ["já existe", () => (familiarExiste(true), findFirstVinculo.mockResolvedValue({ status: "pendente" }))],
+      ["corrida", () => (familiarExiste(true), createVinculo.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint")))],
+    ];
+    for (const [, preparar] of caminhos) {
+      jest.resetAllMocks();
+      verifyIdToken.mockResolvedValue({ uid: "uid-1" });
+      updateUsuario.mockResolvedValue({ id: IDOSO });
+      createVinculo.mockResolvedValue({ id: 99 });
+      findFirstVinculo.mockResolvedValue(null);
+      comoIdoso();
+      preparar();
+
+      const res = await convidar({ email: "  Familiar.FICTICIO@Exemplo.Test  " });
+
+      expect(res.status).toBe(201);
+      expect(updateUsuario).toHaveBeenCalledWith({
+        where: { id: IDOSO },
+        data: { email_convite_familiar: EMAIL },
+        select: { id: true },
+      });
+    }
+  });
+
   it("vínculo de OUTRO idoso com o mesmo familiar não conta como 'já existe'", async () => {
     comoIdoso();
     familiarExiste(true);
