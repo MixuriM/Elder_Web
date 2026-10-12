@@ -289,6 +289,71 @@ router.post("/convidar-familiar", requireAuth, async (req, res, next) => {
   }
 });
 
+// O idoso convida um cuidador que JÁ tem conta. Nasce Vinculo pendente (convite_idoso); só o cuidador o aprova, pelo
+// aceite (POST /:id/aceitar-convite). Sem conta, nada é guardado: guardar exigiria coluna nova e migration, e a tela
+// avisa o idoso. Resposta igual com ou sem conta (sem oráculo de enumeração); o 409 só aparece quando já existe vínculo
+// do próprio idoso com a pessoa, informação que ele já tem. Com a decisão com a família o idoso não convida (403).
+router.post("/convidar-cuidador", requireAuth, async (req, res, next) => {
+  try {
+    const idoso = await prisma.usuario.findUnique({
+      where: { id: req.usuarioId },
+      select: { id: true, tipo_perfil: true, email: true },
+    });
+    if (idoso?.tipo_perfil !== "idoso") {
+      return res.status(403).json({ error: "Apenas o idoso pode convidar um cuidador." });
+    }
+
+    const bruto = req.body?.email;
+    const email = typeof bruto === "string" ? bruto.trim() : "";
+    if (!email || email.length > 255 || !isValidEmailFormat(email)) {
+      return res.status(400).json({ error: "E-mail inválido." });
+    }
+
+    if ((await resolverModoDecisao(idoso.id)) === "familiar") {
+      return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
+    }
+    if (idoso.email && idoso.email.toLowerCase() === email.toLowerCase()) {
+      return res.status(400).json({ error: "Você não pode convidar o seu próprio e-mail." });
+    }
+
+    const cuidador = await prisma.usuario.findFirst({
+      where: { tipo_perfil: "cuidador", email },
+      select: { id: true },
+    });
+    if (cuidador) {
+      const existente = await prisma.vinculo.findFirst({
+        where: {
+          idoso_id: idoso.id,
+          vinculado_id: cuidador.id,
+          tipo_vinculo: "cuidador",
+          status: { in: ["pendente", "aprovado"] },
+        },
+        select: { status: true },
+      });
+      if (existente) {
+        return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
+      }
+      await prisma.vinculo.create({
+        data: {
+          idoso_id: idoso.id,
+          vinculado_id: cuidador.id,
+          tipo_vinculo: "cuidador",
+          origem: "convite_idoso",
+          status: "pendente",
+          data_solicitacao: new Date(),
+        },
+      });
+    }
+
+    res.status(201).json({ registrado: true });
+  } catch (e) {
+    if (isDuplicateVinculoConstraint(e)) {
+      return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
+    }
+    next(e);
+  }
+});
+
 // Tarefa 2.2 (RF-021, RF-022) — aprovar/recusar solicitação de vínculo de Cuidador.
 // Estendida pela tarefa 2.7 (RF-027) pra também cobrir vínculo de Familiar (Fluxo B,
 // tarefa 2.6). Compartilhada entre /aprovar e /recusar, e entre os dois tipo_vinculo:
