@@ -227,9 +227,16 @@ router.patch("/me", requireAuth, async (req, res, next) => {
     if ("nome" in data && !data.nome) {
       return res.status(400).json({ error: "Nome não pode ficar vazio." });
     }
+    // Limites das colunas (NVarChar 150 e 20), checados antes do Firebase: senão o update do banco falharia depois dele.
+    if (data.nome && data.nome.length > 150) {
+      return res.status(400).json({ error: "Nome deve ter até 150 caracteres." });
+    }
     if (email !== undefined) data.email = typeof email === "string" ? email.trim() || null : email;
     if (telefone !== undefined)
       data.telefone = typeof telefone === "string" ? telefone.trim() || null : telefone;
+    if (data.telefone && data.telefone.length > 20) {
+      return res.status(400).json({ error: "Telefone deve ter até 20 caracteres." });
+    }
 
     // Trocar o e-mail de verdade (ignorando caixa; apagar conta): zera a verificação no Firebase e cancela os convites
     // pendentes do idoso. Trocar só a caixa não é troca.
