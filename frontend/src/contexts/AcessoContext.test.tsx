@@ -101,6 +101,42 @@ describe('AcessoProvider', () => {
     expect(await renderizar()).toBe('ok|cuidador|false|true')
   })
 
+  describe('convite de cuidador (cuidador, convite_idoso)', () => {
+    // Datas relativas a agora: o convite vale 7 dias, então uma data fixa viraria "vencido" com o tempo.
+    const DIA = 24 * 60 * 60 * 1000
+    const convite = (idadeDias: number, status = 'pendente') => ({
+      status,
+      papel_do_chamador: 'vinculado',
+      tipo_vinculo: 'cuidador',
+      origem: 'convite_idoso',
+      data_solicitacao: new Date(Date.now() - idadeDias * DIA).toISOString(),
+    })
+
+    it('só convite vigente: conta como pendente (a guarda e a Home dependem disso)', async () => {
+      mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+      mockChamarApi.mockResolvedValue({ vinculos: [convite(1)] })
+      expect(await renderizar()).toBe('ok|cuidador|false|true')
+    })
+
+    it('só convite vencido: não há nada a aprovar, então não conta como pendente', async () => {
+      mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+      mockChamarApi.mockResolvedValue({ vinculos: [convite(8)] })
+      expect(await renderizar()).toBe('ok|cuidador|false|false')
+    })
+
+    it('convite vencido mais pedido comum pendente: o pedido continua contando', async () => {
+      mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+      mockChamarApi.mockResolvedValue({ vinculos: [convite(8), vinculo('pendente')] })
+      expect(await renderizar()).toBe('ok|cuidador|false|true')
+    })
+
+    it('convite vencido não esconde um vínculo aprovado', async () => {
+      mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'cuidador' })
+      mockChamarApi.mockResolvedValue({ vinculos: [convite(8), vinculo('aprovado')] })
+      expect(await renderizar()).toBe('ok|cuidador|true|false')
+    })
+  })
+
   it('vínculo de outra pessoa (titular) não conta como acesso próprio', async () => {
     mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'familiar' })
     mockChamarApi.mockResolvedValue({ vinculos: [vinculo('aprovado', 'titular')] })

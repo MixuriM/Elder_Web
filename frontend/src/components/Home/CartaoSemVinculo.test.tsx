@@ -90,7 +90,13 @@ describe('Home: cartão para quem está sem vínculo aprovado', () => {
     })
 
     it.each([
-      ['convite vencido (mais de 7 dias)', [vinculo({ data_solicitacao: new Date(Date.now() - 8 * DIA).toISOString() })]],
+      [
+        'convite vencido (mais de 7 dias) com pedido próprio pendente',
+        [
+          vinculo({ data_solicitacao: new Date(Date.now() - 8 * DIA).toISOString() }),
+          vinculo({ id: 42, origem: 'solicitacao_cuidador' }),
+        ],
+      ],
       ['só pedido próprio pendente', [vinculo({ origem: 'solicitacao_cuidador' })]],
       ['convite já recusado', [vinculo({ status: 'recusado' })]],
     ])('%s: mantém o texto de aguardando aprovação', (_nome, vinculos) => {
