@@ -128,9 +128,15 @@ router.post("/solicitar-cuidador", requireAuth, async (req, res, next) => {
         tipo_vinculo: "cuidador",
         status: { in: ["pendente", "aprovado"] },
       },
-      select: { status: true },
+      select: { id: true, status: true, origem: true, data_solicitacao: true },
     });
-    if (existente?.status === "pendente") {
+    // Convite do idoso vencido continua 'pendente' (sem job) e não pode travar o pedido do próprio cuidador, que é o
+    // caminho alternativo ao convite. Só ele é substituído; convite válido, pedido do cuidador e aprovado dão 409.
+    const conviteVencido =
+      existente?.status === "pendente" &&
+      ehConviteDeCuidador({ tipo_vinculo: "cuidador", origem: existente.origem }) &&
+      conviteVenceu(existente.data_solicitacao);
+    if (existente?.status === "pendente" && !conviteVencido) {
       return res.status(409).json({ error: "Já existe uma solicitação pendente para este idoso." });
     }
     if (existente?.status === "aprovado") {
@@ -139,16 +145,31 @@ router.post("/solicitar-cuidador", requireAuth, async (req, res, next) => {
     // status === 'recusado': permite nova solicitação (novo registro). Decisão
     // assumida, não confirmada com o grupo — ver instrução original da tarefa 2.1.
 
-    const vinculo = await prisma.vinculo.create({
-      data: {
-        idoso_id: idosoAlvo.id,
-        vinculado_id: req.usuarioId,
-        tipo_vinculo: "cuidador",
-        origem: "solicitacao_cuidador",
-        status: "pendente",
-        data_solicitacao: new Date(),
-      },
-    });
+    const criar = () =>
+      prisma.vinculo.create({
+        data: {
+          idoso_id: idosoAlvo.id,
+          vinculado_id: req.usuarioId,
+          tipo_vinculo: "cuidador",
+          origem: "solicitacao_cuidador",
+          status: "pendente",
+          data_solicitacao: new Date(),
+        },
+      });
+    let vinculo;
+    if (existente && conviteVencido) {
+      // Numa transação: o índice único filtrado só admite um pendente por par, então o convite vencido sai junto com a
+      // entrada do pedido. Quem recusa é o próprio cuidador.
+      [, vinculo] = await prisma.$transaction([
+        prisma.vinculo.updateMany({
+          where: { id: existente.id, status: "pendente" },
+          data: { status: "recusado", aprovador_id: req.usuarioId, data_resposta: new Date() },
+        }),
+        criar(),
+      ]);
+    } else {
+      vinculo = await criar();
+    }
     res.status(201).json(vinculo);
   } catch (e) {
     if (isDuplicateVinculoConstraint(e)) {
@@ -350,6 +371,12 @@ router.post("/convidar-cuidador", requireAuth, async (req, res, next) => {
         ehConviteDeCuidador({ tipo_vinculo: "cuidador", origem: existente.origem }) &&
         conviteVenceu(existente.data_solicitacao);
       if (existente && !vencido) {
+        // Convite do idoso ainda válido: repetir é inofensivo e responde igual, sem escrever. Um 409 aqui só aconteceria
+        // com conta existente (o pendente foi criado pelo próprio idoso na chamada anterior) e viraria oráculo de
+        // enumeração de e-mails de cuidadores. O 409 fica só para o que o idoso não criou (aprovado, pedido do cuidador).
+        if (existente.status === "pendente" && ehConviteDeCuidador({ tipo_vinculo: "cuidador", origem: existente.origem })) {
+          return res.status(201).json({ registrado: true });
+        }
         return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
       }
       const criar = () =>
@@ -379,8 +406,9 @@ router.post("/convidar-cuidador", requireAuth, async (req, res, next) => {
 
     res.status(201).json({ registrado: true });
   } catch (e) {
+    // Corrida com outro convite do mesmo par: o estado final é o mesmo, e um 409 só existiria com conta (oráculo).
     if (isDuplicateVinculoConstraint(e)) {
-      return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
+      return res.status(201).json({ registrado: true });
     }
     next(e);
   }
@@ -610,6 +638,12 @@ async function responderConviteCuidador(
         return res.status(409).json({ error: "Este convite não vale mais. Peça um novo convite ao idoso." });
       }
       if (req.emailVerificado !== true) {
+        return res.status(403).json({ error: "Confirme o seu e-mail antes de aceitar o convite." });
+      }
+      // O convite foi enviado ao e-mail do cadastro: o e-mail verificado do token tem que ser o mesmo (um token antigo ou
+      // um cadastro com e-mail diferente do Firebase não aceita o convite de outra pessoa). Mesma regra do aviso de emergência.
+      const cuidador = await prisma.usuario.findUnique({ where: { id: req.usuarioId }, select: { email: true } });
+      if (!cuidador?.email || req.emailDoToken?.toLowerCase() !== cuidador.email.toLowerCase()) {
         return res.status(403).json({ error: "Confirme o seu e-mail antes de aceitar o convite." });
       }
     }
