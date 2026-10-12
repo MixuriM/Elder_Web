@@ -195,4 +195,46 @@ describe('emailConfirmado: recarrega o usuário do Firebase', () => {
     mockUsuarioAtual = { emailVerified: false, reload: jest.fn().mockRejectedValue(new Error('rede')) }
     await expect(emailConfirmado()).resolves.toBe(false)
   })
+
+  // O ID token só traz email_verified novo depois de renovado: sem isso o aceite de convite dá 403 por cerca de 1 h.
+  it('confirmado depois do reload: renova o ID token uma vez (forceRefresh true)', async () => {
+    const usuario: Record<string, unknown> = { emailVerified: false, getIdToken: jest.fn().mockResolvedValue('novo') }
+    usuario.reload = jest.fn(async () => {
+      usuario.emailVerified = true
+    })
+    mockUsuarioAtual = usuario
+
+    await expect(emailConfirmado()).resolves.toBe(true)
+
+    expect(usuario.getIdToken).toHaveBeenCalledTimes(1)
+    expect(usuario.getIdToken).toHaveBeenCalledWith(true)
+  })
+
+  it('não confirmado: não renova o ID token', async () => {
+    const usuario = { emailVerified: false, reload: jest.fn().mockResolvedValue(undefined), getIdToken: jest.fn() }
+    mockUsuarioAtual = usuario
+
+    await expect(emailConfirmado()).resolves.toBe(false)
+
+    expect(usuario.getIdToken).not.toHaveBeenCalled()
+  })
+
+  it('reload falha: não lança e não renova o ID token, mesmo com valor em cache verdadeiro', async () => {
+    const usuario = { emailVerified: true, reload: jest.fn().mockRejectedValue(new Error('rede')), getIdToken: jest.fn() }
+    mockUsuarioAtual = usuario
+
+    await expect(emailConfirmado()).resolves.toBe(true)
+
+    expect(usuario.getIdToken).not.toHaveBeenCalled()
+  })
+
+  it('renovação do token falha: não lança e devolve confirmado', async () => {
+    mockUsuarioAtual = {
+      emailVerified: true,
+      reload: jest.fn().mockResolvedValue(undefined),
+      getIdToken: jest.fn().mockRejectedValue(new Error('rede')),
+    }
+
+    await expect(emailConfirmado()).resolves.toBe(true)
+  })
 })
