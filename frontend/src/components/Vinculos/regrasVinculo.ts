@@ -4,11 +4,11 @@ export type TipoVinculo = "familiar" | "cuidador";
 export type AcaoAdicionar = "solicitar" | "cadastrar" | "convidar";
 
 // Só o que o backend deixa cada perfil fazer: cuidador pede vínculo de cuidador; familiar pede vínculo de
-// familiar ou cadastra idoso; idoso convida um familiar (cuidador sempre pede, e o idoso aprova).
+// familiar ou cadastra idoso; idoso convida um familiar ou um cuidador (que já tenha conta).
 export function acoesDoPerfil(tipoPerfil: string | null, tipo: TipoVinculo): AcaoAdicionar[] {
   if (tipoPerfil === "cuidador" && tipo === "cuidador") return ["solicitar"];
   if (tipoPerfil === "familiar" && tipo === "familiar") return ["solicitar", "cadastrar"];
-  if (tipoPerfil === "idoso" && tipo === "familiar") return ["convidar"];
+  if (tipoPerfil === "idoso") return ["convidar"];
   return [];
 }
 
@@ -38,14 +38,24 @@ export function podeContestar(v: Vinculo, tipoPerfil: string | null, modo: ModoD
   );
 }
 
+// (cuidador, convite_idoso) é o convite do idoso que só o próprio cuidador aceita, com e-mail verificado. Já
+// (familiar, convite_idoso) é aprovado sozinho pela confirmação do e-mail. Mesma regra do backend.
+export function ehConviteDeCuidador(v: Pick<Vinculo, "tipo_vinculo" | "origem">): boolean {
+  return v.tipo_vinculo === "cuidador" && v.origem === "convite_idoso";
+}
+
 // Vínculo de origem automática só se aprova pela confirmação do e-mail (o backend responde 409 ao aprovar à mão).
+// Convite de cuidador também não se aprova à mão: o idoso já consentiu ao convidar e só o cuidador aceita.
 export function podeAprovarManual(v: Vinculo): boolean {
-  return !ORIGENS_AUTOMATICAS.includes(v.origem);
+  return !ORIGENS_AUTOMATICAS.includes(v.origem) && !ehConviteDeCuidador(v);
 }
 
 // Aviso "e-mail ainda não confirmado": só nos vínculos de aprovação automática, ainda pendentes e sem confirmação.
+// Não vale para o convite de cuidador, que espera o aceite do cuidador.
 export function emailNaoConfirmado(v: Vinculo): boolean {
-  return ORIGENS_AUTOMATICAS.includes(v.origem) && v.status === "pendente" && v.confirmado_em === null;
+  return (
+    ORIGENS_AUTOMATICAS.includes(v.origem) && !ehConviteDeCuidador(v) && v.status === "pendente" && v.confirmado_em === null
+  );
 }
 
 export function formatarDataBR(data: string | null | undefined): string {

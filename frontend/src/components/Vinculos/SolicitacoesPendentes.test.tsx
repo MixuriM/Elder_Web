@@ -220,3 +220,105 @@ describe('SolicitacoesPendentes', () => {
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 })
+
+describe('SolicitacoesPendentes: convites de cuidador enviados pelo idoso', () => {
+  // Convite do idoso ao cuidador: não há o que aprovar, só esperar o aceite (ou cancelar).
+  const conviteCuidador = v({ id: 30, origem: 'convite_idoso' })
+
+  beforeEach(() => {
+    mockApi.mockReset()
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    jest.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => jest.restoreAllMocks())
+
+  it('não entra em "Pedidos para você responder", sem Aprovar nem Recusar; vai para "Convites enviados"', () => {
+    montar([conviteCuidador])
+    expect(screen.queryByRole('heading', { name: 'Pedidos para você responder' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /aprovar|recusar/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Convites enviados' })).toBeInTheDocument()
+    const item = screen.getByRole('article', { name: /João Cuidador/ })
+    expect(within(item).getByText('Convite enviado. Esperando o cuidador aceitar.')).toBeInTheDocument()
+    expect(within(item).queryByText(/quer ser seu/i)).not.toBeInTheDocument()
+    expect(within(item).getByText(/jo\*\*\*@mail\.test/)).toBeInTheDocument()
+    expect(within(item).getAllByRole('button')).toHaveLength(1)
+    expect(within(item).getByRole('button', { name: 'Cancelar convite para João Cuidador' })).toHaveTextContent(
+      'Cancelar convite',
+    )
+  })
+
+  it('convite e pedido juntos: cada um na sua seção', () => {
+    montar([conviteCuidador, pedidoCuidador])
+    const pedidos = screen.getByRole('heading', { name: 'Pedidos para você responder' }).closest('section')!
+    const convites = screen.getByRole('heading', { name: 'Convites enviados' }).closest('section')!
+    expect(within(pedidos).getAllByRole('article')).toHaveLength(1)
+    expect(within(pedidos).getByRole('button', { name: /aprovar o pedido de João/i })).toBeInTheDocument()
+    expect(within(convites).getAllByRole('article')).toHaveLength(1)
+    expect(within(convites).getByRole('button', { name: /cancelar convite/i })).toBeInTheDocument()
+  })
+
+  it('titular decide por quem conduz: também cancela o convite', () => {
+    montar([{ ...conviteCuidador, papel_do_chamador: 'titular' }], { perfil: 'familiar' })
+    const item = screen.getByRole('article', { name: /João Cuidador/ })
+    expect(within(item).getByText(/idoso: maria idosa/i)).toBeInTheDocument()
+    expect(within(item).getByRole('button', { name: /cancelar convite/i })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['idoso com modo familiar', { modo: 'familiar' as ModoDecisao }],
+    ['o próprio cuidador convidado', { perfil: 'cuidador' }],
+  ])('%s: sem botão de cancelar e sem a seção', (_nome, opcoes) => {
+    montar([conviteCuidador], opcoes)
+    expect(screen.queryByRole('heading', { name: 'Convites enviados' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /cancelar convite/i })).not.toBeInTheDocument()
+  })
+
+  it('convite recusado ou aprovado não aparece como enviado', () => {
+    montar([{ ...conviteCuidador, status: 'recusado' }, { ...conviteCuidador, id: 31, status: 'aprovado' }])
+    expect(screen.queryByRole('heading', { name: 'Convites enviados' })).not.toBeInTheDocument()
+  })
+
+  it('cancelar pede confirmação clara; voltar não envia e devolve o foco; confirmar usa /recusar', async () => {
+    mockApi.mockImplementation(apiFalsa({ 'POST /vinculo/30/recusar': () => ({ id: 30 }) }))
+    const { onResolvido } = montar([conviteCuidador])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar convite para João Cuidador' }))
+    const caixa = screen.getByRole('alertdialog')
+    expect(caixa).toHaveTextContent('Cancelar o convite para João Cuidador?')
+    expect(caixa).toHaveTextContent('Ele poderá ser convidado de novo depois.')
+    await userEvent.click(within(caixa).getByRole('button', { name: 'Não, voltar' }))
+    expect(mockApi).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Cancelar convite para João Cuidador' })).toHaveFocus()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar convite para João Cuidador' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Sim, cancelar o convite' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Convite para João Cuidador cancelado.')
+    expect(mockApi).toHaveBeenCalledTimes(1)
+    expect(onResolvido).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    [403, 'Você não pode responder a este pedido.'],
+    [409, 'Este pedido já foi respondido. A lista foi atualizada.'],
+  ])('cancelar com status %s: mensagem fixa, sem eco do corpo', async (status, texto) => {
+    mockApi.mockImplementation(
+      apiFalsa({
+        'POST /vinculo/30/recusar': () => {
+          throw erroApi(status, 'SEGREDO-do-corpo modo_decisao')
+        },
+      }),
+    )
+    montar([conviteCuidador])
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar convite para João Cuidador' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Sim, cancelar o convite' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(texto)
+    expect(document.body).not.toHaveTextContent('SEGREDO-do-corpo')
+  })
+
+  it('não tem violações do axe (lista e confirmação)', async () => {
+    const { container } = montar([conviteCuidador, pedidoCuidador])
+    expect(await axe(container, AXE)).toHaveNoViolations()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar convite para João Cuidador' }))
+    expect(await axe(container, AXE)).toHaveNoViolations()
+  })
+})

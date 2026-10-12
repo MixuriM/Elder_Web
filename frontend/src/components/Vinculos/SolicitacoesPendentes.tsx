@@ -8,6 +8,7 @@ import { BOTAO_PERIGO, BOTAO_PRIMARIO, MENSAGEM_ERRO, MENSAGEM_SUCESSO } from ".
 import { ERRO_PADRAO, mensagemPorStatus, statusDoErro } from "./mensagensVinculo";
 import { pessoaDoVinculo } from "./pessoaDoVinculo";
 import {
+  ehConviteDeCuidador,
   emailNaoConfirmado,
   formatarDataBR,
   podeAprovarManual,
@@ -24,7 +25,8 @@ type SolicitacoesPendentesProps = {
   onResolvido: () => void;
 };
 
-type Acao = "aprovar" | "recusar" | "contestar";
+// "cancelar" é o idoso desfazendo o convite que mandou ao cuidador: usa a mesma rota de recusar.
+type Acao = "aprovar" | "recusar" | "contestar" | "cancelar";
 
 const ERROS_RESPONDER: Partial<Record<number, string>> = {
   403: "Você não pode responder a este pedido.",
@@ -44,7 +46,7 @@ export default function SolicitacoesPendentes({
   modoDoIdoso,
   onResolvido,
 }: SolicitacoesPendentesProps) {
-  const [confirmando, setConfirmando] = useState<{ id: number; acao: "recusar" | "contestar" } | null>(null);
+  const [confirmando, setConfirmando] = useState<{ id: number; acao: "recusar" | "contestar" | "cancelar" } | null>(null);
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [erro, setErro] = useState<{ id: number; texto: string } | null>(null);
   const [resultado, setResultado] = useState("");
@@ -53,8 +55,12 @@ export default function SolicitacoesPendentes({
   const [devolverFoco, setDevolverFoco] = useState<string | null>(null);
   const idPedidos = useId();
   const idConferir = useId();
+  const idConvites = useId();
 
-  const paraResponder = vinculos.filter((v) => v.status === "pendente" && temAutoridade(v, tipoPerfil, modoDoIdoso));
+  const comAutoridade = vinculos.filter((v) => v.status === "pendente" && temAutoridade(v, tipoPerfil, modoDoIdoso));
+  // Convite de cuidador não tem o que aprovar (o idoso já consentiu ao convidar): só espera o aceite ou é cancelado.
+  const paraResponder = comAutoridade.filter((v) => !ehConviteDeCuidador(v));
+  const convitesEnviados = comAutoridade.filter(ehConviteDeCuidador);
   const paraConferir = vinculos.filter((v) => podeContestar(v, tipoPerfil, modoDoIdoso));
 
   useEffect(() => {
@@ -70,14 +76,16 @@ export default function SolicitacoesPendentes({
     setErro(null);
     setResultado("");
     try {
-      await chamarApi(`/vinculo/${v.id}/${acao}`, { method: "POST" });
+      await chamarApi(`/vinculo/${v.id}/${acao === "cancelar" ? "recusar" : acao}`, { method: "POST" });
       setConfirmando(null);
       setResultado(
         acao === "aprovar"
           ? `Pedido de ${nome} aprovado.`
           : acao === "recusar"
             ? `Pedido de ${nome} recusado.`
-            : `Vínculo de ${nome} contestado e desfeito.`,
+            : acao === "cancelar"
+              ? `Convite para ${nome} cancelado.`
+              : `Vínculo de ${nome} contestado e desfeito.`,
       );
       onResolvido();
     } catch (e) {
@@ -99,7 +107,7 @@ export default function SolicitacoesPendentes({
     setConfirmando(null);
   }
 
-  function pedirConfirmacao(id: number, acao: "recusar" | "contestar") {
+  function pedirConfirmacao(id: number, acao: "recusar" | "contestar" | "cancelar") {
     setErro(null);
     setResultado("");
     setConfirmando({ id, acao });
@@ -127,7 +135,12 @@ export default function SolicitacoesPendentes({
           <h3 id={idNome} className="text-xl font-bold text-[#071A38] dark:text-white">
             {nome}
           </h3>
-          {v.status === "pendente" ? (
+          {v.status === "pendente" && ehConviteDeCuidador(v) ? (
+            <p className="text-lg text-gray-700 dark:text-gray-200">
+              Convite enviado. Esperando o cuidador aceitar.
+              {v.papel_do_chamador === "titular" && v.idoso.nome ? ` · Idoso: ${v.idoso.nome}` : ""}
+            </p>
+          ) : v.status === "pendente" ? (
             <p className="text-lg text-gray-700 dark:text-gray-200">
               Quer ser seu {quer}
               {v.papel_do_chamador === "titular" && v.idoso.nome ? ` · Idoso: ${v.idoso.nome}` : ""}
@@ -140,7 +153,7 @@ export default function SolicitacoesPendentes({
           )}
           {email && <p className="text-base text-gray-700 dark:text-gray-200">E-mail: {email}</p>}
           <p className="text-base text-gray-700 dark:text-gray-200">
-            Pedido feito em {formatarDataBR(v.data_solicitacao)}
+            {ehConviteDeCuidador(v) ? "Convite feito" : "Pedido feito"} em {formatarDataBR(v.data_solicitacao)}
           </p>
         </div>
 
@@ -154,6 +167,17 @@ export default function SolicitacoesPendentes({
             perigo
             enviando={enviando}
             onConfirmar={() => executar(v, "recusar")}
+            onCancelar={cancelarConfirmacao}
+          />
+        )}
+        {emConfirmacao === "cancelar" && (
+          <ConfirmacaoInline
+            titulo={`Cancelar o convite para ${nome}?`}
+            texto="Ele poderá ser convidado de novo depois."
+            rotuloConfirmar="Sim, cancelar o convite"
+            perigo
+            enviando={enviando}
+            onConfirmar={() => executar(v, "cancelar")}
             onCancelar={cancelarConfirmacao}
           />
         )}
@@ -201,6 +225,18 @@ export default function SolicitacoesPendentes({
                 Recusar
               </button>
             )}
+            {acoes.includes("cancelar") && (
+              <button
+                type="button"
+                disabled={enviando}
+                aria-label={`Cancelar convite para ${nome}`}
+                ref={(el) => guardarBotao(v.id, "cancelar", el)}
+                onClick={() => pedirConfirmacao(v.id, "cancelar")}
+                className={BOTAO_PERIGO}
+              >
+                Cancelar convite
+              </button>
+            )}
             {acoes.includes("contestar") && (
               <button
                 type="button"
@@ -234,6 +270,15 @@ export default function SolicitacoesPendentes({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {paraResponder.map((v) => renderItem(v, podeAprovarManual(v) ? ["aprovar", "recusar"] : ["recusar"]))}
           </div>
+        </section>
+      )}
+
+      {convitesEnviados.length > 0 && (
+        <section aria-labelledby={idConvites}>
+          <h2 id={idConvites} className="mb-5 text-2xl font-bold text-[#071A38] dark:text-white">
+            Convites enviados
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{convitesEnviados.map((v) => renderItem(v, ["cancelar"]))}</div>
         </section>
       )}
 

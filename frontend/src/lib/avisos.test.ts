@@ -66,6 +66,66 @@ describe('calcularAvisos: pedidos de vínculo', () => {
   })
 })
 
+describe('calcularAvisos: convite do idoso ao cuidador', () => {
+  // Visão do cuidador: o backend mostra o nome do idoso enquanto o convite está pendente.
+  const convite = (parcial: Partial<Vinculo> = {}) =>
+    vinculo({ id: 10, origem: 'convite_idoso', papel_do_chamador: 'vinculado', ...parcial })
+
+  it('cuidador convidado: uma linha por convite pendente, com o nome de quem convidou e o link de Cuidadores', () => {
+    const avisos = calcularAvisos({
+      ...base,
+      tipoPerfil: 'cuidador',
+      vinculos: [
+        convite(),
+        convite({ id: 11, idoso: { id: null, nome: 'Seu Jorge', email_mascarado: null } }),
+      ],
+    })
+    expect(avisos.map((a) => [a.id, a.texto, a.link])).toEqual([
+      ['convite-10', 'Dona Ana convidou você para ser cuidador.', '/cuidadores'],
+      ['convite-11', 'Seu Jorge convidou você para ser cuidador.', '/cuidadores'],
+    ])
+    expect(avisos.every((a) => a.tipo === 'convite' && a.rotuloLink.length > 0)).toBe(true)
+  })
+
+  it.each([
+    ['convite já aceito', { status: 'aprovado' }],
+    ['convite recusado', { status: 'recusado' }],
+    ['pedido do próprio cuidador', { origem: 'solicitacao_cuidador' }],
+    ['convite de familiar', { tipo_vinculo: 'familiar' }],
+  ])('%s: nenhum aviso', (_nome, parcial) => {
+    expect(calcularAvisos({ ...base, tipoPerfil: 'cuidador', vinculos: [convite(parcial)] })).toEqual([])
+  })
+
+  it('o idoso que mandou o convite e o titular não têm "pedido para responder": não há o que aprovar', () => {
+    const enviado = vinculo({ origem: 'convite_idoso', papel_do_chamador: 'dono' })
+    expect(calcularAvisos({ ...base, vinculos: [enviado] })).toEqual([])
+    const doTitular = vinculo({ origem: 'convite_idoso', papel_do_chamador: 'titular' })
+    expect(calcularAvisos({ ...base, tipoPerfil: 'familiar', vinculos: [doTitular] })).toEqual([])
+  })
+
+  it('o idoso continua vendo o aviso dos outros pedidos quando também tem convite enviado', () => {
+    const avisos = calcularAvisos({
+      ...base,
+      vinculos: [vinculo({ id: 1 }), vinculo({ id: 2, origem: 'convite_idoso' })],
+    })
+    expect(avisos.map((a) => a.texto)).toEqual(['Você tem 1 pedido de cuidador para responder.'])
+  })
+
+  it('só o perfil cuidador recebe o aviso de convite', () => {
+    expect(calcularAvisos({ ...base, tipoPerfil: 'familiar', vinculos: [convite()] })).toEqual([])
+  })
+
+  it('o convite vem antes dos compromissos', () => {
+    const avisos = calcularAvisos({
+      ...base,
+      tipoPerfil: 'cuidador',
+      vinculos: [convite()],
+      agendas: [{ idosoNome: null, eventos: [evento(1, '2026-10-10T09:00:00-03:00')] }],
+    })
+    expect(avisos.map((a) => a.tipo)).toEqual(['convite', 'compromisso'])
+  })
+})
+
 describe('calcularAvisos: compromissos', () => {
   it('hoje ainda não terminados e amanhã, em ordem de início; ontem, passados e depois de amanhã ficam de fora', () => {
     const avisos = calcularAvisos({

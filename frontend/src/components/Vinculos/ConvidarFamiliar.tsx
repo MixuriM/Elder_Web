@@ -5,6 +5,8 @@ import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, CAMPO, MENSAGEM_ERRO, MENSAGEM_SUCESS
 import { mensagemPorStatus } from "./mensagensVinculo";
 
 type ConvidarFamiliarProps = {
+  // Familiar é aprovado sozinho pela confirmação do e-mail; cuidador precisa aceitar o convite (e já ter conta).
+  tipo?: "familiar" | "cuidador";
   onConcluido: () => void;
   onFechar: () => void;
 };
@@ -12,16 +14,23 @@ type ConvidarFamiliarProps = {
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ERRO_EMAIL = "Digite um e-mail válido, como nome@exemplo.com.";
 
-const ERROS_FIXOS: Partial<Record<number, string>> = {
-  400: "Confira o e-mail digitado e tente de novo.",
-  403: "Você não pode convidar um familiar agora.",
-  409: "Já existe um pedido pendente ou vínculo com esta pessoa.",
+const ERROS_FIXOS: Record<"familiar" | "cuidador", Partial<Record<number, string>>> = {
+  familiar: {
+    400: "Confira o e-mail digitado e tente de novo.",
+    403: "Você não pode convidar um familiar agora.",
+    409: "Já existe um pedido pendente ou vínculo com esta pessoa.",
+  },
+  cuidador: {
+    400: "Confira o e-mail digitado e tente de novo.",
+    403: "Você não pode convidar um cuidador agora.",
+    409: "Já existe um pedido pendente ou vínculo com esta pessoa.",
+  },
 };
 const ERRO_ENVIO = "Não foi possível enviar agora. Tente de novo em instantes.";
 
-// O idoso convida um familiar pelo e-mail. A resposta do backend é a mesma com ou sem conta, então a tela
-// não promete que a pessoa já existe: explica quando o vínculo é aprovado.
-export default function ConvidarFamiliar({ onConcluido, onFechar }: ConvidarFamiliarProps) {
+// O idoso convida um familiar ou um cuidador pelo e-mail. A resposta do backend é a mesma com ou sem conta, então a
+// tela não promete que a pessoa já existe: explica o que acontece quando ela existe e quando não existe.
+export default function ConvidarFamiliar({ tipo = "familiar", onConcluido, onFechar }: ConvidarFamiliarProps) {
   const idEmail = useId();
   const idErro = useId();
   const [email, setEmail] = useState("");
@@ -50,11 +59,11 @@ export default function ConvidarFamiliar({ onConcluido, onFechar }: ConvidarFami
     setErro(null);
     setEnviando(true);
     try {
-      await chamarApi("/vinculo/convidar-familiar", { method: "POST", body: JSON.stringify({ email: emailLimpo }) });
+      await chamarApi(`/vinculo/convidar-${tipo}`, { method: "POST", body: JSON.stringify({ email: emailLimpo }) });
       setConcluido(true);
       onConcluido();
     } catch (e) {
-      setErro(mensagemPorStatus(e, ERROS_FIXOS, ERRO_ENVIO));
+      setErro(mensagemPorStatus(e, ERROS_FIXOS[tipo], ERRO_ENVIO));
     } finally {
       setEnviando(false);
     }
@@ -64,11 +73,27 @@ export default function ConvidarFamiliar({ onConcluido, onFechar }: ConvidarFami
     return (
       <div className="space-y-5">
         <div ref={avisoRef} tabIndex={-1} role="status" className={`${MENSAGEM_SUCESSO} space-y-2`}>
-          <p>Convite registrado.</p>
-          <p>
-            Quando essa pessoa entrar no Elder Web com o e-mail confirmado, o vínculo é aprovado sozinho. Um novo
-            convite substitui o anterior que ainda não foi usado.
-          </p>
+          {tipo === "cuidador" ? (
+            <>
+              <p>Convite enviado.</p>
+              <p>
+                Se a pessoa já tiver conta de cuidador no Elder Web, ela verá o convite aqui na tela Cuidadores e precisa
+                aceitar. O convite vale 7 dias.
+              </p>
+              <p>
+                Se a pessoa ainda não tem conta, o convite não chega: peça para ela se cadastrar primeiro e convide de
+                novo.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>Convite registrado.</p>
+              <p>
+                Quando essa pessoa entrar no Elder Web com o e-mail confirmado, o vínculo é aprovado sozinho. Um novo
+                convite substitui o anterior que ainda não foi usado.
+              </p>
+            </>
+          )}
         </div>
         <button type="button" onClick={onFechar} className={BOTAO_PRIMARIO}>
           Concluir
@@ -80,12 +105,13 @@ export default function ConvidarFamiliar({ onConcluido, onFechar }: ConvidarFami
   return (
     <form onSubmit={enviar} noValidate className="space-y-5">
       <p className="text-lg text-gray-700 dark:text-gray-200">
-        Digite o e-mail do familiar que você quer que ajude nos seus cuidados.
+        Digite o e-mail do {tipo} que você quer que ajude nos seus cuidados.
+        {tipo === "cuidador" && " A pessoa precisa já ter conta de cuidador no Elder Web."}
       </p>
 
       <div>
         <label htmlFor={idEmail} className={ROTULO}>
-          E-mail do familiar
+          E-mail do {tipo}
         </label>
         <input
           id={idEmail}

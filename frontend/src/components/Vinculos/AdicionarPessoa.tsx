@@ -19,6 +19,11 @@ const ROTULOS: Record<AcaoAdicionar, string> = {
   convidar: "Convidar um familiar",
 };
 
+// O convite muda de rótulo conforme a tela: familiar na Família, cuidador em Cuidadores.
+function rotuloDa(acao: AcaoAdicionar, tipo: TipoVinculo): string {
+  return acao === "convidar" ? `Convidar um ${tipo}` : ROTULOS[acao];
+}
+
 // Conteúdo do modal "Adicionar pessoa": com uma só ação abre direto o formulário; com duas, pergunta primeiro.
 export default function AdicionarPessoa({ tipo, acoes, onConcluido, onFechar }: AdicionarPessoaProps) {
   const [escolha, setEscolha] = useState<AcaoAdicionar | null>(acoes.length === 1 ? acoes[0] : null);
@@ -36,7 +41,7 @@ export default function AdicionarPessoa({ tipo, acoes, onConcluido, onFechar }: 
             onClick={() => setEscolha(acao)}
             className={`${BOTAO_PRIMARIO} block w-full`}
           >
-            {ROTULOS[acao]}
+            {rotuloDa(acao, tipo)}
           </button>
         ))}
       </div>
@@ -66,7 +71,7 @@ export default function AdicionarPessoa({ tipo, acoes, onConcluido, onFechar }: 
           onFechar={onFechar}
         />
       )}
-      {escolha === "convidar" && <ConvidarFamiliar onConcluido={onConcluido} onFechar={onFechar} />}
+      {escolha === "convidar" && <ConvidarFamiliar tipo={tipo} onConcluido={onConcluido} onFechar={onFechar} />}
       {escolha === "cadastrar" && (
         <CadastrarIdoso
           onConcluido={onConcluido}
