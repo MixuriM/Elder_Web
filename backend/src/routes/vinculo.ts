@@ -24,6 +24,14 @@ function isDuplicateVinculoConstraint(e: unknown): boolean {
 // Origens cujo vínculo é aprovado pela confirmação de posse do e-mail (RF-025, RF-030), nunca por clique de aprovar.
 const ORIGENS_AUTOMATICAS = ["convite_idoso", "cadastro_familiar"];
 
+// (cuidador, convite_idoso) é o convite do idoso que só o próprio cuidador aceita, com e-mail verificado. Já
+// (familiar, convite_idoso) é aprovado sozinho pela confirmação do e-mail. Único ponto que distingue os dois.
+function ehConviteDeCuidador(v: { tipo_vinculo: string; origem: string }): boolean {
+  return v.tipo_vinculo === "cuidador" && v.origem === "convite_idoso";
+}
+
+const VALIDADE_CONVITE_CUIDADOR_MS = 7 * 24 * 60 * 60 * 1000;
+
 router.post("/solicitar-cuidador", requireAuth, async (req, res, next) => {
   try {
     const cuidador = await prisma.usuario.findUnique({
@@ -520,7 +528,11 @@ async function responderSolicitacaoVinculo(
 
     // Depois da checagem de autoridade, para não revelar a origem a quem não decide.
     if (novoStatus === "aprovado" && ORIGENS_AUTOMATICAS.includes(vinculo.origem)) {
-      return res.status(409).json({ error: "Este vínculo é aprovado sozinho quando a pessoa confirmar o e-mail." });
+      return res.status(409).json({
+        error: ehConviteDeCuidador(vinculo)
+          ? "Este convite só vale quando o cuidador aceitar."
+          : "Este vínculo é aprovado sozinho quando a pessoa confirmar o e-mail.",
+      });
     }
 
     const atualizado = await prisma.vinculo.update({
@@ -539,6 +551,66 @@ router.post("/:id/aprovar", requireAuth, (req, res, next) =>
 router.post("/:id/recusar", requireAuth, (req, res, next) =>
   responderSolicitacaoVinculo(req, res, next, "recusado"),
 );
+
+// O cuidador responde ao convite do idoso. Compartilhada entre /aceitar-convite e /recusar-convite. O vínculo aprovado
+// libera leitura de dado sensível sem flag, então aceitar exige os dois consentimentos: o do idoso (ao convidar) e o do
+// cuidador (aqui, com e-mail verificado). 404 igual para "não existe", "não é seu", "não é cuidador" e "não é
+// convite": nenhum 403 que revele existência. Recusar não exige e-mail nem prazo (sempre dá para dizer não).
+async function responderConviteCuidador(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction,
+  aceitar: boolean,
+) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: "Id de vínculo inválido." });
+    }
+
+    const vinculo = await prisma.vinculo.findUnique({
+      where: { id },
+      select: { id: true, idoso_id: true, vinculado_id: true, status: true, tipo_vinculo: true, origem: true, data_solicitacao: true },
+    });
+    if (!vinculo || vinculo.vinculado_id !== req.usuarioId || !ehConviteDeCuidador(vinculo)) {
+      return res.status(404).json({ error: "Convite não encontrado." });
+    }
+    if (vinculo.status !== "pendente") {
+      return res.status(409).json({ error: "Este convite já foi respondido." });
+    }
+
+    if (aceitar) {
+      // Vencido, ou a autoridade passou para a família: o convite do idoso deixa de valer e o caminho passa a ser o
+      // pedido do cuidador, aprovado pelo titular.
+      const venceu = Date.now() - vinculo.data_solicitacao.getTime() > VALIDADE_CONVITE_CUIDADOR_MS;
+      if (venceu || (await resolverModoDecisao(vinculo.idoso_id)) === "familiar") {
+        return res.status(409).json({ error: "Este convite não vale mais. Peça um novo convite ao idoso." });
+      }
+      if (req.emailVerificado !== true) {
+        return res.status(403).json({ error: "Confirme o seu e-mail antes de aceitar o convite." });
+      }
+    }
+
+    const agora = new Date();
+    const status = aceitar ? "aprovado" : "recusado";
+    // where com status 'pendente': se o idoso cancelou entre a leitura e a escrita, count é 0 e nada é sobrescrito.
+    const { count } = await prisma.vinculo.updateMany({
+      where: { id, status: "pendente" },
+      data: aceitar
+        ? { status, aprovador_id: req.usuarioId, data_resposta: agora, confirmado_em: agora }
+        : { status, aprovador_id: req.usuarioId, data_resposta: agora },
+    });
+    if (count === 0) {
+      return res.status(409).json({ error: "Este convite já foi respondido." });
+    }
+    res.status(200).json({ id, status });
+  } catch (e) {
+    next(e);
+  }
+}
+
+router.post("/:id/aceitar-convite", requireAuth, (req, res, next) => responderConviteCuidador(req, res, next, true));
+router.post("/:id/recusar-convite", requireAuth, (req, res, next) => responderConviteCuidador(req, res, next, false));
 
 // Contestação de vínculo automático Familiar↔Idoso já 'aprovado' (RF-022; dívida técnica
 // do item 2.5). Elegível: tipo_vinculo='familiar', origem 'convite_idoso' (Fluxo A) ou
@@ -943,6 +1015,8 @@ router.get("/", requireAuth, async (req, res, next) => {
         // Fail-closed: quem é só o vinculado não lê nome/e-mail do idoso antes de 'aprovado'
         // (senão qualquer conta leria o nome de um idoso solicitando vínculo pelo e-mail).
         const escondeIdoso = papel === "vinculado" && v.status !== "aprovado";
+        // Exceção: o cuidador convidado precisa saber quem o convidou (nome e e-mail mascarado, nunca o id).
+        const mostraQuemConvidou = papel === "vinculado" && ehConviteDeCuidador(v) && v.status === "pendente";
         // Flags só existem em vínculo de cuidador já aprovado (mesma regra de /definir-permissoes);
         // fora disso null, sem nunca repassar o valor do banco.
         const expoePermissoes = v.tipo_vinculo === "cuidador" && v.status === "aprovado";
@@ -969,8 +1043,8 @@ router.get("/", requireAuth, async (req, res, next) => {
             : null,
           idoso: {
             id: escondeIdoso ? null : v.idoso.id,
-            nome: escondeIdoso ? null : v.idoso.nome,
-            email_mascarado: escondeIdoso ? null : mascararEmail(v.idoso.email),
+            nome: escondeIdoso && !mostraQuemConvidou ? null : v.idoso.nome,
+            email_mascarado: escondeIdoso && !mostraQuemConvidou ? null : mascararEmail(v.idoso.email),
           },
           vinculado: { id: v.vinculado.id, nome: v.vinculado.nome, email_mascarado: mascararEmail(v.vinculado.email) },
         };
