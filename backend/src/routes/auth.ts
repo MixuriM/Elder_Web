@@ -23,7 +23,8 @@ const router = Router();
 // mesmo e-mail de Familiar.
 async function vincularFamiliarConvidado(familiarId: number, email: string, emailVerified: boolean) {
   const idosos = await prisma.usuario.findMany({
-    where: { tipo_perfil: "idoso", email_convite_familiar: email },
+    // O convite é gravado em minúsculas (/vinculo/convidar-familiar): a caixa do e-mail do token não decide o casamento.
+    where: { tipo_perfil: "idoso", email_convite_familiar: email.toLowerCase() },
     select: { id: true },
   });
   if (idosos.length === 0) return;
