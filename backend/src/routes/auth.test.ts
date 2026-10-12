@@ -531,6 +531,18 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
     expect(updateManyVinculo).toHaveBeenCalledTimes(2);
   });
 
+  // Regressão do convite do idoso ao cuidador: (cuidador, convite_idoso) só se aprova pelo aceite do próprio cuidador,
+  // nunca pelo login com e-mail verificado (que promove só vínculo de familiar).
+  it("login de cuidador com email_verified=true NÃO promove convite_idoso pendente", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-cuid", email: "cuidador@a.com", email_verified: true });
+    findFirst.mockResolvedValueOnce({ id: 30, tipo_perfil: "cuidador" });
+
+    const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+
+    expect(res.status).toBe(200);
+    expect(updateManyVinculo).not.toHaveBeenCalled();
+  });
+
   it("login de idoso ou cuidador não tenta promover vínculo", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-idoso", email: "idoso@a.com", email_verified: true });
     findFirst.mockResolvedValueOnce({ id: 1, tipo_perfil: "idoso" });
