@@ -2078,3 +2078,12 @@ Emergência (limites, variáveis e cadastro):
   "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no
   Perfil (só cuidador e familiar) reenvia e recarrega. No ar desde 2026-10-10. Bloqueio de IPs da Brevo fica desligado
 ~~~
+
+
+### Troca de e-mail zera a verificação e convidar-familiar sem oráculo (2026-10-12, sem PR ainda)
+
+Fecha as duas pendências de segurança deixadas pela revisão independente do convite do idoso ao cuidador. Sem schema, migration, dependência nem mudança em `auth.ts`.
+
+- **S1, `PATCH /usuario/me`.** Quando o e-mail muda e o novo valor é texto não vazio, a chamada ao Firebase passa a ser `updateUser(uid, { email, emailVerified: false })`; e-mail apagado ou igual ao atual segue como antes (sem `emailVerified`). A documentação oficial do Admin SDK (tabela "Update a user" em firebase.google.com/docs/auth/admin/manage-users) diz que, sem `emailVerified`, o padrão é `false`, mas o comportamento real não foi confirmado nem testado contra o Firebase real; o envio explícito vale nos dois casos. O Perfil agora remonta a seção "Confirmação de e-mail" depois de salvar, porque ela só lia a situação ao montar e seguia mostrando "E-mail confirmado" do e-mail antigo. Limite: se o `reload` do usuário falhar depois da troca (sessão do navegador invalidada), a tela mantém o valor que o SDK tinha; `revokeRefreshTokens` não foi feito (possível melhoria futura).
+- **S2, `POST /vinculo/convidar-familiar`.** Mudança de contrato: vínculo pendente ou aprovado já existente com o familiar, e a corrida do índice único, deixam de dar 409 e respondem `201 { registrado: true }` igual aos outros caminhos, sem criar vínculo. `email_convite_familiar` agora é gravado também nesses dois caminhos: o idoso lê essa coluna em `/auth/sync`, que devolve todas as colunas do `Usuario` exceto a foto, e deixá-la sem gravar revelaria a existência do vínculo. O tratamento do 409 em `ConvidarFamiliar.tsx` ficou (o mesmo código atende o convite de cuidador); o texto de sucesso não afirma que existe conta e não mudou.
+- **Testes e mutações.** Backend 2787 para 2794 testes (53 suítes); frontend 1095 para 1097 (97 suítes). Mutações: sem `emailVerified: false` (2 testes falham), `emailVerified: false` também ao apagar o e-mail (1), mesmo sem o e-mail mudar (1), Perfil sem remontar a seção (1), "já existe" volta a 409 (3), corrida volta a 409 (2), `email_convite_familiar` só sem conta (5).

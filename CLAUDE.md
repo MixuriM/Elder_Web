@@ -308,6 +308,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `solicitacao_cuidador` ou aprovado dá 409; o pedido do cuidador também o substitui). Convite repetido válido responde
   201 igual (sem 409: seria oráculo), e o aceite exige o e-mail do token igual ao do cadastro. Riscos aceitos: sem conta some em silêncio; idoso falso convida e-mail
   adivinhado (cuidador só recusa); sem limite de convites pendentes.
+- Sem oráculo de conta nos dois convites (`convidar-familiar` também responde 201 igual com vínculo já existente) e
+  `PATCH /usuario/me` manda `emailVerified: false` ao trocar o e-mail (o aceite e o aviso de emergência confiam nele).
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
