@@ -134,7 +134,8 @@ describe('ConvitesRecebidos', () => {
   it.each([
     [403, 'Confirme o seu e-mail no Meu Perfil antes de aceitar.', false],
     [404, 'Este convite não foi encontrado. A lista foi atualizada.', true],
-    [409, 'Este convite não vale mais. A lista foi atualizada.', true],
+    // 409 ao aceitar: vencido ou a decisão passou para a família. O texto diz o que fazer em vez de repetir o botão.
+    [409, 'Este convite não vale mais. A lista foi atualizada. Recuse o convite e peça o vínculo pelo botão Adicionar pessoa.', true],
     [500, 'Não foi possível concluir agora. Tente de novo em instantes.', false],
   ])('aceitar com erro %s: mensagem fixa, sem eco do corpo; recarrega a lista só em 404 e 409', async (status, texto, recarrega) => {
     mockApi.mockImplementation(
