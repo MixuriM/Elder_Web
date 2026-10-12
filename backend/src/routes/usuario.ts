@@ -231,6 +231,9 @@ router.patch("/me", requireAuth, async (req, res, next) => {
     if (telefone !== undefined)
       data.telefone = typeof telefone === "string" ? telefone.trim() || null : telefone;
 
+    // Trocar o e-mail de verdade (ignorando caixa; apagar conta): zera a verificação no Firebase e cancela os convites
+    // pendentes do idoso. Trocar só a caixa não é troca.
+    let emailMudou = false;
     if ("email" in data || "telefone" in data) {
       const atual = await prisma.usuario.findUniqueOrThrow({
         where: { id: req.usuarioId },
@@ -260,10 +263,12 @@ router.patch("/me", requireAuth, async (req, res, next) => {
         }
       }
 
+      emailMudou = "email" in data && (data.email ?? "").toLowerCase() !== (atual.email ?? "").toLowerCase();
+
       // req.usuarioId sempre tem firebase_uid preenchido: requireAuth só resolve o id
       // buscando por firebase_uid, então um Usuario sem essa coluna nunca autentica
       // como si mesmo (caso do idoso cadastrado por familiar via RF-030, fora deste fluxo).
-      if ("email" in data && data.email !== atual.email && atual.firebase_uid) {
+      if (emailMudou && atual.firebase_uid) {
         // E-mail novo (texto não vazio) ainda não foi provado: emailVerified false de forma explícita, sem depender do que
         // o Firebase faz sozinho. Sem isso a verificação do e-mail antigo valeria para o novo (e o aceite de convite e o
         // aviso de emergência confiam em "e-mail verificado"). Apagar o e-mail não manda emailVerified.
@@ -282,11 +287,26 @@ router.patch("/me", requireAuth, async (req, res, next) => {
       }
     }
 
-    const usuario = await prisma.usuario.update({
+    const atualizacao = prisma.usuario.update({
       where: { id: req.usuarioId },
       data,
       select: { id: true, nome: true, email: true, telefone: true, tipo_perfil: true },
     });
+    // O convite pendente do idoso (convite_idoso, familiar ou cuidador) foi criado para quem tinha o e-mail antigo: com
+    // outro e-mail ele não vale (senão quem criou conta com o e-mail de um terceiro trocaria para um e-mail seu, o
+    // confirmaria e ficaria com o vínculo). O idoso convida de novo. Só os pendentes desta origem e deste usuário, na
+    // mesma transação que grava o e-mail novo.
+    const usuario = emailMudou
+      ? (
+          await prisma.$transaction([
+            prisma.vinculo.updateMany({
+              where: { vinculado_id: req.usuarioId, origem: "convite_idoso", status: "pendente" },
+              data: { status: "recusado", aprovador_id: req.usuarioId, data_resposta: new Date() },
+            }),
+            atualizacao,
+          ])
+        )[1]
+      : await atualizacao;
     res.json(usuario);
   } catch (e) {
     if (isDuplicateEmail(e)) {
