@@ -267,6 +267,20 @@ describe("POST /auth/sync — email_convite_familiar (RF-024)", () => {
     );
   });
 
+  // Mesma regra do /vinculo/convidar-familiar: o convite é gravado em minúsculas e sem espaços nas pontas, para o casamento
+  // no cadastro do familiar (que compara em minúsculas) não depender da caixa digitada nem do collation do banco.
+  it("idoso com email_convite_familiar em caixa mista e com espaços: grava em minúsculas e aparado", async () => {
+    create.mockResolvedValue({ id: 1, tipo_perfil: "idoso" });
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "idoso", nome: "Ana", email_convite_familiar: "  Familiar.FICTICIO@Exemplo.Test  " });
+
+    expect(res.status).toBe(201);
+    expect(create.mock.calls[0][0].data.email_convite_familiar).toBe("familiar.ficticio@exemplo.test");
+  });
+
   it("idoso sem email_convite_familiar: campo não é enviado ao Prisma", async () => {
     create.mockResolvedValue({ id: 1, tipo_perfil: "idoso" });
 
