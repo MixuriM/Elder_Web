@@ -8,7 +8,7 @@ import request from "supertest";
 type UsuarioFake = {
   id: number;
   nome: string;
-  email: string;
+  email: string | null;
   firebase_uid: string;
   tipo_perfil: string;
   modo_decisao: string | null;
@@ -180,8 +180,13 @@ function buildApp() {
   return app;
 }
 
-function como(id: number, emailVerificado = true) {
-  verifyIdToken.mockResolvedValue({ uid: usuarios[id].firebase_uid, email_verified: emailVerificado });
+// emailDoToken: por padrão o e-mail do cadastro; string = outro e-mail; null = token sem e-mail.
+function como(id: number, emailVerificado = true, emailDoToken: string | null = usuarios[id].email) {
+  verifyIdToken.mockResolvedValue({
+    uid: usuarios[id].firebase_uid,
+    email_verified: emailVerificado,
+    ...(emailDoToken === null ? {} : { email: emailDoToken }),
+  });
 }
 
 function post(caminho: string) {
@@ -257,6 +262,40 @@ describe("POST /vinculo/:id/aceitar-convite", () => {
     expect(res.body.error).toBe("Confirme o seu e-mail antes de aceitar o convite.");
     expect(updateManySpy).not.toHaveBeenCalled();
     expect(vinculos[0].status).toBe("pendente");
+  });
+
+  // O e-mail verificado do token precisa ser o do cadastro que recebeu o convite (como no aviso de emergência): um token
+  // antigo, de outro e-mail, ou um cadastro com e-mail diferente do Firebase não aceita o convite de outra pessoa.
+  it.each([
+    ["token com outro e-mail verificado", "outra.pessoa@exemplo.test"],
+    ["token sem e-mail", null],
+  ])("403 com %s, sem escrita", async (_nome, emailDoToken) => {
+    como(CUIDADOR, true, emailDoToken);
+    const res = await aceitar();
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("Confirme o seu e-mail antes de aceitar o convite.");
+    expect(updateManySpy).not.toHaveBeenCalled();
+    expect(vinculos[0].status).toBe("pendente");
+  });
+
+  it("403 quando o cadastro do cuidador não tem e-mail, sem escrita", async () => {
+    usuarios[CUIDADOR].email = null;
+    como(CUIDADOR, true, "caio@exemplo.test");
+    const res = await aceitar();
+
+    expect(res.status).toBe(403);
+    expect(updateManySpy).not.toHaveBeenCalled();
+  });
+
+  it("a comparação dos e-mails ignora maiúsculas e minúsculas", async () => {
+    como(CUIDADOR, true, usuarios[CUIDADOR].email!.toUpperCase());
+    expect((await aceitar()).status).toBe(200);
+  });
+
+  it("recusar não exige o e-mail do token (sempre dá para dizer não)", async () => {
+    como(CUIDADOR, true, "outra.pessoa@exemplo.test");
+    expect((await recusar()).status).toBe(200);
   });
 
   it("e-mail não verificado ausente no token também dá 403", async () => {

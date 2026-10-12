@@ -98,6 +98,23 @@ describe("requireAuth", () => {
     expect(res.body).toEqual({ emailVerificado: esperado });
   });
 
+  it.each([
+    [{ uid: "u", email: "Pessoa.Ficticia@exemplo.test" }, "Pessoa.Ficticia@exemplo.test"],
+    [{ uid: "u" }, undefined],
+    [{ uid: "u", email: 123 }, undefined],
+  ])("expõe req.emailDoToken só quando o e-mail do token é texto (%j -> %s)", async (decoded, esperado) => {
+    verifyIdToken.mockResolvedValue(decoded);
+    findFirst.mockResolvedValue({ id: 42, firebase_uid: "u" });
+    const app = express();
+    app.get("/p", requireAuth, (req, res) => {
+      res.json({ emailDoToken: req.emailDoToken ?? null });
+    });
+
+    const res = await request(app).get("/p").set("Authorization", "Bearer t");
+
+    expect(res.body).toEqual({ emailDoToken: esperado ?? null });
+  });
+
   it("repassa erro do Prisma ao errorHandler: 500 genérico, sem valor sensível em console.*", async () => {
     const SEGREDO = "valor-ficticio-nao-logar";
     verifyIdToken.mockResolvedValue({ uid: "u" });
