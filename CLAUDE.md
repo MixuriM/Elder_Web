@@ -119,8 +119,8 @@ Vinculo
 ```
 
 - **Aprovação de vínculo não é sempre manual.** Para **cuidador**, é sempre
-  aprovação manual (`aprovador_id` humano). Para **familiar**, depende de quem
-  iniciou o vínculo: se veio de convite do idoso (`convite_idoso`) ou de
+  aprovação manual (`aprovador_id` humano; em `convite_idoso`, o cuidador ao aceitar). Para **familiar**, depende de quem
+  iniciou o vínculo: se veio de convite do idoso (`convite_idoso`, só familiar) ou de
   cadastro feito pelo familiar (`cadastro_familiar`), a aprovação é automática
   por confirmação de posse do e-mail; se veio de solicitação do familiar
   (`solicitacao_familiar`), é aprovação manual como no caso do cuidador.
@@ -306,6 +306,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `convite_idoso`; resposta igual com ou sem conta, 409 só se já há vínculo. (2) Aprovar vínculo de origem `convite_idoso` ou
   `cadastro_familiar` dá 409 (só recusar ou contestar). (3) `GET /vinculo` traz `decisao` (`modo`, `transferencia`, sem
   motivo nem id) no vínculo aprovado de familiar do chamador.
+- Convite do idoso ao cuidador (2026-10-12): `POST /vinculo/convidar-cuidador` (só `modo_decisao` efetivo `idoso`; familiar
+  titular não convida) cria `Vinculo` pendente (cuidador, `convite_idoso`) só se há conta de cuidador; sem conta some em
+  silêncio. O cuidador aprova em `aceitar-convite` (e-mail verificado, convite de até 7 dias). Riscos aceitos: idoso falso
+  convida e-mail adivinhado (cuidador só recusa); sem limite de convites pendentes.
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
@@ -353,8 +357,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   real, aceito); `npm test` segue `jest` e o CI roda `npm run test:coverage` no lugar dele; CI em push de todas as
   branches mais PR para `main`, com `concurrency` (execução duplicada aceita); limiares = floor(medido) menos 1
   (routes 95/92/99/96, middleware 99; metas mínimas 85/75/85/85 e 90/80/90/90); mutação local vale como RED em
-  teste de caracterização; regra de ator vem do código (cuidador nunca cria medicamento nem refeição, familiar só com
-  `modo_decisao` efetivo `'familiar'`, flag exata e estrita).
+  teste de caracterização; regra de ator vem do código.
 
 - Frontend (2026-10-08, decisões do grupo): menu por perfil (D1, D2): idoso vê tudo; cuidador ou familiar sem vínculo
   aprovado vê só Início, Meu Perfil, a lista do seu tipo (Família ou Cuidadores) e Orientações; Saúde, Medicamentos,
@@ -386,7 +389,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Emergência (RF novo, número a definir pelo grupo): `POST /emergencia/avisar` (só idoso; 403 nos outros) manda
   e-mail aos vínculos aprovados com e-mail verificado no Firebase (`auth.getUsers`, mesmo e-mail do cadastro; erro do
   Firebase: 503, ninguém recebe) via `lib/enviarEmail.ts` (único ponto do provedor, API HTTPS: Render free bloqueia
-  SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Limite em memória por
+  SMTP). Env `EMAIL_*` (em `render.yaml`; sem elas, 503). Limite em memória por
   idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso. Resposta só com contagens
   (`nao_confirmados` inclusive). `BotaoAjuda` no `Header` só para idoso; perfil com mais de 3 s ou falha: só o link
   "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no
