@@ -16,15 +16,17 @@ type ConvitesRecebidosProps = {
 
 type Acao = "aceitar" | "recusar";
 
+const TEXTO_409_RECUSAR = "Este convite não vale mais. A lista foi atualizada.";
 const ERROS_ACEITAR: Partial<Record<number, string>> = {
   403: "Confirme o seu e-mail no Meu Perfil antes de aceitar.",
   404: "Este convite não foi encontrado. A lista foi atualizada.",
-  409: "Este convite não vale mais. A lista foi atualizada.",
+  // Vencido ou a decisão passou para a família: o convite continua na lista, então o texto diz o que fazer.
+  409: `${TEXTO_409_RECUSAR} Recuse o convite e peça o vínculo pelo botão Adicionar pessoa.`,
 };
 // Recusar nunca exige e-mail confirmado: sem texto para 403.
 const ERROS_RECUSAR: Partial<Record<number, string>> = {
   404: ERROS_ACEITAR[404],
-  409: ERROS_ACEITAR[409],
+  409: TEXTO_409_RECUSAR,
 };
 
 // Convites que um idoso mandou ao cuidador logado. Aceitar libera o acesso aos dados do idoso: só acontece no clique
