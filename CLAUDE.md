@@ -312,6 +312,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `PATCH /usuario/me` manda `emailVerified: false` ao trocar o e-mail (o aceite e o aviso de emergência confiam nele).
 - Aprovação automática por e-mail verificado (login do familiar, `cadastrar-idoso`, aceite) exige `emailDoTokenConfere` (token
   = cadastro). `PATCH /usuario/me` valida antes do Firebase. Riscos abertos e A6 (limite de taxa): histórico, 2026-10-12.
+- Trocar o e-mail recusa os `convite_idoso` pendentes do usuário; e-mail no `Vinculo` (migration): grupo, histórico 2026-10-12.
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
