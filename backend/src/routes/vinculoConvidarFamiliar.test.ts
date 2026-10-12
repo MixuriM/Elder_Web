@@ -104,6 +104,14 @@ describe("POST /vinculo/convidar-familiar", () => {
     },
   );
 
+  it("400 quando o e-mail passa de 255 caracteres só depois das minúsculas (İ vira 2 unidades), sem escrita", async () => {
+    comoIdoso();
+    const res = await convidar({ email: `${"İ".repeat(130)}@b.co` });
+    expect(res.status).toBe(400);
+    expect(updateUsuario).not.toHaveBeenCalled();
+    expect(createVinculo).not.toHaveBeenCalled();
+  });
+
   it("403 quando a decisão está com a família (o idoso não adiciona familiar automático nesse período)", async () => {
     comoIdoso("familiar");
     const res = await convidar({ email: EMAIL });
