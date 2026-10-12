@@ -457,7 +457,7 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
 
   it("login de familiar com email_verified=true promove vínculos pendentes a aprovado", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: true });
-    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });
+    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar", email: "familiar@a.com" });
 
     const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
 
@@ -475,7 +475,7 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
 
   it("login de familiar promove só origens da lista (convite_idoso, cadastro_familiar), nunca solicitacao_familiar", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: true });
-    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });
+    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar", email: "familiar@a.com" });
 
     await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
 
@@ -486,7 +486,7 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
 
   it("login de familiar com vínculo contestado ('recusado') não o reativa (RF-022)", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: true });
-    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });
+    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar", email: "familiar@a.com" });
     updateManyVinculo.mockResolvedValue({ count: 0 });
 
     const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
@@ -500,7 +500,7 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
 
   it("login de familiar com email_verified=false não promove nada", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: false });
-    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });
+    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar", email: "familiar@a.com" });
 
     const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
 
@@ -508,9 +508,48 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
     expect(updateManyVinculo).not.toHaveBeenCalled();
   });
 
+  // Token emitido antes da troca de e-mail segue com email_verified=true por até 1 h: a verificação vale para o e-mail
+  // DO TOKEN, então só aprova se ele for o e-mail do cadastro. Senão se comporta como não verificado (200, sem promover).
+  describe("e-mail do token precisa ser o do cadastro para promover", () => {
+    function sincronizar(token: Record<string, unknown>, cadastro: { email: string | null }) {
+      verifyIdToken.mockResolvedValue({ uid: "uid-fam", email_verified: true, ...token });
+      findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar", email: cadastro.email });
+      return request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
+    }
+
+    it("e-mail do token diferente do cadastro: 200, não promove", async () => {
+      const res = await sincronizar({ email: "antigo@a.com" }, { email: "novo@a.com" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.criado).toBe(false);
+      expect(updateManyVinculo).not.toHaveBeenCalled();
+    });
+
+    it("mesmo e-mail com caixa diferente: promove", async () => {
+      const res = await sincronizar({ email: "FAMILIAR@A.com" }, { email: "familiar@a.com" });
+
+      expect(res.status).toBe(200);
+      expect(updateManyVinculo).toHaveBeenCalledTimes(1);
+    });
+
+    it("token sem claim de e-mail: não promove", async () => {
+      const res = await sincronizar({}, { email: "familiar@a.com" });
+
+      expect(res.status).toBe(200);
+      expect(updateManyVinculo).not.toHaveBeenCalled();
+    });
+
+    it("cadastro sem e-mail: não promove", async () => {
+      const res = await sincronizar({ email: "familiar@a.com" }, { email: null });
+
+      expect(res.status).toBe(200);
+      expect(updateManyVinculo).not.toHaveBeenCalled();
+    });
+  });
+
   it("login de familiar sem vínculo pendente não quebra", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: true });
-    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar" });
+    findFirst.mockResolvedValueOnce({ id: 10, tipo_perfil: "familiar", email: "familiar@a.com" });
     updateManyVinculo.mockResolvedValue({ count: 0 });
 
     const res = await request(buildApp()).post("/auth/sync").set("Authorization", "Bearer x").send({});
@@ -520,7 +559,7 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
 
   it("login repetido não duplica nem falha", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: true });
-    findFirst.mockResolvedValue({ id: 10, tipo_perfil: "familiar" });
+    findFirst.mockResolvedValue({ id: 10, tipo_perfil: "familiar", email: "familiar@a.com" });
 
     const app = buildApp();
     const res1 = await request(app).post("/auth/sync").set("Authorization", "Bearer x").send({});

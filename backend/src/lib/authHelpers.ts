@@ -52,6 +52,18 @@ export function isValidEmailFormat(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+// "E-mail verificado" do token vale para o e-mail DO TOKEN. O ID token emitido antes de uma troca de e-mail segue com
+// email_verified=true por até 1 h, então toda aprovação automática por posse de e-mail só vale se o e-mail do token for o
+// do cadastro (sem diferenciar maiúsculas). Token sem e-mail ou cadastro sem e-mail: não confere.
+export function emailDoTokenConfere(emailDoToken: unknown, emailCadastro: string | null | undefined): boolean {
+  return (
+    typeof emailDoToken === "string" &&
+    emailDoToken !== "" &&
+    !!emailCadastro &&
+    emailDoToken.toLowerCase() === emailCadastro.toLowerCase()
+  );
+}
+
 // SQL Server rejeita a criação concorrente do mesmo firebase_uid via índice único
 // filtrado — firebase_uid não é @unique nativo do Prisma (é índice manual, ver
 // schema.prisma), então o erro chega como texto genérico do driver, não como P2002.
