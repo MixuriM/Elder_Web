@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { chamarApi } from "../lib/chamarApi";
 import { buscarPerfil } from "../services/perfilService";
 import type { Vinculo } from "../components/Vinculos/CardVinculo";
+import { ehConviteVencido } from "../components/Vinculos/regrasVinculo";
 import { AcessoContext, type Acesso, type ContextoAcesso } from "./useAcesso";
 
 // Nem buscarPerfil nem chamarApi têm timeout (mesmo limite de useIdososVinculados): 60 s cobre o cold
@@ -38,7 +39,8 @@ async function buscar(): Promise<Resultado> {
     ...base,
     vinculos,
     temVinculoAprovado: proprios.some((v) => v.status === "aprovado"),
-    temVinculoPendente: proprios.some((v) => v.status === "pendente"),
+    // Convite de cuidador vencido não espera ninguém (só pode ser recusado): não conta como pendência.
+    temVinculoPendente: proprios.some((v) => v.status === "pendente" && !ehConviteVencido(v)),
     estado: "ok",
   };
 }
