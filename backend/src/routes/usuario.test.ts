@@ -445,6 +445,41 @@ describe("PATCH /usuario/me", () => {
   });
 
 
+  // B2: tamanho de nome (NVarChar 150) e telefone (NVarChar 20) é checado antes do Firebase; senão o update do banco
+  // falharia depois do updateUser e os dois sistemas ficariam com e-mails diferentes.
+  describe("tamanho de nome e telefone antes do Firebase", () => {
+    function patch(corpo: object) {
+      return request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send(corpo);
+    }
+
+    beforeEach(() => {
+      findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+      updateUser.mockResolvedValue(undefined);
+      update.mockResolvedValue({ id: 42, nome: "Ana", email: "novo@a.com", telefone: "123", tipo_perfil: "idoso" });
+    });
+
+    it.each([
+      ["nome com 151 caracteres", { nome: "n".repeat(151) }, "Nome deve ter até 150 caracteres."],
+      ["telefone com 21 caracteres", { telefone: "1".repeat(21) }, "Telefone deve ter até 20 caracteres."],
+    ])("%s junto com e-mail novo: 400, sem chamar o Firebase nem o banco", async (_nome, corpo, mensagem) => {
+      const res = await patch({ ...corpo, email: "novo@a.com" });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: mensagem });
+      expect(updateUser).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it("nome com espaços nas pontas conta sem eles; nome com 150 e telefone com 20 caracteres são aceitos", async () => {
+      const res = await patch({ nome: `  ${"n".repeat(150)}  `, telefone: "1".repeat(20), email: "novo@a.com" });
+
+      expect(res.status).toBe(200);
+      expect(update.mock.calls[0][0].data).toMatchObject({ nome: "n".repeat(150), telefone: "1".repeat(20) });
+      expect(updateUser).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("só o telefone muda: não chama o Firebase", async () => {
     findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
     update.mockResolvedValue({ id: 42, nome: "Ana", email: "a@a.com", telefone: "999", tipo_perfil: "idoso" });
