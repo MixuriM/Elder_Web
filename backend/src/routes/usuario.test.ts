@@ -135,7 +135,19 @@ describe("PATCH /usuario/me", () => {
     update.mockReset();
     updateUser.mockReset();
     verifyIdToken.mockResolvedValue({ uid: "uid-42" });
-    findFirst.mockResolvedValue(USUARIO_LOGADO);
+    // findFirst é compartilhado entre requireAuth (por firebase_uid) e a checagem de e-mail em uso: este fake filtra de
+    // verdade pelo where (e-mail sem diferenciar caixa, como o SQL Server; exclui o id em NOT), senão os testes de
+    // duplicidade passariam por vacuidade. Contas do banco: a logada (42) e a de outra pessoa (7).
+    const contas = [
+      { id: 42, email: "a@a.com" },
+      { id: 7, email: "ocupado@a.com" },
+    ];
+    findFirst.mockImplementation((args: { where: { email?: string; id?: { not?: number } } }) => {
+      const { email, id } = args.where;
+      if (email === undefined) return Promise.resolve(USUARIO_LOGADO);
+      const achada = contas.find((c) => c.email.toLowerCase() === email.toLowerCase() && c.id !== id?.not);
+      return Promise.resolve(achada ? { id: achada.id } : null);
+    });
   });
 
   it("bloqueia email e telefone nulos ao mesmo tempo com mensagem clara", async () => {
@@ -198,6 +210,108 @@ describe("PATCH /usuario/me", () => {
 
     expect(res.status).toBe(200);
     updateUser.mock.calls.forEach(([, propriedades]) => expect(propriedades).not.toHaveProperty("emailVerified"));
+  });
+
+  // A2: formato e unicidade no banco são checados ANTES do Firebase; o mesmo 409 e o mesmo 400 valem quando é o Firebase
+  // que acusa o problema, para a resposta não revelar em qual dos dois sistemas o e-mail existe.
+  describe("e-mail novo: validação antes do Firebase", () => {
+    const MSG_EM_USO = "Este e-mail já está em uso por outra conta.";
+    const MSG_INVALIDO = "E-mail inválido.";
+
+    function patchEmail(email: string) {
+      return request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send({ email });
+    }
+
+    beforeEach(() => {
+      findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+      updateUser.mockResolvedValue(undefined);
+      update.mockResolvedValue({ id: 42, nome: "Ana", email: "novo@a.com", telefone: "123", tipo_perfil: "idoso" });
+    });
+
+    it.each([
+      ["sem arroba", "sem-arroba"],
+      ["sem domínio", "a@"],
+      ["com espaço no meio", "a b@a.com"],
+      ["acima de 255 caracteres", `${"a".repeat(250)}@a.com`],
+    ])("e-mail %s: 400 sem chamar o Firebase nem o banco", async (_nome, email) => {
+      const res = await patchEmail(email);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: MSG_INVALIDO });
+      expect(updateUser).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("e-mail de outra conta: 409 sem chamar o Firebase nem o banco, sem eco do e-mail", async () => {
+      const res = await patchEmail("ocupado@a.com");
+
+      expect(res.status).toBe(409);
+      expect(res.body).toEqual({ error: MSG_EM_USO });
+      expect(updateUser).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("e-mail de outra conta com caixa diferente: 409 também", async () => {
+      const res = await patchEmail("OCUPADO@a.com");
+
+      expect(res.status).toBe(409);
+      expect(updateUser).not.toHaveBeenCalled();
+    });
+
+    it("a checagem de duplicidade lê só o id e exclui a própria conta", async () => {
+      await patchEmail("novo@a.com");
+
+      const chamada = findFirst.mock.calls.find((c) => c[0].where.email !== undefined);
+      expect(chamada?.[0]).toEqual({ where: { email: "novo@a.com", id: { not: 42 } }, select: { id: true } });
+    });
+
+    it("o próprio e-mail em outra caixa não conta como duplicado: 200 e chama o Firebase", async () => {
+      const res = await patchEmail("A@A.com");
+
+      expect(res.status).toBe(200);
+      expect(updateUser).toHaveBeenCalledWith("uid-42", { email: "A@A.com", emailVerified: false });
+    });
+
+    it("e-mail igual ao atual não é revalidado (cadastro antigo fora do formato não trava o perfil)", async () => {
+      findUniqueOrThrow.mockResolvedValue({ email: "legado", telefone: "123", firebase_uid: "uid-42" });
+
+      const res = await patchEmail("legado");
+
+      expect(res.status).toBe(200);
+      expect(updateUser).not.toHaveBeenCalled();
+    });
+
+    it("Firebase acusa auth/email-already-exists: o mesmo 409 da checagem no banco", async () => {
+      updateUser.mockRejectedValue(Object.assign(new Error("exists"), { code: "auth/email-already-exists" }));
+
+      const noFirebase = await patchEmail("novo@a.com");
+      const noBanco = await patchEmail("ocupado@a.com");
+
+      expect(noFirebase.status).toBe(409);
+      expect(noFirebase.body).toEqual(noBanco.body);
+      expect(noFirebase.body).toEqual({ error: MSG_EM_USO });
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("Firebase acusa auth/invalid-email: o mesmo 400 da checagem de formato", async () => {
+      updateUser.mockRejectedValue(Object.assign(new Error("invalid"), { code: "auth/invalid-email" }));
+
+      const noFirebase = await patchEmail("novo@a.com");
+      const noFormato = await patchEmail("sem-arroba");
+
+      expect(noFirebase.status).toBe(400);
+      expect(noFirebase.body).toEqual(noFormato.body);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("outro erro do Firebase segue para o errorHandler (500), sem persistir", async () => {
+      updateUser.mockRejectedValue(Object.assign(new Error("interno"), { code: "auth/internal-error" }));
+
+      const res = await patchEmail("novo@a.com");
+
+      expect(res.status).toBe(500);
+      expect(update).not.toHaveBeenCalled();
+    });
   });
 
   it("só o telefone muda: não chama o Firebase", async () => {
