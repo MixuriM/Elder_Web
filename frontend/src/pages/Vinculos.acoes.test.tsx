@@ -76,21 +76,22 @@ describe("Vinculos: Adicionar pessoa e resumo", () => {
   });
 
   it.each([
-    ["idoso", "cuidador"],
     ["familiar", "cuidador"],
     [null, "familiar"],
+    [null, "cuidador"],
   ] as const)("perfil %s na tela %s: sem botão", async (perfil, tipo) => {
     renderComPerfil(perfil, tipo);
     await screen.findByRole("heading", { level: 1 });
     expect(screen.queryByRole("button", { name: "Adicionar pessoa" })).not.toBeInTheDocument();
   });
 
-  it("idoso vê como a pessoa entra: pede pelo e-mail do idoso e ele aprova", async () => {
+  it("idoso na tela de cuidadores vê as duas formas de a pessoa entrar: convite pelo botão ou pedido do cuidador", async () => {
     global.fetch = jest.fn().mockResolvedValue(respostaJson(200, { vinculos: [] }));
     renderComPerfil("idoso", "cuidador");
-    expect(
-      await screen.findByText(/o cuidador pede o vínculo usando o seu e-mail e você responde ao pedido/i)
-    ).toBeInTheDocument();
+    const texto = await screen.findByText(/adicione-o pelo botão Adicionar pessoa/i);
+    expect(texto).toHaveTextContent(/precisa já ter conta de cuidador e aceitar o convite/i);
+    expect(texto).toHaveTextContent(/ou espere o pedido do cuidador e responda aqui/i);
+    expect(screen.queryByText(/o cuidador pede o vínculo usando o seu e-mail/i)).not.toBeInTheDocument();
   });
 });
 

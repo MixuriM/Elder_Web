@@ -112,3 +112,108 @@ describe('ConvidarFamiliar', () => {
     expect(await axe(container, AXE)).toHaveNoViolations()
   })
 })
+
+describe('ConvidarFamiliar com tipo="cuidador"', () => {
+  const ROTA_CUIDADOR = 'POST /vinculo/convidar-cuidador'
+  // Fixture: e-mail obviamente falso, só para o teste.
+  const EMAIL_CUIDADOR = 'cuidador.teste@exemplo.test'
+
+  function montarCuidador() {
+    const onConcluido = jest.fn()
+    const onFechar = jest.fn()
+    const utils = render(<ConvidarFamiliar tipo="cuidador" onConcluido={onConcluido} onFechar={onFechar} />)
+    return { ...utils, onConcluido, onFechar }
+  }
+
+  async function enviarCuidador(email = EMAIL_CUIDADOR) {
+    const campo = screen.getByLabelText(/e-mail do cuidador/i)
+    await userEvent.clear(campo)
+    if (email) await userEvent.type(campo, email)
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite' }))
+  }
+
+  beforeEach(() => {
+    mockApi.mockReset()
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    jest.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => jest.restoreAllMocks())
+
+  it('explica que a pessoa precisa já ter conta de cuidador', () => {
+    montarCuidador()
+    expect(screen.getByText(/precisa já ter conta de cuidador/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/e-mail do familiar/i)).not.toBeInTheDocument()
+  })
+
+  it('chama a rota de cuidador com só o e-mail sem espaços e mostra o texto de sucesso que permanece', async () => {
+    const chamadas: { rota: string; corpo: unknown }[] = []
+    mockApi.mockImplementation((caminho: string, o: RequestInit) => {
+      chamadas.push({ rota: `${o.method} ${caminho}`, corpo: JSON.parse(String(o.body)) })
+      return Promise.resolve({ registrado: true })
+    })
+    const { onConcluido, onFechar } = montarCuidador()
+    await enviarCuidador(`  ${EMAIL_CUIDADOR}  `)
+
+    const aviso = await screen.findByRole('status')
+    expect(chamadas).toEqual([{ rota: ROTA_CUIDADOR, corpo: { email: EMAIL_CUIDADOR } }])
+    expect(aviso).toHaveTextContent('Convite enviado.')
+    expect(aviso).toHaveTextContent(/ela verá o convite aqui na tela Cuidadores e precisa aceitar/i)
+    expect(aviso).toHaveTextContent(/o convite vale 7 dias/i)
+    expect(aviso).toHaveTextContent(/se a pessoa ainda não tem conta, o convite não chega/i)
+    expect(aviso).not.toHaveTextContent(/aprovado sozinho/i)
+    expect(aviso).toHaveFocus()
+    expect(onConcluido).toHaveBeenCalledTimes(1)
+    expect(onFechar).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Concluir' }))
+    expect(onFechar).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['', 'sem-arroba', 'a@b'])('e-mail inválido (%j) não envia e explica', async (valor) => {
+    montarCuidador()
+    await enviarCuidador(valor)
+    expect(mockApi).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Digite um e-mail válido, como nome@exemplo.com.')
+    expect(screen.getByLabelText(/e-mail do cuidador/i)).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it.each([
+    [400, 'Confira o e-mail digitado e tente de novo.'],
+    [403, 'Você não pode convidar um cuidador agora.'],
+    [409, 'Já existe um pedido pendente ou vínculo com esta pessoa.'],
+    [500, 'Não foi possível enviar agora. Tente de novo em instantes.'],
+  ])('status %s: mensagem fixa, sem eco do corpo, e dá para tentar de novo', async (status, texto) => {
+    mockApi.mockImplementation(
+      apiFalsa({
+        [ROTA_CUIDADOR]: () => {
+          throw erroApi(status, 'SEGREDO-do-corpo modo_decisao')
+        },
+      }),
+    )
+    montarCuidador()
+    await enviarCuidador()
+    expect(await screen.findByRole('alert')).toHaveTextContent(texto)
+    expect(document.body).not.toHaveTextContent('SEGREDO-do-corpo')
+    expect(document.body).not.toHaveTextContent('modo_decisao')
+    expect(screen.getByRole('button', { name: 'Enviar convite' })).toBeEnabled()
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it('não tem violações do axe (formulário, erro e sucesso)', async () => {
+    mockApi.mockImplementation(
+      apiFalsa({
+        [ROTA_CUIDADOR]: () => {
+          throw erroApi(409)
+        },
+      }),
+    )
+    const { container } = montarCuidador()
+    expect(await axe(container, AXE)).toHaveNoViolations()
+    await enviarCuidador()
+    await screen.findByRole('alert')
+    expect(await axe(container, AXE)).toHaveNoViolations()
+    mockApi.mockImplementation(apiFalsa({ [ROTA_CUIDADOR]: () => ({ registrado: true }) }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite' }))
+    await screen.findByRole('status')
+    expect(await axe(container, AXE)).toHaveNoViolations()
+  })
+})
