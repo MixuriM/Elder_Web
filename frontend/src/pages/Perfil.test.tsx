@@ -9,7 +9,17 @@ import { FotoPerfilContext, useFotoPerfil } from "../contexts/useFotoPerfil";
 import { AcessoContext } from "../contexts/useAcesso";
 
 // A seção de e-mail tem teste próprio (SituacaoEmail.test.tsx); aqui só importa onde ela aparece.
-jest.mock("../components/perfil/SituacaoEmail", () => () => <p>secao-situacao-email</p>);
+// Conta quantas vezes a seção é montada: salvar o perfil precisa montá-la de novo (ver o teste do e-mail trocado).
+const mockSituacaoEmail = { montagens: 0 };
+jest.mock("../components/perfil/SituacaoEmail", () => {
+  const { useEffect } = jest.requireActual("react");
+  return function SituacaoEmailFalsa() {
+    useEffect(() => {
+      mockSituacaoEmail.montagens += 1;
+    }, []);
+    return <p>secao-situacao-email</p>;
+  };
+});
 
 // O contexto de foto importa useAuthUser (Firebase); o teste não precisa dele.
 jest.mock("../hooks/useAuthUser", () => ({
@@ -280,5 +290,55 @@ describe("Perfil: situação do e-mail só para cuidador e familiar", () => {
     );
     await screen.findByDisplayValue("Ana");
     expect(screen.queryByText("secao-situacao-email") !== null).toBe(aparece);
+  });
+
+  // O backend zera a verificação do Firebase ao trocar o e-mail. A seção "Confirmação de e-mail" lê a situação só ao
+  // montar, então sem remontar ela continuaria dizendo "E-mail confirmado" para um e-mail que ninguém confirmou.
+  describe("situação do e-mail depois de salvar", () => {
+    function renderCuidador() {
+      return render(
+        <MemoryRouter>
+          <AcessoContext.Provider
+            value={{ tipoPerfil: "cuidador", estado: "ok", temVinculoAprovado: false, temVinculoPendente: false }}
+          >
+            <Perfil />
+          </AcessoContext.Provider>
+        </MemoryRouter>
+      );
+    }
+
+    beforeEach(() => {
+      mockSituacaoEmail.montagens = 0;
+    });
+
+    it("salvar com sucesso monta a seção de novo (lê a situação do e-mail outra vez)", async () => {
+      mockBuscarPerfil.mockResolvedValue({ ...DADOS, tipo_perfil: "cuidador" });
+      mockSalvarPerfil.mockResolvedValue({ ...DADOS, email: "novo@a.com" });
+      const user = userEvent.setup();
+      renderCuidador();
+      await screen.findByDisplayValue("Ana");
+      expect(mockSituacaoEmail.montagens).toBe(1);
+
+      const campoEmail = screen.getByLabelText(/^e-mail$/i);
+      await user.clear(campoEmail);
+      await user.type(campoEmail, "novo@a.com");
+      await user.click(screen.getByRole("button", { name: /salvar/i }));
+
+      await waitFor(() => expect(mockSalvarPerfil).toHaveBeenCalled());
+      await waitFor(() => expect(mockSituacaoEmail.montagens).toBe(2));
+    });
+
+    it("salvar com falha não monta a seção de novo", async () => {
+      mockBuscarPerfil.mockResolvedValue({ ...DADOS, tipo_perfil: "cuidador" });
+      mockSalvarPerfil.mockRejectedValue(new Error("Este e-mail já está em uso por outra conta."));
+      const user = userEvent.setup();
+      renderCuidador();
+      await screen.findByDisplayValue("Ana");
+
+      await user.click(screen.getByRole("button", { name: /salvar/i }));
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+      expect(mockSituacaoEmail.montagens).toBe(1);
+    });
   });
 });
