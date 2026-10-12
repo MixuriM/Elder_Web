@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import ConvitesRecebidos from './ConvitesRecebidos'
 import type { Vinculo } from './CardVinculo'
+import { formatarDataBR } from './regrasVinculo'
 import { chamarApi } from '../../lib/chamarApi'
 import { apiFalsa, erroApi } from '../../testSupport/apiFalsa'
 
@@ -13,6 +14,11 @@ jest.mock('../../lib/chamarApi', () => ({ chamarApi: jest.fn() }))
 const mockApi = chamarApi as jest.Mock
 const AXE = { rules: { 'color-contrast': { enabled: false } } }
 
+// Datas relativas a agora: o prazo do convite é de 7 dias, então uma data fixa viraria "vencido" com o tempo.
+const DIA = 24 * 60 * 60 * 1000
+const RECENTE = new Date(Date.now() - DIA).toISOString()
+const VENCIDO = new Date(Date.now() - 30 * DIA).toISOString()
+
 // Fixtures: dados fake, só para o teste. O backend esconde o id do idoso, mas mostra nome e e-mail mascarado.
 function v(extra: Partial<Vinculo> = {}): Vinculo {
   return {
@@ -20,7 +26,7 @@ function v(extra: Partial<Vinculo> = {}): Vinculo {
     tipo_vinculo: 'cuidador',
     origem: 'convite_idoso',
     status: 'pendente',
-    data_solicitacao: '2026-10-01T15:00:00.000Z',
+    data_solicitacao: RECENTE,
     data_resposta: null,
     confirmado_em: null,
     papel_do_chamador: 'vinculado',
@@ -51,7 +57,8 @@ describe('ConvitesRecebidos', () => {
     const item = screen.getByRole('article', { name: /Maria Idosa/ })
     expect(within(item).getByText('Convidou você para ser cuidador dele')).toBeInTheDocument()
     expect(within(item).getByText(/ma\*\*\*@mail\.test/)).toBeInTheDocument()
-    expect(within(item).getByText(/01\/10\/2026/)).toBeInTheDocument()
+    expect(within(item).getByText(new RegExp(formatarDataBR(RECENTE)))).toBeInTheDocument()
+    expect(within(item).queryByText(/convite vencido/i)).not.toBeInTheDocument()
     expect(within(item).getByRole('button', { name: 'Aceitar o convite de Maria Idosa' })).toBeInTheDocument()
     expect(within(item).getByRole('button', { name: 'Recusar o convite de Maria Idosa' })).toBeInTheDocument()
     expect(screen.getAllByRole('article')).toHaveLength(2)
@@ -167,6 +174,38 @@ describe('ConvitesRecebidos', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(texto)
     expect(document.body).not.toHaveTextContent('SEGREDO-do-corpo')
     expect(onResolvido).toHaveBeenCalledTimes(recargas)
+  })
+
+  describe('convite vencido (mais de 7 dias)', () => {
+    it('sem Aceitar: explica que venceu e mantém só Recusar', () => {
+      montar([v({ data_solicitacao: VENCIDO })])
+      const item = screen.getByRole('article', { name: /Maria Idosa/ })
+      expect(within(item).getByText('Convite vencido. Peça um novo convite ao idoso.')).toBeInTheDocument()
+      expect(within(item).queryByRole('button', { name: /aceitar/i })).not.toBeInTheDocument()
+      expect(within(item).getByRole('button', { name: 'Recusar o convite de Maria Idosa' })).toBeInTheDocument()
+      expect(within(item).getAllByRole('button')).toHaveLength(1)
+    })
+
+    it('convite válido e vencido na mesma lista: só o válido tem Aceitar', () => {
+      montar([v(), v({ id: 21, data_solicitacao: VENCIDO, idoso: { id: null, nome: 'Rita Idosa', email_mascarado: null } })])
+      expect(screen.getAllByRole('button', { name: /aceitar o convite/i })).toHaveLength(1)
+      expect(screen.getByRole('button', { name: 'Aceitar o convite de Maria Idosa' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Recusar o convite de Rita Idosa' })).toBeInTheDocument()
+    })
+
+    it('recusar o vencido usa a rota normal de recusar convite', async () => {
+      mockApi.mockImplementation(apiFalsa({ 'POST /vinculo/20/recusar-convite': () => ({ id: 20, status: 'recusado' }) }))
+      const { onResolvido } = montar([v({ data_solicitacao: VENCIDO })])
+      await userEvent.click(screen.getByRole('button', { name: 'Recusar o convite de Maria Idosa' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Sim, recusar' }))
+      expect(await screen.findByText('Convite de Maria Idosa recusado.')).toBeInTheDocument()
+      expect(onResolvido).toHaveBeenCalledTimes(1)
+    })
+
+    it('não tem violações do axe', async () => {
+      const { container } = montar([v({ data_solicitacao: VENCIDO })])
+      expect(await axe(container, AXE)).toHaveNoViolations()
+    })
   })
 
   it('não tem violações do axe (lista, confirmação e erro)', async () => {

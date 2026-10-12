@@ -68,8 +68,15 @@ describe('calcularAvisos: pedidos de vínculo', () => {
 
 describe('calcularAvisos: convite do idoso ao cuidador', () => {
   // Visão do cuidador: o backend mostra o nome do idoso enquanto o convite está pendente.
+  // Enviado 1 dia antes de AGORA: o convite vale 7 dias, medidos contra o `agora` passado a calcularAvisos.
   const convite = (parcial: Partial<Vinculo> = {}) =>
-    vinculo({ id: 10, origem: 'convite_idoso', papel_do_chamador: 'vinculado', ...parcial })
+    vinculo({
+      id: 10,
+      origem: 'convite_idoso',
+      papel_do_chamador: 'vinculado',
+      data_solicitacao: new Date(AGORA.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+      ...parcial,
+    })
 
   it('cuidador convidado: uma linha por convite pendente, com o nome de quem convidou e o link de Cuidadores', () => {
     const avisos = calcularAvisos({
@@ -94,6 +101,14 @@ describe('calcularAvisos: convite do idoso ao cuidador', () => {
     ['convite de familiar', { tipo_vinculo: 'familiar' }],
   ])('%s: nenhum aviso', (_nome, parcial) => {
     expect(calcularAvisos({ ...base, tipoPerfil: 'cuidador', vinculos: [convite(parcial)] })).toEqual([])
+  })
+
+  it('convite vencido (mais de 7 dias) não gera aviso; com exatamente 7 dias ainda gera', () => {
+    const DIA = 24 * 60 * 60 * 1000
+    const venceu = convite({ id: 20, data_solicitacao: new Date(AGORA.getTime() - 7 * DIA - 1).toISOString() })
+    const aindaVale = convite({ id: 21, data_solicitacao: new Date(AGORA.getTime() - 7 * DIA).toISOString() })
+    const avisos = calcularAvisos({ ...base, tipoPerfil: 'cuidador', vinculos: [venceu, aindaVale] })
+    expect(avisos.map((a) => a.id)).toEqual(['convite-21'])
   })
 
   it('o idoso que mandou o convite e o titular não têm "pedido para responder": não há o que aprovar', () => {
