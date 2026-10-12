@@ -305,7 +305,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Convite do idoso ao cuidador (2026-10-12): `POST /vinculo/convidar-cuidador` (só `modo_decisao` efetivo `idoso`; familiar
   titular não convida) cria `Vinculo` pendente (cuidador, `convite_idoso`) só se há conta de cuidador. O cuidador aprova em
   `aceitar-convite` (e-mail verificado, até 7 dias). Convite vencido é substituído ao convidar de novo (pendente de
-  `solicitacao_cuidador` ou aprovado dá 409). Riscos aceitos: sem conta some em silêncio; idoso falso convida e-mail
+  `solicitacao_cuidador` ou aprovado dá 409; o pedido do cuidador também o substitui). Convite repetido válido responde
+  201 igual (sem 409: seria oráculo), e o aceite exige o e-mail do token igual ao do cadastro. Riscos aceitos: sem conta some em silêncio; idoso falso convida e-mail
   adivinhado (cuidador só recusa); sem limite de convites pendentes.
 
 **Decisões fechadas**
