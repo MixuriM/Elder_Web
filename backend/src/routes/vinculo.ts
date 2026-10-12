@@ -299,27 +299,31 @@ router.post("/convidar-familiar", requireAuth, async (req, res, next) => {
         },
         select: { status: true },
       });
-      if (existente) {
-        return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
+      // Vínculo pendente ou aprovado já existente, ou a corrida do índice único: sem criar nada e SEM 409. Um 409 só
+      // existiria com conta de familiar (o pendente foi criado pelo próprio idoso na chamada anterior), então viraria
+      // oráculo de enumeração de e-mails de familiares. Segue para gravar email_convite_familiar, como todos os caminhos.
+      if (!existente) {
+        try {
+          await prisma.vinculo.create({
+            data: {
+              idoso_id: idoso.id,
+              vinculado_id: familiar.id,
+              tipo_vinculo: "familiar",
+              origem: "convite_idoso",
+              status: "pendente",
+              data_solicitacao: new Date(),
+            },
+          });
+        } catch (e) {
+          if (!isDuplicateVinculoConstraint(e)) throw e;
+        }
       }
-      await prisma.vinculo.create({
-        data: {
-          idoso_id: idoso.id,
-          vinculado_id: familiar.id,
-          tipo_vinculo: "familiar",
-          origem: "convite_idoso",
-          status: "pendente",
-          data_solicitacao: new Date(),
-        },
-      });
     }
 
+    // Em todos os caminhos: o idoso lê esta coluna em /auth/sync, então ela não pode revelar se havia conta ou vínculo.
     await prisma.usuario.update({ where: { id: idoso.id }, data: { email_convite_familiar: email }, select: { id: true } });
     res.status(201).json({ registrado: true });
   } catch (e) {
-    if (isDuplicateVinculoConstraint(e)) {
-      return res.status(409).json({ error: "Já existe um pedido pendente ou vínculo com esta pessoa." });
-    }
     next(e);
   }
 });
