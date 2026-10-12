@@ -230,14 +230,58 @@ describe("POST /vinculo/convidar-cuidador", () => {
     expect(createVinculo).not.toHaveBeenCalled();
   });
 
-  it.each(["pendente", "aprovado"])("409 se já existe vínculo %s de cuidador com a pessoa, sem escrita", async (status) => {
+  it.each([
+    ["vínculo aprovado", { status: "aprovado" }],
+    ["pedido pendente do próprio cuidador (solicitacao_cuidador)", { status: "pendente", origem: "solicitacao_cuidador" }],
+  ])("409 com %s do par, sem escrita (informação que o idoso já tem)", async (_nome, extra) => {
     comoIdoso();
     contasNoBanco([{ id: CUIDADOR, tipo_perfil: "cuidador", email: EMAIL }]);
-    vinculosNoBanco([{ idoso_id: IDOSO, vinculado_id: CUIDADOR, tipo_vinculo: "cuidador", status }]);
+    vinculosNoBanco([{ idoso_id: IDOSO, vinculado_id: CUIDADOR, tipo_vinculo: "cuidador", ...extra }]);
     const res = await convidar({ email: EMAIL });
 
     expect(res.status).toBe(409);
     expect(createVinculo).not.toHaveBeenCalled();
+  });
+
+  // Oráculo de enumeração: o convite repetido NÃO pode devolver 409 só quando existe conta, porque o vínculo pendente
+  // foi criado pelo próprio idoso na chamada anterior (um idoso falso varreria e-mails de cuidadores).
+  it("convite válido repetido ao mesmo e-mail responde 201 igual, sem escrita (idempotente)", async () => {
+    comoIdoso();
+    contasNoBanco([{ id: CUIDADOR, tipo_perfil: "cuidador", email: EMAIL }]);
+    vinculosNoBanco([{ idoso_id: IDOSO, vinculado_id: CUIDADOR, tipo_vinculo: "cuidador", status: "pendente" }]);
+    const res = await convidar({ email: EMAIL });
+
+    expect(res.status).toBe(201);
+    expect(res.text).toBe(JSON.stringify({ registrado: true }));
+    expect(createVinculo).not.toHaveBeenCalled();
+    expect(updateManyVinculo).not.toHaveBeenCalled();
+    expect(transacao).not.toHaveBeenCalled();
+  });
+
+  it("duas chamadas seguidas respondem o mesmo com conta e sem conta (sem oráculo pelo convite repetido)", async () => {
+    const respostasDe = async (contas: Conta[]) => {
+      const banco: LinhaVinculo[] = [];
+      vinculosNoBanco(banco);
+      createVinculo.mockImplementation(async ({ data }: { data: LinhaVinculo }) => {
+        banco.push({ ...data, id: banco.length + 1 });
+        return { id: banco.length };
+      });
+      const saida: [number, string][] = [];
+      for (let i = 0; i < 3; i++) {
+        comoIdoso();
+        contasNoBanco(contas);
+        const r = await convidar({ email: EMAIL });
+        saida.push([r.status, r.text]);
+      }
+      return saida;
+    };
+    const comConta = await respostasDe([{ id: CUIDADOR, tipo_perfil: "cuidador", email: EMAIL }]);
+    jest.clearAllMocks();
+    transacao.mockImplementation(async (operacoes: Promise<unknown>[]) => Promise.all(operacoes));
+    const semConta = await respostasDe([]);
+
+    expect(comConta).toEqual(semConta);
+    expect(comConta.every(([status, texto]) => status === 201 && texto === JSON.stringify({ registrado: true }))).toBe(true);
   });
 
   it("201 de novo depois de um vínculo recusado", async () => {
@@ -260,12 +304,13 @@ describe("POST /vinculo/convidar-cuidador", () => {
     expect(createVinculo).toHaveBeenCalledTimes(1);
   });
 
-  it("corrida: o índice único rejeita o create e vira 409", async () => {
+  it("corrida: o índice único rejeita o create e responde 201 igual (um 409 aqui revelaria que a conta existe)", async () => {
     comoIdoso();
     contasNoBanco([{ id: CUIDADOR, tipo_perfil: "cuidador", email: EMAIL }]);
     createVinculo.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint"));
     const res = await convidar({ email: EMAIL });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
+    expect(res.text).toBe(JSON.stringify({ registrado: true }));
   });
 
   it("erro inesperado vira 500 genérico, sem vazar a mensagem", async () => {
@@ -348,11 +393,12 @@ describe("POST /vinculo/convidar-cuidador: convite vencido do mesmo par", () => 
   it.each([
     ["6 dias e 23 horas", 6 * DIA + 23 * HORA],
     ["exatamente 7 dias", 7 * DIA],
-  ])("convite com %s ainda vale: 409, sem escrita", async (_nome, idade) => {
+  ])("convite com %s ainda vale: 201 igual (idempotente), sem escrita", async (_nome, idade) => {
     vinculosNoBanco([linha({ data_solicitacao: new Date(AGORA - idade) })]);
     const res = await convidar({ email: EMAIL });
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
+    expect(res.text).toBe(JSON.stringify({ registrado: true }));
     expect(transacao).not.toHaveBeenCalled();
     expect(updateManyVinculo).not.toHaveBeenCalled();
     expect(createVinculo).not.toHaveBeenCalled();
@@ -395,11 +441,12 @@ describe("POST /vinculo/convidar-cuidador: convite vencido do mesmo par", () => 
     expect(banco.map((l) => l.status)).toEqual(["recusado", "pendente", "pendente"]);
   });
 
-  it("corrida: a transação rejeitada pelo índice único vira 409", async () => {
+  it("corrida: a transação rejeitada pelo índice único responde 201 igual", async () => {
     vinculosNoBanco([linha()]);
     transacao.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint"));
     const res = await convidar({ email: EMAIL });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
+    expect(res.text).toBe(JSON.stringify({ registrado: true }));
   });
 
   it("erro inesperado na transação vira 500 genérico, sem vazar a mensagem", async () => {
