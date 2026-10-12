@@ -2020,3 +2020,61 @@ Corrige as limitações (b) e (f) acima e a dívida de tamanho do `CLAUDE.md`. S
 - **Contagens.** Backend 2761 para 2769 testes (52 suítes). Frontend 1042 para 1079 testes (96 suítes). O `build` (`tsc -b`) pega erro de tipo em teste que `tsc -p tsconfig.app.json` não pega.
 - **`CLAUDE.md` 29.987 para 28.480 bytes (folga 1.520).** Restaurado o texto que o commit anterior encurtara (regra de ator do 9.4 e os nomes `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO`). Saiu do `CLAUDE.md` por já estar neste histórico (comprovado por busca): calendário da Agenda de 2026-10-09 (`lib/calendario.ts`, "Ver como", cor e forma), detalhes da Home/avisos/configurações de 2026-10-09 (`resumoDia`, sino, chaves de `preferencias.ts`), detalhes do 9.3 (`pdfjs-dist`, `proxy-addr` 2.0.8, `@grpc/grpc-js`), decisões (1) a (3) das telas de vínculo de 2026-10-09, `HTTP_401` e `@brevosend.com` do e-mail de emergência, "falha não derruba o cadastro" e "reenvia e recarrega". Movido para cá por ser detalhe de implementação sem regra durável (texto original): "Limite em memória por idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso." (emergência); "formato pelos bytes: jpeg, png, webp, gif, avif, tiff; até 15 MB e 50 MP; EXIF descartado; 10 envios por hora por usuário", "abort não libera com o sharp rodando" e "`heic-to` sob demanda" (foto de perfil); "limiares routes 95/92/99/96, middleware 99; metas mínimas 85/75/85/85 e 90/80/90/90" (item 9.4, hoje em `backend/jest.config.js` e `infra/ciAutorizacao.test.ts`); "tipo ausente, não string, caixa diferente ou fora da CHECK: 400. Ordem: 403 vínculo, 403 ator ou flag, 400 tipo, 403 tipo, 400 campos. A seção do cuidador sempre aparece (403 vira mensagem)" (agenda 6.2); "`pdfjs-dist` (`canvas` opcional sem binário)" e "`--omit=dev` do backend dá 0 (`proxy-addr` 2.0.8, 2026-10-10)" (9.3); prefixos `verify-dose-`, `verify-hist-`, `verify-pdf-` e `verify-emerg-` (viraram `verify-*-`); `RESPONSIVO_VARIANTES=<regex>` (já citado em "Layout no celular, rodada 2").
 - **Dívida registrada, não desta rodada.** `routes/vinculo.ts` passou de 1.000 linhas (1.082); extrair os convites para módulo próprio fica para depois.
+
+### Revisão independente, resíduos e auditoria do `CLAUDE.md` (2026-10-12, sem PR ainda)
+
+Fecha o que sobrou do convite do idoso ao cuidador. Sem schema, migration, dependência nem mudança em `auth.ts`.
+
+- **Resíduos de UI.** `temVinculoPendente` (`AcessoContext`) ignora convite de cuidador vencido; `ResumoVinculos` separa "pedidos aguardando resposta" (sem convite) de "N convite(s) esperando o cuidador aceitar" (idoso e titular) e "N convite(s) para você responder" (cuidador), e convite vencido não entra em nenhuma contagem. Mutações: sem o filtro de vencido no contexto (3 testes falham), sem o filtro de vencido no resumo (1), convite contado como pedido (3).
+- **Datas fixas nos testes.** Sem `faketime`, o relógio do Jest foi avançado por um shim de `Date` (+8, +40, +400 e +800 dias; o shim foi provado efetivo): backend 2769 e frontend 1095 testes passaram em todos os horizontes. Nada a corrigir.
+- **Extração de `vinculo.ts`: não feita.** `resolverModoDecisao` é importada de `./vinculo` por 5 outras rotas (dependência circular) e um `router.use` aninhado quebra `testSupport/rotasApp.ts` ("router aninhado não suportado"); as duas saídas exigiriam mover função de uso geral ou mudar a infraestrutura de teste.
+- **Responsivo e a11y das telas novas: não rodados.** O SQL Server local (`localhost:14330`) não estava de pé; sem contas `e2e-*` criadas nesta rodada.
+- **Revisão independente** (`security-auditor` e `code-reviewer`, contexto limpo, sobre todo o trabalho do convite). Corrigidos, com TDD e mutação: (1) `convidar-cuidador` devolvia 409 no convite repetido só quando havia conta (oráculo de enumeração, porque o pendente foi criado pelo próprio idoso); agora o convite válido repetido e a corrida pelo índice único respondem `201 { registrado: true }` igual, e o 409 fica só para vínculo aprovado ou pedido pendente do próprio cuidador; (2) `aceitar-convite` agora exige que o e-mail do token (`req.emailDoToken`, novo em `requireAuth`) seja o do cadastro, sem diferenciar maiúsculas; (3) `solicitar-cuidador` dava 409 enquanto houvesse convite do idoso vencido pendente; agora o substitui numa transação (o cuidador recusa o vencido e cria o pedido); (4) o 409 ao aceitar (vencido, ou decisão com a família) diz para recusar o convite e pedir o vínculo pelo botão Adicionar pessoa. Mutações: convite repetido volta a 409 (4 testes falham), corrida volta a 409 (2), sem comparar o e-mail do token (2), `requireAuth` sem o e-mail (6), `solicitar-cuidador` sem a condição de vencimento (2), sem a de origem (1), sem transação (2). Registrados sem correção (baixa, ou risco já aceito): `/recusar` do idoso sobrescreve um aceite concorrente porque `responderSolicitacaoVinculo` não filtra `status` no `update` (código anterior ao convite); `:id` numérico enorme pode virar 500 em vez de 404 (padrão antigo, não reproduzido); texto "Adicionar pessoa" do convite vencido não vale para o familiar titular, que não tem esse botão; o prazo no frontend usa o relógio do aparelho; o 403 de e-mail do token diferente usa a mesma mensagem do e-mail não confirmado; sem limite de convites por idoso (risco aceito); comentário de `isDuplicateVinculoConstraint` fala de índice único inexistente, mas ele existe desde a migration `20260915090000`. Fora do convite e anterior a ele: `convidar-familiar` tem o mesmo oráculo do convite repetido. Pendência de decisão do Marcos: `PATCH /usuario/me` troca o e-mail no Firebase com `updateUser({ email })` sem zerar `emailVerified`; confirmar no Firebase se o Admin SDK mantém `true`, o que enfraquece o "e-mail verificado" do aceite e do aviso de emergência.
+- **Contagens.** Backend 2769 para 2787 testes (52 para 53 suítes). Frontend 1079 para 1095 testes (96 para 97 suítes).
+- **Texto retirado do `CLAUDE.md` e não achado neste histórico** (auditoria linha a linha de `git diff` contra a base, ver a seção abaixo). O restante das linhas removidas já constava aqui.
+
+#### Texto retirado do `CLAUDE.md` em 2026-10-12
+
+Original literal, para quem precisar recuperar. Fotos de perfil (limites):
+
+~~~
+  bytes: jpeg, png, webp, gif, avif, tiff; até 15 MB e 50 MP; EXIF descartado; 10 envios por hora por usuário). Antes do multer:
+  2 envios em andamento no processo e 1 por usuário, vaga liberada só ao fim do processamento (abort não libera
+  com o sharp rodando), prazo de 60 s para receber o corpo (408). Risco aceito: N contas seguram as vagas por até
+  60 s por tentativa, só a foto fica indisponível. HEIC e BMP só convertidos no navegador (`lib/prepararFoto.ts`,
+  `heic-to` sob demanda). `GET /usuario/me` não devolve foto (há
+~~~
+
+Foto do Google:
+
+~~~
+- Foto do Google não é semeada no fluxo de anexo do item 3.3: o idoso anexado por e-mail e senha não tem foto
+  Google; a foto vem só do upload no perfil.
+~~~
+
+Agenda 6.2:
+
+~~~
+- Agenda (6.2, delegação de 2026-10-04): cuidador cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda`
+  segue 403), exigindo `tipo_vinculo` e `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito);
+  nunca chama `resolverModoDecisao`. `pessoal`/`medico` pelo cuidador: 403; tipo ausente, não string, caixa diferente ou
+  fora da CHECK: 400; idoso e familiar não criam `cuidado` (403). Ordem: 403 vínculo, 403 ator ou flag, 400 tipo, 403 tipo,
+  400 campos (sem a flag, corpo inválido dá 403). Campos e limites do 6.1. A seção do cuidador sempre aparece (403 vira
+  mensagem).
+~~~
+
+Item 9.4 (limiares):
+
+~~~
+  branches mais PR para `main`, com `concurrency` (execução duplicada aceita); limiares = floor(medido) menos 1
+  (routes 95/92/99/96, middleware 99; metas mínimas 85/75/85/85 e 90/80/90/90); mutação local vale como RED em
+~~~
+
+Emergência (limites, variáveis e cadastro):
+
+~~~
+  SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Limite em memória por
+  idoso, zera ao reiniciar: 5 tentativas por hora; 2 min de espera só após envio com sucesso. Resposta só com contagens
+  "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (falha não derruba o cadastro); `SituacaoEmail` no
+  Perfil (só cuidador e familiar) reenvia e recarrega. No ar desde 2026-10-10. Bloqueio de IPs da Brevo fica desligado
+~~~
