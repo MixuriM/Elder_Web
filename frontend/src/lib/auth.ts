@@ -69,10 +69,12 @@ export async function sendEmailVerification(): Promise<boolean> {
 }
 
 // E-mail confirmado no Firebase, depois de recarregar o usuário (a pessoa pode ter clicado o link em outra aba).
-// Falha do reload não lança: fica o valor que o SDK já tinha.
+// Confirmado: renova também o ID Token, senão o backend segue vendo email_verified antigo (o aceite de convite do cuidador
+// dá 403) até o token vencer, cerca de 1 h. Falha do reload ou da renovação não lança: fica o valor que o SDK já tinha.
 export async function emailConfirmado(): Promise<boolean> {
   try {
     await auth.currentUser?.reload();
+    if (auth.currentUser?.emailVerified === true) await auth.currentUser.getIdToken(true);
   } catch {
     // sem rede: segue com o valor em cache
   }
