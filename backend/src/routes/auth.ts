@@ -176,7 +176,8 @@ router.post("/sync", async (req, res, next) => {
       if (emailConviteFamiliarRaw.trim().length > 255) {
         return res.status(400).json({ error: "email_convite_familiar deve ter até 255 caracteres." });
       }
-      emailConviteFamiliar = emailConviteFamiliarRaw.trim();
+      // Minúsculas, como em /vinculo/convidar-familiar: o casamento (vincularFamiliarConvidado) compara em minúsculas.
+      emailConviteFamiliar = emailConviteFamiliarRaw.trim().toLowerCase();
     }
 
     // RNF-011 (3.2) / RF-030 extensão (3.3): valida o e-mail ANTES do INSERT. Quando a
