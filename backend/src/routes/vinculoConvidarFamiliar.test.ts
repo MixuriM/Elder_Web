@@ -156,13 +156,17 @@ describe("POST /vinculo/convidar-familiar", () => {
     expect(createVinculo).not.toHaveBeenCalled();
   });
 
-  it.each(["pendente", "aprovado"])("409 se já existe vínculo %s com esse familiar, sem escrita", async (status) => {
+  // Sem oráculo de conta: um 409 só aconteceria com conta existente (o vínculo pendente foi criado pelo próprio idoso na
+  // chamada anterior), então um idoso falso varreria e-mails de familiares. Todos os caminhos respondem 201 igual e
+  // deixam o mesmo efeito colateral em Usuario.email_convite_familiar (que o idoso lê em /auth/sync).
+  it.each(["pendente", "aprovado"])("já existe vínculo %s com esse familiar: 201 igual, sem criar vínculo novo", async (status) => {
     comoIdoso();
     familiarExiste(true);
     findFirstVinculo.mockResolvedValue({ status });
     const res = await convidar({ email: EMAIL });
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
+    expect(res.text).toBe(JSON.stringify({ registrado: true }));
     expect(findFirstVinculo).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -174,15 +178,102 @@ describe("POST /vinculo/convidar-familiar", () => {
       }),
     );
     expect(createVinculo).not.toHaveBeenCalled();
-    expect(updateUsuario).not.toHaveBeenCalled();
+    // Mesmo efeito dos outros caminhos: guarda o e-mail convidado.
+    expect(updateUsuario).toHaveBeenCalledTimes(1);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: IDOSO },
+      data: { email_convite_familiar: EMAIL },
+      select: { id: true },
+    });
   });
 
-  it("corrida: o índice único rejeita o create e vira 409", async () => {
+  it("corrida: o índice único rejeita o create e responde 201 igual, guardando o convite", async () => {
     comoIdoso();
     familiarExiste(true);
     createVinculo.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint"));
     const res = await convidar({ email: EMAIL });
-    expect(res.status).toBe(409);
+
+    expect(res.status).toBe(201);
+    expect(res.text).toBe(JSON.stringify({ registrado: true }));
+    expect(updateUsuario).toHaveBeenCalledTimes(1);
+    expect(updateUsuario).toHaveBeenCalledWith({
+      where: { id: IDOSO },
+      data: { email_convite_familiar: EMAIL },
+      select: { id: true },
+    });
+  });
+
+  it("os quatro caminhos (criou, sem conta, já existe, corrida) respondem o mesmo e escrevem o mesmo no idoso", async () => {
+    const caminhos: [string, () => void][] = [
+      ["criou", () => familiarExiste(true)],
+      ["sem conta", () => familiarExiste(false)],
+      ["já existe", () => (familiarExiste(true), findFirstVinculo.mockResolvedValue({ status: "pendente" }))],
+      ["corrida", () => (familiarExiste(true), createVinculo.mockRejectedValue(new Error("Violation of UNIQUE KEY constraint")))],
+    ];
+    const resultados: { nome: string; status: number; texto: string; gravouNoIdoso: unknown }[] = [];
+    for (const [nome, preparar] of caminhos) {
+      jest.resetAllMocks();
+      verifyIdToken.mockResolvedValue({ uid: "uid-1" });
+      updateUsuario.mockResolvedValue({ id: IDOSO });
+      createVinculo.mockResolvedValue({ id: 99 });
+      findFirstVinculo.mockResolvedValue(null);
+      comoIdoso();
+      preparar();
+      const res = await convidar({ email: EMAIL });
+      resultados.push({ nome, status: res.status, texto: res.text, gravouNoIdoso: updateUsuario.mock.calls[0]?.[0] });
+    }
+
+    expect(new Set(resultados.map((r) => r.texto)).size).toBe(1);
+    resultados.forEach((r) => {
+      expect(r.status).toBe(201);
+      expect(r.texto).toBe(JSON.stringify({ registrado: true }));
+      expect(r.gravouNoIdoso).toEqual({ where: { id: IDOSO }, data: { email_convite_familiar: EMAIL }, select: { id: true } });
+    });
+  });
+
+  it("vínculo de OUTRO idoso com o mesmo familiar não conta como 'já existe'", async () => {
+    comoIdoso();
+    familiarExiste(true);
+    const linhas = [{ idoso_id: 99, vinculado_id: FAMILIAR, tipo_vinculo: "familiar", status: "aprovado" }];
+    // Fake que filtra de verdade pelo where: só devolve a linha se o par for o mesmo.
+    findFirstVinculo.mockImplementation(
+      async ({ where }: { where: { idoso_id: number; vinculado_id: number; tipo_vinculo: string; status: { in: string[] } } }) => {
+        const achou = linhas.find(
+          (l) =>
+            l.idoso_id === where.idoso_id &&
+            l.vinculado_id === where.vinculado_id &&
+            l.tipo_vinculo === where.tipo_vinculo &&
+            where.status.in.includes(l.status),
+        );
+        return achou ? { status: achou.status } : null;
+      },
+    );
+    const res = await convidar({ email: EMAIL });
+
+    expect(res.status).toBe(201);
+    expect(createVinculo).toHaveBeenCalledTimes(1);
+  });
+
+  it("vínculo de cuidador com a mesma pessoa não conta como 'já existe' de familiar", async () => {
+    comoIdoso();
+    familiarExiste(true);
+    const linhas = [{ idoso_id: IDOSO, vinculado_id: FAMILIAR, tipo_vinculo: "cuidador", status: "aprovado" }];
+    findFirstVinculo.mockImplementation(
+      async ({ where }: { where: { idoso_id: number; vinculado_id: number; tipo_vinculo: string; status: { in: string[] } } }) => {
+        const achou = linhas.find(
+          (l) =>
+            l.idoso_id === where.idoso_id &&
+            l.vinculado_id === where.vinculado_id &&
+            l.tipo_vinculo === where.tipo_vinculo &&
+            where.status.in.includes(l.status),
+        );
+        return achou ? { status: achou.status } : null;
+      },
+    );
+    const res = await convidar({ email: EMAIL });
+
+    expect(res.status).toBe(201);
+    expect(createVinculo).toHaveBeenCalledTimes(1);
   });
 
   it("erro inesperado vira 500 genérico, sem vazar a mensagem", async () => {
