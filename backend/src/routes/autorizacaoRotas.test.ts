@@ -92,6 +92,8 @@ const ROTAS_ESPERADAS: Regra[] = [
   { rota: "POST /vinculo/convidar-cuidador", categoria: "autenticada" },
   { rota: "POST /vinculo/:id/aprovar", categoria: "autenticada" },
   { rota: "POST /vinculo/:id/recusar", categoria: "autenticada" },
+  { rota: "POST /vinculo/:id/aceitar-convite", categoria: "autenticada" },
+  { rota: "POST /vinculo/:id/recusar-convite", categoria: "autenticada" },
   { rota: "POST /vinculo/:id/contestar", categoria: "autenticada" },
   { rota: "PATCH /vinculo/:id/definir-permissoes", categoria: "autenticada" },
   { rota: "POST /vinculo/:id/solicitar-transferencia-decisao", categoria: "autenticada" },
