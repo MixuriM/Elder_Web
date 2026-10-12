@@ -381,6 +381,38 @@ describe("POST /auth/sync — vínculo automático Familiar↔Idoso (RF-025)", (
     );
   });
 
+  // O convite é gravado em minúsculas (/vinculo/convidar-familiar); o e-mail do token pode vir com outra caixa. O fake
+  // abaixo compara a igualdade EXATA (pior caso, banco que diferencia caixa): só casa se o código normalizar.
+  it("e-mail do token com caixa mista encontra o convite gravado em minúsculas e cria o vínculo", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "Carla.Ficticia@Exemplo.Test", email_verified: false });
+    findFirst.mockResolvedValueOnce(null);
+    create.mockResolvedValue({ id: 10, tipo_perfil: "familiar" });
+    const idosos = [
+      { id: 1, tipo_perfil: "idoso", email_convite_familiar: "carla.ficticia@exemplo.test" },
+      { id: 2, tipo_perfil: "idoso", email_convite_familiar: "outra.ficticia@exemplo.test" },
+    ];
+    findManyUsuario.mockImplementation(
+      async (args: { where: { tipo_perfil: string; email_convite_familiar: string } }) =>
+        idosos
+          .filter(
+            (i) =>
+              i.tipo_perfil === args.where.tipo_perfil && i.email_convite_familiar === args.where.email_convite_familiar,
+          )
+          .map((i) => ({ id: i.id })),
+    );
+
+    const res = await request(buildApp())
+      .post("/auth/sync")
+      .set("Authorization", "Bearer x")
+      .send({ tipo_perfil: "familiar", nome: "Carla" });
+
+    expect(res.status).toBe(201);
+    expect(createVinculo).toHaveBeenCalledTimes(1);
+    expect(createVinculo).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ idoso_id: 1, vinculado_id: 10, status: "pendente" }) }),
+    );
+  });
+
   it("cadastro de familiar sem e-mail correspondente não cria nada", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-fam", email: "familiar@a.com", email_verified: false });
     findFirst.mockResolvedValueOnce(null);

@@ -259,8 +259,8 @@ router.post("/solicitar-familiar", requireAuth, async (req, res, next) => {
 // O idoso convida um familiar pelo e-mail depois do cadastro (RF-024, RF-025). Guarda email_convite_familiar (uma
 // coluna só: um convite novo substitui o anterior ainda não usado) e, se já existe conta de familiar com esse e-mail,
 // cria o vínculo pendente de origem convite_idoso, que vira aprovado no login do familiar com e-mail verificado.
-// A resposta é a mesma com ou sem conta (sem oráculo de enumeração); o 409 só aparece quando já existe vínculo do
-// próprio idoso com essa pessoa, informação que ele já tem. Com a decisão transferida para a família o idoso não
+// A resposta é sempre a mesma, com ou sem conta e com ou sem vínculo existente (201 { registrado: true }, sem 409: um 409
+// só existiria com conta e viraria oráculo de enumeração). Com a decisão transferida para a família o idoso não
 // adiciona familiar automático (403): quem tem a caneta é o familiar.
 router.post("/convidar-familiar", requireAuth, async (req, res, next) => {
   try {
@@ -321,7 +321,12 @@ router.post("/convidar-familiar", requireAuth, async (req, res, next) => {
     }
 
     // Em todos os caminhos: o idoso lê esta coluna em /auth/sync, então ela não pode revelar se havia conta ou vínculo.
-    await prisma.usuario.update({ where: { id: idoso.id }, data: { email_convite_familiar: email }, select: { id: true } });
+    // Minúsculas: o casamento no cadastro do familiar (auth.ts) compara em minúsculas.
+    await prisma.usuario.update({
+      where: { id: idoso.id },
+      data: { email_convite_familiar: email.toLowerCase() },
+      select: { id: true },
+    });
     res.status(201).json({ registrado: true });
   } catch (e) {
     next(e);
