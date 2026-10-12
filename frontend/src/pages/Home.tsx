@@ -5,12 +5,15 @@ import BannerSaude from "../components/Home/BannerSaude";
 import CardAjuda from "../components/Home/CardAjuda";
 import CartaoSemVinculo from "../components/Home/CartaoSemVinculo";
 import ResumoDia from "../components/Home/ResumoDia";
+import { conviteAguardaAceite } from "../components/Vinculos/regrasVinculo";
 import { useAcesso } from "../contexts/useAcesso";
 import { useTitulo } from "../hooks/useTitulo";
 
 function Home() {
   useTitulo("Início");
-  const { estado, tipoPerfil, temVinculoAprovado, temVinculoPendente } = useAcesso();
+  const { estado, tipoPerfil, temVinculoAprovado, temVinculoPendente, vinculos } = useAcesso();
+  // Convite do idoso ainda dentro do prazo: o cuidador não espera ninguém, ele é quem precisa aceitar.
+  const temConvite = tipoPerfil === "cuidador" && (vinculos ?? []).some((v) => conviteAguardaAceite(v));
   // Em erro de carregamento nada é escondido (D3).
   const semVinculo =
     estado === "ok" &&
@@ -137,7 +140,7 @@ function Home() {
 
             {/* Ações principais */}
             {semVinculo ? (
-              <CartaoSemVinculo tipoPerfil={tipoPerfil} pendente={temVinculoPendente} />
+              <CartaoSemVinculo tipoPerfil={tipoPerfil} pendente={temVinculoPendente} convite={temConvite} />
             ) : (
               <ActionCards />
             )}
