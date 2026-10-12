@@ -3,7 +3,7 @@ import multer from "multer";
 import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
-import { isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
+import { emailDoTokenConfere, isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
@@ -348,7 +348,7 @@ router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
   try {
     const chamador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
-      select: { tipo_perfil: true },
+      select: { tipo_perfil: true, email: true },
     });
     if (chamador?.tipo_perfil !== "familiar") {
       return res.status(403).json({ error: "Apenas familiares podem cadastrar um idoso." });
@@ -391,8 +391,9 @@ router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
     }
 
     const agora = new Date();
-    // Fluxo A: e-mail do Familiar já verificado no token = posse já confirmada.
-    const aprovado = req.emailVerificado;
+    // Fluxo A: e-mail do Familiar já verificado no token = posse já confirmada. O e-mail do token tem que ser o do
+    // cadastro: token anterior a uma troca de e-mail ainda diz verificado (senão o vínculo nasce pendente, mesma resposta).
+    const aprovado = req.emailVerificado && emailDoTokenConfere(req.emailDoToken, chamador.email);
 
     const idoso = await prisma.usuario.create({
       data: {
