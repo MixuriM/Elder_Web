@@ -53,6 +53,9 @@ function Perfil() {
 
   // Controla a mensagem de sucesso
   const [sucesso, setSucesso] = useState(false);
+  // Trocar o e-mail zera a confirmação no Firebase (no servidor): remontar a seção de e-mail depois de salvar faz ela
+  // ler a situação de novo, em vez de seguir mostrando "E-mail confirmado" do e-mail antigo.
+  const [versaoSituacaoEmail, setVersaoSituacaoEmail] = useState(0);
 
   // Busca os dados do usuário quando a página é aberta
   useEffect(() => {
@@ -151,6 +154,7 @@ function Perfil() {
 
       // Exibe mensagem de sucesso
       setSucesso(true);
+      setVersaoSituacaoEmail((v) => v + 1);
     } catch (err) {
       console.error(
         "Falha ao salvar perfil:",
@@ -221,7 +225,7 @@ function Perfil() {
       />
 
       {/* Aviso de emergência só vai para e-mail confirmado: quem recebe (cuidador e familiar) vê a situação. */}
-      {(tipoPerfil === "cuidador" || tipoPerfil === "familiar") && <SituacaoEmail />}
+      {(tipoPerfil === "cuidador" || tipoPerfil === "familiar") && <SituacaoEmail key={versaoSituacaoEmail} />}
     </LayoutPerfil>
   );
 }

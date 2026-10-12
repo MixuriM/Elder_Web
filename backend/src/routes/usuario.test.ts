@@ -162,8 +162,52 @@ describe("PATCH /usuario/me", () => {
       .send({ email: "novo@a.com" });
 
     expect(res.status).toBe(200);
-    expect(updateUser).toHaveBeenCalledWith("uid-42", { email: "novo@a.com" });
+    // O e-mail novo ainda não foi provado: a verificação do antigo não vale para ele (senão dava para verificar o
+    // e-mail A, trocar para o e-mail B de outra pessoa e aceitar um convite feito a B com a verificação velha).
+    expect(updateUser).toHaveBeenCalledTimes(1);
+    expect(updateUser).toHaveBeenCalledWith("uid-42", { email: "novo@a.com", emailVerified: false });
     expect(res.body.email).toBe("novo@a.com");
+  });
+
+  it("e-mail novo com espaços: manda ao Firebase o valor sem espaços e emailVerified false", async () => {
+    findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+    updateUser.mockResolvedValue(undefined);
+    update.mockResolvedValue({ id: 42, nome: "Ana", email: "novo@a.com", telefone: "123", tipo_perfil: "idoso" });
+
+    await request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send({ email: "  novo@a.com  " });
+
+    expect(updateUser).toHaveBeenCalledWith("uid-42", { email: "novo@a.com", emailVerified: false });
+  });
+
+  it("e-mail igual ao atual: não chama o Firebase (a verificação existente continua valendo)", async () => {
+    findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+    update.mockResolvedValue({ id: 42, nome: "Ana", email: "a@a.com", telefone: "123", tipo_perfil: "idoso" });
+
+    const res = await request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send({ email: "a@a.com" });
+
+    expect(res.status).toBe(200);
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("e-mail apagado (com telefone preenchido): nunca manda emailVerified ao Firebase", async () => {
+    findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+    updateUser.mockResolvedValue(undefined);
+    update.mockResolvedValue({ id: 42, nome: "Ana", email: null, telefone: "123", tipo_perfil: "idoso" });
+
+    const res = await request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send({ email: "" });
+
+    expect(res.status).toBe(200);
+    updateUser.mock.calls.forEach(([, propriedades]) => expect(propriedades).not.toHaveProperty("emailVerified"));
+  });
+
+  it("só o telefone muda: não chama o Firebase", async () => {
+    findUniqueOrThrow.mockResolvedValue({ email: "a@a.com", telefone: "123", firebase_uid: "uid-42" });
+    update.mockResolvedValue({ id: 42, nome: "Ana", email: "a@a.com", telefone: "999", tipo_perfil: "idoso" });
+
+    const res = await request(buildApp()).patch("/usuario/me").set("Authorization", "Bearer x").send({ telefone: "999" });
+
+    expect(res.status).toBe(200);
+    expect(updateUser).not.toHaveBeenCalled();
   });
 
   it("trata colisão de email já em uso com mensagem tratada, não erro cru", async () => {

@@ -245,7 +245,13 @@ router.patch("/me", requireAuth, async (req, res, next) => {
       // buscando por firebase_uid, então um Usuario sem essa coluna nunca autentica
       // como si mesmo (caso do idoso cadastrado por familiar via RF-030, fora deste fluxo).
       if ("email" in data && data.email !== atual.email && atual.firebase_uid) {
-        await firebaseAuth.updateUser(atual.firebase_uid, { email: data.email ?? undefined });
+        // E-mail novo (texto não vazio) ainda não foi provado: emailVerified false de forma explícita, sem depender do que
+        // o Firebase faz sozinho. Sem isso a verificação do e-mail antigo valeria para o novo (e o aceite de convite e o
+        // aviso de emergência confiam em "e-mail verificado"). Apagar o e-mail não manda emailVerified.
+        await firebaseAuth.updateUser(
+          atual.firebase_uid,
+          data.email ? { email: data.email, emailVerified: false } : { email: undefined },
+        );
       }
     }
 
