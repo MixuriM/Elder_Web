@@ -176,6 +176,8 @@ model Evento {
   idoso       Usuario  @relation("EventoIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   criado_por  Usuario  @relation("EventoCriadoPor", fields: [criado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   editado_por Usuario? @relation("EventoEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([idoso_id, data_hora_inicio])
 }
 
 model Medicamento {
@@ -197,6 +199,8 @@ model Medicamento {
   criado_por  Usuario                   @relation("MedicamentoCriadoPor", fields: [criado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   editado_por Usuario?                  @relation("MedicamentoEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   doses       RegistroDoseMedicamento[]
+
+  @@index([idoso_id])
 }
 
 model RegistroDoseMedicamento {
@@ -212,6 +216,8 @@ model RegistroDoseMedicamento {
 
   medicamento    Medicamento @relation(fields: [medicamento_id], references: [id])
   registrado_por Usuario     @relation("RegistroDoseMedicamentoRegistradoPor", fields: [registrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([medicamento_id])
 }
 
 model RegistroSaude {
@@ -232,6 +238,8 @@ model RegistroSaude {
   idoso          Usuario @relation("RegistroSaudeIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   registrado_por Usuario @relation("RegistroSaudeRegistradoPor", fields: [registrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   editado_por    Usuario @relation("RegistroSaudeEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([idoso_id, data_hora])
 }
 
 model RegistroAlimentar {
@@ -248,4 +256,6 @@ model RegistroAlimentar {
   idoso          Usuario  @relation("RegistroAlimentarIdoso", fields: [idoso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   registrado_por Usuario  @relation("RegistroAlimentarRegistradoPor", fields: [registrado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   editado_por    Usuario? @relation("RegistroAlimentarEditadoPor", fields: [editado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([idoso_id, data_hora])
 }
