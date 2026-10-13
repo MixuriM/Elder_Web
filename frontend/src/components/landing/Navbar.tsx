@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import logoElder from "../../Img/Elder_logo.webp";
+// Logo exibido com 60 px: versão de 120 px (2x para tela retina), 7,7 kB no lugar dos 46 kB do original de 480 px.
+import logoElder from "../../Img/Elder_logo_120.webp";
 import ControleTema from "../layout/ControleTema";
 
 type NavbarProps = {
