@@ -301,7 +301,6 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing); calendário
   da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10).
 - Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
-- Azure: aplicar a migration `20261013120000_add_indices_desempenho` (autorização própria).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; apagar as contas `e2e-*@e2e.elderweb.test` do Firebase;
   cuidadores e familiares cadastrados antes do PR #162 confirmarem o e-mail no Perfil.
