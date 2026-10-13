@@ -2260,7 +2260,7 @@ Risco anterior a esta tarefa, não corrigido: o `emVoo` do `useIdososVinculados`
 **Não medido.** Render e Azure reais, cold start real, rede e aparelho reais, Safari e WebKit, Core Web Vitals de campo. A latência entre Render e Azure foi simulada com um valor fixo. A emulação de rede do CDP não reproduz DNS nem TLS, então o efeito real do `preconnect` só aparece em produção.
 
 **Pendências manuais (Marcos).**
-- Aplicar a migration `20261013120000_add_indices_desempenho` no Azure, com autorização própria.
+- Migration `20261013120000_add_indices_desempenho` aplicada no Azure em 2026-10-13, com autorização do Marcos (`prisma migrate deploy` de máquina local; `migrate status` limpo; os 5 índices conferidos em `sys.index_columns`, com as colunas da chave e as incluídas iguais às da migration).
 - Pinger externo contra o sono do Render free: fica como recomendação, não como código.
 - `connection_limit` na `DATABASE_URL` do Render: não indicado pela medição.
 - O README cita 7 migrations; agora são 8.
