@@ -983,7 +983,7 @@ router.post("/:id/confirmar-transferencia-decisao", requireAuth, async (req, res
 // idoso (papel 'titular'). Nunca devolve Usuario inteiro: só id, nome e e-mail mascarado.
 // Efeito colateral conhecido: resolverEstadoModoDecisao pode gravar (efetivar ou lapsar
 // transferência vencida) durante este GET, igual a GET /usuario/me.
-// ponytail: sem paginação; uma consulta de resolverEstadoModoDecisao por idoso do titular.
+// ponytail: sem paginação; um resolverEstadoModoDecisao por idoso do familiar (em paralelo).
 type DecisaoDoIdoso = {
   modo: "idoso" | "familiar";
   transferencia: null | {
@@ -996,16 +996,14 @@ type DecisaoDoIdoso = {
 };
 
 // Visão do familiar aprovado sobre quem decide pelo idoso. Nunca devolve motivo nem o id de quem pediu.
-async function descreverDecisao(
+// aprovados: familiares com vínculo aprovado com o idoso (só conta quando há pedido de transferência).
+function descreverDecisao(
   estado: ModoDecisaoEstado,
   modo: "idoso" | "familiar",
-  idosoId: number,
+  aprovados: number,
   familiarId: number,
-): Promise<DecisaoDoIdoso> {
+): DecisaoDoIdoso {
   if (estado.modo_decisao_solicitado !== "familiar") return { modo, transferencia: null };
-  const aprovados = await prisma.vinculo.count({
-    where: { idoso_id: idosoId, tipo_vinculo: "familiar", status: "aprovado" },
-  });
   return {
     modo,
     transferencia: {
@@ -1031,23 +1029,26 @@ router.get("/", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "status deve ser 'pendente', 'aprovado' ou 'recusado'." });
     }
 
-    const chamador = await prisma.usuario.findUnique({
-      where: { id: req.usuarioId },
-      select: { tipo_perfil: true },
-    });
-    if (!chamador) {
-      return res.status(403).json({ error: "Usuário não sincronizado." });
-    }
-
     const include = { idoso: LADO_SELECT, vinculado: LADO_SELECT } as const;
     const visiveis = new Map<number, { vinculo: VinculoComLados; papel: Papel }>();
     const decisoes = new Map<number, DecisaoDoIdoso>();
 
+    // Perfil e vínculos do chamador numa só ida ao banco (em paralelo): o perfil só escolhe qual lado vale. Os
+    // dois lados não se misturam porque tipo_perfil é fixo e amarrado ao tipo_vinculo na criação do vínculo.
+    const [chamador, doChamador] = await Promise.all([
+      prisma.usuario.findUnique({ where: { id: req.usuarioId }, select: { tipo_perfil: true } }),
+      prisma.vinculo.findMany({ where: { OR: [{ idoso_id: req.usuarioId }, { vinculado_id: req.usuarioId }] }, include }),
+    ]);
+    if (!chamador) {
+      return res.status(403).json({ error: "Usuário não sincronizado." });
+    }
+
     if (chamador.tipo_perfil === "idoso") {
-      const donos = await prisma.vinculo.findMany({ where: { idoso_id: req.usuarioId }, include });
-      donos.forEach((v) => visiveis.set(v.id, { vinculo: v, papel: "dono" }));
+      doChamador
+        .filter((v) => v.idoso_id === req.usuarioId)
+        .forEach((v) => visiveis.set(v.id, { vinculo: v, papel: "dono" }));
     } else {
-      const proprios = await prisma.vinculo.findMany({ where: { vinculado_id: req.usuarioId }, include });
+      const proprios = doChamador.filter((v) => v.vinculado_id === req.usuarioId);
       proprios.forEach((v) => visiveis.set(v.id, { vinculo: v, papel: "vinculado" }));
 
       if (chamador.tipo_perfil === "familiar") {
@@ -1056,19 +1057,28 @@ router.get("/", requireAuth, async (req, res, next) => {
             proprios.filter((v) => v.tipo_vinculo === "familiar" && v.status === "aprovado").map((v) => v.idoso_id),
           ),
         ];
-        const titularDe: number[] = [];
-        for (const idosoId of idosos) {
-          const estado = await resolverEstadoModoDecisao(idosoId);
-          const modo = estado.modo_decisao === "familiar" ? "familiar" : "idoso";
-          if (modo === "familiar") titularDe.push(idosoId);
-          decisoes.set(idosoId, await descreverDecisao(estado, modo, idosoId, req.usuarioId));
-        }
-        if (titularDe.length > 0) {
-          const doIdoso = await prisma.vinculo.findMany({ where: { idoso_id: { in: titularDe } }, include });
-          doIdoso.forEach((v) => {
-            if (!visiveis.has(v.id)) visiveis.set(v.id, { vinculo: v, papel: "titular" });
-          });
-        }
+        // Um resolverEstadoModoDecisao por idoso, como antes (honra transferência vencida e grava o resultado);
+        // só deixaram de esperar um pelo outro. Cada um lê e escreve apenas a linha do próprio idoso.
+        const estados = await Promise.all(idosos.map((idosoId) => resolverEstadoModoDecisao(idosoId)));
+        const modoDe = (i: number) => (estados[i].modo_decisao === "familiar" ? "familiar" : "idoso");
+        const titularDe = idosos.filter((_, i) => modoDe(i) === "familiar");
+        const comPedido = idosos.filter((_, i) => estados[i].modo_decisao_solicitado === "familiar");
+
+        // Vínculos dos idosos que o familiar conduz e a contagem de familiares aprovados de quem tem pedido de
+        // transferência (segunda confirmação): independentes entre si, todos em paralelo.
+        const [doIdoso, ...aprovados] = await Promise.all([
+          titularDe.length > 0 ? prisma.vinculo.findMany({ where: { idoso_id: { in: titularDe } }, include }) : [],
+          ...comPedido.map((idosoId) =>
+            prisma.vinculo.count({ where: { idoso_id: idosoId, tipo_vinculo: "familiar", status: "aprovado" } }),
+          ),
+        ]);
+        idosos.forEach((idosoId, i) => {
+          const aprovadosDoIdoso = aprovados[comPedido.indexOf(idosoId)] ?? 0;
+          decisoes.set(idosoId, descreverDecisao(estados[i], modoDe(i), aprovadosDoIdoso, req.usuarioId));
+        });
+        doIdoso.forEach((v) => {
+          if (!visiveis.has(v.id)) visiveis.set(v.id, { vinculo: v, papel: "titular" });
+        });
       }
     }
 
