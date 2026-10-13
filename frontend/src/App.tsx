@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
@@ -7,6 +7,7 @@ import RotaComVinculo from './components/RotaComVinculo'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
 import { useAcesso } from './contexts/useAcesso'
 import { carregouChunk } from './lib/recarregar'
+import { aquecerBackend } from './lib/aquecerBackend'
 
 // Landing e Login ficam no bundle inicial (entrada e retorno do usuário); o resto carrega por rota.
 const LayoutAutenticado = lazy(() => import('./components/layout/LayoutAutenticado').then(carregouChunk))
@@ -50,8 +51,15 @@ function RedirecionarVinculos() {
   return <Navigate to={tipoPerfil === 'cuidador' ? '/cuidadores' : '/familia'} replace />
 }
 
+// Telas de entrada: acordam o backend (Render free) em segundo plano enquanto a pessoa lê ou digita.
+const ROTAS_DE_ENTRADA = ['/', '/login', '/cadastro']
+
 function App() {
   const { pathname } = useLocation()
+
+  useEffect(() => {
+    if (ROTAS_DE_ENTRADA.includes(pathname)) aquecerBackend()
+  }, [pathname])
 
   return (
     <FotoPerfilProvider>
