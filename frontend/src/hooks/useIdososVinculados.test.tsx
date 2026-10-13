@@ -2,6 +2,9 @@ import '@testing-library/jest-dom'
 
 import { act, renderHook, waitFor } from '@testing-library/react'
 
+import type { ReactNode } from 'react'
+
+import { AcessoContext } from '../contexts/useAcesso'
 import { useIdososVinculados } from './useIdososVinculados'
 
 const mockBuscarPerfil = jest.fn()
@@ -194,5 +197,42 @@ describe('useIdososVinculados', () => {
     } finally {
       jest.useRealTimers()
     }
+  })
+})
+
+// Desempenho (2026-10-13): tipo_perfil é fixo por conta, então o perfil que o AcessoProvider já buscou basta;
+// a tela não repete GET /usuario/me. Os vínculos continuam buscados a cada montagem (vínculo novo aparece).
+describe('useIdososVinculados com o perfil já conhecido pelo AcessoProvider', () => {
+  function comAcesso(tipoPerfil: string | null, estado: 'ok' | 'carregando' | 'erro' = 'ok') {
+    return ({ children }: { children: ReactNode }) => (
+      <AcessoContext.Provider value={{ tipoPerfil, estado, temVinculoAprovado: true, temVinculoPendente: false }}>
+        {children}
+      </AcessoContext.Provider>
+    )
+  }
+
+  it('cuidador: não busca o perfil de novo e já pede os vínculos', async () => {
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo(7, 'Ana')] })
+    const { result } = renderHook(() => useIdososVinculados(), { wrapper: comAcesso('cuidador') })
+    await waitFor(() => expect(result.current.estado).toBe('ok'))
+    expect(mockBuscarPerfil).not.toHaveBeenCalled()
+    expect(mockChamarApi).toHaveBeenCalledWith('/vinculo?status=aprovado', { method: 'GET' })
+    expect(result.current).toMatchObject({ ehIdoso: false, tipoPerfil: 'cuidador', idosos: [{ id: 7, nome: 'Ana' }] })
+  })
+
+  it('idoso: nenhuma chamada', async () => {
+    const { result } = renderHook(() => useIdososVinculados(), { wrapper: comAcesso('idoso') })
+    await waitFor(() => expect(result.current.estado).toBe('ok'))
+    expect(result.current.ehIdoso).toBe(true)
+    expect(mockBuscarPerfil).not.toHaveBeenCalled()
+    expect(mockChamarApi).not.toHaveBeenCalled()
+  })
+
+  it('perfil ainda carregando ou com erro no AcessoProvider: busca o perfil como antes', async () => {
+    mockBuscarPerfil.mockResolvedValue({ tipo_perfil: 'familiar' })
+    mockChamarApi.mockResolvedValue({ vinculos: [] })
+    const { result } = renderHook(() => useIdososVinculados(), { wrapper: comAcesso(null, 'erro') })
+    await waitFor(() => expect(result.current.estado).toBe('ok'))
+    expect(mockBuscarPerfil).toHaveBeenCalledTimes(1)
   })
 })

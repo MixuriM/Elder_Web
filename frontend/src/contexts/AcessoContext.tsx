@@ -13,7 +13,10 @@ const TIMEOUT_MS = 60_000;
 type Resultado = Acesso & Pick<ContextoAcesso, "vinculos" | "modoDecisao"> & { nome: string | null };
 
 async function buscar(): Promise<Resultado> {
-  const perfil = await buscarPerfil();
+  // Perfil e vínculos em paralelo (um não depende do outro); a falha de cada um segue tratada como antes.
+  const [perfilBusca, vinculosBusca] = await Promise.allSettled([buscarPerfil(), chamarApi("/vinculo")]);
+  if (perfilBusca.status === "rejected") throw perfilBusca.reason;
+  const perfil = perfilBusca.value;
   const tipoPerfil = perfil.tipo_perfil;
   const base = {
     tipoPerfil,
@@ -26,7 +29,8 @@ async function buscar(): Promise<Resultado> {
 
   let vinculos: Vinculo[];
   try {
-    vinculos = (await chamarApi("/vinculo")).vinculos;
+    if (vinculosBusca.status === "rejected") throw vinculosBusca.reason;
+    vinculos = vinculosBusca.value.vinculos;
   } catch {
     // Idoso nunca é bloqueado: sem os vínculos só os avisos de pedido ficam desconhecidos.
     // Perfil conhecido, vínculos não: o menu mostra o completo do perfil (D3).

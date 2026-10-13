@@ -149,10 +149,29 @@ describe('AcessoProvider', () => {
     expect(await renderizar()).toBe('erro|cuidador|false|false')
   })
 
-  it('falha no perfil: erro sem perfil, sem buscar vínculos', async () => {
+  // Desempenho (2026-10-13): perfil e vínculos saem em paralelo, então a falha do perfil não evita mais a
+  // chamada de vínculos; o estado visível continua o mesmo (erro sem perfil, nada dos vínculos exposto).
+  it('falha no perfil: erro sem perfil, mesmo com os vínculos respondendo', async () => {
     mockBuscarPerfil.mockRejectedValue(new Error('500'))
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo('aprovado')] })
     expect(await renderizar()).toBe('erro||false|false')
-    expect(mockChamarApi).not.toHaveBeenCalled()
+    expect(screen.getAllByTestId('extra')[0]).toHaveTextContent('nulo|')
+  })
+
+  it('perfil e vínculos saem em paralelo: /vinculo é chamado antes de o perfil responder', async () => {
+    let responderPerfil: (p: unknown) => void = () => {}
+    mockBuscarPerfil.mockReturnValue(new Promise((r) => (responderPerfil = r)))
+    mockChamarApi.mockResolvedValue({ vinculos: [vinculo('aprovado')] })
+    render(
+      <AcessoProvider>
+        <Mostra />
+      </AcessoProvider>,
+    )
+    await act(async () => {})
+    expect(mockChamarApi).toHaveBeenCalledWith('/vinculo')
+    expect(screen.getByTestId('acesso')).toHaveTextContent('carregando')
+    await act(async () => responderPerfil({ tipo_perfil: 'cuidador' }))
+    expect(screen.getByTestId('acesso')).toHaveTextContent('ok|cuidador|true|false')
   })
 
   it('recarregar busca de novo e atualiza o acesso sem voltar a carregando', async () => {
