@@ -104,7 +104,7 @@ Um cuidador só acessa as ferramentas do idoso depois de vinculado formalmente a
 | Remédios | Lê e cadastra | Lê; nunca cadastra | Lê; cadastra só com modo de decisão `familiar` |
 | Doses | Marca | Marca só com `permite_marcar_dose` | Marca só com modo de decisão `familiar` |
 | Histórico em PDF | Baixa o próprio | Baixa, com vínculo aprovado | Baixa, com vínculo aprovado |
-| Agenda | Lê e cria compromissos pessoais e médicos | Lê; cria só o tipo cuidado, com `permite_criar_evento_cuidado` | Lê; cria só com modo de decisão `familiar` |
+| Agenda | Lê e cria compromissos pessoais e médicos | Lê; cria só compromissos de cuidado, com `permite_criar_evento_cuidado` | Lê; cria só compromissos pessoais e médicos, com modo de decisão `familiar` |
 | Alimentação | Lê e registra | Lê; nunca registra | Lê; registra só com modo de decisão `familiar` |
 | Aviso de emergência | Dispara | Não | Não |
 
