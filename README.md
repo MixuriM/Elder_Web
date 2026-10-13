@@ -224,25 +224,25 @@ erDiagram
 
 ## Tecnologias
 
-Versões lidas dos `package.json`.
+Versões principais, conforme os `package.json`.
 
 | Camada | Tecnologia | Para quê |
 |---|---|---|
-| Frontend | React ^18.3.1, TypeScript ^5.5.4, Vite ^6.4.3 | Interface e build |
-| Frontend | Tailwind CSS ^3.4.10 | Estilo utility-first |
-| Frontend | React Router ^7.18.2 | Navegação multipágina |
-| Frontend | Firebase Web SDK ^12.18.0 | Login |
-| Frontend | lucide-react ^1.43.0, heic-to ^1.5.2 | Ícones e conversão de foto HEIC no navegador |
+| Frontend | React 18, TypeScript 5, Vite 6 | Interface e build |
+| Frontend | Tailwind CSS 3 | Estilo utility-first |
+| Frontend | React Router 7 | Navegação multipágina |
+| Frontend | Firebase Web SDK 12 | Login |
+| Frontend | lucide-react 1, heic-to 1 | Ícones e conversão de foto HEIC no navegador |
 | Frontend | Atkinson Hyperlegible (em `frontend/public/fonts`, licença OFL) | Fonte legível, hospedada no próprio site |
-| Backend | Node.js 24, Express ^4.21.0, TypeScript ^5.5.4 | API REST |
-| Backend | Prisma ^5.19.1 | ORM e migrations |
-| Backend | firebase-admin ^14.3.0 | Validação do ID Token |
-| Backend | multer ^2.4.0, sharp ^0.35.5 | Upload e normalização da foto |
-| Backend | pdfkit ^0.20.2 | PDF do histórico |
+| Backend | Node.js 24, Express 4, TypeScript 5 | API REST |
+| Backend | Prisma 5 | ORM e migrations |
+| Backend | firebase-admin 14 | Validação do ID Token |
+| Backend | multer 2, sharp 0.35 | Upload e normalização da foto |
+| Backend | pdfkit 0.20 | PDF do histórico |
 | Banco | SQL Server 2025 (local), Azure SQL Database (produção) | Dados de domínio |
 | Autenticação | Firebase Auth (e-mail e senha, Google) | Só login |
-| Testes | Jest ^30.5.1, React Testing Library ^16.3.3, jest-axe ^11.0.0 | Unidade, componente e acessibilidade |
-| Testes | Playwright ^1.63.0, @axe-core/playwright ^4.12.1 | Ponta a ponta, acessibilidade e responsividade |
+| Testes | Jest 30, React Testing Library 16, jest-axe 11 | Unidade, componente e acessibilidade |
+| Testes | Playwright 1, @axe-core/playwright 4 | Ponta a ponta, acessibilidade e responsividade |
 | Infra | Docker, GitHub Actions, Vercel, Render, Azure | Build, CI e deploy |
 
 ## Acessibilidade
@@ -452,8 +452,8 @@ Elder_Web/
 | Pessoa | Atuação |
 |---|---|
 | [Marcos Castelli](https://github.com/MixuriM) | Backend, banco de dados, infraestrutura e frontend |
-| Laureane Almeida | Frontend (telas e acessibilidade) |
-| Jennifer Galan | Frontend (telas e acessibilidade) |
+| [Laureane Almeida](https://github.com/laureaneal) | Frontend (telas e acessibilidade) |
+| [Jennifer Galan](https://github.com/LinixMX) | Frontend (telas e acessibilidade) |
 
 ## Contribuindo
 
