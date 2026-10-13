@@ -2125,13 +2125,13 @@ Resposta aos achados B1 a B5 da auditoria final da rodada anterior. Sem schema, 
 
 ## README do repositório (2026-10-13, sem PR ainda)
 
-Criados `README.md` (468 linhas, 18 seções H2, 3 diagramas Mermaid) e `docs/img/` (3 imagens). Nenhum código, teste, dependência, workflow nem `CLAUDE.md` mudou. Não foi criado `LICENSE`.
+Criados `README.md` (380 linhas, 18 seções H2, 3 diagramas em SVG) e `docs/img/` (3 capturas WebP e 3 SVG). Nenhum código, teste, dependência, workflow nem `CLAUDE.md` mudou. Não foi criado `LICENSE`.
 
 **Decisões (D1 a D18), uma frase cada.**
 - D1: português do Brasil, sem travessão nem meia-risca, títulos sem emoji, emojis só como status (✅ 🟡 ⏳) na tabela de funcionalidades.
 - D2: H2 na ordem fixa combinada, com `Telas` incluída porque as capturas deram certo.
 - D3: cabeçalho centralizado com logo de `frontend/src/Img/Elder_logo.webp`, frase de impacto, contexto do TCC, badges `flat-square` conferidos contra os `package.json` e navegação por âncoras. A tabela `Tecnologias` mostra só a versão principal (sem `^`; 0.x com major.minor), conforme os `package.json`.
-- D4: arquitetura (`flowchart`), login e `POST /auth/sync` (`sequenceDiagram`) e as 7 entidades (`erDiagram`) em Mermaid nativo, com os campos principais lidos de `schema.prisma`.
+- D4: arquitetura (`docs/img/arquitetura.svg`), login e `POST /auth/sync` (`docs/img/fluxo-login.svg`) e as 7 entidades (`docs/img/modelo-de-dados.svg`) em SVG desenhado à mão, com os campos principais lidos de `schema.prisma`. A primeira versão usou Mermaid; o layout automático gerou rótulos cobrindo linhas, setas cruzadas e um leque de linhas no modelo de dados, e o Marcos pediu desenho próprio. Os SVGs são autocontidos (sem fonte externa nem script), com fundo próprio que funciona nos temas claro e escuro do GitHub, e cada `<img>` no README leva um `alt` que descreve o diagrama inteiro. Foram conferidos por renderização em fundo claro e escuro. No modelo de dados, as chaves de autoria (`criado_por_id`, `registrado_por_id`, `editado_por_id`) e `cadastrado_por_id` não são desenhadas e entram numa nota; a nota cita também `aprovador_id` e `definido_por_id` do `Vinculo`, porque o `Vinculo` não tem chave de quem criou ou editou.
 - D5: o diagrama de casos de uso do vault foi avaliado e descartado do README (era anterior ao convite do idoso ao cuidador e ao aviso de emergência); telas só públicas (landing desktop, landing mobile, login mobile), capturadas com o Playwright do `frontend/node_modules` por script temporário fora do repo e convertidas com `sharp`, todas abaixo de 150 KB; o servidor do Vite foi encerrado.
 - D6: `elder-web.vercel.app` e `elder-web-frontend.vercel.app` responderam 200 com a aplicação, sem tela de login do Vercel; `elderweb-marcos-bea8.vercel.app` respondeu 302 para o login do Vercel. O link usado é `elder-web.vercel.app`; a URL do backend não aparece.
 - D7: seção `Licença` diz projeto acadêmico sem licença definida, todos os direitos reservados aos autores; escolher a licença fica com o grupo.
@@ -2140,15 +2140,15 @@ Criados `README.md` (468 linhas, 18 seções H2, 3 diagramas Mermaid) e `docs/im
 - D10: números só os medidos em 2026-10-13: backend 54 suítes e 2843 testes, frontend 97 suítes e 1102 testes, 45 rotas em `ROTAS_ESPERADAS`.
 - D11: todas as fases do plano estão em ✅; `Orientações` e `Sobre Nós` ficaram em 🟡 porque o texto delas é provisório (plano e código não divergem).
 - D12: equipe com Marcos, Laureane Almeida e Jennifer Galan; os links do GitHub das duas foram confirmados pelo Marcos (substitui a decisão inicial de não linkar).
-- D13: 468 linhas, 4 alertas, rotas, variáveis e estrutura detalhada dentro de `<details>`.
+- D13: 380 linhas, 4 alertas, rotas, variáveis e estrutura detalhada dentro de `<details>`.
 - D14: links relativos com espaços codificados e âncoras no padrão do GitHub.
 - D15: passos de execução local conforme `.nvmrc`, `docker-compose.yml` e os `.env.example`, só com nomes de variáveis.
 - D16: só `README.md`, `docs/img/*` e esta entrada mudam.
 - D17: tabela de comandos com onde roda e pré-requisitos, aviso de que `test:a11y`, `test:responsivo` e e2e rodam só local e criam contas no Firebase real, e lista dos passos reais do `ci.yml`.
 - D18: `Contribuindo` segue o fluxo do `CLAUDE.md` e do modelo de pull request.
 
-**Verificação.** Script temporário conferiu caminhos e links, scripts npm, serviço e porta do Docker, ausência de travessão, ausência de segredos, âncoras, 3 blocos Mermaid, números, imagens, linhas e alertas. O `mmdc` não existe na máquina, então os diagramas foram revisados à mão, sem renderização.
+**Verificação.** Script temporário conferiu caminhos e links, scripts npm, serviço e porta do Docker, ausência de travessão, ausência de segredos, âncoras, ausência de blocos Mermaid, números, imagens, linhas e alertas. Os SVGs foram validados como XML e renderizados com o Playwright em fundo branco e em fundo escuro do GitHub, e inspecionados nas imagens.
 
-**Limitações aceitas.** O CI não verifica o README. Os números de testes e de rotas no texto ficam desatualizados quando os testes ou as rotas mudarem. Sem `LICENSE` por decisão do grupo. Telas só públicas (nenhuma tela autenticada, para não criar conta nem expor dado de saúde). Sem diagrama de casos de uso no README (o do vault está desatualizado).
+**Limitações aceitas.** O CI não verifica o README. Os números de testes e de rotas no texto ficam desatualizados quando os testes ou as rotas mudarem. Sem `LICENSE` por decisão do grupo. Telas só públicas (nenhuma tela autenticada, para não criar conta nem expor dado de saúde). Sem diagrama de casos de uso no README (o do vault está desatualizado). Os SVGs não são gerados por código: mudanças no modelo de dados, nas rotas de autenticação ou na arquitetura exigem edição manual dos arquivos em `docs/img/`.
 
 **Teste do passo 4 de `Como executar localmente`.** Em um container descartável da imagem `mcr.microsoft.com/mssql/server:2025-latest` (porta 14339, removido ao fim), `npx prisma migrate deploy` com `DATABASE_URL` sobrescrita para um banco inexistente criou o banco e aplicou as 7 migrations. Por isso o README não manda criar o banco à mão.
