@@ -15,7 +15,8 @@
     "test": "jest",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test acessibilidade",
-    "test:responsivo": "playwright test responsivo"
+    "test:responsivo": "playwright test responsivo",
+    "test:desempenho": "playwright test -c playwright.desempenho.config.ts"
   },
   "dependencies": {
     "firebase": "^12.18.0",
