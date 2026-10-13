@@ -27,7 +27,7 @@ Trabalho de Conclusão de Curso (TCC) · Curso Técnico em Desenvolvimento de Si
 
 O cuidado de uma pessoa idosa costuma ficar espalhado: o idoso, a família e o cuidador anotam remédios, consultas e medições em lugares diferentes, e ninguém enxerga o quadro inteiro. O Elder Web é uma aplicação web que reúne esse registro e o compartilha com as pessoas certas, com permissões claras sobre quem pode ver e quem pode alterar cada coisa.
 
-Cada pessoa tem login e cadastro próprios, em um de três perfis:
+As contas são organizadas em três perfis:
 
 | Perfil | Quem é | O que faz |
 |---|---|---|
