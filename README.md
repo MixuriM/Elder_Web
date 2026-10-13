@@ -110,35 +110,13 @@ Um cuidador só acessa as ferramentas do idoso depois de vinculado formalmente a
 
 ## Arquitetura
 
-```mermaid
-flowchart LR
-    N["Navegador"] -->|"HTTPS"| V["Frontend React (Vercel)"]
-    N -->|"login com o Firebase Web SDK"| F["Firebase Auth"]
-    N -->|"HTTPS com ID Token"| A["API Express (Render)"]
-    A -->|"valida o token (Admin SDK)"| F
-    A -->|"Prisma, conexão criptografada"| D[("Azure SQL Database")]
-    A -.->|"só no aviso de emergência"| E["E-mail transacional (API HTTPS)"]
-```
+<p align="center">
+  <img src="docs/img/arquitetura.svg" alt="Diagrama de arquitetura em três colunas. Cliente: o navegador (React e Vite), que carrega o site da Vercel (1). Aplicação: a API Express no Render, em Docker. Dados e serviços: Firebase Auth, Azure SQL Database e um serviço de e-mail transacional, usado só no aviso de emergência. O navegador faz login no Firebase pelo Web SDK (2) e chama a API com o ID Token (3). A API valida o token no Firebase com o Admin SDK (4) e lê e grava no Azure SQL Database pelo Prisma, em conexão criptografada (5). Só no aviso de emergência a API envia e-mail pelo serviço transacional." width="880">
+</p>
 
-```mermaid
-sequenceDiagram
-    actor U as Usuário
-    participant W as Frontend
-    participant F as Firebase Auth
-    participant A as API
-    participant B as SQL Server
-    U->>W: e-mail e senha, ou conta Google
-    W->>F: autentica
-    F-->>W: ID Token (JWT)
-    W->>A: POST /auth/sync com Authorization Bearer
-    A->>F: verifyIdToken (Admin SDK)
-    F-->>A: firebase_uid e e-mail
-    A->>B: busca Usuario por firebase_uid
-    Note over A,B: Se não existe, cria o Usuario com o tipo_perfil escolhido no cadastro
-    A-->>W: dados do usuário
-    W->>A: chamadas seguintes com o ID Token
-    A->>A: requireAuth resolve o id interno do Usuario
-```
+<p align="center">
+  <img src="docs/img/fluxo-login.svg" alt="Diagrama de sequência com cinco participantes: Usuário, Frontend, Firebase Auth, API e SQL Server. Passo 1: o usuário informa e-mail e senha ou usa a conta Google. Passo 2: o frontend autentica no Firebase Auth. Passo 3: o Firebase devolve o ID Token (JWT). Passo 4: o frontend chama POST /auth/sync com o token. Passo 5: a API verifica o token no Firebase com o Admin SDK. Passo 6: a API busca o Usuario no SQL Server por firebase_uid. Passo 7: se não existe, cria o Usuario com o tipo_perfil escolhido no cadastro. Passo 8: a API devolve os dados do usuário ao frontend. Passo 9: nas chamadas seguintes o frontend manda o ID Token e o middleware requireAuth resolve o id interno do Usuario." width="880">
+</p>
 
 - O frontend é uma aplicação multipágina (React Router), publicada na Vercel.
 - O Firebase Auth só autentica. Todos os dados de domínio ficam no SQL Server.
@@ -150,75 +128,9 @@ sequenceDiagram
 
 São 7 entidades. O schema do Prisma (`backend/prisma/schema.prisma`) é a fonte única do modelo, e o documento [Modelagem ER](docs/Elder%20Web%20-%20Modelagem%20ER.md) traz todos os atributos, relacionamentos e decisões. O diagrama mostra só as chaves e os campos principais.
 
-```mermaid
-erDiagram
-    Usuario ||--o{ Vinculo : "idoso_id"
-    Usuario ||--o{ Vinculo : "vinculado_id"
-    Usuario ||--o{ Evento : "idoso_id"
-    Usuario ||--o{ Medicamento : "idoso_id"
-    Medicamento ||--o{ RegistroDoseMedicamento : "medicamento_id"
-    Usuario ||--o{ RegistroDoseMedicamento : "registrado_por_id"
-    Usuario ||--o{ RegistroSaude : "idoso_id"
-    Usuario ||--o{ RegistroAlimentar : "idoso_id"
-    Usuario |o--o{ Usuario : "cadastrado_por_id"
-    Usuario {
-        int id PK
-        string firebase_uid UK
-        string nome
-        string email UK
-        string tipo_perfil
-        string modo_decisao
-        int cadastrado_por_id FK
-    }
-    Vinculo {
-        int id PK
-        int idoso_id FK
-        int vinculado_id FK
-        string tipo_vinculo
-        string origem
-        string status
-        boolean permite_registrar_saude
-        boolean permite_marcar_dose
-        boolean permite_criar_evento_cuidado
-    }
-    Evento {
-        int id PK
-        int idoso_id FK
-        int criado_por_id FK
-        string tipo_evento
-        string titulo
-        datetime data_hora_inicio
-    }
-    Medicamento {
-        int id PK
-        int idoso_id FK
-        int criado_por_id FK
-        string nome
-        string dosagem
-        boolean ativo
-    }
-    RegistroDoseMedicamento {
-        int id PK
-        int medicamento_id FK
-        int registrado_por_id FK
-        string status_administracao
-    }
-    RegistroSaude {
-        int id PK
-        int idoso_id FK
-        int registrado_por_id FK
-        int editado_por_id FK
-        string tipo_medicao
-        decimal valor_1
-    }
-    RegistroAlimentar {
-        int id PK
-        int idoso_id FK
-        int registrado_por_id FK
-        string refeicao
-        string descricao
-    }
-```
+<p align="center">
+  <img src="docs/img/modelo-de-dados.svg" alt="Diagrama das 7 entidades com chaves e campos principais. Usuario, no topo, se liga a Vinculo duas vezes (por idoso_id e por vinculado_id) e, por idoso_id, a Evento, Medicamento, RegistroSaude e RegistroAlimentar, sempre de um Usuario para muitos registros. Medicamento se liga a RegistroDoseMedicamento por medicamento_id. Uma nota explica que os registros também apontam para Usuario por quem criou, registrou ou editou, que o Vinculo aponta para quem aprovou e quem definiu as permissões, e que Usuario aponta para si mesmo em cadastrado_por_id." width="880">
+</p>
 
 `Evento`, `Medicamento`, `RegistroSaude` e `RegistroAlimentar` também guardam quem editou (`editado_por_id`), obrigatório em `RegistroSaude`. Os valores de negócio (por exemplo `tipo_perfil` e `status`) são texto no banco, com restrições `CHECK` escritas nas migrations, porque o conector do SQL Server não suporta `enum`.
 
