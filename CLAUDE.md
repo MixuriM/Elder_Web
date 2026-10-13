@@ -282,6 +282,12 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Em merge por rebase os hashes de commit mudam. Não tratar hash de commit local como
   definitivo.
 
+**Desempenho (2026-10-13)**
+- Autorização e vínculo nunca em cache entre requisições; o `chamarApi` só junta GET iguais em voo (token mais caminho).
+- Cache HTTP: só o ETag do Express; nenhum `Cache-Control` em rota de dado sensível.
+- Índice novo só por migration à mão (`INCLUDE` se a rota lê todas as colunas); no Azure, o Marcos aplica.
+- `test:desempenho` e `scripts/medir-desempenho.ts`: locais, fora do CI; sem dependência de desempenho.
+
 **Frontend e grupo**
 - Mudou contrato HTTP ou mexeu em arquivo de tela da Laureane ou da Jennifer: avisar as
   duas fica com o Marcos (lembrar ele ao concluir a tarefa).
@@ -295,6 +301,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing); calendário
   da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10).
 - Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
+- Azure: aplicar a migration `20261013120000_add_indices_desempenho` (autorização própria).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; apagar as contas `e2e-*@e2e.elderweb.test` do Firebase;
   cuidadores e familiares cadastrados antes do PR #162 confirmarem o e-mail no Perfil.

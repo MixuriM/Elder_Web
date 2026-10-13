@@ -2152,3 +2152,115 @@ Criados `README.md` (380 linhas, 18 seções H2, 3 diagramas em SVG) e `docs/img
 **Limitações aceitas.** O CI não verifica o README. Os números de testes e de rotas no texto ficam desatualizados quando os testes ou as rotas mudarem. Sem `LICENSE` por decisão do grupo. Telas só públicas (nenhuma tela autenticada, para não criar conta nem expor dado de saúde). Sem diagrama de casos de uso no README (o do vault está desatualizado). Os SVGs não são gerados por código: mudanças no modelo de dados, nas rotas de autenticação ou na arquitetura exigem edição manual dos arquivos em `docs/img/`.
 
 **Teste do passo 4 de `Como executar localmente`.** Em um container descartável da imagem `mcr.microsoft.com/mssql/server:2025-latest` (porta 14339, removido ao fim), `npx prisma migrate deploy` com `DATABASE_URL` sobrescrita para um banco inexistente criou o banco e aplicou as 7 migrations. Por isso o README não manda criar o banco à mão.
+
+## Desempenho medido: índices, GET /vinculo, cascata da entrada e bundle (2026-10-13, sem PR ainda)
+
+Tarefa de desempenho com decisões D1 a D12 tomadas por Claude sob delegação do Marcos ("decisão do grupo"). Regra: nada entra sem medição antes e depois; ganho dentro do ruído é revertido. Tudo foi medido no SQL Server local (docker-compose, porta 14330) e no build de produção servido pelo `vite preview`. Nada rodou contra Azure ou Render.
+
+**Ferramentas (locais, fora do CI).**
+- `backend/scripts/medir-desempenho.ts`: cria o volume D2 (1 idoso com 5.000 registros de saúde, 5.000 refeições, 3.000 eventos, 200 medicamentos com 20 doses e 20 vínculos) em contas `perf-*@e2e.elderweb.test`. Mede mediana e p95 de 30 chamadas depois de 5 de aquecimento, com o app real (só o `verifyIdToken` trocado). Conta as operações do Prisma por requisição (PrismaClient embrulhado antes de `./app` carregar), lê leituras lógicas e operador de acesso em `sys.dm_exec_query_stats` e limpa por sentinela no `finally`. Opções: `--fundo=N` (N idosos extras com o mesmo volume, para medir seletividade), `--latencia-db=N` (atraso por operação, simula a distância entre Render e Azure), `--so=texto`, e `--popular-email` e `--limpar-email` (usados pelo spec).
+- `frontend/scripts/medir-bundle.mjs`: bruto, gzip e brotli de `dist/assets`, bundle inicial, quem pré-carrega cada chunk e peso por pacote.
+- `npm run test:desempenho` (`playwright.desempenho.config.ts` e `e2e/desempenho.spec.ts`, ignorado pelo `playwright.config.ts`): Chromium com a rede Fast 3G do DevTools e CPU 4x por CDP, cache desligado, 5 rodadas, mediana. Cria 3 contas `e2e-*-perf-*` no Firebase real e popula o idoso. `DESEMPENHO_SO` (regex) filtra as telas. Nunca reaproveita backend já de pé na porta 3000.
+
+**Backend: rotas (mediana em ms, SQL local).**
+
+| Item | Medida | Antes | Depois |
+|---|---|---|---|
+| GET /vinculo idoso, latência simulada de 20 ms por consulta | mediana | 91,5 | 60,9 (−33%) |
+| GET /vinculo familiar titular, 20 ms | mediana | 152,6 | 121,6 (−20%) |
+| GET /vinculo idoso e familiar, sem latência simulada | mediana | 8,8 e 12,5 | 8,1 e 11,5 (abaixo de 10%) |
+| GET /saude, 49 idosos de fundo | mediana e p95 | 119,2 e 123,1 | 102,5 e 109,3 (−14%) |
+| GET /remedios, 49 de fundo | mediana e p95 | 127,1 e 133,5 | 105,4 e 110,3 (−17%) |
+| GET /alimentacao, 49 de fundo | mediana e p95 | 95,3 e 99,8 | 77,0 e 81,2 (−19%) |
+| GET /agenda, 49 de fundo | mediana e p95 | 60,2 e 65,0 | 50,9 e 54,3 (−15%) |
+| As mesmas 4, com 9 de fundo | mediana | 108,7, 109,1, 80,9 e 52,3 | 104,4, 104,8, 77,0 e 50,2 (cerca de −4%) |
+| GET /historico/pdf | mediana | 407 a 424 | 412 a 415 (sem mudança: o tempo é do pdfkit) |
+
+GET /vinculo: as consultas por requisição continuam 3 (idoso e cuidador) e 5 (familiar titular), mas as idas em série caíram de 3 para 2 e de 5 para 4.
+- Perfil do chamador e vínculos saem juntos: `Promise.all`, com `findMany` por `OR` de `idoso_id` e `vinculado_id`, filtrado em JS pelo lado do perfil.
+- `resolverEstadoModoDecisao` roda por idoso, em paralelo, e continua sendo chamado (D4).
+- As contagens de familiares aprovados saem em paralelo com o `findMany` dos idosos de que o familiar é titular.
+
+O `groupBy` foi descartado: só economiza uma ida com 2 ou mais idosos com pedido de transferência ao mesmo tempo, e o fake do `vinculoListar.test.ts` não o implementa (teste existente intocado).
+
+Caracterização: `vinculoListarCaracterizacao.test.ts` grava o corpo inteiro de 13 cenários e dos erros 401, 400, 403 e 500. No 500, confere que o erro não vaza e que não sobra rejeição solta. O snapshot foi gravado com o código antigo e o novo passa igual. Mutações derrubadas: lado idoso fora do `OR`, titular de todos os idosos, sem filtro do lado vinculado, contagem ignorada, titular sem checar o modo e sem o resolver.
+
+**Banco: planos (leituras lógicas por execução).** Sem índice, toda leitura de histórico faz Clustered Index Scan, e as leituras crescem com o dado de todos os idosos. RegistroSaude: 77 com o idoso sozinho, 566 com 9 de fundo, 2.749 com 49.
+
+Índice só de chave foi testado e **ignorado** pelo otimizador, com o idoso dono de 10% e de 2% das linhas. Motivo: as rotas devolvem todas as colunas de todas as linhas do idoso, e uma busca por linha sai mais cara que a varredura.
+
+Com índice cobrindo (`INCLUDE`), migration `20261013120000_add_indices_desempenho`, com 49 de fundo:
+- RegistroSaude: 2.749 para 57 (Index Seek).
+- RegistroAlimentar: 2.933 para 61.
+- Evento: 1.909 para 40.
+- Medicamento: 124 para 6.
+- RegistroDoseMedicamento: 1.623 para 831 (um seek por medicamento).
+
+Vinculo segue em varredura com 5 a 6 leituras: índice descartado. O `schema.prisma` tem `@@index` com as colunas da chave e os mesmos nomes; o Prisma não representa `INCLUDE`. Migration aplicada só no SQL local; `prisma migrate status` limpo. Sem CHECK nem índice único, então sem caso novo em `verify-constraints.ts`.
+
+**Frontend: telas (Fast 3G, CPU 4x, mediana de 5; "útil" = h1 visível e nenhum "Carregando" visível).**
+
+| Tela | Útil antes e depois | LCP antes e depois | API e bytes |
+|---|---|---|---|
+| Home, 3 perfis | 28,4 a 28,8 s para 23,4 a 23,5 s (−17% a −18%) | 4,68 s para 4,77 a 4,82 s (+2% a +3%, não atribuído) | 14 para 12 chamadas; 4.226 para 3.403 kB |
+| Navegação Home para Saúde | idoso 1.963 para 1.643 ms; cuidador 2.969 para 1.942; familiar 3.008 para 2.048 | | 18 a 20 para 14 a 16 chamadas |
+| Saúde | 7,1 a 7,7 s para 6,2 a 6,6 s (−13% a −15%) | −8% a −15% | 14 para 12 |
+| Alimentação | 6,5 a 7,2 s para 5,7 a 6,0 s (−13% a −16%) | −9% a −10% | 12 para 10 |
+| Agenda | 6,5 a 7,1 s para 6,2 a 6,4 s (−5% a −10%) | −2% a −10% | 12 para 10 |
+| Remédios | 16,8 a 17,1 s para 16,2 a 16,3 s (−3% a −4%) | −8% a −9% | 14 a 16 para 12 |
+| Vínculos | 5,5 a 6,1 s para 5,4 s (−3% a −11%) | | |
+| Perfil | 5,30 a 5,36 s para 5,22 a 5,25 s (−1% a −2%) | | |
+| Landing | 2.642 para 2.375 ms | 2.440 para 2.320 ms | |
+| Login | 2.243 para 2.202 ms | 2.208 para 2.164 ms; CLS 0 para 0,024 | |
+
+Causas, na entrada autenticada:
+- `/vinculo` esperava `/usuario/me` terminar (590 ms em série).
+- A `/agenda` inteira (855 kB) era baixada 2 vezes ao mesmo tempo, pelo `AvisosProvider` e pelo `ResumoDia`.
+
+Correções:
+- O `AcessoProvider` busca os dois em paralelo (`Promise.allSettled`), com a mesma falha aberta. O teste que dizia "falha no perfil não busca vínculos" virou "erro sem perfil, mesmo com os vínculos respondendo".
+- O `chamarApi` junta GET simples iguais em voo da mesma conta. A chave é token mais caminho, apagada ao responder; cada chamador recebe uma cópia, e nada é guardado.
+- O `useIdososVinculados` usa o `tipoPerfil` já conhecido do `AcessoProvider` (fixo por conta) e não repete `/usuario/me`. Os vínculos continuam frescos a cada tela.
+
+O `AvisosProvider` precisa dos vínculos para cuidador e familiar, e só do perfil para o idoso. Com a busca em paralelo, a espera extra some sem mudar os estados do contexto.
+
+Os bytes das telas autenticadas não são comparáveis com produção: o Render comprime o JSON (Brotli), o local não. A coluna `br` do script dá a referência.
+
+**Bundle.** O inicial ficou igual (432,2 kB bruto e 112,8 kB gzip de JS), agora em 4 arquivos. `manualChunks` com `vendor-firebase` e `vendor-react`: depois de um deploy que muda só o código do app, quem volta baixa de novo 20,9 kB gzip em vez de 112,9 kB (−81%, medido com dois builds em memória). O `heic-to` (2.926 kB) já era lazy e não aparece em `modulepreload` nem no `__vite__mapDeps` de nenhum chunk. O logo da Navbar da Landing (exibido com 60 px) foi trocado por uma versão de 120 px gerada do original: 7,7 kB no lugar de 46 kB.
+
+**Itens descartados, com o número.**
+- Cache-Control e ETag na foto (D6): o Express já manda ETag fraco e o Chromium já revalida (`If-None-Match`, 304 com 247 B por carga em vez de 80 kB). Nada a fazer.
+- `preload` da fonte 400: o Login piorou 320 ms (A/B com 7 variantes: 2.490 ms com ele contra 2.167 sem). Revertido.
+- Índice só de chave: ignorado pelo otimizador (ver acima).
+- Índices em Vinculo: 5 a 6 leituras.
+- `groupBy` no GET /vinculo: ver acima.
+- Compressão no Express: o Render já comprime.
+- `select` mínimo no `requireVinculoAprovado`: 1 ms por chamada.
+- Render do calendário Mês: próximo mês em 186 a 212 ms com CPU 4x.
+- Lista longa: trocar para Lista com 3.000 eventos leva 4,0 s, e abrir o histórico de 5.000 registros, 11,7 s (download mais renderização). Paginação e virtualização continuam fora do escopo e viram proposta.
+- `preconnect` para o `authDomain` do Firebase: o login por e-mail e senha não fala com esse domínio.
+- Paralelizar o `findUnique` do chamador com o `findMany` nas rotas de histórico do idoso: buscaria dado de saúde antes da checagem de perfil. Fica como proposta, junto com o `requireAuth` devolver `tipo_perfil` (economiza 1 consulta em quase toda rota, mas mexe no middleware de autenticação).
+
+**Mantidos sem ganho mensurável localmente (D8).**
+- Aquecimento `GET /health` sem credencial em `/`, `/login` e `/cadastro` (`lib/aquecerBackend.ts`): 1 por carga, sem esperar nem mostrar erro, com testes e mutação. O cold start do Render não existe localmente; o custo medido é 1 requisição a mais, sem efeito no LCP. `/health` não consulta o banco, então não acorda o Azure SQL; o retry de `lib/prisma.ts` segue cobrindo.
+- `preconnect` para `%VITE_API_URL%` no `index.html`. No A/B do Login, chunks e preconnect juntos deram 2.167 ms, contra 2.502 sem nenhum dos dois.
+
+**Dev.** `usePolling` custa cerca de 20% de um núcleo o tempo todo (3,9 s de CPU a cada 20 s parado, contra 0,05 s sem). Continua ligado; `DEV_POLLING=nao` desliga.
+
+**Cold start local.** `node dist/index.js` até `/health` responder: 588 a 700 ms. Primeira consulta do Prisma: 103 a 134 ms. Import do app: cerca de 600 ms.
+
+**Provas de que a medição pega regressão.**
+- Planta (a): sem o índice de RegistroSaude, as leituras foram de 57 para 568 e o plano voltou a Clustered Index Scan. Índice recriado.
+- Planta (b): `await` em série no lugar do `Promise.all` do GET /vinculo levou o idoso de 60,9 para 91,2 ms, com 20 ms por consulta. Revertido; arquivo igual ao final.
+
+**Revisão independente.** A auditoria de segurança não achou nada crítico nem alto. O achado médio (deduplicação compartilhando resposta entre contas na mesma aba) já estava corrigido com chave por token, teste e mutação. O `test:desempenho` deixou de reaproveitar backend já de pé.
+
+Risco anterior a esta tarefa, não corrigido: o `emVoo` do `useIdososVinculados` não separa contas. Uma troca de conta na mesma aba, com a busca em voo, entrega a lista de idosos da conta anterior.
+
+**Não medido.** Render e Azure reais, cold start real, rede e aparelho reais, Safari e WebKit, Core Web Vitals de campo. A latência entre Render e Azure foi simulada com um valor fixo. A emulação de rede do CDP não reproduz DNS nem TLS, então o efeito real do `preconnect` só aparece em produção.
+
+**Pendências manuais (Marcos).**
+- Aplicar a migration `20261013120000_add_indices_desempenho` no Azure, com autorização própria.
+- Pinger externo contra o sono do Render free: fica como recomendação, não como código.
+- `connection_limit` na `DATABASE_URL` do Render: não indicado pela medição.
+- O README cita 7 migrations; agora são 8.
