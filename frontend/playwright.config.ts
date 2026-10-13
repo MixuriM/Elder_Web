@@ -10,6 +10,8 @@ const databaseUrlLocal = senhaLocal
 
 export default defineConfig({
   testDir: "./e2e",
+  // Medição de desempenho tem config própria (playwright.desempenho.config.ts, npm run test:desempenho).
+  testIgnore: "desempenho.spec.ts",
   timeout: 30_000,
   fullyParallel: false,
   workers: 1,
