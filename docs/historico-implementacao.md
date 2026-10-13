@@ -2122,3 +2122,33 @@ Resposta aos achados B1 a B5 da auditoria final da rodada anterior. Sem schema, 
 - **Auditoria da rodada 2 (corrigido).** O limite de 255 de `email_convite_familiar` passa a valer para o valor já em minúsculas, no cadastro do idoso e em `/convidar-familiar` (letras como `İ` ganham uma unidade ao virar minúscula e estourariam a coluna `NVarChar(255)` em 500). O teste de atomicidade da troca de e-mail agora confere as duas operações exatas passadas à `$transaction`, na ordem.
 - **Auditoria da rodada 2 (riscos aceitos, sem correção).** (a) Corrida teórica: se o PATCH de troca de e-mail commitar entre o `usuario.create` e o `vinculo.create` de `vincularFamiliarConvidado` no primeiro `/auth/sync` da conta nova, o `updateMany` não encontra o vínculo e ele nasce depois, já com o e-mail novo; janela muito pequena, e a solução definitiva (e-mail convidado no `Vinculo`) a elimina. (b) `emailConfirmado()` decide pela flag do SDK, que o próprio `reload()` já atualizou: se a transição falso para verdadeiro acontecer e `getIdToken(true)` falhar por rede, as chamadas seguintes não renovam o token até ele vencer (cerca de 1 h); é a regra fechada do D4, e a alternativa seria decidir pela claim `email_verified` do token. (c) `vincularIdosoComFamiliarExistente` e o casamento de `email_convite_familiar` continuam dependendo de o collation do banco ignorar caixa para valores antigos em caixa mista (não verificado). (d) A atomicidade e o rollback reais da `$transaction` não são provados por Prisma em memória; só um `verify-rotas` contra o SQL Server local provaria.
 - **Testes e mutações.** Backend 2826 para 2843 testes (53 para 54 suítes), cobertura 97,03/95,17/100/97,6 para 97,05/95,14/100/97,62; frontend 1101 para 1102 testes (97 suítes). Mutações, todas revertidas: sem o `updateMany` e a transação (5 testes falham), sem `origem` no `where` (1), sem `vinculado_id` no `where` (2), cancelar também na troca só de caixa (2); sem a validação de tamanho (2); `getIdToken(true)` sempre (1); convite gravado sem normalizar no cadastro do idoso (1) e em `/convidar-familiar` (1); limite de 255 sem as minúsculas (1 em cada rota); outra operação no lugar do update dentro da transação (9).
+
+## README do repositório (2026-10-13, sem PR ainda)
+
+Criados `README.md` (468 linhas, 18 seções H2, 3 diagramas Mermaid) e `docs/img/` (3 imagens). Nenhum código, teste, dependência, workflow nem `CLAUDE.md` mudou. Não foi criado `LICENSE`.
+
+**Decisões (D1 a D18), uma frase cada.**
+- D1: português do Brasil, sem travessão nem meia-risca, títulos sem emoji, emojis só como status (✅ 🟡 ⏳) na tabela de funcionalidades.
+- D2: H2 na ordem fixa combinada, com `Telas` incluída porque as capturas deram certo.
+- D3: cabeçalho centralizado com logo de `frontend/src/Img/Elder_logo.webp`, frase de impacto, contexto do TCC, badges `flat-square` conferidos contra os `package.json` e navegação por âncoras.
+- D4: arquitetura (`flowchart`), login e `POST /auth/sync` (`sequenceDiagram`) e as 7 entidades (`erDiagram`) em Mermaid nativo, com os campos principais lidos de `schema.prisma`.
+- D5: o diagrama de casos de uso do vault foi avaliado e descartado do README (era anterior ao convite do idoso ao cuidador e ao aviso de emergência); telas só públicas (landing desktop, landing mobile, login mobile), capturadas com o Playwright do `frontend/node_modules` por script temporário fora do repo e convertidas com `sharp`, todas abaixo de 150 KB; o servidor do Vite foi encerrado.
+- D6: `elder-web.vercel.app` e `elder-web-frontend.vercel.app` responderam 200 com a aplicação, sem tela de login do Vercel; `elderweb-marcos-bea8.vercel.app` respondeu 302 para o login do Vercel. O link usado é `elder-web.vercel.app`; a URL do backend não aparece.
+- D7: seção `Licença` diz projeto acadêmico sem licença definida, todos os direitos reservados aos autores; escolher a licença fica com o grupo.
+- D8: o texto não cita a instituição do levantamento nem o escopo removido do PDF antigo.
+- D9: a seção de segurança descreve só mecanismos presentes no código, sem riscos aceitos, hosts, contas de teste nem valores de variável.
+- D10: números só os medidos em 2026-10-13: backend 54 suítes e 2843 testes, frontend 97 suítes e 1102 testes, 45 rotas em `ROTAS_ESPERADAS`.
+- D11: todas as fases do plano estão em ✅; `Orientações` e `Sobre Nós` ficaram em 🟡 porque o texto delas é provisório (plano e código não divergem).
+- D12: equipe com Marcos (link do GitHub) e Laureane Almeida e Jennifer Galan sem links.
+- D13: 468 linhas, 4 alertas, rotas, variáveis e estrutura detalhada dentro de `<details>`.
+- D14: links relativos com espaços codificados e âncoras no padrão do GitHub.
+- D15: passos de execução local conforme `.nvmrc`, `docker-compose.yml` e os `.env.example`, só com nomes de variáveis.
+- D16: só `README.md`, `docs/img/*` e esta entrada mudam.
+- D17: tabela de comandos com onde roda e pré-requisitos, aviso de que `test:a11y`, `test:responsivo` e e2e rodam só local e criam contas no Firebase real, e lista dos passos reais do `ci.yml`.
+- D18: `Contribuindo` segue o fluxo do `CLAUDE.md` e do modelo de pull request.
+
+**Verificação.** Script temporário conferiu caminhos e links, scripts npm, serviço e porta do Docker, ausência de travessão, ausência de segredos, âncoras, 3 blocos Mermaid, números, imagens, linhas e alertas. O `mmdc` não existe na máquina, então os diagramas foram revisados à mão, sem renderização.
+
+**Limitações aceitas.** O CI não verifica o README. Os números de testes e de rotas no texto ficam desatualizados quando os testes ou as rotas mudarem. Sem `LICENSE` por decisão do grupo. Telas só públicas (nenhuma tela autenticada, para não criar conta nem expor dado de saúde). Sem diagrama de casos de uso no README (o do vault está desatualizado).
+
+**Teste do passo 4 de `Como executar localmente`.** Em um container descartável da imagem `mcr.microsoft.com/mssql/server:2025-latest` (porta 14339, removido ao fim), `npx prisma migrate deploy` com `DATABASE_URL` sobrescrita para um banco inexistente criou o banco e aplicou as 7 migrations. Por isso o README não manda criar o banco à mão.
