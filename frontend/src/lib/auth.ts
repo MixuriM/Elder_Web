@@ -11,6 +11,7 @@ import {
   type User,
 } from "firebase/auth";
 import { app } from "./firebase";
+import { MENSAGEM_LIMITE_TAXA } from "./limiteTaxa";
 
 export const auth = getAuth(app);
 
@@ -174,6 +175,7 @@ export async function syncUser(dados?: {
 // de e-mail, item 3.2); 4xx sem codigo = erro real de sync, sem culpar o servidor.
 function mensagemSyncError(err: unknown, mensagem5xx: string): string | null {
   if (!(err instanceof SyncError)) return null;
+  if (err.status === 429) return MENSAGEM_LIMITE_TAXA;
   if (err.codigo && err.proximoPasso) return `${err.message} ${err.proximoPasso}`;
   if (err.status >= 500) return mensagem5xx;
   return "Falha ao sincronizar sua conta com o servidor. Confira os dados e tente novamente.";

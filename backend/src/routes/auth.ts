@@ -1,5 +1,7 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
+import type { DecodedIdToken } from "firebase-admin/auth";
 import { prisma } from "../lib/prisma";
+import { criarLimitador, QUINZE_MIN } from "../lib/limiteTaxa";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
 import { baixarFotoDoGoogle, semFotoPerfil, USUARIO_SEM_FOTO_SELECT } from "../lib/fotoPerfil";
@@ -70,10 +72,19 @@ async function vincularIdosoComFamiliarExistente(idosoId: number, emailFamiliar:
   });
 }
 
-router.post("/sync", async (req, res, next) => {
+// Decisão D1 de 2026-10-14: por IP antes de verificar o token (barra quem martela com token inválido) e por uid
+// depois. req.ip só é o do cliente com trust proxy certo em produção (app.ts, TRUST_PROXY_SALTOS).
+const limiteSyncIp = criarLimitador({ janelaMs: QUINZE_MIN, maximo: 300, chave: (req) => req.ip });
+const limiteSyncUid = criarLimitador({
+  janelaMs: QUINZE_MIN,
+  maximo: 60,
+  chave: (_req, res) => (res.locals.decoded as DecodedIdToken | undefined)?.uid,
+});
+
+// Valida o token e deixa o resultado em res.locals.decoded, para o limite por uid rodar antes do handler.
+const verificarTokenSync: RequestHandler = async (req, res, next) => {
   // Express 4 não propaga rejeições de handlers async pro errorHandler sozinho —
-  // sem esse try/catch externo, um erro assíncrono (ex.: Prisma fora do ar) vira
-  // unhandled rejection e derruba o processo em vez de responder 500.
+  // sem esse try/catch, um erro assíncrono vira unhandled rejection e derruba o processo.
   try {
     const authHeader = req.headers.authorization;
     const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -86,7 +97,19 @@ router.post("/sync", async (req, res, next) => {
     if (!resultado.ok) {
       return res.status(resultado.status).json({ error: resultado.error });
     }
-    const decoded = resultado.decoded;
+    res.locals.decoded = resultado.decoded;
+    next();
+  } catch (e) {
+    next(e);
+  }
+};
+
+router.post("/sync", limiteSyncIp, verificarTokenSync, limiteSyncUid, async (req, res, next) => {
+  // Express 4 não propaga rejeições de handlers async pro errorHandler sozinho —
+  // sem esse try/catch externo, um erro assíncrono (ex.: Prisma fora do ar) vira
+  // unhandled rejection e derruba o processo em vez de responder 500.
+  try {
+    const decoded = res.locals.decoded as DecodedIdToken;
 
     // findFirst, não findUnique: firebase_uid não é @unique no Prisma (o índice único
     // é filtrado e manual, ver schema.prisma) — o client não conhece essa constraint.

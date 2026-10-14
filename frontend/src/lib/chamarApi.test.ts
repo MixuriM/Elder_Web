@@ -1,4 +1,6 @@
 import { chamarApi } from './chamarApi'
+import { MENSAGEM_LIMITE_TAXA } from './limiteTaxa'
+import { mensagemPorStatus } from '../components/Vinculos/mensagensVinculo'
 
 const mockToken = jest.fn().mockResolvedValue('token-fake')
 jest.mock('./auth', () => ({ getCurrentUserToken: () => mockToken() }))
@@ -115,3 +117,17 @@ describe('chamarApi: GET simultâneos iguais compartilham a requisição', () =>
   })
 })
 
+
+// Limite de taxa (2026-10-14): o 429 vira sempre a mesma frase amigável, venha o corpo que vier.
+describe('chamarApi: 429', () => {
+  it('erro 429 tem a mensagem fixa e o status', async () => {
+    global.fetch = jest.fn().mockResolvedValue(resposta(429, { error: 'qualquer coisa' }))
+    await expect(chamarApi('/x', { method: 'POST' })).rejects.toMatchObject({ message: MENSAGEM_LIMITE_TAXA, status: 429 })
+    expect(MENSAGEM_LIMITE_TAXA).toBe('Muitas tentativas. Aguarde alguns minutos e tente de novo.')
+  })
+
+  it('as telas de vínculo mostram a mensagem fixa no 429, mesmo sem texto próprio para ele', () => {
+    const erro = Object.assign(new Error('x'), { status: 429 })
+    expect(mensagemPorStatus(erro, { 400: 'outro' })).toBe(MENSAGEM_LIMITE_TAXA)
+  })
+})

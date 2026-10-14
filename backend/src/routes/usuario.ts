@@ -3,6 +3,7 @@ import multer from "multer";
 import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
+import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
 import { emailDoTokenConfere, isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
@@ -17,6 +18,10 @@ import {
 } from "../lib/fotoPerfil";
 
 const router = Router();
+
+// Limites por usuário (decisão D1 de 2026-10-14). Emergência e foto têm os seus próprios.
+const limiteAtualizarPerfil = criarLimitador({ janelaMs: QUINZE_MIN, maximo: 30, chave: porUsuario });
+const limiteCadastrarIdoso = criarLimitador({ janelaMs: 60 * 60 * 1000, maximo: 10, chave: porUsuario });
 
 // Tarefa 2.9 (RF-033) — resolverEstadoModoDecisao roda a checagem preguiçosa de
 // expiração da janela de transferência (efetiva a mudança ou limpa solicitação vencida)
@@ -211,7 +216,7 @@ router.delete("/me/foto", requireAuth, async (req, res, next) => {
 const MSG_EMAIL_INVALIDO = "E-mail inválido.";
 const MSG_EMAIL_EM_USO = "Este e-mail já está em uso por outra conta.";
 
-router.patch("/me", requireAuth, async (req, res, next) => {
+router.patch("/me", requireAuth, limiteAtualizarPerfil, async (req, res, next) => {
   try {
     const { nome, email, telefone } = req.body ?? {};
     // Só string (ou null em email/telefone) chega ao Prisma: um objeto como { set: "" } seria aceito
@@ -398,7 +403,7 @@ router.patch("/me/modo-decisao", requireAuth, async (req, res, next) => {
 // firebase_uid (CK_Usuario_firebase_uid_cadastrado_por libera isso porque
 // cadastrado_por_id vem preenchido). Usuario + Vinculo em um único create aninhado
 // (transação implícita do Prisma): ou criam os dois, ou nenhum.
-router.post("/cadastrar-idoso", requireAuth, async (req, res, next) => {
+router.post("/cadastrar-idoso", requireAuth, limiteCadastrarIdoso, async (req, res, next) => {
   try {
     const chamador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
