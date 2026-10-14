@@ -12,7 +12,17 @@ import alimentacaoRouter from './routes/alimentacao'
 import emergenciaRouter from './routes/emergencia'
 import { hsts } from './middleware/hsts'
 
+// Quantos proxies (lidos da direita do X-Forwarded-For) o Express pula para achar o IP do cliente. Inteiro de 0 a 3;
+// ausente ou inválido vale 1. Os docs do Render não dizem quantos saltos há até o app (Cloudflare e balanceador do
+// Render): o 1 não está verificado, a receita de teste está em docs/checklist-seguranca-producao.md.
+export function saltosTrustProxy(valor: string | undefined): number {
+  return valor !== undefined && /^[0-3]$/.test(valor) ? Number(valor) : 1
+}
+
 const app = express()
+
+// Só em produção: fora dela não há proxy e confiar no cabeçalho deixaria o cliente escolher o próprio IP.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', saltosTrustProxy(process.env.TRUST_PROXY_SALTOS))
 
 app.use(hsts)
 app.use(cors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:5173' }))

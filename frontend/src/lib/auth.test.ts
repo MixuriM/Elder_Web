@@ -1,3 +1,4 @@
+import { MENSAGEM_LIMITE_TAXA } from './limiteTaxa'
 import { SyncError, emailConfirmado, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, syncUser } from './auth'
 
 // lib/auth.ts inicializa o Firebase de verdade no import; mocks evitam isso (mesmo
@@ -250,5 +251,13 @@ describe('emailConfirmado: recarrega o usuário do Firebase', () => {
 
     await expect(emailConfirmado()).resolves.toBe(true)
     expect(usuario.getIdToken).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('limite de taxa no /auth/sync (2026-10-14)', () => {
+  it('429 mostra a mensagem fixa no login e no cadastro', () => {
+    const err = new SyncError(429, 'Muitas tentativas.')
+    expect(mensagemErroLogin(err)).toBe(MENSAGEM_LIMITE_TAXA)
+    expect(mensagemErroCadastro(err)).toBe(MENSAGEM_LIMITE_TAXA)
   })
 })

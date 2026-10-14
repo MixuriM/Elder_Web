@@ -1,4 +1,5 @@
 import { getCurrentUserToken } from './auth'
+import { MENSAGEM_LIMITE_TAXA } from './limiteTaxa'
 
 type Pedido = { compartilhado: number; resposta: Promise<unknown> }
 
@@ -20,7 +21,9 @@ async function requisitar(path: string, options: RequestInit, token: string | nu
   if (!res.ok) {
     // proximo_passo (409 de conflito de e-mail, item 3.2) e status viajam junto do erro: as telas de
     // vínculo escolhem uma mensagem fixa pelo status, sem repetir o corpo.
-    throw Object.assign(new Error(corpo?.error ?? `Falha na requisição: status ${res.status}`), {
+    // 429 (limite de taxa): sempre a mesma frase, para qualquer tela que mostre a mensagem do erro.
+    const mensagem = res.status === 429 ? MENSAGEM_LIMITE_TAXA : (corpo?.error ?? `Falha na requisição: status ${res.status}`)
+    throw Object.assign(new Error(mensagem), {
       status: res.status,
       proximo_passo: typeof corpo?.proximo_passo === 'string' ? corpo.proximo_passo : undefined,
     })

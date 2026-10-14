@@ -330,8 +330,9 @@ describe("A. completude do inventário de rotas", () => {
   it("rota pública e rota de token próprio não usam requireAuth (a classificação é verdadeira)", () => {
     for (const r of ROTAS_ESPERADAS.filter((x) => x.categoria === "publica" || x.categoria === "token_proprio")) {
       const rota = enumeradas.find((e) => chave(e.metodo, e.caminho) === r.rota);
-      expect(rota?.handlers).toHaveLength(1);
-      expect(rota?.handlers[0]).not.toBe(requireAuth);
+      // /auth/sync (token próprio) tem 4: limite por IP, verificação do token, limite por uid e o handler (D1, 2026-10-14).
+      expect(rota?.handlers).toHaveLength(r.categoria === "publica" ? 1 : 4);
+      expect(rota?.handlers).not.toContain(requireAuth);
     }
   });
 

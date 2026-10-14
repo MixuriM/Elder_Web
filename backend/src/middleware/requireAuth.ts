@@ -1,6 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { verifyFirebaseToken } from "../lib/authHelpers";
+import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
+
+// Limite geral por usuário em toda rota autenticada (decisão D1 de 2026-10-14). 2000 por 15 min, não 600: a entrada na
+// Home faz 12 chamadas à API e um uso intenso (voltar à Home a cada minuto) chega a cerca de 180 em 15 min; o limite
+// fica acima de 10 vezes isso.
+const limiteGeral = criarLimitador({ janelaMs: QUINZE_MIN, maximo: 2000, chave: porUsuario });
 
 // Middleware Express reutilizável (plano de desenvolvimento, item 1.3): resolve
 // req.usuarioId a partir do firebase_uid em toda rota protegida. Ainda não aplicado
@@ -42,7 +48,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     req.emailVerificado = resultado.decoded.email_verified ?? false;
     // O aceite de convite compara este e-mail com o do cadastro (email_verified sozinho não diz de quem é o e-mail).
     req.emailDoToken = typeof resultado.decoded.email === "string" ? resultado.decoded.email : undefined;
-    next();
+    limiteGeral(req, res, next);
   } catch (e) {
     // Express 4 não captura rejeição de middleware async: sem isto o Node 24 derruba o processo.
     next(e);
