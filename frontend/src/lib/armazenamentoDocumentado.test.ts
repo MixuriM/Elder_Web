@@ -37,11 +37,17 @@ describe('armazenamento no navegador documentado na página de cookies', () => {
     expect(achados.sort()).toEqual([...PERMITIDOS].sort())
   })
 
-  it('index.html só lê as preferências (as mesmas chaves de lib/preferencias.ts)', () => {
+  // O script de preferências saiu do index.html para public/inicio-preferencias.js (CSP sem 'unsafe-inline', D6).
+  it('public/inicio-preferencias.js só lê as preferências (as mesmas chaves de lib/preferencias.ts)', () => {
+    const js = readFileSync(join(SRC, '..', 'public', 'inicio-preferencias.js'), 'utf8')
+    expect(js).not.toMatch(/document\s*\.\s*cookie|sessionStorage|indexedDB/)
+    expect(js.match(/localStorage\.\w+/g)).toEqual(['localStorage.getItem'])
+    expect([...js.matchAll(/ler\("(\w+)"\)/g)].map((m) => m[1])).toEqual(['tema', 'tamanhoTexto', 'reduzirMovimento'])
+  })
+
+  it('index.html não usa storage nem cookie', () => {
     const html = readFileSync(join(SRC, '..', 'index.html'), 'utf8')
-    expect(html).not.toMatch(/document\s*\.\s*cookie|sessionStorage|indexedDB/)
-    expect(html.match(/localStorage\.\w+/g)).toEqual(['localStorage.getItem'])
-    expect([...html.matchAll(/ler\("(\w+)"\)/g)].map((m) => m[1])).toEqual(['tema', 'tamanhoTexto', 'reduzirMovimento'])
+    expect(html).not.toMatch(/localStorage|sessionStorage|indexedDB|document\s*\.\s*cookie/)
   })
 
   it('nenhum script ou folha de estilo externa no index.html', () => {
