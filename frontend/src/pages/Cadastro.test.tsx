@@ -106,12 +106,12 @@ async function preencherCamposBase(
 
   await user.type(
     screen.getByLabelText(/^senha$/i),
-    "123456"
+    "12345678"
   );
 
   await user.type(
     screen.getByLabelText(/^confirmação da senha$/i),
-    "123456"
+    "12345678"
   );
 
   if (aceitar) await marcarAceite(user);
@@ -358,7 +358,7 @@ describe("Cadastro", () => {
         screen.getByLabelText(
           /^confirmação da senha$/i
         ),
-        "654321"
+        "87654321"
       );
 
       await user.click(
@@ -458,7 +458,7 @@ describe("Cadastro", () => {
         )
       ).toHaveAttribute(
         "minlength",
-        "6"
+        "8"
       );
     }
   );
@@ -616,5 +616,31 @@ describe("Cadastro", () => {
         expect(link).toHaveTextContent("(abre em nova aba)");
       }
     });
+  });
+});
+
+// D10 (2026-10-14): mínimo de 8 caracteres no cliente, com a regra visível junto ao campo.
+describe("Cadastro: senha com menos de 8 caracteres", () => {
+  beforeEach(() => {
+    mockRegisterUser.mockReset();
+    mockSyncUser.mockReset();
+  });
+
+  it("a dica do campo diz o mínimo de 8", () => {
+    renderCadastro();
+    expect(screen.getByText("Use pelo menos 8 caracteres.")).toBeInTheDocument();
+  });
+
+  it("7 caracteres: erro com role=alert e não cria conta", async () => {
+    const user = userEvent.setup();
+    renderCadastro();
+    await preencherCamposBase(user);
+    for (const rotulo of [/^senha$/i, /^confirmação da senha$/i]) {
+      await user.clear(screen.getByLabelText(rotulo));
+      await user.type(screen.getByLabelText(rotulo), "1234567");
+    }
+    await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("A senha precisa ter pelo menos 8 caracteres.");
+    expect(mockRegisterUser).not.toHaveBeenCalled();
   });
 });

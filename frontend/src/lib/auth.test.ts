@@ -127,7 +127,8 @@ describe('syncUser — retry com backoff', () => {
 describe('mensagemErroCadastro — erros do Firebase que o usuário resolve sozinho', () => {
   it.each([
     ['auth/email-already-in-use', /já existe uma conta com este e-mail/i],
-    ['auth/weak-password', /pelo menos 6 caracteres/i],
+    ['auth/weak-password', /^Senha fraca\. Use pelo menos 8 caracteres/],
+    ['auth/password-does-not-meet-requirements', /^A senha não atende às regras de segurança/],
     ['auth/invalid-email', /e-mail inválido/i],
     ['auth/network-request-failed', /sem conexão/i],
     ['auth/popup-closed-by-user', /janela do google foi fechada/i],
