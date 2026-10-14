@@ -7,6 +7,11 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 import Cadastro from "./Cadastro";
+import {
+  MENSAGEM_ACEITE,
+  TEXTO_ACEITE_TERMOS,
+  TEXTO_CONSENTIMENTO_SAUDE,
+} from "../lib/documentosLegais";
 
 jest.mock("firebase/auth", () => ({
   getAuth: jest.fn(),
@@ -66,9 +71,20 @@ function renderCadastro() {
   );
 }
 
+const caixaTermos = () =>
+  screen.getByRole("checkbox", { name: TEXTO_ACEITE_TERMOS });
+const caixaSaude = () =>
+  screen.getByRole("checkbox", { name: TEXTO_CONSENTIMENTO_SAUDE });
+
+async function marcarAceite(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(caixaTermos());
+  await user.click(caixaSaude());
+}
+
 async function preencherCamposBase(
   user: ReturnType<typeof userEvent.setup>,
-  perfil: "idoso" | "cuidador" | "familiar" | null = "idoso"
+  perfil: "idoso" | "cuidador" | "familiar" | null = "idoso",
+  aceitar = true
 ) {
   if (perfil) {
     await user.click(
@@ -97,6 +113,8 @@ async function preencherCamposBase(
     screen.getByLabelText(/^confirmação da senha$/i),
     "123456"
   );
+
+  if (aceitar) await marcarAceite(user);
 }
 
 describe("Cadastro", () => {
@@ -519,9 +537,84 @@ describe("Cadastro", () => {
     const user = userEvent.setup();
     renderCadastro();
     await user.click(screen.getByRole("radio", { name: /cuidador/i }));
+    await marcarAceite(user);
     await user.click(screen.getByRole("button", { name: /google/i }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
     expect(mockSendEmailVerification).toHaveBeenCalledTimes(1);
+  });
+
+  describe("aceite dos termos e consentimento de saúde (só interface)", () => {
+    it("as duas caixas nascem desmarcadas e o botão segue habilitado", () => {
+      renderCadastro();
+      expect(caixaTermos()).not.toBeChecked();
+      expect(caixaSaude()).not.toBeChecked();
+      expect(screen.getByRole("button", { name: /criar minha conta/i })).toBeEnabled();
+      expect(screen.getByRole("button", { name: /google/i })).toBeEnabled();
+    });
+
+    it("e-mail e senha sem as caixas: não cria conta, mostra o erro e leva o foco à primeira caixa", async () => {
+      const user = userEvent.setup();
+      renderCadastro();
+      await preencherCamposBase(user, "idoso", false);
+      await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(MENSAGEM_ACEITE);
+      expect(caixaTermos()).toHaveFocus();
+      expect(caixaTermos()).toHaveAccessibleDescription(MENSAGEM_ACEITE);
+      expect(mockRegisterUser).not.toHaveBeenCalled();
+      expect(mockSyncUser).not.toHaveBeenCalled();
+    });
+
+    it("só a primeira caixa marcada: não cria conta e o foco vai para a segunda", async () => {
+      const user = userEvent.setup();
+      renderCadastro();
+      await preencherCamposBase(user, "idoso", false);
+      await user.click(caixaTermos());
+      await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(MENSAGEM_ACEITE);
+      expect(caixaSaude()).toHaveFocus();
+      expect(mockRegisterUser).not.toHaveBeenCalled();
+    });
+
+    it("Google sem as caixas: a janela do Google não abre", async () => {
+      const user = userEvent.setup();
+      renderCadastro();
+      await user.click(screen.getByRole("radio", { name: /idoso/i }));
+      await user.click(caixaSaude());
+      await user.click(screen.getByRole("button", { name: /google/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(MENSAGEM_ACEITE);
+      expect(caixaTermos()).toHaveFocus();
+      expect(mockLoginWithGoogle).not.toHaveBeenCalled();
+    });
+
+    it("Google com as duas caixas: segue o fluxo", async () => {
+      mockLoginWithGoogle.mockResolvedValue(undefined);
+      mockSyncUser.mockResolvedValue({ criado: true });
+      const user = userEvent.setup();
+      renderCadastro();
+      await user.click(screen.getByRole("radio", { name: /idoso/i }));
+      await marcarAceite(user);
+      await user.click(screen.getByRole("button", { name: /google/i }));
+
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
+      expect(mockLoginWithGoogle).toHaveBeenCalledTimes(1);
+    });
+
+    it("links dos documentos abrem em nova aba, com aviso para leitor de tela", () => {
+      renderCadastro();
+      for (const [nome, href] of [
+        [/termos de uso/i, "/termos"],
+        [/política de privacidade/i, "/privacidade"],
+      ] as const) {
+        const link = screen.getByRole("link", { name: nome });
+        expect(link).toHaveAttribute("href", href);
+        expect(link).toHaveAttribute("target", "_blank");
+        expect(link).toHaveAttribute("rel", "noopener noreferrer");
+        expect(link).toHaveTextContent("(abre em nova aba)");
+      }
+    });
   });
 });

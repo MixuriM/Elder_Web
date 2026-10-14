@@ -19,6 +19,11 @@ import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioCadastro from "../components/cadastro/FormularioCadastro";
 import BotaoTema from "../components/layout/BotaoTema";
 import { useTitulo } from "../hooks/useTitulo";
+import { MENSAGEM_ACEITE } from "../lib/documentosLegais";
+import {
+  ID_ACEITE_TERMOS,
+  ID_CONSENTIMENTO_SAUDE,
+} from "../components/cadastro/AceiteCadastro";
 
 const MENSAGEM_ESCOLHA_PERFIL =
   "Escolha se você é idoso, cuidador ou familiar.";
@@ -53,6 +58,10 @@ function Cadastro() {
   const [carregando, setCarregando] =
     useState(false);
 
+  // Aceite só na interface (D16): obrigatório para criar conta, ainda não vai ao servidor.
+  const [aceitaTermos, setAceitaTermos] = useState(false);
+  const [consenteSaude, setConsenteSaude] = useState(false);
+
   const navigate = useNavigate();
 
   // =========================================================
@@ -72,6 +81,19 @@ function Cadastro() {
     }
   }
 
+  // Sem as duas caixas: mostra o erro e leva o foco à primeira caixa desmarcada.
+  function faltaAceite() {
+    const faltando = !aceitaTermos
+      ? ID_ACEITE_TERMOS
+      : !consenteSaude
+        ? ID_CONSENTIMENTO_SAUDE
+        : null;
+    if (!faltando) return false;
+    setErro(MENSAGEM_ACEITE);
+    document.getElementById(faltando)?.focus();
+    return true;
+  }
+
   async function handleSubmit(
     e: FormEvent
   ) {
@@ -83,6 +105,8 @@ function Cadastro() {
       setErro(MENSAGEM_ESCOLHA_PERFIL);
       return;
     }
+
+    if (faltaAceite()) return;
 
     if (senha !== confirmacaoSenha) {
       setErro(
@@ -148,6 +172,9 @@ function Cadastro() {
       setErro(MENSAGEM_ESCOLHA_PERFIL);
       return;
     }
+
+    // Antes de abrir a janela do Google.
+    if (faltaAceite()) return;
 
     setCarregando(true);
 
@@ -362,9 +389,14 @@ function Cadastro() {
                   tipoPerfil
                 }
                 erro={erro}
+                erroAceite={erro === MENSAGEM_ACEITE}
                 carregando={
                   carregando
                 }
+                aceitaTermos={aceitaTermos}
+                consenteSaude={consenteSaude}
+                setAceitaTermos={setAceitaTermos}
+                setConsenteSaude={setConsenteSaude}
                 setNome={
                   setNome
                 }

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { aceitarTermosNoCadastro } from "./helpers/conta";
 
 // e2e do item 3.3 (RF-001, RF-030 extensão): Familiar cadastra um Idoso (sem
 // firebase_uid) -> Idoso se autocadastra no Firebase com o MESMO e-mail -> primeiro
@@ -51,6 +52,7 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
   await page.getByLabel("E-mail", { exact: true }).fill(emailFamiliar);
   await page.getByLabel("Senha", { exact: true }).fill(SENHA);
   await page.getByLabel("Confirmação da senha", { exact: true }).fill(SENHA);
+  await aceitarTermosNoCadastro(page);
   await page.getByRole("button", { name: /criar minha conta/i }).click();
   await page.waitForURL(/\/welcome$/, { timeout: 20_000 });
 
@@ -76,6 +78,7 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
   await page.getByLabel("E-mail", { exact: true }).fill(emailIdoso);
   await page.getByLabel("Senha", { exact: true }).fill(SENHA);
   await page.getByLabel("Confirmação da senha", { exact: true }).fill(SENHA);
+  await aceitarTermosNoCadastro(page);
   await page.getByRole("button", { name: /criar minha conta/i }).click();
   await expect(page.getByRole("alert")).toHaveText(/cadastrado por um familiar/i, { timeout: 20_000 });
 

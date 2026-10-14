@@ -1,4 +1,4 @@
-import { expect, type Browser, type BrowserContext } from "@playwright/test";
+import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
 export const PERFIS = [
   { tipoPerfil: "idoso", radio: "Idoso" },
@@ -7,6 +7,12 @@ export const PERFIS = [
 ] as const;
 
 export type Perfil = (typeof PERFIS)[number];
+
+// Duas caixas obrigatórias do cadastro (Termos e consentimento de saúde), desmarcadas por padrão.
+export async function aceitarTermosNoCadastro(page: Page) {
+  await page.getByLabel(/li e concordo com os termos de uso/i).check();
+  await page.getByLabel(/consinto com o uso dos dados de saúde/i).check();
+}
 
 const SENHA = "SenhaE2eTeste123!";
 
@@ -37,6 +43,7 @@ export async function criarContaELogar(browser: Browser, { tipoPerfil, radio }: 
   await page.getByLabel("E-mail", { exact: true }).fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(SENHA);
   await page.getByLabel("Confirmação da senha", { exact: true }).fill(SENHA);
+  await aceitarTermosNoCadastro(page);
   await page.getByRole("button", { name: /criar minha conta/i }).click();
   await page.waitForURL(/\/welcome$/, { timeout: 20_000 });
 

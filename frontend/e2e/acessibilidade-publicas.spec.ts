@@ -6,7 +6,18 @@ import { auditarRota } from "./helpers/axe";
 // Rodar: npm run test:a11y
 test.describe.configure({ timeout: 90_000 });
 
-const ROTAS_PUBLICAS = ["/", "/sobre-nos", "/welcome", "/login", "/cadastro", "/esqueci-senha", "/confirmar-email"];
+const ROTAS_PUBLICAS = [
+  "/",
+  "/sobre-nos",
+  "/welcome",
+  "/login",
+  "/cadastro",
+  "/esqueci-senha",
+  "/confirmar-email",
+  "/privacidade",
+  "/termos",
+  "/cookies",
+];
 
 for (const rota of ROTAS_PUBLICAS) {
   test(`acessibilidade pública ${rota}`, async ({ context }) => {

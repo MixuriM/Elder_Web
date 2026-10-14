@@ -9,6 +9,7 @@ import type { TipoPerfil } from "../../lib/auth";
 import CampoTexto from "./CampoTexto";
 import TipoPerfilCampo from "./TipoPerfil";
 import BotaoGoogle from "./BotaoGoogle";
+import AceiteCadastro, { ID_ERRO_CADASTRO } from "./AceiteCadastro";
 import Spinner from "../common/Spinner";
 
 // =========================================================
@@ -23,7 +24,10 @@ type FormularioCadastroProps = {
   emailConviteFamiliar: string;
   tipoPerfil: TipoPerfil | null;
   erro: string | null;
+  erroAceite: boolean;
   carregando: boolean;
+  aceitaTermos: boolean;
+  consenteSaude: boolean;
 
   setNome: (valor: string) => void;
   setEmail: (valor: string) => void;
@@ -31,6 +35,8 @@ type FormularioCadastroProps = {
   setConfirmacaoSenha: (valor: string) => void;
   setEmailConviteFamiliar: (valor: string) => void;
   setTipoPerfil: (tipo: TipoPerfil) => void;
+  setAceitaTermos: (valor: boolean) => void;
+  setConsenteSaude: (valor: boolean) => void;
 
   onSubmit: (e: FormEvent) => void;
   onGoogleCadastro: () => void;
@@ -48,13 +54,18 @@ function FormularioCadastro({
   emailConviteFamiliar,
   tipoPerfil,
   erro,
+  erroAceite,
   carregando,
+  aceitaTermos,
+  consenteSaude,
   setNome,
   setEmail,
   setSenha,
   setConfirmacaoSenha,
   setEmailConviteFamiliar,
   setTipoPerfil,
+  setAceitaTermos,
+  setConsenteSaude,
   onSubmit,
   onGoogleCadastro,
 }: FormularioCadastroProps) {
@@ -285,12 +296,21 @@ function FormularioCadastro({
           )}
         </div>
 
+        <AceiteCadastro
+          aceitaTermos={aceitaTermos}
+          consenteSaude={consenteSaude}
+          setAceitaTermos={setAceitaTermos}
+          setConsenteSaude={setConsenteSaude}
+          erroAceite={erroAceite}
+        />
+
         {/* ===================================================
             ERRO
         ==================================================== */}
 
         {erro && (
           <p
+            id={ID_ERRO_CADASTRO}
             role="alert"
             className="
               mt-4
