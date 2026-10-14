@@ -257,7 +257,17 @@ test("responsivo: telas públicas", async ({ browser }) => {
   test.setTimeout(1_800_000);
   const ctx = await contextoCelular(browser);
   try {
-    for (const rota of ["/", "/sobre-nos", "/welcome", "/login", "/esqueci-senha", "/confirmar-email"]) {
+    for (const rota of [
+      "/",
+      "/sobre-nos",
+      "/welcome",
+      "/login",
+      "/esqueci-senha",
+      "/confirmar-email",
+      "/privacidade",
+      "/termos",
+      "/cookies",
+    ]) {
       await emTela(ctx, rota, `publica ${rota}`);
     }
     await emTela(ctx, "/login", "publica /login com erro", async (p) => {
@@ -287,6 +297,8 @@ test("responsivo: telas públicas", async ({ browser }) => {
     await fotosDesktop(desktop, "/cadastro", "desktop /cadastro");
     await fotosDesktop(desktop, "/esqueci-senha", "desktop /esqueci-senha");
     await fotosDesktop(desktop, "/sobre-nos", "desktop /sobre-nos");
+    await fotosDesktop(desktop, "/privacidade", "desktop /privacidade");
+    await fotosDesktop(desktop, "/cookies", "desktop /cookies");
     await desktop.close();
   } finally {
     await ctx.close();

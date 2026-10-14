@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { aceitarTermosNoCadastro } from "./helpers/conta";
 
 // e2e do plano de desenvolvimento (Fase 1, "Fluxo completo cadastro→login→perfil→logout
 // em navegador real"): contra frontend + backend locais de verdade, SEM mock de rede.
@@ -30,6 +31,7 @@ for (const { tipoPerfil, radio } of PERFIS) {
     await page.getByLabel("E-mail", { exact: true }).fill(email);
     await page.getByLabel("Senha", { exact: true }).fill(SENHA);
     await page.getByLabel("Confirmação da senha", { exact: true }).fill(SENHA);
+    await aceitarTermosNoCadastro(page);
     await page.getByRole("button", { name: /criar minha conta/i }).click();
 
     await page.waitForURL(/\/welcome$/, { timeout: 20_000 });
