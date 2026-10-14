@@ -17,6 +17,10 @@ export const auth = getAuth(app);
 
 const googleProvider = new GoogleAuthProvider();
 
+// Mínimo de caracteres da senha no cadastro (D10, 2026-10-14). A política do console do Firebase é conferida à parte
+// (docs/checklist-seguranca-producao.md); as mensagens abaixo não citam regra que o console talvez não imponha.
+export const MINIMO_SENHA = 8;
+
 // Cadastro
 export async function registerUser(email: string, password: string) {
   return createUserWithEmailAndPassword(auth, email, password);
@@ -252,7 +256,9 @@ function mensagemErroFirebaseCadastro(err: unknown): string | null {
     case "auth/email-already-in-use":
       return "Já existe uma conta com este e-mail. Entre com ela ou, se esqueceu a senha, use \"Esqueci minha senha\".";
     case "auth/weak-password":
-      return "Senha muito fraca. Use pelo menos 6 caracteres.";
+      return `Senha fraca. Use pelo menos ${MINIMO_SENHA} caracteres e evite sequências fáceis.`;
+    case "auth/password-does-not-meet-requirements":
+      return "A senha não atende às regras de segurança do site. Tente uma senha mais longa, misturando letras e números.";
     case "auth/invalid-email":
       return "E-mail inválido. Confira se digitou corretamente.";
     case "auth/network-request-failed":

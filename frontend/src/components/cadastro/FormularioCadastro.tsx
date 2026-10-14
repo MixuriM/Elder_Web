@@ -11,6 +11,7 @@ import TipoPerfilCampo from "./TipoPerfil";
 import BotaoGoogle from "./BotaoGoogle";
 import AceiteCadastro, { ID_ERRO_CADASTRO } from "./AceiteCadastro";
 import Spinner from "../common/Spinner";
+import { MINIMO_SENHA } from "../../lib/auth";
 
 // =========================================================
 // PROPS
@@ -262,9 +263,9 @@ function FormularioCadastro({
             type="password"
             value={senha}
             onChange={setSenha}
-            minLength={6}
+            minLength={MINIMO_SENHA}
             autoComplete="new-password"
-            hint="Use pelo menos 6 caracteres."
+            hint={`Use pelo menos ${MINIMO_SENHA} caracteres.`}
           />
 
           {/* Confirmação da senha */}
@@ -275,7 +276,7 @@ function FormularioCadastro({
             type="password"
             value={confirmacaoSenha}
             onChange={setConfirmacaoSenha}
-            minLength={6}
+            minLength={MINIMO_SENHA}
             autoComplete="new-password"
           />
 
