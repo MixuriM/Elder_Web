@@ -20,7 +20,7 @@ jest.mock("../lib/prisma", () => ({
 }));
 
 import app from "../app";
-import { requireAuth } from "../middleware/requireAuth";
+import { requireAuth, requireAuthRevogacao } from "../middleware/requireAuth";
 import { enumerarRotas } from "../testSupport/rotasApp";
 import {
   dados,
@@ -64,6 +64,8 @@ type Regra = {
   corpoCuidador?: object;
   // Status de sucesso quando não segue a regra POST 201 / demais 200 (ação sem recurso criado).
   statusOk?: number;
+  // D5 (2026-10-14): ação sensível, autenticada por requireAuthRevogacao (checa token revogado no Firebase).
+  revogacao?: true;
 };
 
 const SAUDE = { tipo_medicao: "pressao", valor_1: 120, valor_2: 80, unidade: "mmHg" };
@@ -82,22 +84,22 @@ const ROTAS_ESPERADAS: Regra[] = [
   { rota: "GET /usuario/me/foto", categoria: "autenticada" },
   { rota: "POST /usuario/me/foto", categoria: "autenticada" },
   { rota: "DELETE /usuario/me/foto", categoria: "autenticada" },
-  { rota: "PATCH /usuario/me", categoria: "autenticada" },
-  { rota: "PATCH /usuario/me/modo-decisao", categoria: "autenticada" },
-  { rota: "POST /usuario/cadastrar-idoso", categoria: "autenticada" },
+  { rota: "PATCH /usuario/me", categoria: "autenticada", revogacao: true },
+  { rota: "PATCH /usuario/me/modo-decisao", categoria: "autenticada", revogacao: true },
+  { rota: "POST /usuario/cadastrar-idoso", categoria: "autenticada", revogacao: true },
 
-  { rota: "POST /vinculo/solicitar-cuidador", categoria: "autenticada" },
-  { rota: "POST /vinculo/solicitar-familiar", categoria: "autenticada" },
-  { rota: "POST /vinculo/convidar-familiar", categoria: "autenticada" },
-  { rota: "POST /vinculo/convidar-cuidador", categoria: "autenticada" },
-  { rota: "POST /vinculo/:id/aprovar", categoria: "autenticada" },
-  { rota: "POST /vinculo/:id/recusar", categoria: "autenticada" },
-  { rota: "POST /vinculo/:id/aceitar-convite", categoria: "autenticada" },
-  { rota: "POST /vinculo/:id/recusar-convite", categoria: "autenticada" },
+  { rota: "POST /vinculo/solicitar-cuidador", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/solicitar-familiar", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/convidar-familiar", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/convidar-cuidador", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/:id/aprovar", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/:id/recusar", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/:id/aceitar-convite", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/:id/recusar-convite", categoria: "autenticada", revogacao: true },
   { rota: "POST /vinculo/:id/contestar", categoria: "autenticada" },
-  { rota: "PATCH /vinculo/:id/definir-permissoes", categoria: "autenticada" },
-  { rota: "POST /vinculo/:id/solicitar-transferencia-decisao", categoria: "autenticada" },
-  { rota: "POST /vinculo/:id/confirmar-transferencia-decisao", categoria: "autenticada" },
+  { rota: "PATCH /vinculo/:id/definir-permissoes", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/:id/solicitar-transferencia-decisao", categoria: "autenticada", revogacao: true },
+  { rota: "POST /vinculo/:id/confirmar-transferencia-decisao", categoria: "autenticada", revogacao: true },
   { rota: "GET /vinculo", categoria: "autenticada" },
 
   { rota: "POST /saude", categoria: "autenticada", soIdoso: true, corpo: SAUDE },
@@ -316,15 +318,26 @@ describe("A. completude do inventário de rotas", () => {
     expect(new Set(rotas).size).toBe(rotas.length);
   });
 
-  it("toda rota autenticada, com vínculo ou por registro tem requireAuth como primeiro handler", () => {
+  it("toda rota autenticada, com vínculo ou por registro tem requireAuth como primeiro handler (requireAuthRevogacao nas marcadas com revogacao)", () => {
     const semAuth = naoPublicas
       .filter((r) => r.categoria !== "token_proprio")
       .filter((r) => {
         const rota = enumeradas.find((e) => chave(e.metodo, e.caminho) === r.rota);
-        return !rota || rota.handlers[0] !== requireAuth;
+        return !rota || rota.handlers[0] !== (r.revogacao ? requireAuthRevogacao : requireAuth);
       })
       .map((r) => r.rota);
     expect(semAuth).toEqual([]);
+  });
+
+  it("D5: as 14 ações sensíveis, e só elas, checam revogação; nenhuma rota de vínculo por idoso, leitura nem emergência", () => {
+    const marcadas = ROTAS_ESPERADAS.filter((r) => r.revogacao).map((r) => r.rota);
+    expect(marcadas).toHaveLength(14);
+    for (const r of marcadas) {
+      expect(r).not.toMatch(/^GET /);
+      expect(r).not.toMatch(/:idosoId|emergencia|foto/);
+    }
+    const comVariante = enumeradas.filter((e) => e.handlers.includes(requireAuthRevogacao)).map((e) => chave(e.metodo, e.caminho));
+    expect(comVariante.sort()).toEqual([...marcadas].sort());
   });
 
   it("rota pública e rota de token próprio não usam requireAuth (a classificação é verdadeira)", () => {
@@ -333,6 +346,7 @@ describe("A. completude do inventário de rotas", () => {
       // /auth/sync (token próprio) tem 4: limite por IP, verificação do token, limite por uid e o handler (D1, 2026-10-14).
       expect(rota?.handlers).toHaveLength(r.categoria === "publica" ? 1 : 4);
       expect(rota?.handlers).not.toContain(requireAuth);
+      expect(rota?.handlers).not.toContain(requireAuthRevogacao);
     }
   });
 

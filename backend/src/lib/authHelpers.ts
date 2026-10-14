@@ -19,9 +19,16 @@ const TOKEN_ERROR_CODES = new Set([
 
 // Usada por /auth/sync (cria Usuario se não existir) e pelo middleware requireAuth
 // (só lê) — mesma validação de token, consumidores diferentes.
-export async function verifyFirebaseToken(idToken: string): Promise<TokenVerificationResult> {
+// checarRevogado (D5, 2026-10-14): pede ao Firebase para recusar token de sessão revogada (senha redefinida, por
+// exemplo). Custa uma chamada a mais ao Firebase, por isso só nas ações sensíveis (requireAuthRevogacao).
+export async function verifyFirebaseToken(
+  idToken: string,
+  { checarRevogado = false }: { checarRevogado?: boolean } = {},
+): Promise<TokenVerificationResult> {
   try {
-    const decoded = await firebaseAuth.verifyIdToken(idToken);
+    const decoded = checarRevogado
+      ? await firebaseAuth.verifyIdToken(idToken, true)
+      : await firebaseAuth.verifyIdToken(idToken);
     return { ok: true, decoded };
   } catch (e) {
     const code = (e as { code?: string }).code;
