@@ -1,5 +1,5 @@
 // Preferências de exibição (tema, tamanho do texto, menos movimento) guardadas no localStorage deste navegador.
-// Mesmas chaves e classes do script de index.html, que aplica tudo antes do React montar (sem piscar).
+// Mesmas chaves e classes de public/inicio-preferencias.js, que aplica tudo antes do React montar (sem piscar).
 // Todo acesso ao storage fica em try/catch: bloqueado ou cheio, a preferência vale só até fechar a página.
 
 export type Tema = 'claro' | 'escuro' | 'sistema'
