@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# O workflow só lê o repositório (D7, 2026-10-14): o GITHUB_TOKEN não escreve em nada.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -24,6 +28,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      # Só dependências de produção. critical, não high: os 4 avisos altos de @grpc/grpc-js via firebase seguem aceitos.
+      - run: npm audit --omit=dev --audit-level=critical
       - run: npm run lint
       - run: npm test
       - run: npm run build
@@ -41,6 +47,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      # Só dependências de produção, maior rigor (0 avisos em 2026-10-14): qualquer aviso novo barra o CI.
+      - run: npm audit --omit=dev --audit-level=low
       - run: npm run lint
       - run: npx prisma validate
         env:
