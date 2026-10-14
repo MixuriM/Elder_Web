@@ -451,6 +451,20 @@ async function familiarTemVinculoAprovado(idosoId: number, familiarId: number): 
   return !!vinculo;
 }
 
+// D4c (2026-10-14): quem decide sobre os vínculos do idoso, pela mesma regra de Usuario.modo_decisao. Usado ANTES de
+// qualquer 400 de tipo ou 409 de estado: terceiro recebe sempre o mesmo 404 (existindo o vínculo ou não, resolvido
+// ou não) e só quem decide vê o estado. O idoso dono sem autoridade recebe 403: ele já sabe que o vínculo existe.
+type PapelNaDecisao = "decide" | "idoso_sem_autoridade" | "terceiro";
+async function papelNaDecisao(idosoId: number, usuarioId: number, modo?: "idoso" | "familiar"): Promise<PapelNaDecisao> {
+  const efetivo = modo ?? (await resolverModoDecisao(idosoId));
+  if (efetivo === "idoso") return usuarioId === idosoId ? "decide" : "terceiro";
+  if (usuarioId === idosoId) return "idoso_sem_autoridade";
+  return (await familiarTemVinculoAprovado(idosoId, usuarioId)) ? "decide" : "terceiro";
+}
+
+const VINCULO_NAO_ENCONTRADO = { error: "Vínculo não encontrado." };
+const AUTORIDADE_TRANSFERIDA = { error: "Autoridade transferida para familiar(es)." };
+
 // Tarefa 2.9 (RF-033) — transferência de Usuario.modo_decisao pra 'familiar', com janela
 // de carência de 7 dias e segunda confirmação quando o idoso tem 2+ familiares aprovados.
 // Mecanismo completo em Elder Web - Modelagem ER.md seção 3.
@@ -570,25 +584,14 @@ async function responderSolicitacaoVinculo(
       select: { id: true, idoso_id: true, status: true, tipo_vinculo: true, origem: true },
     });
     if (!vinculo) {
-      return res.status(404).json({ error: "Vínculo não encontrado." });
+      return res.status(404).json(VINCULO_NAO_ENCONTRADO);
     }
+    const papel = await papelNaDecisao(vinculo.idoso_id, req.usuarioId);
+    if (papel === "terceiro") return res.status(404).json(VINCULO_NAO_ENCONTRADO);
+    if (papel === "idoso_sem_autoridade") return res.status(403).json(AUTORIDADE_TRANSFERIDA);
+
     if (vinculo.status !== "pendente") {
       return res.status(409).json({ error: "Este vínculo já foi resolvido." });
-    }
-
-    const modo = await resolverModoDecisao(vinculo.idoso_id);
-
-    if (modo === "idoso") {
-      if (req.usuarioId !== vinculo.idoso_id) {
-        return res.status(403).json({ error: "Só o idoso pode responder esta solicitação." });
-      }
-    } else {
-      if (req.usuarioId === vinculo.idoso_id) {
-        return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
-      }
-      if (!(await familiarTemVinculoAprovado(vinculo.idoso_id, req.usuarioId))) {
-        return res.status(403).json({ error: "Só familiar vinculado e aprovado pode responder esta solicitação." });
-      }
     }
 
     // Depois da checagem de autoridade, para não revelar a origem a quem não decide.
@@ -705,30 +708,22 @@ router.post("/:id/contestar", requireAuth, async (req, res, next) => {
       select: { id: true, idoso_id: true, vinculado_id: true, status: true, tipo_vinculo: true, origem: true },
     });
     if (!vinculo) {
-      return res.status(404).json({ error: "Vínculo não encontrado." });
+      return res.status(404).json(VINCULO_NAO_ENCONTRADO);
     }
+
+    const estado = await resolverEstadoModoDecisao(vinculo.idoso_id);
+    const papel = await papelNaDecisao(vinculo.idoso_id, req.usuarioId, estado.modo_decisao === "familiar" ? "familiar" : "idoso");
+    if (papel === "terceiro") return res.status(404).json(VINCULO_NAO_ENCONTRADO);
+    if (papel === "idoso_sem_autoridade") return res.status(403).json(AUTORIDADE_TRANSFERIDA);
+
     if (vinculo.tipo_vinculo !== "familiar" || !ORIGENS_AUTOMATICAS.includes(vinculo.origem)) {
       return res.status(400).json({ error: "Só é possível contestar vínculo automático de familiar." });
     }
     if (vinculo.status !== "aprovado") {
       return res.status(409).json({ error: "Só é possível contestar um vínculo aprovado." });
     }
-
-    const estado = await resolverEstadoModoDecisao(vinculo.idoso_id);
-    if (estado.modo_decisao !== "familiar") {
-      if (req.usuarioId !== vinculo.idoso_id) {
-        return res.status(403).json({ error: "Só o idoso pode contestar este vínculo." });
-      }
-    } else {
-      if (req.usuarioId === vinculo.idoso_id) {
-        return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
-      }
-      if (!(await familiarTemVinculoAprovado(vinculo.idoso_id, req.usuarioId))) {
-        return res.status(403).json({ error: "Só familiar vinculado e aprovado pode contestar este vínculo." });
-      }
-      if (req.usuarioId === vinculo.vinculado_id) {
-        return res.status(403).json({ error: "Você não pode contestar o seu próprio vínculo." });
-      }
+    if (req.usuarioId === vinculo.vinculado_id) {
+      return res.status(403).json({ error: "Você não pode contestar o seu próprio vínculo." });
     }
 
     // resolverEstadoModoDecisao não revalida o vínculo de quem solicitou/confirmou a
@@ -787,29 +782,17 @@ router.patch("/:id/definir-permissoes", requireAuth, async (req, res, next) => {
       select: { id: true, idoso_id: true, status: true, tipo_vinculo: true },
     });
     if (!vinculo) {
-      return res.status(404).json({ error: "Vínculo não encontrado." });
+      return res.status(404).json(VINCULO_NAO_ENCONTRADO);
     }
+    const papel = await papelNaDecisao(vinculo.idoso_id, req.usuarioId);
+    if (papel === "terceiro") return res.status(404).json(VINCULO_NAO_ENCONTRADO);
+    if (papel === "idoso_sem_autoridade") return res.status(403).json(AUTORIDADE_TRANSFERIDA);
+
     if (vinculo.tipo_vinculo !== "cuidador") {
       return res.status(400).json({ error: "Permissões só se aplicam a vínculo de cuidador." });
     }
     if (vinculo.status !== "aprovado") {
       return res.status(409).json({ error: "Vínculo precisa estar aprovado para ter permissões definidas." });
-    }
-
-    const modo = await resolverModoDecisao(vinculo.idoso_id);
-    if (modo === "idoso") {
-      if (req.usuarioId !== vinculo.idoso_id) {
-        return res.status(403).json({ error: "Só o idoso pode definir as permissões deste vínculo." });
-      }
-    } else {
-      if (req.usuarioId === vinculo.idoso_id) {
-        return res.status(403).json({ error: "Autoridade transferida para familiar(es)." });
-      }
-      if (!(await familiarTemVinculoAprovado(vinculo.idoso_id, req.usuarioId))) {
-        return res
-          .status(403)
-          .json({ error: "Só familiar vinculado e aprovado pode definir as permissões deste vínculo." });
-      }
     }
 
     const { permite_registrar_saude, permite_marcar_dose, permite_criar_evento_cuidado } = req.body ?? {};
@@ -871,17 +854,18 @@ router.post("/:id/solicitar-transferencia-decisao", requireAuth, async (req, res
       where: { id },
       select: { id: true, idoso_id: true, vinculado_id: true, tipo_vinculo: true, status: true },
     });
-    if (!vinculo) {
-      return res.status(404).json({ error: "Vínculo não encontrado." });
+    // D4c: dono do vínculo antes do tipo e do estado. Terceiro: o mesmo 404; o idoso dono: 403.
+    if (!vinculo || (vinculo.vinculado_id !== req.usuarioId && vinculo.idoso_id !== req.usuarioId)) {
+      return res.status(404).json(VINCULO_NAO_ENCONTRADO);
+    }
+    if (vinculo.vinculado_id !== req.usuarioId) {
+      return res.status(403).json({ error: "Você só pode solicitar transferência usando seu próprio vínculo." });
     }
     if (vinculo.tipo_vinculo !== "familiar") {
       return res.status(400).json({ error: "Transferência de decisão só pode ser solicitada por vínculo de familiar." });
     }
     if (vinculo.status !== "aprovado") {
       return res.status(409).json({ error: "Vínculo precisa estar aprovado para solicitar transferência." });
-    }
-    if (vinculo.vinculado_id !== req.usuarioId) {
-      return res.status(403).json({ error: "Você só pode solicitar transferência usando seu próprio vínculo." });
     }
 
     const estado = await resolverEstadoModoDecisao(vinculo.idoso_id);
@@ -943,17 +927,18 @@ router.post("/:id/confirmar-transferencia-decisao", requireAuth, async (req, res
       where: { id },
       select: { id: true, idoso_id: true, vinculado_id: true, tipo_vinculo: true, status: true },
     });
-    if (!vinculo) {
-      return res.status(404).json({ error: "Vínculo não encontrado." });
+    // D4c: mesma ordem de /solicitar-transferencia-decisao.
+    if (!vinculo || (vinculo.vinculado_id !== req.usuarioId && vinculo.idoso_id !== req.usuarioId)) {
+      return res.status(404).json(VINCULO_NAO_ENCONTRADO);
+    }
+    if (vinculo.vinculado_id !== req.usuarioId) {
+      return res.status(403).json({ error: "Você só pode confirmar transferência usando seu próprio vínculo." });
     }
     if (vinculo.tipo_vinculo !== "familiar") {
       return res.status(400).json({ error: "Confirmação de transferência só pode ser feita por vínculo de familiar." });
     }
     if (vinculo.status !== "aprovado") {
       return res.status(409).json({ error: "Vínculo precisa estar aprovado para confirmar transferência." });
-    }
-    if (vinculo.vinculado_id !== req.usuarioId) {
-      return res.status(403).json({ error: "Você só pode confirmar transferência usando seu próprio vínculo." });
     }
 
     // resolverEstadoModoDecisao já resolve expiração antes desta checagem: se a janela

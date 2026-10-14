@@ -88,13 +88,14 @@ describe("aprovar e recusar vínculo de origem automática", () => {
     });
   });
 
-  it("sem autoridade o 403 vem antes do 409 (não revela a origem a quem não decide)", async () => {
+  it("sem autoridade o 404 (D4c, 2026-10-14: terceiro não vê o vínculo) vem antes do 409 (não revela a origem a quem não decide)", async () => {
     findFirstUsuario.mockResolvedValue({ id: 99 });
     findUniqueVinculo.mockResolvedValue(pendente("convite_idoso"));
 
     const res = await responder(5, "aprovar");
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
     expect(res.body.error).not.toMatch(/e-mail/i);
     expect(updateVinculo).not.toHaveBeenCalled();
   });
