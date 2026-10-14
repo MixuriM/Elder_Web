@@ -349,8 +349,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Frontend (2026-10-09): Home, `/avisos` e `/configuracoes` (detalhes no histórico). Nunca "faltam doses" nem atraso (sem
   horário estruturado, sem aviso de dose); `AcessoProvider` expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso);
   `lib/preferencias.ts` usa as mesmas chaves do script de `index.html`, com storage em try/catch.
-- Item 9.3: avisos de `npm audit` só de dev aceitos; sem `npm audit` no CI. `@grpc/grpc-js` (4 altos via firebase) fica
-  aceito: não entra no bundle e corrigir exige rebaixar o firebase, recusado.
+- Item 9.3 (revisto em 2026-10-14): CI roda `npm audit --omit=dev` (backend `low`, frontend `critical`, sem `|| true`);
+  dev só aceito. `@grpc/grpc-js` (4 altos via firebase) aceito: fora do bundle, corrigir exige rebaixar o firebase.
 - Item 9.4 (D1 a D9, fechadas): o item só vai a ✅ com o CI remoto verde num push em `development`; sem dependência
   nova; código de produção só muda se um teste novo provar furo real de autorização (RED, correção mínima, commit
   `fix(auth):` separado; 400 antes de 403 não é furo); testes com Prisma mockado (não prova o filtro do SQL Server

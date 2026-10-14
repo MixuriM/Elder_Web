@@ -1,0 +1,43 @@
+# D7 (2026-10-14): atualizações semanais em PR para development, nunca com merge automático. Minor e patch vêm
+# agrupados num PR só por ecossistema; major vem em PR próprio para revisão (upgrade de dependência é decisão do grupo).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    target-branch: "development"
+    open-pull-requests-limit: 5
+    groups:
+      minor-e-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    target-branch: "development"
+    open-pull-requests-limit: 5
+    groups:
+      minor-e-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "development"
+    open-pull-requests-limit: 5
+    groups:
+      minor-e-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    target-branch: "development"
+    open-pull-requests-limit: 5
+    groups:
+      minor-e-patch:
+        update-types: ["minor", "patch"]
