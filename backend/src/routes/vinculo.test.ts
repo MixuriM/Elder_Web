@@ -187,21 +187,45 @@ describe("POST /vinculo/solicitar-cuidador", () => {
     expect(res.body.error).toMatch(/já está vinculado/i);
   });
 
-  it("422 com múltiplos idosos candidatos sem nome_idoso", async () => {
+  // D4a (2026-10-14): todo caso sem alvo único responde o MESMO 404, sem candidatos (antes 422 com id e nome de idosos).
+  const MSG_404_CUIDADOR =
+    "Nenhum idoso encontrado para este e-mail e nome. Se o e-mail for de um familiar que cuida de mais de um idoso, informe também o nome completo do idoso.";
+  const viaFamiliar = () =>
     findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => {
       if (args.where.firebase_uid) return CUIDADOR;
       if (args.where.tipo_perfil === "idoso") return null;
       return { id: 20 };
     });
-    findManyVinculo.mockResolvedValue([
-      { idoso: { id: 30, nome: "Maria" } },
-      { idoso: { id: 31, nome: "João" } },
-    ]);
+  const DOIS_IDOSOS = [
+    { idoso: { id: 30, nome: "Maria" } },
+    { idoso: { id: 31, nome: "João" } },
+  ];
 
-    const res = await post({ email: "familiar@a.com" });
+  it.each([
+    ["e-mail sem conta de idoso nem de familiar", () => findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) => (args.where.firebase_uid ? CUIDADOR : null)), {}],
+    ["familiar sem idoso sob seu controle", () => { viaFamiliar(); findManyVinculo.mockResolvedValue([]); }, {}],
+    ["familiar com mais de um idoso, sem nome", () => { viaFamiliar(); findManyVinculo.mockResolvedValue(DOIS_IDOSOS); }, {}],
+    ["familiar com mais de um idoso, nome que não casa", () => { viaFamiliar(); findManyVinculo.mockResolvedValue(DOIS_IDOSOS); }, { nome_idoso: "Pedro" }],
+    ["familiar com dois idosos de mesmo nome", () => { viaFamiliar(); findManyVinculo.mockResolvedValue([{ idoso: { id: 30, nome: "Ana" } }, { idoso: { id: 31, nome: "ana" } }]); }, { nome_idoso: "Ana" }],
+  ])("%s: mesmo 404, mesma mensagem, sem candidatos e sem criar nada", async (_caso, preparar, extra) => {
+    preparar();
+    const res = await post({ email: "alguem@a.com", ...extra });
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: MSG_404_CUIDADOR });
+    expect(createVinculo).not.toHaveBeenCalled();
+  });
 
-    expect(res.status).toBe(422);
-    expect(res.body.candidatos).toHaveLength(2);
+  it("201 devolve só { registrado: true }, sem a linha do vínculo nem idoso_id", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? CUIDADOR : { id: 10, nome: "Zé", email: "idoso@a.com" },
+    );
+    findFirstVinculo.mockResolvedValue(null);
+    createVinculo.mockResolvedValue({ id: 100, idoso_id: 10, vinculado_id: 1, status: "pendente" });
+
+    const res = await post({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ registrado: true });
   });
 
   it("resolve múltiplos candidatos via nome_idoso", async () => {
@@ -263,6 +287,19 @@ describe("POST /vinculo/solicitar-familiar", () => {
         status: "pendente",
       }),
     });
+  });
+
+  it("201 devolve só { registrado: true }, sem a linha do vínculo nem idoso_id (D4a, 2026-10-14)", async () => {
+    findFirstUsuario.mockImplementation((args: FindFirstUsuarioArgs) =>
+      args.where.firebase_uid ? FAMILIAR : { id: 10, tipo_perfil: "idoso" },
+    );
+    findFirstVinculo.mockResolvedValue(null);
+    createVinculo.mockResolvedValue({ id: 200, idoso_id: 10, vinculado_id: 1, status: "pendente" });
+
+    const res = await postFamiliar({ email: "idoso@a.com" });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ registrado: true });
   });
 
   it("404 quando e-mail não encontra idoso nenhum", async () => {

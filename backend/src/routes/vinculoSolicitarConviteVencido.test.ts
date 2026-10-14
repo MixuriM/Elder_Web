@@ -119,7 +119,8 @@ describe("POST /vinculo/solicitar-cuidador com convite do idoso vencido", () => 
     const res = await solicitar();
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ id: 99, origem: "solicitacao_cuidador", status: "pendente", idoso_id: IDOSO });
+    // D4a (2026-10-14): o 201 não devolve mais a linha do vínculo; o que foi criado é conferido no createVinculo abaixo.
+    expect(res.body).toEqual({ registrado: true });
     expect(transacao).toHaveBeenCalledTimes(1);
     expect(transacao.mock.calls[0][0]).toHaveLength(2);
     expect(updateManyVinculo).toHaveBeenCalledTimes(1);
