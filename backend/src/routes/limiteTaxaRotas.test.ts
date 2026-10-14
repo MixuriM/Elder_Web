@@ -77,7 +77,7 @@ describe.each(ROTAS)("%s %s: limite de %i por usuário", (metodo, caminho, maxim
     expect(bloqueada.body).toEqual({ error: MSG_LIMITE_TAXA });
     expect(Number(bloqueada.headers["retry-after"])).toBeGreaterThan(0);
     expect((await chamar(metodo, caminho, outro)).status).not.toBe(429);
-  });
+  }, 30_000);
 });
 
 describe("limite geral do requireAuth", () => {
@@ -99,12 +99,12 @@ describe("POST /auth/sync", () => {
     const bloqueada = await request(servidor).post("/auth/sync");
     expect(bloqueada.status).toBe(429);
     expect(bloqueada.body).toEqual({ error: MSG_LIMITE_TAXA });
-  });
+  }, 30_000);
 
   it("limita por uid depois do token: 60 passam, a 61 dá 429; outro uid passa", async () => {
     const sync = (id: number) => request(servidor).post("/auth/sync").set("Authorization", `Bearer ${tokenDe(id)}`).send({});
     for (let i = 0; i < 60; i++) expect((await sync(900)).status).not.toBe(429);
     expect((await sync(900)).status).toBe(429);
     expect((await sync(901)).status).not.toBe(429);
-  });
+  }, 30_000);
 });

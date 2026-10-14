@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { emailDoTokenConfere, isValidEmailFormat } from "../lib/authHelpers";
 import { mascararEmail } from "../lib/mascararEmail";
-import { requireAuth } from "../middleware/requireAuth";
+import { requireAuth, requireAuthRevogacao } from "../middleware/requireAuth";
 import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
 
 const router = Router();
@@ -45,7 +45,7 @@ function conviteVenceu(dataSolicitacao: Date): boolean {
   return Date.now() - dataSolicitacao.getTime() > VALIDADE_CONVITE_CUIDADOR_MS;
 }
 
-router.post("/solicitar-cuidador", requireAuth, limiteSolicitarCuidador, async (req, res, next) => {
+router.post("/solicitar-cuidador", requireAuthRevogacao, limiteSolicitarCuidador, async (req, res, next) => {
   try {
     const cuidador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -192,7 +192,7 @@ router.post("/solicitar-cuidador", requireAuth, limiteSolicitarCuidador, async (
 // Auto-vínculo: sem guard explícito. tipo_perfil é fixo e único por conta (decisão
 // fechada) — o chamador já foi confirmado tipo_perfil='familiar' acima, e idosoAlvo só
 // resolve contas tipo_perfil='idoso'. Os dois nunca podem ser o mesmo id.
-router.post("/solicitar-familiar", requireAuth, limiteSolicitarFamiliar, async (req, res, next) => {
+router.post("/solicitar-familiar", requireAuthRevogacao, limiteSolicitarFamiliar, async (req, res, next) => {
   try {
     const familiar = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -265,7 +265,7 @@ router.post("/solicitar-familiar", requireAuth, limiteSolicitarFamiliar, async (
 // A resposta é sempre a mesma, com ou sem conta e com ou sem vínculo existente (201 { registrado: true }, sem 409: um 409
 // só existiria com conta e viraria oráculo de enumeração). Com a decisão transferida para a família o idoso não
 // adiciona familiar automático (403): quem tem a caneta é o familiar.
-router.post("/convidar-familiar", requireAuth, limiteConvidarFamiliar, async (req, res, next) => {
+router.post("/convidar-familiar", requireAuthRevogacao, limiteConvidarFamiliar, async (req, res, next) => {
   try {
     const idoso = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -341,7 +341,7 @@ router.post("/convidar-familiar", requireAuth, limiteConvidarFamiliar, async (re
 // aceite (POST /:id/aceitar-convite). Sem conta, nada é guardado: guardar exigiria coluna nova e migration, e a tela
 // avisa o idoso. Resposta igual com ou sem conta (sem oráculo de enumeração); o 409 só aparece quando já existe vínculo
 // do próprio idoso com a pessoa, informação que ele já tem. Com a decisão com a família o idoso não convida (403).
-router.post("/convidar-cuidador", requireAuth, limiteConvidarCuidador, async (req, res, next) => {
+router.post("/convidar-cuidador", requireAuthRevogacao, limiteConvidarCuidador, async (req, res, next) => {
   try {
     const idoso = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -613,10 +613,10 @@ async function responderSolicitacaoVinculo(
   }
 }
 
-router.post("/:id/aprovar", requireAuth, (req, res, next) =>
+router.post("/:id/aprovar", requireAuthRevogacao, (req, res, next) =>
   responderSolicitacaoVinculo(req, res, next, "aprovado"),
 );
-router.post("/:id/recusar", requireAuth, (req, res, next) =>
+router.post("/:id/recusar", requireAuthRevogacao, (req, res, next) =>
   responderSolicitacaoVinculo(req, res, next, "recusado"),
 );
 
@@ -682,8 +682,8 @@ async function responderConviteCuidador(
   }
 }
 
-router.post("/:id/aceitar-convite", requireAuth, (req, res, next) => responderConviteCuidador(req, res, next, true));
-router.post("/:id/recusar-convite", requireAuth, (req, res, next) => responderConviteCuidador(req, res, next, false));
+router.post("/:id/aceitar-convite", requireAuthRevogacao, (req, res, next) => responderConviteCuidador(req, res, next, true));
+router.post("/:id/recusar-convite", requireAuthRevogacao, (req, res, next) => responderConviteCuidador(req, res, next, false));
 
 // Contestação de vínculo automático Familiar↔Idoso já 'aprovado' (RF-022; dívida técnica
 // do item 2.5). Elegível: tipo_vinculo='familiar', origem 'convite_idoso' (Fluxo A) ou
@@ -770,7 +770,7 @@ router.post("/:id/contestar", requireAuth, async (req, res, next) => {
 // de checar autoridade — decisão fechada, ver <decisoes_ja_fechadas_nao_reabrir>: as
 // flags não têm efeito fora de tipo_vinculo='cuidador', e liberar escrita num vínculo
 // ainda pendente ativaria a permissão automaticamente na aprovação, sem reconfirmação.
-router.patch("/:id/definir-permissoes", requireAuth, async (req, res, next) => {
+router.patch("/:id/definir-permissoes", requireAuthRevogacao, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
@@ -843,7 +843,7 @@ router.patch("/:id/definir-permissoes", requireAuth, async (req, res, next) => {
 // aprovado dele. Abre uma janela de carência de 7 dias (ver
 // resolverEstadoModoDecisao acima) — nenhum job agendado, a expiração é resolvida sob
 // demanda nos pontos onde modo_decisao já é lido, e no login do idoso (POST /auth/sync).
-router.post("/:id/solicitar-transferencia-decisao", requireAuth, async (req, res, next) => {
+router.post("/:id/solicitar-transferencia-decisao", requireAuthRevogacao, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
@@ -916,7 +916,7 @@ router.post("/:id/solicitar-transferencia-decisao", requireAuth, async (req, res
 // diferente do familiar que solicitou. Confirmar não efetiva a mudança na hora: só marca
 // modo_decisao_segunda_confirmacao_id; a efetivação de fato só acontece quando a janela
 // de 7 dias expirar (resolverEstadoModoDecisao), conforme o mecanismo do ER.md.
-router.post("/:id/confirmar-transferencia-decisao", requireAuth, async (req, res, next) => {
+router.post("/:id/confirmar-transferencia-decisao", requireAuthRevogacao, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {

@@ -122,3 +122,36 @@ describe("emailDoTokenConfere", () => {
     expect(emailDoTokenConfere(token, cadastro as string | null | undefined)).toBe(esperado);
   });
 });
+
+// D5 (2026-10-14): checkRevoked só quando pedido (custa uma chamada extra ao Firebase por requisição).
+describe("verifyFirebaseToken com checarRevogado", () => {
+  beforeEach(() => verifyIdToken.mockReset());
+
+  it("sem a opção, chama verifyIdToken só com o token (sem checkRevoked)", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-ficticio" });
+    await verifyFirebaseToken("token-ficticio");
+    expect(verifyIdToken.mock.calls).toEqual([["token-ficticio"]]);
+  });
+
+  it("com checarRevogado, chama verifyIdToken(token, true)", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-ficticio" });
+    const resultado = await verifyFirebaseToken("token-ficticio", { checarRevogado: true });
+    expect(verifyIdToken.mock.calls).toEqual([["token-ficticio", true]]);
+    expect(resultado.ok).toBe(true);
+  });
+
+  it("token revogado dá 401", async () => {
+    verifyIdToken.mockRejectedValue(Object.assign(new Error("revogado"), { code: "auth/id-token-revoked" }));
+    expect(await verifyFirebaseToken("token-ficticio", { checarRevogado: true })).toEqual({
+      ok: false,
+      status: 401,
+      error: "Token inválido ou expirado.",
+    });
+  });
+
+  it("falha de rede ao checar a revogação continua 503", async () => {
+    verifyIdToken.mockRejectedValue(new Error("network"));
+    const resultado = await verifyFirebaseToken("token-ficticio", { checarRevogado: true });
+    expect(resultado).toMatchObject({ ok: false, status: 503 });
+  });
+});

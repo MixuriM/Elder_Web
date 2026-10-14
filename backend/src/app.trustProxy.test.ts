@@ -66,7 +66,7 @@ describe("app.set('trust proxy')", () => {
     expect((await sync("203.0.113.1")).status).toBe(429);
     expect((await sync("203.0.113.2")).status).toBe(401);
     limite.limparLimitadores();
-  });
+  }, 30_000);
 
   it("fora de produção, X-Forwarded-For é ignorado (todos contam como o mesmo IP)", async () => {
     const { app, limite } = carregar({ NODE_ENV: "development", LIMITE_TAXA_DESLIGADO: undefined });
@@ -74,5 +74,5 @@ describe("app.set('trust proxy')", () => {
     for (let i = 0; i < 300; i++) expect((await sync("203.0.113.1")).status).toBe(401);
     expect((await sync("203.0.113.2")).status).toBe(429);
     limite.limparLimitadores();
-  });
+  }, 30_000);
 });

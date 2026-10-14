@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import multer from "multer";
 import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
-import { requireAuth } from "../middleware/requireAuth";
+import { requireAuth, requireAuthRevogacao } from "../middleware/requireAuth";
 import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
 import { emailDoTokenConfere, isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
@@ -216,7 +216,7 @@ router.delete("/me/foto", requireAuth, async (req, res, next) => {
 const MSG_EMAIL_INVALIDO = "E-mail inválido.";
 const MSG_EMAIL_EM_USO = "Este e-mail já está em uso por outra conta.";
 
-router.patch("/me", requireAuth, limiteAtualizarPerfil, async (req, res, next) => {
+router.patch("/me", requireAuthRevogacao, limiteAtualizarPerfil, async (req, res, next) => {
   try {
     const { nome, email, telefone } = req.body ?? {};
     // Só string (ou null em email/telefone) chega ao Prisma: um objeto como { set: "" } seria aceito
@@ -334,7 +334,7 @@ router.patch("/me", requireAuth, limiteAtualizarPerfil, async (req, res, next) =
 // separada de PATCH /usuario/me de propósito, pra não misturar campo de autorização
 // com edição de perfil. Escopo separado da tarefa 2.9 (RF-033, transferência pra
 // 'familiar' solicitada por um Familiar) — não reaberta aqui.
-router.patch("/me/modo-decisao", requireAuth, async (req, res, next) => {
+router.patch("/me/modo-decisao", requireAuthRevogacao, async (req, res, next) => {
   try {
     const chamador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -403,7 +403,7 @@ router.patch("/me/modo-decisao", requireAuth, async (req, res, next) => {
 // firebase_uid (CK_Usuario_firebase_uid_cadastrado_por libera isso porque
 // cadastrado_por_id vem preenchido). Usuario + Vinculo em um único create aninhado
 // (transação implícita do Prisma): ou criam os dois, ou nenhum.
-router.post("/cadastrar-idoso", requireAuth, limiteCadastrarIdoso, async (req, res, next) => {
+router.post("/cadastrar-idoso", requireAuthRevogacao, limiteCadastrarIdoso, async (req, res, next) => {
   try {
     const chamador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
