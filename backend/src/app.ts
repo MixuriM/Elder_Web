@@ -11,6 +11,7 @@ import agendaRouter from './routes/agenda'
 import alimentacaoRouter from './routes/alimentacao'
 import emergenciaRouter from './routes/emergencia'
 import { hsts } from './middleware/hsts'
+import { cabecalhosSeguranca } from './middleware/cabecalhosSeguranca'
 
 // Quantos proxies (lidos da direita do X-Forwarded-For) o Express pula para achar o IP do cliente. Inteiro de 0 a 3;
 // ausente ou inválido vale 1. Os docs do Render não dizem quantos saltos há até o app (Cloudflare e balanceador do
@@ -24,6 +25,8 @@ const app = express()
 // Só em produção: fora dela não há proxy e confiar no cabeçalho deixaria o cliente escolher o próprio IP.
 if (process.env.NODE_ENV === 'production') app.set('trust proxy', saltosTrustProxy(process.env.TRUST_PROXY_SALTOS))
 
+app.disable('x-powered-by')
+app.use(cabecalhosSeguranca)
 app.use(hsts)
 app.use(cors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:5173' }))
 app.use(express.json())

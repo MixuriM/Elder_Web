@@ -78,6 +78,19 @@ describe("CI builda a imagem Docker do backend (item 9.3, RNF-010)", () => {
     }
   });
 
+  // Decisão D3 de 2026-10-14: o processo roda como o usuário node da imagem, não como root. Build e prisma generate
+  // seguem como root (escrevem em /app); o runtime só lê.
+  it("T9: USER node vem depois do RUN npm run build e antes do CMD, e nada volta a root", () => {
+    const instrucoes = dockerfile.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+    const iBuild = instrucoes.findIndex((l) => /^RUN npm run build$/.test(l));
+    const iUser = instrucoes.findIndex((l) => /^USER node$/.test(l));
+    const iCmd = instrucoes.findIndex((l) => /^CMD\b/.test(l));
+    expect(iBuild).toBeGreaterThanOrEqual(0);
+    expect(iUser).toBeGreaterThan(iBuild);
+    expect(iCmd).toBeGreaterThan(iUser);
+    expect(instrucoes.filter((l) => /^USER\b/.test(l))).toEqual(["USER node"]);
+  });
+
   it("T8: o Dockerfile não faz COPY nem ADD de .env por nome", () => {
     expect(dockerfile).not.toMatch(/^\s*(COPY|ADD)\b.*\.env/im);
   });
