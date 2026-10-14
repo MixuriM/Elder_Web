@@ -24,6 +24,9 @@ const Remedios = lazy(() => import('./pages/Remedios').then(carregouChunk))
 const Agenda = lazy(() => import('./pages/Agenda').then(carregouChunk))
 const Alimentacao = lazy(() => import('./pages/Alimentacao').then(carregouChunk))
 const SobreNos = lazy(() => import('./pages/SobreNos').then(carregouChunk))
+const Privacidade = lazy(() => import('./pages/Privacidade').then(carregouChunk))
+const Termos = lazy(() => import('./pages/Termos').then(carregouChunk))
+const Cookies = lazy(() => import('./pages/Cookies').then(carregouChunk))
 const Orientacoes = lazy(() => import('./pages/Orientacoes').then(carregouChunk))
 const Avisos = lazy(() => import('./pages/Avisos').then(carregouChunk))
 const Configuracoes = lazy(() => import('./pages/Configuracoes').then(carregouChunk))
@@ -68,6 +71,9 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage/>} />
       <Route path="/sobre-nos" element={<SobreNos />} />
+      <Route path="/privacidade" element={<Privacidade />} />
+      <Route path="/termos" element={<Termos />} />
+      <Route path="/cookies" element={<Cookies />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
