@@ -2263,7 +2263,41 @@ Risco anterior a esta tarefa, não corrigido: o `emVoo` do `useIdososVinculados`
 - Migration `20261013120000_add_indices_desempenho` aplicada no Azure em 2026-10-13, com autorização do Marcos (`prisma migrate deploy` de máquina local; `migrate status` limpo; os 5 índices conferidos em `sys.index_columns`, com as colunas da chave e as incluídas iguais às da migration).
 - Pinger externo contra o sono do Render free: fica como recomendação, não como código.
 - `connection_limit` na `DATABASE_URL` do Render: não indicado pela medição.
-- O README cita 7 migrations; agora são 8.
+- O README não cita contagem de migrations (os "7" dele são as entidades); as pastas em `backend/prisma/migrations` são 8. Nada a corrigir.
+
+**Medição final no código final (2026-10-14, HEAD de `development`, já com os documentos legais).** `npm run test:desempenho` completo (33,9 min, `vite preview` do build de produção, SQL local, backend local na 3000) e depois só a Home nos 3 perfis mais 2 vezes (`DESEMPENHO_SO='Home$'`). As demais telas tiveram 2 amostras (a completa e uma repetição). Nenhum código de produção mudou nesta etapa. O Playwright apaga `test-results/` a cada execução, então só os números do console ficaram.
+
+Home, LCP em ms (3 rodadas de mediana de 5; faixa = máximo menos mínimo):
+
+| Perfil | Linha de base | Rodada anterior | Final (mediana) | Rodadas | Faixa | Final contra base | Veredito |
+|---|---|---|---|---|---|---|---|
+| Idoso | 4.684 | 4.820 | 4.728 | 4.736, 4.728, 4.728 | 8 | +0,9% | ruído (abaixo de 2%) |
+| Cuidador | 4.688 | 4.768 | 4.708 | 4.712, 4.708, 4.696 | 16 | +0,4% | ruído |
+| Familiar | 4.680 | 4.808 | 4.712 | 4.712, 4.720, 4.696 | 24 | +0,7% | ruído |
+
+Pela regra D3 (mais de 2% acima da base e acima da faixa) nenhum perfil é regressão. O +2% a +3% da rodada anterior não se repetiu: a rodada final ficou 1,3% a 2,0% abaixo dela. Resta um desvio pequeno e repetível de +20 a +44 ms sobre a base antiga, sem causa isolada, aceito. A hipótese mais provável é o bundle inicial maior que veio dos documentos legais (abaixo), mas não foi testada. Requisições e bytes iguais nas 3 rodadas (38 requisições, 12 de API, 3.404 kB), igual à rodada anterior (3.403 kB). Tempo útil da Home: 23,1 a 23,25 s, igual ou melhor que os 23,4 a 23,5 s da rodada anterior.
+
+Demais telas (útil em s, medianas de 5; duas amostras por tela, diferença entre elas de no máximo 1%):
+
+| Tela | Base | Anterior | Final (amostra 1 e 2) | Veredito |
+|---|---|---|---|---|
+| Landing (útil, ms) | 2.642 | 2.375 | 2.429 e 2.391 | ruído; abaixo da base |
+| Login (útil, ms) | 2.243 | 2.202 | 2.234 e 2.227 | ruído; abaixo da base |
+| Login CLS | 0 | 0,024 | 0,036 e 0,024 | ruído (quantizado; bom, abaixo de 0,1) |
+| Navegação Home para Saúde (ms, 1 amostra) | 1.963 / 2.969 / 3.008 | 1.643 / 1.942 / 2.048 | 1.644 / 1.963 / 2.040 | ruído |
+| Saúde, 3 perfis | 7,1 a 7,7 | 6,2 a 6,6 | 6,28 / 6,39 / 6,51 e 6,28 / 6,39 / 6,53 | ruído |
+| Alimentação, idoso / cuidador / familiar | 6,5 a 7,2 | 5,7 a 6,0 | 5,32 / 6,08 / 6,09 e 5,26 / 6,04 / 6,13 | ruído; cuidador e familiar até 2% acima da faixa anterior, abaixo da base |
+| Agenda, idoso / cuidador / familiar | 6,5 a 7,1 | 6,2 a 6,4 | 5,78 / 6,57 / 6,59 e 5,79 / 6,58 / 6,61 | cuidador e familiar 3% a 6% acima da faixa anterior, estáveis nas 2 amostras, mas dentro ou abaixo da base: sem regressão pela regra D3 |
+| Remédios (1 amostra) | 16,8 a 17,1 | 16,2 a 16,3 | 16,30 / 16,11 / 16,32 | ruído |
+| Vínculos | 5,5 a 6,1 | 5,4 | 5,55 / 5,54 / 5,53 e 5,54 / 5,53 / 5,55 | ruído; dentro da base |
+| Perfil | 5,30 a 5,36 | 5,22 a 5,25 | 5,23 / 5,27 / 5,26 e 5,25 / 5,24 / 5,26 | ruído |
+| Calendário, próximo mês (ms, idoso) | 186 | 199 | 193 e 196 | ruído |
+
+A faixa da rodada anterior, nas linhas por tela, vem da tabela acima e agrupa os 3 perfis; por isso a comparação por perfil é grosseira. A chamada de API por tela é igual à rodada anterior (Saúde 12, Alimentação 10, Agenda 10, Remédios 12), e os 2 ajustes finais do `chamarApi` (chave por token, invalidação por escrita) não mudaram contagem nem tempo.
+
+**Bundle final (`npm run build` e `medir-bundle.mjs`).** Inicial: 434,5 kB bruto e 113,5 kB gzip de JS (+2,3 kB e +0,7 kB sobre os 432,2 e 112,8 da base). Para atribuir, o commit `66f4115` (antes dos documentos legais, depois do desempenho) foi montado fora do repositório com `git archive` e `vite build`: 432,1 kB e 112,6 kB. Ou seja, o trabalho de desempenho está na base (432,1 contra 432,2) e a diferença inteira vem dos documentos legais: `index` JS 89,6 para 91,9 kB bruto (20,9 para 21,7 gzip) e `index` CSS 93,9 para 95,8 kB (15,3 para 15,6 gzip). `vendor-react` (176,8 kB) e `vendor-firebase` (165,7 kB) ficaram idênticos byte a byte em nome e tamanho, e `Welcome` também (9,2 kB). As páginas `Privacidade`, `Termos`, `Cookies` e `PaginaLegal` são chunks lazy fora do inicial (13,0, 6,7, 5,2 e 4,2 kB). O `index` cresceu provavelmente por `App.tsx` (6 linhas, rotas lazy) e pelo código do rodapé, do Login e do aceite do Cadastro (não separado por arquivo).
+
+**Nota de manutenção dos índices.** Os 5 índices de `20261013120000_add_indices_desempenho` incluem quase todas as colunas da tabela (Medicamento 11, RegistroSaude 9, Evento 8). Uma migration futura com `ALTER COLUMN` (tipo, tamanho ou nulidade) numa coluna incluída falha no SQL Server até o índice ser derrubado. Ordem: `DROP INDEX`, `ALTER COLUMN`, `CREATE INDEX ... INCLUDE (...)` com as mesmas colunas, tudo na mesma migration escrita à mão. Coluna nova na tabela não quebra nada, mas só entra no índice se a migration recriar o índice, e rota que lê todas as colunas volta a fazer busca por linha. Os índices não são representados no Prisma (`@@index` só leva a chave), então o `schema.prisma` não avisa. No Azure vale a regra de sempre: aplicar só com autorização do Marcos.
 
 ## Documentos legais e aceite no cadastro (2026-10-14, sem PR ainda)
 
