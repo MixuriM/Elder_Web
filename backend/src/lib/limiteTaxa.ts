@@ -6,6 +6,9 @@ import type { Request, RequestHandler, Response } from "express";
 export const MSG_LIMITE_TAXA = "Muitas tentativas. Aguarde alguns minutos e tente de novo.";
 
 const PURGA_ACIMA_DE = 5000;
+// Teto rígido de memória: acima dele saem as chaves mais antigas, mesmo vivas (zera a contagem delas). Só um ataque
+// com dezenas de milhares de IPs ou contas chega aqui; o custo é perder a contagem de quem está há mais tempo na janela.
+const TETO = 50000;
 
 type Opcoes = { janelaMs: number; maximo: number; chave: (req: Request, res: Response) => string | undefined };
 type Entrada = { inicio: number; contagem: number };
@@ -49,8 +52,14 @@ export function criarLimitador({ janelaMs, maximo, chave }: Opcoes): RequestHand
     const agora = Date.now();
     let entrada = mapa.get(k);
     if (!entrada || agora - entrada.inicio >= janelaMs) {
-      if (!entrada && mapa.size > PURGA_ACIMA_DE) {
-        for (const [outra, e] of mapa) if (agora - e.inicio >= janelaMs) mapa.delete(outra);
+      // O Map fica em ordem de início (quem reinicia a janela sai e volta pelo fim): a purga para na primeira chave
+      // viva, então o custo é só o das vencidas, nunca uma varredura do mapa inteiro a cada chave nova.
+      mapa.delete(k);
+      if (mapa.size > PURGA_ACIMA_DE) {
+        for (const [outra, e] of mapa) {
+          if (agora - e.inicio < janelaMs && mapa.size < TETO) break;
+          mapa.delete(outra);
+        }
       }
       entrada = { inicio: agora, contagem: 0 };
       mapa.set(k, entrada);

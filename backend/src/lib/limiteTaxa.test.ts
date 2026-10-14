@@ -78,6 +78,30 @@ describe("criarLimitador", () => {
     expect(limitador.tamanho()).toBe(1);
   });
 
+  it("a chave que reinicia a janela vai para o fim da fila e não esconde as vencidas da purga", () => {
+    const { limitador } = montar(1, 1000);
+    const next = jest.fn();
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), setHeader: jest.fn() };
+    const req = (chave: string) => ({ header: () => chave }) as unknown as express.Request;
+    limitador(req("a"), res as unknown as express.Response, next);
+    for (let i = 1; i < 5000; i++) limitador(req(`k${i}`), res as unknown as express.Response, next);
+    agora += 1000;
+    // Com 5.000 chaves ainda não há purga: "a" reinicia e "b" entra (5.001). Só "nova" dispara a purga.
+    limitador(req("a"), res as unknown as express.Response, next);
+    limitador(req("b"), res as unknown as express.Response, next);
+    limitador(req("nova"), res as unknown as express.Response, next);
+    expect(limitador.tamanho()).toBe(3);
+  });
+
+  it("tem teto rígido de 50.000 chaves vivas (descarta as mais antigas)", () => {
+    const { limitador } = montar(1, 60_000);
+    const next = jest.fn();
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), setHeader: jest.fn() };
+    const req = (chave: string) => ({ header: () => chave }) as unknown as express.Request;
+    for (let i = 0; i < 50_001; i++) limitador(req(`k${i}`), res as unknown as express.Response, next);
+    expect(limitador.tamanho()).toBe(50_000);
+  });
+
   it("não loga a chave, o IP nem o corpo ao bloquear", async () => {
     const espioes = (["log", "info", "warn", "error", "debug"] as const).map((m) => jest.spyOn(console, m).mockImplementation(() => {}));
     const { app } = montar(1);
