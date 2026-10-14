@@ -415,14 +415,15 @@ describe("POST /vinculo/:id/aprovar e /recusar", () => {
     });
   });
 
-  it("403 quando modo_decisao='idoso' e chamador não é o idoso", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) quando modo_decisao='idoso' e chamador não é o idoso", async () => {
     findFirstUsuario.mockResolvedValue({ id: 99 });
     findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
     findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
 
     const res = await responder(5, "aprovar");
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
   });
 
   it("aprova quando modo_decisao='familiar' e chamador é familiar aprovado", async () => {
@@ -463,7 +464,7 @@ describe("POST /vinculo/:id/aprovar e /recusar", () => {
     expect(res.status).toBe(403);
   });
 
-  it("403 quando modo_decisao='familiar' e chamador é familiar sem vínculo aprovado", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) quando modo_decisao='familiar' e chamador é familiar sem vínculo aprovado", async () => {
     findFirstUsuario.mockResolvedValue({ id: 20 });
     findUniqueVinculo.mockResolvedValue(VINCULO_PENDENTE);
     findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
@@ -471,7 +472,8 @@ describe("POST /vinculo/:id/aprovar e /recusar", () => {
 
     const res = await responder(5, "aprovar");
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
   });
 
   it("404 quando vínculo não existe", async () => {
@@ -549,7 +551,7 @@ describe("POST /vinculo/:id/aprovar e /recusar", () => {
     expect(res.status).toBe(403);
   });
 
-  it("403 vínculo familiar quando chamador é o próprio familiar que solicitou (sem vínculo aprovado prévio)", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) vínculo familiar quando chamador é o próprio familiar que solicitou (sem vínculo aprovado prévio)", async () => {
     // Familiar solicitante não tem, para este idoso, nenhum outro Vinculo tipo_vinculo='familiar'
     // já aprovado — a checagem de autoridade (findFirstVinculo status='aprovado') não encontra nada,
     // então o próprio solicitante não consegue aprovar o próprio pedido pendente.
@@ -560,7 +562,8 @@ describe("POST /vinculo/:id/aprovar e /recusar", () => {
 
     const res = await responder(6, "aprovar");
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
   });
 
   it("fluxo de cuidador não regride: tipo_vinculo='cuidador' continua aprovável normalmente", async () => {
@@ -636,18 +639,19 @@ describe("PATCH /vinculo/:id/definir-permissoes", () => {
     });
   });
 
-  it("403 quando modo_decisao='idoso' e chamador não é o idoso", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) quando modo_decisao='idoso' e chamador não é o idoso", async () => {
     findFirstUsuario.mockResolvedValue({ id: 99 });
     findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
     findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
 
     const res = await definirPermissoes(7, { permite_registrar_saude: true });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
     expect(updateVinculo).not.toHaveBeenCalled();
   });
 
-  it("403 quando modo_decisao='familiar' e chamador é familiar sem vínculo aprovado", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) quando modo_decisao='familiar' e chamador é familiar sem vínculo aprovado", async () => {
     findFirstUsuario.mockResolvedValue({ id: 20 });
     findUniqueVinculo.mockResolvedValue(VINCULO_CUIDADOR_APROVADO);
     findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
@@ -655,7 +659,8 @@ describe("PATCH /vinculo/:id/definir-permissoes", () => {
 
     const res = await definirPermissoes(7, { permite_registrar_saude: true });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
     expect(updateVinculo).not.toHaveBeenCalled();
   });
 
@@ -757,10 +762,11 @@ describe("POST /vinculo/:id/solicitar-transferencia-decisao", () => {
     expect(updateUsuario).not.toHaveBeenCalled();
   });
 
-  it("403 quando o vínculo não é do próprio chamador", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) quando o vínculo não é do próprio chamador", async () => {
     findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, vinculado_id: 999 });
     const res = await solicitarTransferencia(7);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
     expect(updateUsuario).not.toHaveBeenCalled();
   });
 
@@ -873,10 +879,11 @@ describe("POST /vinculo/:id/confirmar-transferencia-decisao", () => {
     expect(res.status).toBe(409);
   });
 
-  it("403 quando o vínculo não é do próprio chamador", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) quando o vínculo não é do próprio chamador", async () => {
     findUniqueVinculo.mockResolvedValue({ ...VINCULO_FAMILIAR_APROVADO, vinculado_id: 999 });
     const res = await confirmarTransferencia(8);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
   });
 
   it("409 quando não há solicitação em curso", async () => {
@@ -1180,20 +1187,22 @@ describe("POST /vinculo/:id/contestar", () => {
     });
   });
 
-  it("403 não titular com modo_decisao='idoso'", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) não titular com modo_decisao='idoso'", async () => {
     findFirstUsuario.mockResolvedValue({ id: 99 });
     findUniqueUsuario.mockResolvedValue({ modo_decisao: "idoso" });
     const res = await contestar(5);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
     expect(updateVinculo).not.toHaveBeenCalled();
   });
 
-  it("403 não titular com modo_decisao='familiar' (sem vínculo aprovado)", async () => {
+  it("404 (D4c, 2026-10-14: terceiro não vê o vínculo) não titular com modo_decisao='familiar' (sem vínculo aprovado)", async () => {
     findFirstUsuario.mockResolvedValue({ id: 77 });
     findUniqueUsuario.mockResolvedValue({ modo_decisao: "familiar" });
     findFirstVinculo.mockResolvedValue(null);
     const res = await contestar(5);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Vínculo não encontrado." });
     expect(updateVinculo).not.toHaveBeenCalled();
   });
 
