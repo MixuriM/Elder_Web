@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { axe, toHaveNoViolations } from 'jest-axe'
@@ -130,5 +130,23 @@ describe('Configurações', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sair da conta' }))
     await waitFor(() => expect(screen.getByText('Tela de login')).toBeInTheDocument())
     expect(mockLogout).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('Configurações: documentos legais', () => {
+  it('seção "Privacidade e termos" depois da Conta, com os três links na mesma aba', () => {
+    renderizar()
+    const secao = screen.getByRole('region', { name: 'Privacidade e termos' })
+    const conta = screen.getByRole('region', { name: 'Conta' })
+    expect(conta.compareDocumentPosition(secao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    for (const [nome, href] of [
+      ['Política de Privacidade', '/privacidade'],
+      ['Termos de Uso', '/termos'],
+      [/Política de Cookies/, '/cookies'],
+    ] as const) {
+      const link = within(secao).getByRole('link', { name: nome })
+      expect(link).toHaveAttribute('href', href)
+      expect(link).not.toHaveAttribute('target')
+    }
   })
 })

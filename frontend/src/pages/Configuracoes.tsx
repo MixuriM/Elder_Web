@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAcesso } from "../contexts/useAcesso";
 import { useTitulo } from "../hooks/useTitulo";
 import { logoutUser } from "../lib/auth";
+import { DOCUMENTOS_LEGAIS } from "../lib/documentosLegais";
 import { lerPreferencias, salvarPreferencia, type Preferencias } from "../lib/preferencias";
 
 const OPCOES_TEMA = [
@@ -173,6 +174,25 @@ function Configuracoes() {
               Não foi possível sair da conta. Tente de novo.
             </p>
           )}
+        </section>
+
+        <section aria-labelledby="titulo-legal" className={CARTAO}>
+          <h2 id="titulo-legal" className={TITULO_SECAO}>
+            Privacidade e termos
+          </h2>
+          <p className={AJUDA}>Saiba como o Elder Web usa seus dados e quais são as regras de uso.</p>
+          <ul className="mt-3 flex flex-col gap-2">
+            {DOCUMENTOS_LEGAIS.map((d) => (
+              <li key={d.caminho}>
+                <Link
+                  to={d.caminho}
+                  className="inline-flex min-h-11 items-center text-base font-semibold text-[#554CD8] underline underline-offset-4 hover:text-[#3F37B5] dark:text-[#B6B0FF] dark:hover:text-[#D4D0FF]"
+                >
+                  {d.titulo}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       </div>
     </div>

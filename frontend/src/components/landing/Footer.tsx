@@ -1,3 +1,7 @@
+import { Link } from "react-router-dom";
+
+import { DOCUMENTOS_LEGAIS } from "../../lib/documentosLegais";
+
 function Footer() {
   return (
     <footer
@@ -44,6 +48,21 @@ function Footer() {
           © {new Date().getFullYear()} Elder Web.
           Todos os direitos reservados.
         </p>
+
+        <nav aria-label="Documentos legais">
+          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+            {DOCUMENTOS_LEGAIS.map((d) => (
+              <li key={d.caminho}>
+                <Link
+                  to={d.caminho}
+                  className="inline-flex min-h-11 items-center px-1 text-base font-semibold text-[#071A38] underline underline-offset-4 hover:text-[#5F56EC] dark:text-[#F5F5FA] dark:hover:text-[#B6B0FF]"
+                >
+                  {d.titulo}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
         {/* Frase do Elder */}
         <p

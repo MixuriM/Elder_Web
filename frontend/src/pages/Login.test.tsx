@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import Login from "./Login";
@@ -166,5 +166,22 @@ describe("Login", () => {
 
     resolverLogin();
     await waitFor(() => expect(botao).not.toBeDisabled());
+  });
+});
+
+describe("Login: documentos legais", () => {
+  it("abaixo do formulário, avisa que entrar vale como concordância, com links na mesma aba", () => {
+    renderLogin();
+    const aviso = screen.getByText(/ao entrar, você concorda com os/i);
+    const form = screen.getByRole("button", { name: /^entrar$/i }).closest("form")!;
+    expect(form.compareDocumentPosition(aviso) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const [nome, href] of [
+      ["Termos de Uso", "/termos"],
+      ["Política de Privacidade", "/privacidade"],
+    ] as const) {
+      const link = within(aviso).getByRole("link", { name: nome });
+      expect(link).toHaveAttribute("href", href);
+      expect(link).not.toHaveAttribute("target");
+    }
   });
 });

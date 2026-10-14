@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 // Funções relacionadas à autenticação
 import {
@@ -289,6 +289,7 @@ function Login() {
               w-full
               min-w-0
               max-w-xl
+              flex-col
 
               items-center
               justify-center
@@ -317,6 +318,18 @@ function Login() {
                 handleGoogleLogin
               }
             />
+
+            <p className="mt-4 px-1 text-center text-base leading-7 text-[#4B5563] dark:text-[#B9B9C5]">
+              Ao entrar, você concorda com os{" "}
+              <Link to="/termos" className="font-bold text-[#5F56EC] underline underline-offset-4 dark:text-[#A89FFF]">
+                Termos de Uso
+              </Link>{" "}
+              e a{" "}
+              <Link to="/privacidade" className="font-bold text-[#5F56EC] underline underline-offset-4 dark:text-[#A89FFF]">
+                Política de Privacidade
+              </Link>
+              .
+            </p>
           </div>
         </section>
 
