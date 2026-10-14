@@ -262,19 +262,20 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 
 | Comando | O que cobre | Onde roda | Pré-requisitos |
 |---|---|---|---|
-| `npm test` em `backend/` | 54 suítes e 2843 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
+| `npm test` em `backend/` | 55 suítes e 2862 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
 | `npm run test:coverage` em `backend/` | Os mesmos testes, com limiares de cobertura | CI | Nenhum |
-| `npm test` em `frontend/` | 97 suítes e 1102 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
+| `npm test` em `frontend/` | 106 suítes e 1167 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
 | `npm run lint` | ESLint | CI | Nenhum |
 | `npm run build` | `tsc` no backend; `tsc -b` e Vite no frontend | CI | Nenhum |
 | `npx prisma validate` | Valida o `backend/prisma/schema.prisma` | CI | Nenhum |
 | `docker build ./backend` | Constrói a imagem do backend (sem publicar) | CI | Docker |
 | `npm run test:a11y` em `frontend/` | Auditoria axe das rotas completas, com contraste | Local | SQL Server local, `MSSQL_SA_PASSWORD`, Firebase |
 | `npm run test:responsivo` em `frontend/` | Layout no celular em várias larguras e estados | Local | SQL Server local, `MSSQL_SA_PASSWORD`, Firebase |
+| `npm run test:desempenho` em `frontend/` | Tempo das telas no build de produção (Fast 3G, CPU 4x), em `frontend/e2e/desempenho.spec.ts` | Local | SQL Server local, `MSSQL_SA_PASSWORD`, Firebase |
 | `npm run test:e2e` em `frontend/` | Todos os specs do Playwright, inclusive os fluxos de cadastro e login | Local | SQL Server local, `MSSQL_SA_PASSWORD`, Firebase |
 
 > [!WARNING]
-> `test:a11y`, `test:responsivo` e `test:e2e` rodam só localmente, exigem o SQL Server local e criam contas de teste (`e2e-*`) no Firebase real. Use um projeto Firebase seu.
+> `test:a11y`, `test:responsivo`, `test:desempenho` e `test:e2e` rodam só localmente, exigem o SQL Server local e criam contas de teste (`e2e-*`) no Firebase real. Use um projeto Firebase seu.
 
 O CI (`.github/workflows/ci.yml`) roda em todo push e em pull requests para `main`, com dois jobs em Node 24:
 
