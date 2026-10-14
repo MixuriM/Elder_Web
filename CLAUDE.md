@@ -324,8 +324,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
   com `NODE_ENV=production`. `backend/.dockerignore` tira `node_modules`, `dist` e `.env*` (menos `.env.example`).
 - Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem tabela de auditoria.
-- Aceite de termos de uso e política de privacidade no cadastro (LGPD): fora do escopo do TCC (sem RF no plano);
-  registrado como trabalho futuro (exigiria RF, migration e tela).
+- Docs legais: `lib/documentosLegais.ts`. Aceite só na tela (gravar: RF futuro, `/auth/sync`); sem cookie
+  nem banner (2026-10-14). Dado ou storage novo: `VERSAO_DOCUMENTOS`.
 - Exclusão de registro, paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC
   não justifica. O PDF é montado em memória, sem limite (aceito); fora de Latin-1 vira `?` (aceito).
 - Dose (5.2): sem idempotência no servidor (duplicata aceita; o frontend desabilita o botão); CHECK de

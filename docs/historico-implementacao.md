@@ -2264,3 +2264,40 @@ Risco anterior a esta tarefa, não corrigido: o `emVoo` do `useIdososVinculados`
 - Pinger externo contra o sono do Render free: fica como recomendação, não como código.
 - `connection_limit` na `DATABASE_URL` do Render: não indicado pela medição.
 - O README cita 7 migrations; agora são 8.
+
+## Documentos legais e aceite no cadastro (2026-10-14, sem PR ainda)
+
+Decisão do grupo (D1 a D21, delegada ao Claude Code em 2026-10-14) reabriu o aceite de termos, antes fora do escopo.
+Só frontend: sem backend, schema, migration, rota de API, contrato HTTP nem dependência nova.
+
+**Páginas públicas.** `/privacidade`, `/termos` e `/cookies` em `App.tsx`, fora de `LayoutAutenticado`, sem auth nem
+contexto de foto. Moldura comum em `components/Legal/PaginaLegal.tsx` (cabeçalho, `nav` "Documentos legais" com
+`aria-current`, `main` e `h1` únicos, versão e data, resumo). Textos, versão (`VERSAO_DOCUMENTOS = "1.0"`), contato
+(`EMAIL_SUPORTE`, movido de `Orientacoes.tsx`), textos das caixas e os dois links externos em `lib/documentosLegais.ts`.
+Tabelas viram cartões abaixo de `md`, com papéis ARIA explícitos.
+
+**Aceite no cadastro.** Duas caixas desmarcadas (`components/cadastro/AceiteCadastro.tsx`): Termos e Privacidade, e
+consentimento de saúde. `Cadastro.tsx` barra e-mail e senha e o Google (a janela do Google não abre) depois da checagem
+de perfil: erro "Marque as duas caixas para criar a conta.", foco na primeira caixa desmarcada, botões habilitados.
+Nada vai ao servidor: gravar o aceite é o RF futuro (coluna no `Usuario`, `/auth/sync`, migration).
+
+**Links de entrada.** Rodapé da landing (`nav`), linha abaixo do formulário de login e cartão "Privacidade e termos" em
+Configurações, todos na mesma aba. No cadastro, nova aba com aviso para leitor de tela.
+
+**Cookies.** O código não cria cookie nem usa rastreador; sem banner. Achado levado ao Marcos e decidido por ele como
+essencial e documentado: o SDK do Firebase Auth guarda `firebase-heartbeat-database` (datas e versão do SDK, enviadas
+ao Google no cabeçalho `X-Firebase-Client`) e, em celular e Safari, abre um iframe do domínio de login que carrega
+script do Google. Também na tabela: `agendaVisao` e `agendaModo`. `lib/armazenamentoDocumentado.test.ts` falha se um
+arquivo novo usar storage ou `document.cookie`.
+
+**Testes.** Frontend de 99 suítes e 1125 testes para 106 e 1167. Mutações derrubadas: checagem do e-mail, checagem do
+Google, caixa pré-marcada, rota dentro do layout autenticado, chave `tema` trocada na página. Verificação local em
+320x640 e 1280x800, claro e escuro, com axe e contraste: sem estouro, h1 único, alvos de 44 px, nenhum critical nem
+serious. Specs Playwright atualizados (caixas no cadastro, rotas novas), não rodados.
+
+**Limites aceitos.** Aceite não gravado; contas antigas sem aceite (os Termos tratam o uso continuado como
+concordância); exclusão só por pedido ao contato; textos sem revisão jurídica; artigos da LGPD não reconferidos no
+texto da lei (planalto.gov.br recusou a conexão).
+
+**Pendências manuais (Marcos).** Confirmar o e-mail de suporte como canal oficial do titular; regiões dos provedores;
+prazo das cópias de segurança do Azure; revisão jurídica; rodar `test:a11y`, `test:responsivo` e o e2e localmente.
