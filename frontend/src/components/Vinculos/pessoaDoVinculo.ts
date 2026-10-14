@@ -10,6 +10,11 @@ export function pessoaDoVinculo(vinculo: Vinculo) {
     };
   }
 
+  // Convite do idoso ainda sem resposta: o backend não manda nada da conta convidada (D4b, 2026-10-14).
+  if (vinculo.origem === "convite_idoso" && vinculo.status === "pendente" && vinculo.vinculado.nome === null) {
+    return { nome: "Convite enviado, aguardando resposta", email_mascarado: null };
+  }
+
   return {
     nome: vinculo.vinculado.nome ?? "Pessoa vinculada",
     email_mascarado: vinculo.vinculado.email_mascarado,

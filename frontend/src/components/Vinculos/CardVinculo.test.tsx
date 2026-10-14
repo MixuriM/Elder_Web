@@ -38,6 +38,17 @@ describe('CardVinculo por papel_do_chamador', () => {
     expect(screen.queryByText('João Cuidador')).not.toBeInTheDocument()
   })
 
+  // D4b (2026-10-14): no convite pendente o backend não manda nada da conta convidada.
+  it('dono com convite pendente: texto fixo, sem dado do convidado', () => {
+    renderizar({
+      ...base,
+      origem: 'convite_idoso',
+      status: 'pendente',
+      vinculado: { id: null, nome: null, email_mascarado: null },
+    })
+    expect(screen.getByRole('heading', { name: 'Convite enviado, aguardando resposta' })).toBeInTheDocument()
+  })
+
   it('vinculado com idoso oculto (pendente): usa texto genérico, sem nome', () => {
     renderizar({
       ...base,

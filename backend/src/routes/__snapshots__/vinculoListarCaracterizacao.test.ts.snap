@@ -902,9 +902,9 @@ exports[`GET /vinculo: caracterização do corpo inteiro idoso com pedido em cur
         "status": "pendente",
         "tipo_vinculo": "cuidador",
         "vinculado": {
-          "email_mascarado": "c***@exemplo.com",
-          "id": 32,
-          "nome": "Cris",
+          "email_mascarado": null,
+          "id": null,
+          "nome": null,
         },
       },
       {
@@ -978,9 +978,9 @@ exports[`GET /vinculo: caracterização do corpo inteiro idoso com transferênci
         "status": "pendente",
         "tipo_vinculo": "cuidador",
         "vinculado": {
-          "email_mascarado": "c***@exemplo.com",
-          "id": 31,
-          "nome": "Clara",
+          "email_mascarado": null,
+          "id": null,
+          "nome": null,
         },
       },
       {

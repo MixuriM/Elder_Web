@@ -61,10 +61,14 @@ router.post("/solicitar-cuidador", requireAuth, limiteSolicitarCuidador, async (
     }
     const emailBusca = email.trim();
 
-    // Mensagem genérica em todo caminho de "não encontrado" — não revela se o
-    // e-mail existe associado a outro tipo de conta (evita oráculo de enumeração).
+    // Mesmo 404 e mesma mensagem em todo caso sem alvo único (sem conta, familiar sem idoso sob seu controle, mais de
+    // um idoso sem nome ou com nome que não casa): nada revela se o e-mail existe nem quantos idosos há atrás dele, e
+    // nenhuma resposta lista idosos (D4a, 2026-10-14; antes um 422 devolvia id e nome dos candidatos).
     const naoEncontrado = () =>
-      res.status(404).json({ error: "Nenhum idoso encontrado para este e-mail." });
+      res.status(404).json({
+        error:
+          "Nenhum idoso encontrado para este e-mail e nome. Se o e-mail for de um familiar que cuida de mais de um idoso, informe também o nome completo do idoso.",
+      });
 
     // (1) Idoso direto — tentado sempre primeiro, independente de modo_decisao.
     const idosoDireto = await prisma.usuario.findFirst({
@@ -104,21 +108,12 @@ router.post("/solicitar-cuidador", requireAuth, limiteSolicitarCuidador, async (
         idosoAlvo = candidatos[0];
       } else {
         if (typeof nome_idoso !== "string" || !nome_idoso.trim()) {
-          return res.status(422).json({
-            error: "Este e-mail controla mais de um idoso — informe nome_idoso para desambiguar.",
-            candidatos,
-          });
+          return naoEncontrado();
         }
         const nomeBusca = nome_idoso.trim().toLowerCase();
         const filtrados = candidatos.filter((c) => c.nome.trim().toLowerCase() === nomeBusca);
         if (filtrados.length !== 1) {
-          return res.status(422).json({
-            error:
-              filtrados.length === 0
-                ? "nome_idoso não corresponde a nenhum idoso sob este e-mail."
-                : "nome_idoso corresponde a mais de um idoso sob este e-mail.",
-            candidatos,
-          });
+          return naoEncontrado();
         }
         idosoAlvo = filtrados[0];
       }
@@ -163,11 +158,10 @@ router.post("/solicitar-cuidador", requireAuth, limiteSolicitarCuidador, async (
           data_solicitacao: new Date(),
         },
       });
-    let vinculo;
     if (existente && conviteVencido) {
       // Numa transação: o índice único filtrado só admite um pendente por par, então o convite vencido sai junto com a
       // entrada do pedido. Quem recusa é o próprio cuidador.
-      [, vinculo] = await prisma.$transaction([
+      await prisma.$transaction([
         prisma.vinculo.updateMany({
           where: { id: existente.id, status: "pendente" },
           data: { status: "recusado", aprovador_id: req.usuarioId, data_resposta: new Date() },
@@ -175,9 +169,10 @@ router.post("/solicitar-cuidador", requireAuth, limiteSolicitarCuidador, async (
         criar(),
       ]);
     } else {
-      vinculo = await criar();
+      await criar();
     }
-    res.status(201).json(vinculo);
+    // Sem a linha do vínculo (que traria idoso_id): o frontend não lê o corpo (D4a, 2026-10-14).
+    res.status(201).json({ registrado: true });
   } catch (e) {
     if (isDuplicateVinculoConstraint(e)) {
       return res.status(409).json({ error: "Já existe uma solicitação para este idoso." });
@@ -244,7 +239,7 @@ router.post("/solicitar-familiar", requireAuth, limiteSolicitarFamiliar, async (
     // status === 'recusado': permite nova solicitação (novo registro). Mesma decisão
     // assumida e não confirmada com o grupo da tarefa 2.1.
 
-    const vinculo = await prisma.vinculo.create({
+    await prisma.vinculo.create({
       data: {
         idoso_id: idosoAlvo.id,
         vinculado_id: req.usuarioId,
@@ -254,7 +249,8 @@ router.post("/solicitar-familiar", requireAuth, limiteSolicitarFamiliar, async (
         data_solicitacao: new Date(),
       },
     });
-    res.status(201).json(vinculo);
+    // Mesmo corpo mínimo de /solicitar-cuidador: sem idoso_id.
+    res.status(201).json({ registrado: true });
   } catch (e) {
     if (isDuplicateVinculoConstraint(e)) {
       return res.status(409).json({ error: "Já existe uma solicitação para este idoso." });
@@ -1104,6 +1100,9 @@ router.get("/", requireAuth, async (req, res, next) => {
         // Flags só existem em vínculo de cuidador já aprovado (mesma regra de /definir-permissoes);
         // fora disso null, sem nunca repassar o valor do banco.
         const expoePermissoes = v.tipo_vinculo === "cuidador" && v.status === "aprovado";
+        // O idoso que convidou não lê nada da conta convidada enquanto o convite está pendente: o nome confirmaria que
+        // o e-mail tem conta (D4b, 2026-10-14). Depois do aceite, aparece como nos demais.
+        const escondeConvidado = papel === "dono" && v.origem === "convite_idoso" && v.status === "pendente";
         return {
           id: v.id,
           tipo_vinculo: v.tipo_vinculo,
@@ -1130,7 +1129,9 @@ router.get("/", requireAuth, async (req, res, next) => {
             nome: escondeIdoso && !mostraQuemConvidou ? null : v.idoso.nome,
             email_mascarado: escondeIdoso && !mostraQuemConvidou ? null : mascararEmail(v.idoso.email),
           },
-          vinculado: { id: v.vinculado.id, nome: v.vinculado.nome, email_mascarado: mascararEmail(v.vinculado.email) },
+          vinculado: escondeConvidado
+            ? { id: null, nome: null, email_mascarado: null }
+            : { id: v.vinculado.id, nome: v.vinculado.nome, email_mascarado: mascararEmail(v.vinculado.email) },
         };
       });
 

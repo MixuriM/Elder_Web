@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import SolicitarVinculo from './SolicitarVinculo'
@@ -138,48 +138,43 @@ describe('SolicitarVinculo', () => {
     expect(alerta).not.toHaveTextContent('Failed to fetch')
   })
 
-  it('422 do cuidador pede o nome do idoso e reenvia com nome_idoso', async () => {
+  // D4a (2026-10-14): o backend não devolve mais 422 com candidatos. O campo opcional "Nome do idoso" fica sempre
+  // visível para o cuidador e vai como nome_idoso só quando preenchido.
+  it('cuidador: o campo opcional "Nome do idoso" aparece desde o início e vai aparado como nome_idoso', async () => {
     const corpos: unknown[] = []
     mockApi.mockImplementation(
       apiFalsa({
         'POST /vinculo/solicitar-cuidador': (c) => {
           corpos.push(c)
-          if (!c?.nome_idoso) throw erroApi(422, 'candidatos...', { candidatos: [{ nome: 'NOME-PRIVADO' }] })
-          return { id: 3 }
+          return { registrado: true }
         },
       }),
     )
     montar()
-    expect(screen.queryByLabelText(/nome do idoso/i)).not.toBeInTheDocument()
-    await enviar()
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Este e-mail está ligado a mais de um idoso. Digite o nome completo do idoso.',
-    )
-    expect(document.body).not.toHaveTextContent('NOME-PRIVADO')
     await userEvent.type(screen.getByLabelText(/nome do idoso/i), '  Maria Teste  ')
-    await userEvent.click(screen.getByRole('button', { name: 'Enviar pedido' }))
+    await enviar()
     await screen.findByText(/pedido enviado/i)
-    expect(corpos).toEqual([{ email: EMAIL }, { email: EMAIL, nome_idoso: 'Maria Teste' }])
+    expect(corpos).toEqual([{ email: EMAIL, nome_idoso: 'Maria Teste' }])
   })
 
-  it('segundo 422 com o nome preenchido diz que o nome não confere', async () => {
+  it('familiar: sem campo de nome do idoso', () => {
+    montar({ tipo: 'familiar' })
+    expect(screen.queryByLabelText(/nome do idoso/i)).not.toBeInTheDocument()
+  })
+
+  it('404 do cuidador mostra a mensagem genérica do backend', async () => {
+    const MSG =
+      'Nenhum idoso encontrado para este e-mail e nome. Se o e-mail for de um familiar que cuida de mais de um idoso, informe também o nome completo do idoso.'
     mockApi.mockImplementation(
       apiFalsa({
         'POST /vinculo/solicitar-cuidador': () => {
-          throw erroApi(422)
+          throw erroApi(404, MSG)
         },
       }),
     )
     montar()
     await enviar()
-    await screen.findByLabelText(/nome do idoso/i)
-    await userEvent.type(screen.getByLabelText(/nome do idoso/i), 'Maria')
-    await userEvent.click(screen.getByRole('button', { name: 'Enviar pedido' }))
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'O nome não confere com um único idoso. Confira o nome completo.',
-      ),
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(MSG)
   })
 
   it('o formulário, o erro e o sucesso não têm violações do axe', async () => {

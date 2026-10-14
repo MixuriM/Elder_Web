@@ -280,3 +280,58 @@ describe("GET /vinculo: caracterização do corpo inteiro", () => {
     }
   });
 });
+
+// D4b (2026-10-14): o idoso que convidou não lê nenhum dado da conta convidada enquanto o convite está pendente (o nome
+// confirmaria que o e-mail tem conta). Depois do aceite, o nome aparece. A visão do convidado não muda.
+describe("GET /vinculo: convite do idoso pendente não revela a conta convidada", () => {
+  const SEM_DADOS = { id: null, nome: null, email_mascarado: null };
+  const doVinculo = (res: request.Response, vinculado: number) =>
+    (res.body.vinculos as { vinculado: Record<string, unknown> }[]).find((v) => v.vinculado.id === vinculado);
+
+  it("cuidador convidado, convite válido: idoso dono recebe vinculado sem id, nome nem e-mail", async () => {
+    const res = await listar(D);
+    const pendentes = (res.body.vinculos as { origem: string; status: string; tipo_vinculo: string; vinculado: unknown }[]).filter(
+      (v) => v.origem === "convite_idoso" && v.status === "pendente",
+    );
+    expect(pendentes).toHaveLength(1);
+    expect(pendentes[0].vinculado).toEqual(SEM_DADOS);
+    expect(JSON.stringify(res.body)).not.toContain("Cris");
+  });
+
+  it("cuidador convidado, convite vencido ainda pendente: também sem dados", async () => {
+    const res = await listar(B);
+    const pendente = (res.body.vinculos as { origem: string; status: string; vinculado: unknown }[]).find(
+      (v) => v.origem === "convite_idoso" && v.status === "pendente",
+    );
+    expect(pendente?.vinculado).toEqual(SEM_DADOS);
+    expect(JSON.stringify(res.body)).not.toContain("Clara");
+  });
+
+  it("familiar convidado pendente: também sem dados", async () => {
+    vinculos.push(vinculo(D, F3, "familiar", "pendente", "convite_idoso", dias(-1)));
+    const res = await listar(D);
+    const pendente = (res.body.vinculos as { origem: string; status: string; tipo_vinculo: string; vinculado: unknown }[]).find(
+      (v) => v.origem === "convite_idoso" && v.status === "pendente" && v.tipo_vinculo === "familiar",
+    );
+    expect(pendente?.vinculado).toEqual(SEM_DADOS);
+    expect(JSON.stringify(res.body)).not.toContain("Fred");
+  });
+
+  it("depois de aprovado, o nome do convidado aparece para o idoso", async () => {
+    const res = await listar(B);
+    expect(doVinculo(res, C3)?.vinculado).toMatchObject({ id: C3, nome: "Cris" });
+  });
+
+  it("o convidado continua vendo quem o convidou", async () => {
+    const res = await listar(C3);
+    const convite = (res.body.vinculos as { idoso: { nome: string | null }; status: string; origem: string }[]).find(
+      (v) => v.origem === "convite_idoso" && v.status === "pendente",
+    );
+    expect(convite?.idoso.nome).toBe("Dora");
+  });
+
+  it("pedido pendente que o próprio cuidador fez (solicitacao_cuidador) segue mostrando o nome ao idoso", async () => {
+    const res = await listar(E);
+    expect(JSON.stringify(res.body)).toContain("Caio");
+  });
+});

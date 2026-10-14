@@ -24,25 +24,20 @@ const ERRO_ENVIO = "Não foi possível enviar agora. Tente de novo em instantes.
 export default function SolicitarVinculo({ tipo, emailInicial = "", onConcluido, onFechar }: SolicitarVinculoProps) {
   const idEmail = useId();
   const idNome = useId();
+  const idDicaNome = useId();
   const idErro = useId();
   const [email, setEmail] = useState(emailInicial);
   const [nomeIdoso, setNomeIdoso] = useState("");
-  const [pedirNome, setPedirNome] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [emailInvalido, setEmailInvalido] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [concluido, setConcluido] = useState(false);
   const avisoRef = useRef<HTMLDivElement>(null);
-  const nomeRef = useRef<HTMLInputElement>(null);
 
   // O botão de enviar some no sucesso: o foco vai para a mensagem, que permanece até a pessoa concluir.
   useEffect(() => {
     if (concluido) avisoRef.current?.focus();
   }, [concluido]);
-
-  useEffect(() => {
-    if (pedirNome) nomeRef.current?.focus();
-  }, [pedirNome]);
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault();
@@ -69,14 +64,7 @@ export default function SolicitarVinculo({ tipo, emailInicial = "", onConcluido,
       onConcluido();
     } catch (e) {
       const status = statusDoErro(e);
-      if (status === 422 && tipo === "cuidador") {
-        setPedirNome(true);
-        setErro(
-          nome
-            ? "O nome não confere com um único idoso. Confira o nome completo."
-            : "Este e-mail está ligado a mais de um idoso. Digite o nome completo do idoso.",
-        );
-      } else if (status === 404 && e instanceof Error && e.message) {
+      if (status === 404 && e instanceof Error && e.message) {
         // Mensagem genérica do backend, de propósito: não revela se o e-mail existe. Mostrada como veio.
         setErro(e.message);
       } else {
@@ -125,18 +113,23 @@ export default function SolicitarVinculo({ tipo, emailInicial = "", onConcluido,
         />
       </div>
 
-      {pedirNome && (
+      {/* Sempre visível para o cuidador (o backend não lista mais idosos de um e-mail): ajuda quando o e-mail é de um
+          familiar que cuida de mais de um idoso. */}
+      {tipo === "cuidador" && (
         <div>
           <label htmlFor={idNome} className={ROTULO}>
-            Nome do idoso
+            Nome do idoso (opcional)
           </label>
+          <p id={idDicaNome} className="mb-2 text-base text-gray-700 dark:text-gray-200">
+            Preencha com o nome completo se o e-mail for de um familiar que cuida de mais de um idoso.
+          </p>
           <input
             id={idNome}
-            ref={nomeRef}
             type="text"
             autoComplete="off"
             value={nomeIdoso}
             onChange={(e) => setNomeIdoso(e.target.value)}
+            aria-describedby={idDicaNome}
             className={CAMPO}
           />
         </div>
