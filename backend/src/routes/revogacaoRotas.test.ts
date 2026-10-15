@@ -46,6 +46,8 @@ const COM_REVOGACAO: [Metodo, string][] = [
   ["patch", "/vinculo/1/definir-permissoes"],
   ["post", "/vinculo/1/solicitar-transferencia-decisao"],
   ["post", "/vinculo/1/confirmar-transferencia-decisao"],
+  // Contestar tira acesso como /recusar (RF-022): entrou na lista em 2026-10-15.
+  ["post", "/vinculo/1/contestar"],
 ];
 
 describe.each(COM_REVOGACAO)("%s %s checa revogação", (metodo, caminho) => {
@@ -64,7 +66,6 @@ const SEM_REVOGACAO: [Metodo, string][] = [
   ["delete", "/usuario/me/foto"],
   ["post", "/saude"],
   ["post", "/emergencia/avisar"],
-  ["post", "/vinculo/1/contestar"],
 ];
 
 describe.each(SEM_REVOGACAO)("%s %s não checa revogação", (metodo, caminho) => {

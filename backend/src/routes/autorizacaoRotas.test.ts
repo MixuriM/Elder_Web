@@ -96,7 +96,7 @@ const ROTAS_ESPERADAS: Regra[] = [
   { rota: "POST /vinculo/:id/recusar", categoria: "autenticada", revogacao: true },
   { rota: "POST /vinculo/:id/aceitar-convite", categoria: "autenticada", revogacao: true },
   { rota: "POST /vinculo/:id/recusar-convite", categoria: "autenticada", revogacao: true },
-  { rota: "POST /vinculo/:id/contestar", categoria: "autenticada" },
+  { rota: "POST /vinculo/:id/contestar", categoria: "autenticada", revogacao: true },
   { rota: "PATCH /vinculo/:id/definir-permissoes", categoria: "autenticada", revogacao: true },
   { rota: "POST /vinculo/:id/solicitar-transferencia-decisao", categoria: "autenticada", revogacao: true },
   { rota: "POST /vinculo/:id/confirmar-transferencia-decisao", categoria: "autenticada", revogacao: true },
@@ -329,9 +329,9 @@ describe("A. completude do inventário de rotas", () => {
     expect(semAuth).toEqual([]);
   });
 
-  it("D5: as 14 ações sensíveis, e só elas, checam revogação; nenhuma rota de vínculo por idoso, leitura nem emergência", () => {
+  it("D5: as 15 ações sensíveis (14 da D5 mais contestar, 2026-10-15), e só elas, checam revogação; nenhuma rota de vínculo por idoso, leitura nem emergência", () => {
     const marcadas = ROTAS_ESPERADAS.filter((r) => r.revogacao).map((r) => r.rota);
-    expect(marcadas).toHaveLength(14);
+    expect(marcadas).toHaveLength(15);
     for (const r of marcadas) {
       expect(r).not.toMatch(/^GET /);
       expect(r).not.toMatch(/:idosoId|emergencia|foto/);
