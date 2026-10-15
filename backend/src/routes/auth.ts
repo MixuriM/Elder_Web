@@ -18,13 +18,16 @@ const router = Router();
 
 // Aceite gravado (D9, 2026-10-14): na criação e no anexo da conta o corpo traz
 // aceite_documentos: { versao, termos_privacidade: true, consentimento_saude: true }. Flags estritamente true (nada de
-// "true" nem 1) e versão curta de [0-9A-Za-z.-]. O horário gravado é sempre o do servidor, nunca um vindo do cliente.
+// "true" nem 1) e versão de uma lista fechada. O horário gravado é sempre o do servidor, nunca um vindo do cliente.
 const MSG_ACEITE = "Aceite dos termos e do consentimento de saúde é obrigatório.";
+// Versões publicadas dos documentos (2026-10-15): subir junto com VERSAO_DOCUMENTOS do frontend e publicar o backend
+// antes do frontend nesse caso. Versão fora da lista não vira prova de aceite de um texto que nunca existiu.
+const VERSOES_DOCUMENTOS: readonly string[] = ["1.1"];
 function versaoDoAceite(bruto: unknown): string | null {
   if (typeof bruto !== "object" || bruto === null || Array.isArray(bruto)) return null;
   const { versao, termos_privacidade, consentimento_saude } = bruto as Record<string, unknown>;
   if (termos_privacidade !== true || consentimento_saude !== true) return null;
-  return typeof versao === "string" && /^[0-9A-Za-z.-]{1,20}$/.test(versao) ? versao : null;
+  return typeof versao === "string" && VERSOES_DOCUMENTOS.includes(versao) ? versao : null;
 }
 
 // RF-025 (Fluxo A) — vínculo automático Familiar↔Idoso quando o e-mail de cadastro do
