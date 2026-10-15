@@ -2490,3 +2490,17 @@ lista de avisos aceitos em vez de `critical` inteiro; limite por IP antes do tok
   `npx prisma migrate deploy` local. A primeira conexão deu P1001 com a porta 1433 aberta (banco serverless retomando,
   o Prisma espera 5 s por padrão); funcionou com `connectTimeout=60` acrescentado à URL só no comando. `migrate status`
   depois: em dia. Próximos passos da publicação: frontend (Vercel), depois backend (Render).
+
+## Dependabot: merges do grupo do backend e regras ignore (2026-10-15)
+
+- Mergeados em `development` (no GitHub): `actions/checkout` 7, `actions/setup-node` 7 e o grupo minor-e-patch do backend
+  (`firebase-admin` 14.4.0 para 14.5.0, `@types/multer`, `@typescript-eslint/*`, `jest`, `supertest`, `ts-jest`, `tsx`).
+  Depois de `npm ci` local: backend 63 suítes e 3207 testes, cobertura igual (97,67 / 96,24 / 100 / 98,26), `tsc`, lint
+  e build sem erro; frontend 107 suítes e 1194 testes, lint e build sem erro. Notas oficiais do Admin SDK (14.4.0 e
+  14.5.0, além da 14.3.0): nada em Authentication; `verifyIdToken`, `getUsers` e `updateUser` sem mudança.
+- `.github/dependabot.yml` ganhou `ignore` de `version-update:semver-major` (`dependency-name: "*"`) em npm do backend,
+  npm do frontend e docker: major é decidido à mão (Prisma preso na 5.22 pelo `migration_lock.toml`, Node na 24 pelo
+  `engines` e pelo Render). GitHub Actions fica sem a regra. No frontend, `eslint-plugin-react-refresh` `>=0.5.0` também é
+  ignorado: exige ESLint 9 ou 10 e o projeto usa ESLint 8 (o `npm ci` do PR do grupo do frontend dava ERESOLVE).
+  `infra/cadeiaSuprimentos.test.ts` exige as regras (4 testes novos); 6 mutações (tirar cada regra, trocar a versão,
+  trocar major por minor) derrubaram 1 teste cada.
