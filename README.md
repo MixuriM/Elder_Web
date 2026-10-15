@@ -48,7 +48,7 @@ Legenda: ✅ concluído, 🟡 parcial, ⏳ pendente.
 
 | Módulo | O que oferece | Perfis | Status |
 |---|---|---|---|
-| Autenticação e cadastro | Cadastro e login por e-mail e senha ou Google, recuperação de senha, confirmação de e-mail, perfil escolhido no cadastro | Todos | ✅ |
+| Autenticação e cadastro | Cadastro e login por e-mail e senha ou Google, recuperação de senha, confirmação de e-mail, perfil escolhido no cadastro, aceite dos Termos e do consentimento de saúde registrado | Todos | ✅ |
 | Vínculos e permissões | Solicitação, convite, aprovação, recusa e contestação de vínculo; 3 permissões do cuidador; modo de decisão | Todos | ✅ |
 | Cadastro de idoso pelo familiar | O familiar cria a conta do idoso, com termo de responsabilidade | Familiar | ✅ |
 | Saúde | Registro e edição de medições (pressão, por exemplo), com autoria de quem registrou e de quem editou | Todos | ✅ |
@@ -174,16 +174,20 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 > [!IMPORTANT]
 > Registros de saúde e medicamentos são dados sensíveis. Nenhum log, corpo de erro ou mensagem de erro carrega esses valores.
 
-- **Identidade:** o ID Token do Firebase é validado no servidor com o Firebase Admin SDK em toda rota autenticada.
+- **Identidade:** o ID Token do Firebase é validado no servidor com o Firebase Admin SDK em toda rota autenticada. Nas ações sensíveis (perfil, convites, pedidos e respostas de vínculo, permissões e transferência de decisão) o servidor também recusa token revogado, por exemplo depois de uma troca de senha.
 - **Autorização por vínculo, no servidor:** o acesso aos dados de um idoso só passa com vínculo aprovado do usuário com aquele idoso, verificado a cada requisição. O idoso consultado vem do vínculo, e a autoria dos registros nunca vem do corpo da requisição.
 - **Permissões:** quem pode escrever depende do perfil, do `modo_decisao` do idoso e das flags do cuidador, sempre lidos no servidor.
-- **Sem vazamento por resposta:** registro inexistente e registro de outro idoso respondem o mesmo 404, e os 403 não revelam a regra que barrou.
+- **Sem vazamento por resposta:** registro inexistente e registro de outro idoso respondem o mesmo 404, e os 403 não revelam a regra que barrou. Nas ações sobre um vínculo, quem não tem autoridade recebe o mesmo 404 antes de qualquer outro erro; a busca de idoso pelo cuidador não lista idosos; o idoso não vê dados da conta convidada enquanto o convite está pendente.
 - **Logs:** o tratador de erros registra só nome, código, método e caminho, nunca mensagem, pilha, corpo nem parâmetros.
 - **Vínculo automático:** só vale com a posse do e-mail confirmada, e o e-mail do token precisa ser o mesmo do cadastro.
 - **Transporte e repouso:** HSTS em produção, TLS na hospedagem, conexão com o banco criptografada e validada, e criptografia em repouso (TDE) no Azure SQL.
 - **Entradas:** valores de requisição só entram em consultas do Prisma depois de checagem de tipo, e um teste barra SQL cru no código.
 - **Foto de perfil:** validada pelos bytes (não pelo tipo declarado), reencodada em WebP de até 1024 px sem metadados EXIF, com limite de tamanho e de envios por hora.
 - **Aviso de emergência:** só o idoso dispara, com limite de tentativas por hora.
+- **Limite de taxa:** limite geral por usuário em toda rota autenticada, limites menores nas ações que buscam conta por e-mail e no cadastro, e limite por IP no `/auth/sync`, sem dependência externa (`backend/src/lib/limiteTaxa.ts`). Excedido, responde 429 com mensagem fixa.
+- **Cabeçalhos:** a API manda `nosniff`, `X-Frame-Options`, `Referrer-Policy`, CSP e `Permissions-Policy`, sem `X-Powered-By`. O frontend manda os seus pelo `frontend/vercel.json`, com a CSP completa em modo relatório até ser validada em produção.
+- **Consentimento:** o aceite dos Termos, da Política de Privacidade e do consentimento de saúde é gravado com data, hora do servidor e versão dos documentos (LGPD art. 8).
+- **Infraestrutura:** o container do backend roda sem root; o CI só lê o repositório, roda `npm audit` nas dependências de produção e o Dependabot propõe atualizações semanais.
 - **Autorização no CI:** a suíte `backend/src/routes/autorizacaoRotas.test.ts` compara as rotas reais do app com uma lista classificada. Rota nova sem classificação derruba o CI.
 
 ## Como executar localmente
@@ -252,7 +256,9 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 | `backend/.env` | `FRONTEND_URL` | Origem liberada no CORS |
 | `backend/.env` | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Conta de serviço do Firebase Admin SDK |
 | `backend/.env` | `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` | E-mail do aviso de emergência (sem elas, só esse aviso responde 503) |
-| `backend/.env` | `NODE_ENV` | `production` ativa o HSTS (só no deploy) |
+| `backend/.env` | `NODE_ENV` | `production` ativa o HSTS, o `trust proxy` e o limite de taxa sempre ligado (só no deploy) |
+| `backend/.env` | `TRUST_PROXY_SALTOS` | Opcional, só em produção: quantos proxies há antes da API (0 a 3, padrão 1) |
+| `backend/.env` | `LIMITE_TAXA_DESLIGADO` | Opcional, só fora de produção: `1` desliga o limite de taxa no desenvolvimento local |
 | `frontend/.env` | `VITE_API_URL` | Endereço da API |
 | `frontend/.env` | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID` | Configuração do Firebase Web SDK |
 
@@ -262,9 +268,10 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 
 | Comando | O que cobre | Onde roda | Pré-requisitos |
 |---|---|---|---|
-| `npm test` em `backend/` | 55 suítes e 2862 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
+| `npm test` em `backend/` | 63 suítes e 3207 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
 | `npm run test:coverage` em `backend/` | Os mesmos testes, com limiares de cobertura | CI | Nenhum |
-| `npm test` em `frontend/` | 106 suítes e 1167 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
+| `npm test` em `frontend/` | 107 suítes e 1194 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
+| `npm audit --omit=dev` | Avisos de segurança nas dependências de produção (backend a partir de `low`, frontend a partir de `critical`) | CI | Nenhum |
 | `npm run lint` | ESLint | CI | Nenhum |
 | `npm run build` | `tsc` no backend; `tsc -b` e Vite no frontend | CI | Nenhum |
 | `npx prisma validate` | Valida o `backend/prisma/schema.prisma` | CI | Nenhum |
@@ -277,20 +284,22 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 > [!WARNING]
 > `test:a11y`, `test:responsivo`, `test:desempenho` e `test:e2e` rodam só localmente, exigem o SQL Server local e criam contas de teste (`e2e-*`) no Firebase real. Use um projeto Firebase seu.
 
-O CI (`.github/workflows/ci.yml`) roda em todo push e em pull requests para `main`, com dois jobs em Node 24:
+O CI (`.github/workflows/ci.yml`) roda em todo push e em pull requests para `main`, só com permissão de leitura do repositório, com dois jobs em Node 24:
 
-- `frontend`: `npm ci`, `npm run lint`, `npm test`, `npm run build`.
-- `backend`: `npm ci`, `npm run lint`, `npx prisma validate`, `npm run test:coverage`, `npm run build` e `docker build` da imagem do backend.
+- `frontend`: `npm ci`, `npm audit --omit=dev --audit-level=critical`, `npm run lint`, `npm test`, `npm run build`.
+- `backend`: `npm ci`, `npm audit --omit=dev --audit-level=low`, `npm run lint`, `npx prisma validate`, `npm run test:coverage`, `npm run build` e `docker build` da imagem do backend.
+
+O Dependabot (`.github/dependabot.yml`) abre, toda semana, pull requests de atualização para `development`, sem merge automático.
 
 ## Deploy
 
 | Parte | Onde | Como |
 |---|---|---|
-| Frontend | Vercel | Build do Vite; `frontend/vercel.json` reescreve todas as rotas para `index.html` |
+| Frontend | Vercel | Build do Vite; `frontend/vercel.json` reescreve todas as rotas para `index.html` e define os cabeçalhos de segurança |
 | Backend | Render | Runtime Docker com `backend/Dockerfile`; `render.yaml` define `npm start` e o health check em `/health`; segredos no painel do Render |
 | Banco | Azure SQL Database | Conexão com `encrypt=true` e `trustServerCertificate=false`; TDE e TLS mínimo 1.2 |
 
-As migrations não rodam no deploy. Elas são aplicadas à mão, de uma máquina local, com `npx prisma migrate deploy`, antes do deploy que as exige.
+As migrations não rodam no deploy. Elas são aplicadas à mão, de uma máquina local, com `npx prisma migrate deploy`, antes do deploy que as exige. Itens de segurança que dependem dos painéis (Azure, Render, Firebase, GitHub) estão em [docs/checklist-seguranca-producao.md](docs/checklist-seguranca-producao.md).
 
 ## API
 
@@ -339,9 +348,10 @@ Elder_Web/
 | `frontend/src/contexts`, `hooks`, `lib`, `services` | Contextos de acesso e foto, hooks, regras de tela e chamadas à API |
 | `frontend/e2e` | Specs do Playwright (fluxos, acessibilidade e responsividade) |
 | `frontend/public/fonts` | Fonte Atkinson Hyperlegible |
+| `frontend/public/inicio-preferencias.js` | Aplica tema e tamanho do texto antes do React montar (fora do `index.html` por causa da CSP) |
 | `backend/src/routes` | Um roteador por recurso, com testes ao lado |
-| `backend/src/middleware` | Autenticação, vínculo aprovado e HSTS |
-| `backend/src/lib` | Firebase Admin, Prisma, PDF, foto, e-mail e modo de decisão |
+| `backend/src/middleware` | Autenticação (com e sem checagem de revogação), vínculo aprovado, HSTS e cabeçalhos de segurança |
+| `backend/src/lib` | Firebase Admin, Prisma, PDF, foto, e-mail, modo de decisão e limite de taxa |
 | `backend/src/infra` | Testes de infraestrutura (CI, Docker, migrations, SQL cru) |
 | `backend/prisma` | `schema.prisma` e migrations |
 | `backend/scripts` | Scripts `verify-*` (contra o banco local) e `smoke-*` (só leitura) |
@@ -355,6 +365,7 @@ Elder_Web/
 | [CLAUDE.md](CLAUDE.md) | Guia do projeto: escopo, stack, convenções e decisões fechadas |
 | [Modelagem ER](docs/Elder%20Web%20-%20Modelagem%20ER.md) | Entidades, atributos, relacionamentos e mecanismos de permissão |
 | [Histórico de implementação](docs/historico-implementacao.md) | Diário por tarefa (consulta sob demanda, é extenso) |
+| [Checklist de segurança de produção](docs/checklist-seguranca-producao.md) | O que conferir nos painéis do Azure, Render, Firebase, Google Cloud, GitHub e Brevo |
 | [Modelo de pull request](.github/pull_request_template.md) | Checklist de migrations, rotas, contrato HTTP e verificação |
 | [Workflow de CI](.github/workflows/ci.yml) | Passos do CI |
 | [Backend: exemplo de ambiente](backend/.env.example) | Variáveis do backend |
