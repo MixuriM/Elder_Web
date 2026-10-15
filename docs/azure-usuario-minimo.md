@@ -1,8 +1,8 @@
 # Azure SQL: usuário mínimo de runtime
 
-Guia para o Marcos. **Nada deste documento foi executado.** Os scripts abaixo nunca foram rodados contra o Azure; quem
-roda é o Marcos, com a conta de admin, e cada passo que mexe no banco de produção exige a autorização dele (regra do
-`CLAUDE.md`). Item 1 e item 2 de `docs/checklist-seguranca-producao.md` apontam para cá.
+Guia para o Marcos. Os scripts abaixo foram rodados pelo Marcos em 2026-10-15 (usuário criado e verificado, ver item 1
+do checklist); o Claude nunca executou nada contra o Azure. Quem roda é o Marcos, com a conta de admin, e cada passo que
+mexe no banco de produção exige a autorização dele (regra do `CLAUDE.md`). Item 1 e item 2 de `docs/checklist-seguranca-producao.md` apontam para cá.
 
 ## O que o código prova (conferido no repo em 2026-10-15)
 
@@ -14,9 +14,8 @@ roda é o Marcos, com a conta de admin, e cada passo que mexe no banco de produ�
   `Dockerfile` só roda `prisma generate` e `npm run build` na imagem, sem tocar no banco. O `render.yaml` diz que
   `migrate deploy` é manual, de uma máquina local.
 - Conclusão: o runtime só faz SELECT, INSERT, UPDATE e DELETE pelo Prisma Client. Não executa DDL.
-- **Não confirmado:** que o Prisma Client, com a conexão de um usuário só com `db_datareader` e `db_datawriter`, não
-  precise de mais nada no Azure SQL. Isso só se confirma testando, com o roteiro de verificação abaixo e a aplicação
-  usando o usuário novo (primeiro num banco de teste, se possível).
+- **Confirmado em 2026-10-15:** o Prisma Client funcionou com a conexão de um usuário só com `db_datareader` e
+  `db_datawriter`, sem precisar de mais nada no Azure SQL (INSERT e UPDATE testados pela tela, em produção).
 
 ## Por que dois usuários
 
@@ -94,8 +93,7 @@ de teste em produção é desnecessário. A consulta de permissão cobre o INSER
 3. Troque `user=` e `password=` pelos de `elder_app`. O resto fica igual, incluindo `encrypt=true` e
    `trustServerCertificate=false`. Formato:
    `sqlserver://<servidor>.database.windows.net:1433;database=<banco>;user=elder_app;password=<SENHA_FORTE_GERADA>;encrypt=true;trustServerCertificate=false`
-   (Não confirmado: se o Azure pede `elder_app@<servidor>` no `user=` para usuário contido. Se o login falhar, teste
-   essa forma.)
+   (Confirmado em 2026-10-15: o `user=` aceitou `elder_app` sem `@<servidor>`.)
 4. Salve. O Render reinicia o serviço.
 5. Confira `/health` e faça um login e uma leitura de saúde pela tela. Veja os logs do Render: não deve haver erro de
    permissão (mensagem do SQL Server sobre permissão negada).
