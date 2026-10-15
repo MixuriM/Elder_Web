@@ -6,6 +6,7 @@ import Sidebar from '../Home/Sidebar'
 import RotaProtegida from '../RotaProtegida'
 import { AcessoProvider } from '../../contexts/AcessoContext'
 import { AvisosProvider } from '../../contexts/AvisosContext'
+import BarraDemonstracao from '../Demo/BarraDemonstracao'
 
 // Moldura única das telas autenticadas: skip link, menu lateral, cabeçalho e UM <main>.
 // As páginas renderizam só o conteúdo (div ou section), nunca outro <main>.
@@ -44,6 +45,9 @@ function LayoutAutenticado() {
       >
         Pular para o conteúdo
       </a>
+
+      {/* Só em sessão do modo demonstração; acima da moldura, em fluxo normal. */}
+      <BarraDemonstracao />
 
       <div className="flex min-h-dvh bg-white dark:bg-[#0F0F17]">
         <Sidebar aberto={sidebarAberta} setAberto={setSidebarAberta} />

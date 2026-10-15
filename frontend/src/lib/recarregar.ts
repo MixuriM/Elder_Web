@@ -2,6 +2,11 @@ export function recarregarPagina() {
   window.location.reload()
 }
 
+// Navegação com recarga completa (zera contextos e caches em memória), usada pelo modo demonstração.
+export function irPara(caminho: string) {
+  window.location.assign(caminho)
+}
+
 const CHAVE = 'elder-preload-recarregado'
 
 // Depois de um deploy, uma aba antiga pede chunks que não existem mais. O Vite dispara

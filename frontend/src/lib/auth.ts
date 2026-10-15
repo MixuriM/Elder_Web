@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithCustomToken,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -76,6 +77,11 @@ export async function loginUser(email: string, password: string) {
 // Login com Google
 export async function loginWithGoogle() {
   return signInWithPopup(auth, googleProvider);
+}
+
+// Modo demonstração: entra numa conta fictícia do elenco com o custom token emitido por POST /demo/entrar-como.
+export async function entrarComTokenDemo(token: string) {
+  return signInWithCustomToken(auth, token);
 }
 
 // Logout
