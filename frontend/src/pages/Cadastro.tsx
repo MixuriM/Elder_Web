@@ -7,7 +7,8 @@ import { useNavigate } from "react-router-dom";
 
 import {
   registerUser,
-  MINIMO_SENHA,
+  mensagemRequisitosSenha,
+  validarSenha,
   loginWithGoogle,
   syncUser,
   sendEmailVerification,
@@ -109,8 +110,9 @@ function Cadastro() {
 
     if (faltaAceite()) return;
 
-    if (senha.length < MINIMO_SENHA) {
-      setErro(`A senha precisa ter pelo menos ${MINIMO_SENHA} caracteres.`);
+    const faltam = await validarSenha(senha);
+    if (faltam.length > 0) {
+      setErro(mensagemRequisitosSenha(faltam));
       return;
     }
 

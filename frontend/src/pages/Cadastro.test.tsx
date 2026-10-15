@@ -13,7 +13,10 @@ import {
   TEXTO_CONSENTIMENTO_SAUDE,
 } from "../lib/documentosLegais";
 
+const mockValidatePassword = jest.fn();
+
 jest.mock("firebase/auth", () => ({
+  validatePassword: (...args: unknown[]) => mockValidatePassword(...args),
   getAuth: jest.fn(),
   GoogleAuthProvider: jest.fn(),
   createUserWithEmailAndPassword: jest.fn(),
@@ -119,6 +122,9 @@ async function preencherCamposBase(
 
 describe("Cadastro", () => {
   beforeEach(() => {
+    mockValidatePassword.mockReset();
+    mockValidatePassword.mockResolvedValue({ isValid: true, meetsMinPasswordLength: true });
+
     mockRegisterUser.mockReset();
 
     mockLoginWithGoogle.mockReset();
@@ -621,28 +627,67 @@ describe("Cadastro", () => {
   });
 });
 
-// D10 (2026-10-14): mínimo de 8 caracteres no cliente, com a regra visível junto ao campo.
-describe("Cadastro: senha com menos de 8 caracteres", () => {
+// Política de senha (modo Require, mínimo 8, maiúscula, minúscula, número e especial): validada no cliente
+// com validatePassword do SDK, que lê a política real do console.
+const TODOS = "pelo menos 8 caracteres, uma letra maiúscula, uma letra minúscula, um número e um caractere especial";
+
+describe("Cadastro: requisitos da senha", () => {
   beforeEach(() => {
     mockRegisterUser.mockReset();
     mockSyncUser.mockReset();
+    mockValidatePassword.mockReset();
+    mockValidatePassword.mockResolvedValue({ isValid: true, meetsMinPasswordLength: true });
   });
 
-  it("a dica do campo diz o mínimo de 8", () => {
+  async function digitarSenha(user: ReturnType<typeof userEvent.setup>, valor: string) {
+    for (const rotulo of [/^senha$/i, /^confirmação da senha$/i]) {
+      await user.clear(screen.getByLabelText(rotulo));
+      await user.type(screen.getByLabelText(rotulo), valor);
+    }
+    await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
+  }
+
+  it("a dica do campo lista todos os requisitos", () => {
     renderCadastro();
-    expect(screen.getByText("Use pelo menos 8 caracteres.")).toBeInTheDocument();
+    expect(screen.getByText(`Use ${TODOS}.`)).toBeInTheDocument();
   });
 
   it("7 caracteres: erro com role=alert e não cria conta", async () => {
     const user = userEvent.setup();
     renderCadastro();
     await preencherCamposBase(user);
-    for (const rotulo of [/^senha$/i, /^confirmação da senha$/i]) {
-      await user.clear(screen.getByLabelText(rotulo));
-      await user.type(screen.getByLabelText(rotulo), "1234567");
-    }
-    await user.click(screen.getByRole("button", { name: /criar minha conta/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("A senha precisa ter pelo menos 8 caracteres.");
+    await digitarSenha(user, "1234567");
+    expect(await screen.findByRole("alert")).toHaveTextContent("A senha precisa ter pelo menos 8 caracteres");
     expect(mockRegisterUser).not.toHaveBeenCalled();
+  });
+
+  it("política do console não atendida: mostra só o que falta e não cria conta", async () => {
+    mockValidatePassword.mockResolvedValue({
+      isValid: false,
+      meetsMinPasswordLength: true,
+      containsUppercaseLetter: false,
+      containsLowercaseLetter: true,
+      containsNumericCharacter: true,
+      containsNonAlphanumericCharacter: false,
+    });
+    const user = userEvent.setup();
+    renderCadastro();
+    await preencherCamposBase(user);
+    await digitarSenha(user, "abcd1234");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A senha precisa ter uma letra maiúscula e um caractere especial."
+    );
+    expect(mockRegisterUser).not.toHaveBeenCalled();
+  });
+
+  it("política atendida: cria a conta", async () => {
+    mockRegisterUser.mockResolvedValue({});
+    mockSyncUser.mockResolvedValue({});
+    const user = userEvent.setup();
+    renderCadastro();
+    await preencherCamposBase(user);
+    await digitarSenha(user, "Abcd123!");
+    await waitFor(() => expect(mockRegisterUser).toHaveBeenCalledWith("ana@a.com", "Abcd123!"));
+    expect(mockValidatePassword.mock.calls[0][1]).toBe("Abcd123!");
   });
 });
