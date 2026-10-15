@@ -75,18 +75,24 @@ describe("Dependabot (D7)", () => {
 
   // 2026-10-15: major é decidido à mão (Prisma preso na 5.22 pelo migration_lock.toml, Node na 24 pelo engines e
   // pelo Render). eslint-plugin-react-refresh 0.5 exige ESLint 9 ou 10 e o frontend usa ESLint 8 (npm ci dá ERESOLVE).
+  const literal = (texto: string): string => texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const blocoDe = (ecossistema: string, diretorio: string): string =>
     dependabot
       .split(/^ {2}- /m)
-      .find((b) => new RegExp(`package-ecosystem:\\s*"?${ecossistema}"?\\s*\\n\\s*directory:\\s*"?${diretorio}"?\\s*$`, "m").test(b)) ?? "";
+      .find((b) =>
+        new RegExp(
+          `package-ecosystem:\\s*"?${literal(ecossistema)}"?\\s*\\n\\s*directory:\\s*"?${literal(diretorio)}"?\\s*$`,
+          "m",
+        ).test(b),
+      ) ?? "";
   const ignora = (bloco: string, nome: string, chave: string, valor: string): boolean =>
     bloco
       .split(/^ {6}- /m)
       .slice(1)
       .some(
         (regra) =>
-          new RegExp(`^\\s*dependency-name:\\s*"${nome.replace(/[*.]/g, "\\$&")}"\\s*$`, "m").test(regra) &&
-          new RegExp(`^\\s*${chave}:\\s*\\[\\s*"${valor}"\\s*\\]\\s*$`, "m").test(regra),
+          new RegExp(`^\\s*dependency-name:\\s*"${literal(nome)}"\\s*$`, "m").test(regra) &&
+          new RegExp(`^\\s*${literal(chave)}:\\s*\\[\\s*"${literal(valor)}"\\s*\\]\\s*$`, "m").test(regra),
       );
 
   it.each([
