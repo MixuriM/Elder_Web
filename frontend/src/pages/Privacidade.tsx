@@ -25,6 +25,11 @@ const DADOS = [
   ],
   ['Datas da conta', 'Automaticamente: quando a conta foi criada e o último acesso.', 'Funcionamento e segurança da conta.'],
   [
+    'Registro do aceite (data e versão)',
+    'Quando você marca as caixas do cadastro (ou da confirmação de e-mail da conta criada por um familiar).',
+    'Provar que você aceitou os Termos e a Política e deu o consentimento para os dados de saúde.',
+  ],
+  [
     'Vínculos e permissões',
     'Quando alguém pede, convida, aprova, recusa ou contesta um vínculo, ou muda uma permissão.',
     'Definir quem pode ver e registrar dados de cada pessoa idosa. Guardamos também quem aprovou e quando.',

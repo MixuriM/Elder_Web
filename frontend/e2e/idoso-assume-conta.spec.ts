@@ -87,6 +87,8 @@ test("idoso cadastrado por Familiar assume a própria conta ao confirmar o e-mai
 
   // --- IDOSO: confirma na página dedicada — aqui o firebase_uid é anexado ---
   await page.goto("/confirmar-email");
+  // D9 (2026-10-14): o anexo exige e grava o aceite, como o cadastro.
+  await aceitarTermosNoCadastro(page);
   await page.getByRole("button", { name: /^confirmar$/i }).click();
   await expect(page.getByRole("status")).toHaveText(/confirmado com sucesso/i, { timeout: 20_000 });
 

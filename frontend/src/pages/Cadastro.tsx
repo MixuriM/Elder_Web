@@ -20,7 +20,7 @@ import LadoInformativo from "../components/Informativo/LadoInformativo";
 import FormularioCadastro from "../components/cadastro/FormularioCadastro";
 import BotaoTema from "../components/layout/BotaoTema";
 import { useTitulo } from "../hooks/useTitulo";
-import { MENSAGEM_ACEITE } from "../lib/documentosLegais";
+import { MENSAGEM_ACEITE, VERSAO_DOCUMENTOS } from "../lib/documentosLegais";
 import {
   ID_ACEITE_TERMOS,
   ID_CONSENTIMENTO_SAUDE,
@@ -59,7 +59,7 @@ function Cadastro() {
   const [carregando, setCarregando] =
     useState(false);
 
-  // Aceite só na interface (D16): obrigatório para criar conta, ainda não vai ao servidor.
+  // Aceite obrigatório para criar conta; vai ao servidor com a versão dos documentos (D9, 2026-10-14).
   const [aceitaTermos, setAceitaTermos] = useState(false);
   const [consenteSaude, setConsenteSaude] = useState(false);
 
@@ -143,6 +143,8 @@ function Cadastro() {
           tipoPerfil === "idoso"
             ? emailConviteFamiliar
             : undefined,
+
+        aceiteDocumentos: VERSAO_DOCUMENTOS,
       });
 
       // Vai para a Welcome
@@ -199,6 +201,8 @@ function Cadastro() {
           tipoPerfil === "idoso"
             ? emailConviteFamiliar
             : undefined,
+
+        aceiteDocumentos: VERSAO_DOCUMENTOS,
       });
 
       // Vai para a Welcome

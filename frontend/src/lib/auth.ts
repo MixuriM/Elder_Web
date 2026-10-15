@@ -119,6 +119,9 @@ export async function syncUser(dados?: {
   tipoPerfil?: TipoPerfil;
   nome?: string;
   emailConviteFamiliar?: string;
+  // Versão dos documentos aceitos (VERSAO_DOCUMENTOS). Só no cadastro e no anexo do idoso (D9, 2026-10-14): o servidor
+  // grava a versão e o próprio horário. No login não vai nada.
+  aceiteDocumentos?: string;
 }) {
   const token = await getCurrentUserToken();
 
@@ -135,6 +138,9 @@ export async function syncUser(dados?: {
           tipo_perfil: dados?.tipoPerfil,
           nome: dados?.nome,
           email_convite_familiar: dados?.emailConviteFamiliar || undefined,
+          aceite_documentos: dados?.aceiteDocumentos
+            ? { versao: dados.aceiteDocumentos, termos_privacidade: true, consentimento_saude: true }
+            : undefined,
         }),
       });
 

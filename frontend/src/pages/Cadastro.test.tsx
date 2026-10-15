@@ -173,6 +173,8 @@ describe("Cadastro", () => {
         expect.objectContaining({
           tipoPerfil: "idoso",
           nome: "Ana Silva",
+          // D9 (2026-10-14): o aceite vai gravado com a versão dos documentos.
+          aceiteDocumentos: "1.1",
         })
       );
 
@@ -522,7 +524,7 @@ describe("Cadastro", () => {
           },
         })
       );
-      expect(mockSyncUser).toHaveBeenCalledWith(expect.objectContaining({ tipoPerfil: perfil }));
+      expect(mockSyncUser).toHaveBeenCalledWith(expect.objectContaining({ tipoPerfil: perfil, aceiteDocumentos: "1.1" }));
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(JSON.stringify(espiao.mock.calls)).not.toContain("ana@a.com");
       espiao.mockRestore();

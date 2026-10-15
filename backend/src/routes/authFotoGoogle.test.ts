@@ -23,10 +23,12 @@ jest.mock("../lib/prisma", () => ({
 }));
 
 import authRouter from "./auth";
+import { comAceiteValido } from "../testSupport/aceiteDocumentosTeste";
 
 function buildApp() {
   const app = express();
   app.use(express.json());
+  app.use(comAceiteValido); // testes anteriores ao D9: ver testSupport/aceiteDocumentosTeste.ts
   app.use("/auth", authRouter);
   app.use((_err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(500).json({ error: "Erro interno." });
@@ -242,7 +244,13 @@ describe("POST /auth/sync — foto do Google nunca em login nem em anexo (3.3)",
     expect(res.status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
-    expect(updateUsuario.mock.calls[0][0].data).toEqual({ firebase_uid: "uid-novo" });
+    // Sem foto no anexo; o aceite gravado (D9) é o único acréscimo.
+    expect(updateUsuario.mock.calls[0][0].data).toEqual({
+      firebase_uid: "uid-novo",
+      aceite_documentos_em: expect.any(Date),
+      aceite_documentos_versao: "1.1",
+      consentimento_saude_em: expect.any(Date),
+    });
     expect(res.body.usuario).not.toHaveProperty("foto_perfil");
   });
 });

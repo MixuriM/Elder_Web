@@ -16,6 +16,17 @@ import {
 
 const router = Router();
 
+// Aceite gravado (D9, 2026-10-14): na criação e no anexo da conta o corpo traz
+// aceite_documentos: { versao, termos_privacidade: true, consentimento_saude: true }. Flags estritamente true (nada de
+// "true" nem 1) e versão curta de [0-9A-Za-z.-]. O horário gravado é sempre o do servidor, nunca um vindo do cliente.
+const MSG_ACEITE = "Aceite dos termos e do consentimento de saúde é obrigatório.";
+function versaoDoAceite(bruto: unknown): string | null {
+  if (typeof bruto !== "object" || bruto === null || Array.isArray(bruto)) return null;
+  const { versao, termos_privacidade, consentimento_saude } = bruto as Record<string, unknown>;
+  if (termos_privacidade !== true || consentimento_saude !== true) return null;
+  return typeof versao === "string" && /^[0-9A-Za-z.-]{1,20}$/.test(versao) ? versao : null;
+}
+
 // RF-025 (Fluxo A) — vínculo automático Familiar↔Idoso quando o e-mail de cadastro do
 // Familiar bate com email_convite_familiar de algum Idoso. Sem tabela de token: a
 // confirmação de posse do e-mail reaproveita decoded.email_verified do Firebase.
@@ -169,6 +180,18 @@ router.post("/sync", limiteSyncIp, verificarTokenSync, limiteSyncUid, async (req
         .json({ error: "tipo_perfil obrigatório ao criar conta (idoso, cuidador ou familiar)." });
     }
 
+    // Vale para a criação e para o anexo (3.3), que passam os dois por aqui.
+    const versaoAceite = versaoDoAceite(req.body?.aceite_documentos);
+    if (versaoAceite === null) {
+      return res.status(400).json({ error: MSG_ACEITE });
+    }
+    const agoraAceite = new Date();
+    const dadosAceite = {
+      aceite_documentos_em: agoraAceite,
+      aceite_documentos_versao: versaoAceite,
+      consentimento_saude_em: agoraAceite,
+    };
+
     // Nome em branco no corpo (vazio ou só espaços) não conta como informado: vale o do token (Google). Antes,
     // "" vencia o decoded.name e virava 400 de nome obrigatório mesmo com nome no token.
     const nomeCorpo = typeof req.body?.nome === "string" ? req.body.nome.trim() : "";
@@ -225,7 +248,7 @@ router.post("/sync", limiteSyncIp, verificarTokenSync, limiteSyncUid, async (req
         if (idosoCadastradoPorFamiliar && decoded.email_verified === true) {
           const usuarioAnexado = await prisma.usuario.update({
             where: { id: existente.id },
-            data: { firebase_uid: decoded.uid },
+            data: { firebase_uid: decoded.uid, ...dadosAceite },
             select: USUARIO_SEM_FOTO_SELECT,
           });
           return res.status(200).json({ criado: false, usuario: semFotoPerfil(usuarioAnexado) });
@@ -262,6 +285,7 @@ router.post("/sync", limiteSyncIp, verificarTokenSync, limiteSyncUid, async (req
           telefone: decoded.phone_number,
           tipo_perfil: tipoPerfil,
           email_convite_familiar: emailConviteFamiliar,
+          ...dadosAceite,
           // ER: modo_decisao obrigatório para idoso; autocadastro nasce decidindo por si.
           ...(tipoPerfil === "idoso" && { modo_decisao: "idoso" }),
           ...(fotoGoogle && {

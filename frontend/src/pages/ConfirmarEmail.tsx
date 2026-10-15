@@ -10,6 +10,16 @@ import {
 import { useAuthUser } from '../hooks/useAuthUser'
 import { getCurrentUserToken, syncUser } from '../lib/auth'
 import { useTitulo } from '../hooks/useTitulo'
+import AceiteCadastro, {
+  ID_ACEITE_TERMOS,
+  ID_CONSENTIMENTO_SAUDE,
+  ID_ERRO_CADASTRO,
+} from '../components/cadastro/AceiteCadastro'
+import { VERSAO_DOCUMENTOS } from '../lib/documentosLegais'
+
+// D9 (2026-10-14): esta página é onde o idoso cadastrado por um familiar assume a conta (anexo, item 3.3), então o
+// botão exige o aceite e o servidor o grava. Para quem já tem conta o servidor ignora o aceite (login).
+const MENSAGEM_ACEITE_CONFIRMAR = 'Marque as duas caixas para continuar.'
 
 function ConfirmarEmail() {
   useTitulo('Confirmar e-mail')
@@ -20,8 +30,18 @@ function ConfirmarEmail() {
   >('idle')
 
   const [erro, setErro] = useState<string | null>(null)
+  const [aceitaTermos, setAceitaTermos] = useState(false)
+  const [consenteSaude, setConsenteSaude] = useState(false)
+  const [erroAceite, setErroAceite] = useState(false)
 
   async function handleConfirmar() {
+    const faltando = !aceitaTermos ? ID_ACEITE_TERMOS : !consenteSaude ? ID_CONSENTIMENTO_SAUDE : null
+    if (faltando) {
+      setErroAceite(true)
+      document.getElementById(faltando)?.focus()
+      return
+    }
+    setErroAceite(false)
     setStatus('confirmando')
     setErro(null)
 
@@ -30,7 +50,7 @@ function ConfirmarEmail() {
 
       // tipoPerfil fixo: só importa quando o backend ainda não acha
       // o firebase_uid.
-      await syncUser({ tipoPerfil: 'idoso' })
+      await syncUser({ tipoPerfil: 'idoso', aceiteDocumentos: VERSAO_DOCUMENTOS })
 
       setStatus('sucesso')
     } catch (err) {
@@ -152,6 +172,28 @@ function ConfirmarEmail() {
               {usuario.email}
             </p>
           </div>
+        )}
+
+        {/* Aceite (anexo da conta criada por familiar) */}
+
+        {status !== 'sucesso' && (
+          <AceiteCadastro
+            aceitaTermos={aceitaTermos}
+            consenteSaude={consenteSaude}
+            setAceitaTermos={setAceitaTermos}
+            setConsenteSaude={setConsenteSaude}
+            erroAceite={erroAceite}
+          />
+        )}
+
+        {erroAceite && status !== 'sucesso' && (
+          <p
+            id={ID_ERRO_CADASTRO}
+            role="alert"
+            className="mt-5 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-center text-base text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+          >
+            {MENSAGEM_ACEITE_CONFIRMAR}
+          </p>
         )}
 
         {/* Botão */}
