@@ -66,6 +66,8 @@ type Regra = {
   statusOk?: number;
   // D5 (2026-10-14): ação sensível, autenticada por requireAuthRevogacao (checa token revogado no Firebase).
   revogacao?: true;
+  // Só token_proprio: quantos handlers a rota tem (padrão 4, o de /auth/sync).
+  handlers?: number;
 };
 
 const SAUDE = { tipo_medicao: "pressao", valor_1: 120, valor_2: 80, unidade: "mmHg" };
@@ -168,6 +170,12 @@ const ROTAS_ESPERADAS: Regra[] = [
 
   // Sem vínculo no fake: o controle positivo do idoso termina em 200 sem chegar ao provedor de e-mail.
   { rota: "POST /emergencia/avisar", categoria: "autenticada", soIdoso: true, statusOk: 200 },
+
+  // Modo demonstração: validam o próprio token (com revogação) e dão o 404 de rota inexistente a quem não é admin.
+  // estado: verificação e handler; entrar-como e restaurar: verificação, limite e handler.
+  { rota: "GET /demo/estado", categoria: "token_proprio", handlers: 2 },
+  { rota: "POST /demo/entrar-como", categoria: "token_proprio", handlers: 3 },
+  { rota: "POST /demo/restaurar", categoria: "token_proprio", handlers: 3 },
 ];
 
 const metodoDe = (r: Regra) => r.rota.split(" ")[0];
@@ -344,7 +352,7 @@ describe("A. completude do inventário de rotas", () => {
     for (const r of ROTAS_ESPERADAS.filter((x) => x.categoria === "publica" || x.categoria === "token_proprio")) {
       const rota = enumeradas.find((e) => chave(e.metodo, e.caminho) === r.rota);
       // /auth/sync (token próprio) tem 4: limite por IP, verificação do token, limite por uid e o handler (D1, 2026-10-14).
-      expect(rota?.handlers).toHaveLength(r.categoria === "publica" ? 1 : 4);
+      expect(rota?.handlers).toHaveLength(r.categoria === "publica" ? 1 : (r.handlers ?? 4));
       expect(rota?.handlers).not.toContain(requireAuth);
       expect(rota?.handlers).not.toContain(requireAuthRevogacao);
     }

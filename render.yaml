@@ -44,3 +44,9 @@ services:
         sync: false
       - key: EMAIL_REMETENTE_ENDERECO
         sync: false
+      # Modo demonstração (docs/modo-demonstracao.md): só nos dias de banca ou feira. DEMO_MODO_ATIVO liga só com o
+      # valor exato 1; DEMO_ADMIN_UIDS são os uids do Firebase dos admins, separados por vírgula. Valores só no painel.
+      - key: DEMO_MODO_ATIVO
+        sync: false
+      - key: DEMO_ADMIN_UIDS
+        sync: false
