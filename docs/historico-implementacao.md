@@ -2467,3 +2467,11 @@ colunas novas. Pendências do Marcos no `docs/checklist-seguranca-producao.md`.
 **Contrato HTTP mudado:** 201 de `solicitar-*` (só `{ registrado: true }`), 404 único de `solicitar-cuidador` (sem 422),
 `GET /vinculo` com convidado pendente sem dados, 404 para terceiros nas ações de vínculo, 401 por token revogado nas 14
 ações, 429 nas rotas limitadas, `aceite_documentos` obrigatório no cadastro e no anexo.
+
+**Revisão final (auditoria por subagente).** Sem achado crítico ou alto. Corrigido: `aprovar` e `recusar` devolviam a
+linha inteira do vínculo, com `vinculado_id`; como o idoso cancela o próprio convite pelo `/recusar`, isso contornava o
+D4b. Agora devolvem só `{ id, status }` (o frontend não lia o corpo). Ficaram como sugestão, sem mudar nesta rodada:
+lista fechada de versões do aceite no backend (hoje vale qualquer versão no formato da D9); gate do audit do frontend por
+lista de avisos aceitos em vez de `critical` inteiro; limite por IP antes do token no `requireAuth` (conta Firebase sem
+`Usuario` e 429 nas rotas com revogação ainda custam banco ou Firebase); chave por prefixo /64 para IPv6 no limite por IP;
+`contestar` com revogação; `report-to` na CSP de relatório para colher violações de usuários reais.
