@@ -2517,3 +2517,22 @@ lista de avisos aceitos em vez de `critical` inteiro; limite por IP antes do tok
   chegado pelo grupo do frontend.
 - Conferido: o CSS gerado pelo build é idêntico byte a byte ao de antes do override. Backend 63 suítes e 3211 testes,
   frontend 107 suítes e 1194 testes, lint, `tsc`, build e `npm audit --omit=dev` do CI sem erro. O #191 deve ser fechado.
+
+## trust proxy medido no Render: `TRUST_PROXY_SALTOS` = 3 (2026-10-15)
+
+- Medição do Marcos em produção (item 5 de `docs/checklist-seguranca-producao.md`): com 1 e com 2, 400 chamadas com token
+  inválido a `POST /auth/sync` deram só 401, sem 429. Com 3 veio o 429, e um `X-Forwarded-For` falso e aleatório por
+  chamada não burlou o limite (429 na requisição 298: 3 chamadas anteriores mais 297, limite de 300 por IP em 15 min). O
+  Render tem mais de um proxy na frente do serviço. O Marcos já pôs 3 no painel.
+- `render.yaml` passa a declarar `TRUST_PROXY_SALTOS` com `value: "3"` (antes só havia comentário). O padrão do código
+  (`saltosTrustProxy` em `backend/src/app.ts`, ausente ou inválido vale 1) não mudou.
+- Teste novo em `app.trustProxy.test.ts` (bloco `render.yaml`): lê o `render.yaml` sem comentários e exige a chave com
+  `"3"` e que `saltosTrustProxy` devolva 3 para esse valor. RED antes da mudança no `render.yaml`; mutações (trocar o nome
+  da chave, trocar o valor para `"2"`) derrubaram o teste. Antes não havia teste das variáveis do `render.yaml`
+  (`dockerCi.test.ts` e `migrationsSemDeploy.test.ts` só olham build e comando).
+- Checklist: itens 4 e 5 atualizados e seção nova "Teste do trust proxy (item 5)" com o roteiro em PowerShell, o
+  resultado e a regra (menor valor que dá 429; valor alto demais deixa o cliente forjar o IP; refazer se o Render mudar
+  a infraestrutura). A chamada única de outra rede deu 401 (confirmado pela contagem: o IP de casa começou o segundo
+  laço com 3 chamadas já contadas, 3 mais 297 igual a 300, e o 429 veio na requisição 298).
+- Backend: 63 suítes e 3212 testes (antes 3211), cobertura igual (97,67 / 96,24 / 100 / 98,26), `tsc --noEmit`, lint e
+  build sem erro.

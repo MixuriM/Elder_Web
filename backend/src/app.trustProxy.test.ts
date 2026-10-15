@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import request from "supertest";
+import { ler, semComentariosYaml } from "./testSupport/repoArquivos";
 
 // trust proxy (decisão D1 de 2026-10-14): só em produção, com TRUST_PROXY_SALTOS de 0 a 3 (ausente ou inválido vale 1).
 // Sem ele, atrás do proxy do Render, req.ip seria o do proxy e o limite por IP de /auth/sync juntaria todo mundo.
@@ -43,6 +44,17 @@ describe("saltosTrustProxy", () => {
   });
   it.each([undefined, "", "4", "-1", "1.5", "abc", " 2", "2 "])("%p inválido vale 1", (valor) => {
     expect(saltosTrustProxy(valor)).toBe(1);
+  });
+});
+
+// Valor medido em produção em 2026-10-15 (docs/checklist-seguranca-producao.md, item 5): com 1 e com 2 o limite por IP
+// nunca disparou. Lê fora de backend/, então só roda no host e no CI.
+describe("render.yaml", () => {
+  it("declara TRUST_PROXY_SALTOS com o valor medido, \"3\", que o código aceita", () => {
+    const { saltosTrustProxy } = jest.requireActual("./app") as typeof import("./app");
+    const valor = /^\s*- key: TRUST_PROXY_SALTOS\s*\n\s*value:\s*"(\d+)"\s*$/m.exec(semComentariosYaml(ler("render.yaml")))?.[1];
+    expect(valor).toBe("3");
+    expect(saltosTrustProxy(valor)).toBe(3);
   });
 });
 
