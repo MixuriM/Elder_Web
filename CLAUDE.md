@@ -271,6 +271,7 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   e `vercel.json`, CSP completa só em Report-Only até o Marcos promover; nada de script inline no `index.html`.
 - `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`). Publicar: migration no Azure, depois
   Vercel, depois Render. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
+- Modo demonstração (`docs/modo-demonstracao.md`): `DEMO_MODO_ATIVO=1` e `DEMO_ADMIN_UIDS` só no painel do Render; conta do elenco nunca cria vínculo nem alcança idoso fora do elenco.
 
 **Testes**
 - TDD: escrever o teste antes, confirmar RED, depois implementar. Fakes de Prisma devem
