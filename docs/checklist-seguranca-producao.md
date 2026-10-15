@@ -68,5 +68,5 @@ Resultado medido pelo Marcos em 2026-10-15:
 3. Backend (Render): passa a exigir o aceite. Publicado antes do frontend, todo cadastro novo daria 400.
 
 Ao lançar uma versão nova dos documentos, a ordem se inverte: primeiro o backend com a versão nova em
-`VERSOES_DOCUMENTOS` (`backend/src/routes/auth.ts`, mantendo a anterior na lista), depois o frontend com o
+`VERSOES_DOCUMENTOS` (`backend/src/lib/versoesDocumentos.ts`, mantendo a anterior na lista), depois o frontend com o
 `VERSAO_DOCUMENTOS` novo.

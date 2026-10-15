@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma";
 import { criarLimitador, QUINZE_MIN } from "../lib/limiteTaxa";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
+import { VERSOES_DOCUMENTOS } from "../lib/versoesDocumentos";
 import { baixarFotoDoGoogle, semFotoPerfil, USUARIO_SEM_FOTO_SELECT } from "../lib/fotoPerfil";
 import {
   isTipoPerfil,
@@ -20,9 +21,6 @@ const router = Router();
 // aceite_documentos: { versao, termos_privacidade: true, consentimento_saude: true }. Flags estritamente true (nada de
 // "true" nem 1) e versão de uma lista fechada. O horário gravado é sempre o do servidor, nunca um vindo do cliente.
 const MSG_ACEITE = "Aceite dos termos e do consentimento de saúde é obrigatório.";
-// Versões publicadas dos documentos (2026-10-15): subir junto com VERSAO_DOCUMENTOS do frontend e publicar o backend
-// antes do frontend nesse caso. Versão fora da lista não vira prova de aceite de um texto que nunca existiu.
-const VERSOES_DOCUMENTOS: readonly string[] = ["1.1"];
 function versaoDoAceite(bruto: unknown): string | null {
   if (typeof bruto !== "object" || bruto === null || Array.isArray(bruto)) return null;
   const { versao, termos_privacidade, consentimento_saude } = bruto as Record<string, unknown>;
