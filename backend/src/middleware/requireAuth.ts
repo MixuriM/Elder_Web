@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { verifyFirebaseToken } from "../lib/authHelpers";
 import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
+import { ehUidDemo } from "../lib/demo/elenco";
 
 // Limite geral por usuário em toda rota autenticada (decisão D1 de 2026-10-14). 2000 por 15 min, não 600: a entrada na
 // Home faz 12 chamadas à API e um uso intenso (voltar à Home a cada minuto) chega a cerca de 180 em 15 min; o limite
@@ -50,6 +51,8 @@ function criarRequireAuth(checarRevogado: boolean) {
       req.emailVerificado = resultado.decoded.email_verified ?? false;
       // O aceite de convite compara este e-mail com o do cadastro (email_verified sozinho não diz de quem é o e-mail).
       req.emailDoToken = typeof resultado.decoded.email === "string" ? resultado.decoded.email : undefined;
+      // Modo demonstração: conta fictícia do elenco (bloquearContaDemo e requireVinculoAprovado usam).
+      req.contaDemo = ehUidDemo(resultado.decoded.uid);
       limiteGeral(req, res, next);
     } catch (e) {
       // Express 4 não captura rejeição de middleware async: sem isto o Node 24 derruba o processo.

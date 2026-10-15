@@ -5,6 +5,7 @@ import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { emailDoTokenConfere, isValidEmailFormat } from "../lib/authHelpers";
 import { mascararEmail } from "../lib/mascararEmail";
 import { requireAuth, requireAuthRevogacao } from "../middleware/requireAuth";
+import { bloquearContaDemo } from "../middleware/bloquearContaDemo";
 import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
 
 const router = Router();
@@ -45,7 +46,7 @@ function conviteVenceu(dataSolicitacao: Date): boolean {
   return Date.now() - dataSolicitacao.getTime() > VALIDADE_CONVITE_CUIDADOR_MS;
 }
 
-router.post("/solicitar-cuidador", requireAuthRevogacao, limiteSolicitarCuidador, async (req, res, next) => {
+router.post("/solicitar-cuidador", requireAuthRevogacao, bloquearContaDemo, limiteSolicitarCuidador, async (req, res, next) => {
   try {
     const cuidador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -192,7 +193,7 @@ router.post("/solicitar-cuidador", requireAuthRevogacao, limiteSolicitarCuidador
 // Auto-vínculo: sem guard explícito. tipo_perfil é fixo e único por conta (decisão
 // fechada) — o chamador já foi confirmado tipo_perfil='familiar' acima, e idosoAlvo só
 // resolve contas tipo_perfil='idoso'. Os dois nunca podem ser o mesmo id.
-router.post("/solicitar-familiar", requireAuthRevogacao, limiteSolicitarFamiliar, async (req, res, next) => {
+router.post("/solicitar-familiar", requireAuthRevogacao, bloquearContaDemo, limiteSolicitarFamiliar, async (req, res, next) => {
   try {
     const familiar = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -265,7 +266,7 @@ router.post("/solicitar-familiar", requireAuthRevogacao, limiteSolicitarFamiliar
 // A resposta é sempre a mesma, com ou sem conta e com ou sem vínculo existente (201 { registrado: true }, sem 409: um 409
 // só existiria com conta e viraria oráculo de enumeração). Com a decisão transferida para a família o idoso não
 // adiciona familiar automático (403): quem tem a caneta é o familiar.
-router.post("/convidar-familiar", requireAuthRevogacao, limiteConvidarFamiliar, async (req, res, next) => {
+router.post("/convidar-familiar", requireAuthRevogacao, bloquearContaDemo, limiteConvidarFamiliar, async (req, res, next) => {
   try {
     const idoso = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -341,7 +342,7 @@ router.post("/convidar-familiar", requireAuthRevogacao, limiteConvidarFamiliar, 
 // aceite (POST /:id/aceitar-convite). Sem conta, nada é guardado: guardar exigiria coluna nova e migration, e a tela
 // avisa o idoso. Resposta igual com ou sem conta (sem oráculo de enumeração); o 409 só aparece quando já existe vínculo
 // do próprio idoso com a pessoa, informação que ele já tem. Com a decisão com a família o idoso não convida (403).
-router.post("/convidar-cuidador", requireAuthRevogacao, limiteConvidarCuidador, async (req, res, next) => {
+router.post("/convidar-cuidador", requireAuthRevogacao, bloquearContaDemo, limiteConvidarCuidador, async (req, res, next) => {
   try {
     const idoso = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
@@ -683,7 +684,7 @@ async function responderConviteCuidador(
   }
 }
 
-router.post("/:id/aceitar-convite", requireAuthRevogacao, (req, res, next) => responderConviteCuidador(req, res, next, true));
+router.post("/:id/aceitar-convite", requireAuthRevogacao, bloquearContaDemo, (req, res, next) => responderConviteCuidador(req, res, next, true));
 router.post("/:id/recusar-convite", requireAuthRevogacao, (req, res, next) => responderConviteCuidador(req, res, next, false));
 
 // Contestação de vínculo automático Familiar↔Idoso já 'aprovado' (RF-022; dívida técnica
