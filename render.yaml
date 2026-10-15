@@ -18,9 +18,13 @@ services:
       # runtime só roda `npm start` (node dist/index.js). Vale só para o serviço do Render.
       - key: NODE_ENV
         value: production
-      # TRUST_PROXY_SALTOS (opcional, não é segredo): quantos proxies o Express pula no X-Forwarded-For para achar o IP
-      # do cliente (backend/src/app.ts), inteiro de 0 a 3. Ausente vale 1. Conferir com o teste do item 5 de
-      # docs/checklist-seguranca-producao.md antes de mudar.
+      # TRUST_PROXY_SALTOS (não é segredo): quantos proxies o Express pula no X-Forwarded-For para achar o IP do
+      # cliente (backend/src/app.ts), inteiro de 0 a 3; ausente no código vale 1. O Render tem mais de um proxy na
+      # frente do serviço: 3 foi medido em produção em 2026-10-15 (com 1 e com 2 o limite por IP de /auth/sync nunca
+      # disparou). Usar o menor valor que dá 429; alto demais deixa o cliente forjar o IP. Refazer o teste do item 5
+      # de docs/checklist-seguranca-producao.md antes de mudar ou se o Render mudar a infraestrutura.
+      - key: TRUST_PROXY_SALTOS
+        value: "3"
       - key: DATABASE_URL
         sync: false
       - key: FIREBASE_PROJECT_ID
