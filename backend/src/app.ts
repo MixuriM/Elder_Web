@@ -10,6 +10,7 @@ import historicoPdfRouter from './routes/historicoPdf'
 import agendaRouter from './routes/agenda'
 import alimentacaoRouter from './routes/alimentacao'
 import emergenciaRouter from './routes/emergencia'
+import demoRouter from './routes/demo'
 import { hsts } from './middleware/hsts'
 import { cabecalhosSeguranca } from './middleware/cabecalhosSeguranca'
 
@@ -44,6 +45,8 @@ app.use('/historico', historicoPdfRouter)
 app.use('/agenda', agendaRouter)
 app.use('/alimentacao', alimentacaoRouter)
 app.use('/emergencia', emergenciaRouter)
+// Modo demonstração: só com DEMO_MODO_ATIVO=1; desligado, as rotas dão o mesmo 404 de rota inexistente.
+app.use('/demo', demoRouter)
 
 // Item 4.5 (parcial): loga só name, code, método e path. Nunca o erro inteiro, message,
 // stack (começa pela message) nem req.body/req.query: um erro do Prisma carrega os args da
