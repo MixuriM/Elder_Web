@@ -37,7 +37,7 @@
     "@typescript-eslint/parser": "^8.5.0",
     "eslint": "^8.57.0",
     "jest": "^30.5.2",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^6.4.299",
     "prisma": "^5.19.1",
     "supertest": "^7.3.1",
     "ts-jest": "^29.4.14",
