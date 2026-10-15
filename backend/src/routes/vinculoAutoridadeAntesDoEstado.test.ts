@@ -206,3 +206,30 @@ describe.each(["aceitar-convite", "recusar-convite"])("POST /vinculo/:id/%s", (c
     expect((await acao("post", V_CONVITE_RESOLVIDO, caminho, CUIDADOR)).status).toBe(409);
   });
 });
+
+// Achado da auditoria (2026-10-14): o idoso cancela o próprio convite pelo /recusar; a resposta não pode trazer
+// vinculado_id (o id da conta convidada que o GET /vinculo esconde, D4b). Aprovar e recusar devolvem só id e status.
+describe("aprovar e recusar devolvem só id e status", () => {
+  beforeEach(() => preparar("idoso"));
+
+  it("idoso recusa (cancela) convite pendente: corpo sem vinculado_id", async () => {
+    dados.vinculo?.push({
+      id: 8,
+      idoso_id: IDOSO,
+      vinculado_id: OUTRO_CUIDADOR,
+      tipo_vinculo: "cuidador",
+      origem: "convite_idoso",
+      status: "pendente",
+      data_solicitacao: new Date(),
+    });
+    const res = await acao("post", 8, "recusar", IDOSO);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ id: 8, status: "recusado" });
+  });
+
+  it("idoso aprova pedido pendente do cuidador: só id e status", async () => {
+    const res = await acao("post", V_CUIDADOR_PENDENTE, "aprovar", IDOSO);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ id: V_CUIDADOR_PENDENTE, status: "aprovado" });
+  });
+});

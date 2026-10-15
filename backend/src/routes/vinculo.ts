@@ -603,11 +603,12 @@ async function responderSolicitacaoVinculo(
       });
     }
 
-    const atualizado = await prisma.vinculo.update({
+    await prisma.vinculo.update({
       where: { id },
       data: { status: novoStatus, aprovador_id: req.usuarioId, data_resposta: new Date() },
     });
-    res.status(200).json(atualizado);
+    // Só id e status: a linha inteira traria vinculado_id, e o idoso cancela o próprio convite por aqui (D4b).
+    res.status(200).json({ id, status: novoStatus });
   } catch (e) {
     next(e);
   }
