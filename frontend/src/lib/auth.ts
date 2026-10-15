@@ -264,7 +264,7 @@ function mensagemErroFirebaseCadastro(err: unknown): string | null {
     case "auth/weak-password":
       return `Senha fraca. Use pelo menos ${MINIMO_SENHA} caracteres e evite sequências fáceis.`;
     case "auth/password-does-not-meet-requirements":
-      return "A senha não atende às regras de segurança do site. Tente uma senha mais longa, misturando letras e números.";
+      return `A senha precisa ter pelo menos ${MINIMO_SENHA} caracteres.`;
     case "auth/invalid-email":
       return "E-mail inválido. Confira se digitou corretamente.";
     case "auth/network-request-failed":

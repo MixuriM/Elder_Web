@@ -124,11 +124,16 @@ describe('syncUser — retry com backoff', () => {
   })
 })
 
+it('auth/password-does-not-meet-requirements: não cita composição da senha', () => {
+  const msg = mensagemErroCadastro({ code: 'auth/password-does-not-meet-requirements' })
+  expect(msg).not.toMatch(/letra|número|numero|maiúscul|maiuscul|símbolo|simbolo|caractere especial/i)
+})
+
 describe('mensagemErroCadastro — erros do Firebase que o usuário resolve sozinho', () => {
   it.each([
     ['auth/email-already-in-use', /já existe uma conta com este e-mail/i],
     ['auth/weak-password', /^Senha fraca\. Use pelo menos 8 caracteres/],
-    ['auth/password-does-not-meet-requirements', /^A senha não atende às regras de segurança/],
+    ['auth/password-does-not-meet-requirements', /^A senha precisa ter pelo menos 8 caracteres\.$/],
     ['auth/invalid-email', /e-mail inválido/i],
     ['auth/network-request-failed', /sem conexão/i],
     ['auth/popup-closed-by-user', /janela do google foi fechada/i],
