@@ -30,6 +30,8 @@ const Cookies = lazy(() => import('./pages/Cookies').then(carregouChunk))
 const Orientacoes = lazy(() => import('./pages/Orientacoes').then(carregouChunk))
 const Avisos = lazy(() => import('./pages/Avisos').then(carregouChunk))
 const Configuracoes = lazy(() => import('./pages/Configuracoes').then(carregouChunk))
+// Modo demonstração: fora do menu e sem link (docs/modo-demonstracao.md).
+const Demo = lazy(() => import('./pages/Demo').then(carregouChunk))
 
 function CarregandoPagina() {
   return (
@@ -79,6 +81,7 @@ function App() {
       <Route path="/cadastro" element={<Cadastro />} />
       <Route path="/esqueci-senha" element={<EsqueciSenha />} />
       <Route path="/confirmar-email" element={<ConfirmarEmail />} />
+      <Route path="/demo" element={<Demo />} />
 
       {/* Telas autenticadas: menu, cabeçalho e <main> únicos vêm do layout. */}
       <Route element={<LayoutAutenticado />}>
