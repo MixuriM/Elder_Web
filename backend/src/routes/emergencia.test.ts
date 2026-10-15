@@ -371,3 +371,47 @@ describe("POST /emergencia/avisar: espera de 2 minutos só depois de um envio co
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 });
+
+// Modo demonstração (D8): idoso do elenco nunca dispara e-mail de verdade (o domínio .test queimaria a reputação do
+// remetente) e o aviso funciona sem as variáveis do provedor. Ids e uids FICTÍCIOS.
+describe("POST /emergencia/avisar: modo demonstração", () => {
+  const HELENA_DEMO = 40;
+  const MSG_SIMULADO = "Aviso simulado no modo demonstração. Nenhum e-mail foi enviado.";
+
+  beforeEach(() => {
+    usuarios.push(
+      usuario(HELENA_DEMO, "idoso", { firebase_uid: "demo-idosa-helena" }),
+      usuario(41, "idoso", { firebase_uid: "demo-idosa-helena-2" }),
+    );
+    verifyIdToken.mockImplementation(async (t: string) => ({
+      uid: t === "tdemo" ? "demo-idosa-helena" : t === "tparecido" ? "demo-idosa-helena-2" : `uid-${t.slice(1)}`,
+    }));
+    const doDemo = { idoso_id: HELENA_DEMO };
+    vinculos = [
+      vinculo(CUIDADOR, "cuidador", "aprovado", doDemo),
+      vinculo(FAMILIAR, "familiar", "aprovado", doDemo),
+      vinculo(PENDENTE, "cuidador", "pendente", doDemo),
+      vinculo(SEM_EMAIL, "cuidador", "aprovado", doDemo),
+      vinculo(FAMILIAR_2, "familiar", "aprovado", { idoso_id: 41 }),
+    ];
+  });
+
+  it("idoso do elenco: 200 simulado com a contagem de vínculos aprovados com e-mail, sem Firebase nem e-mail", async () => {
+    delete process.env.EMAIL_API_KEY;
+    delete process.env.EMAIL_REMETENTE_ENDERECO;
+    const res = await request(app).post("/emergencia/avisar").set("Authorization", "Bearer tdemo");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ avisados: 2, falharam: 0, nao_confirmados: 0, mensagem: MSG_SIMULADO, simulado: true });
+    expect(getUsers).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(textoLogs()).not.toContain("@");
+  });
+
+  it("uid parecido com o do elenco segue o fluxo real (comparação exata)", async () => {
+    const res = await request(app).post("/emergencia/avisar").set("Authorization", "Bearer tparecido");
+    expect(res.status).toBe(200);
+    expect(res.body.simulado).toBeUndefined();
+    expect(getUsers).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

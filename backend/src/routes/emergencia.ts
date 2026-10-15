@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { configuracaoEmail, enviarEmail, ErroEnvioEmail } from "../lib/enviarEmail";
 import { auth } from "../lib/firebaseAdmin";
 import { requireAuth } from "../middleware/requireAuth";
+import { ehUidDemo } from "../lib/demo/elenco";
 
 const router = Router();
 
@@ -18,6 +19,7 @@ const MSG_ENVIADO = "Aviso enviado.";
 const MSG_SEM_CONFIG = "Não foi possível avisar agora. Ligue 192.";
 const MSG_FALHA = "Não foi possível avisar. Ligue 192.";
 const MSG_LIMITE = "Você pediu ajuda há pouco. Se for urgente, ligue 192.";
+const MSG_SIMULADO = "Aviso simulado no modo demonstração. Nenhum e-mail foi enviado.";
 
 // Limite por idoso: 5 tentativas de envio por hora (toda tentativa conta) e espera de 2 minutos só depois de um envio
 // com sucesso. Envio em curso também bloqueia (dois pedidos simultâneos não mandam em dobro).
@@ -100,7 +102,7 @@ router.post("/avisar", requireAuth, async (req, res, next) => {
   try {
     const idoso = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },
-      select: { tipo_perfil: true, nome: true },
+      select: { tipo_perfil: true, nome: true, firebase_uid: true },
     });
     if (idoso?.tipo_perfil !== "idoso") return res.status(403).json({ error: MSG_403 });
     const idosoId = req.usuarioId;
@@ -108,6 +110,10 @@ router.post("/avisar", requireAuth, async (req, res, next) => {
     const pessoas = await destinatariosDoIdoso(idosoId);
     if (pessoas.length === 0) {
       return res.json({ avisados: 0, falharam: 0, nao_confirmados: 0, mensagem: MSG_SEM_VINCULO });
+    }
+    // Modo demonstração (D8): idoso do elenco não chama o Firebase nem o provedor; conta como avisado quem tem e-mail.
+    if (ehUidDemo(idoso.firebase_uid)) {
+      return res.json({ avisados: pessoas.length, falharam: 0, nao_confirmados: 0, mensagem: MSG_SIMULADO, simulado: true });
     }
     if (!configuracaoEmail()) {
       console.error("Aviso de emergência sem envio", { idosoId, codigo: "SEM_CONFIGURACAO" });
