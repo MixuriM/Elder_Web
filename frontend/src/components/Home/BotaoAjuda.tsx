@@ -24,6 +24,8 @@ function mensagem(estado: Estado): string {
       const base = `Avisamos ${estado.avisados} de ${estado.total} ${estado.total === 1 ? "pessoa" : "pessoas"}.`;
       return estado.naoConfirmados > 0 ? `${base} ${semConfirmacao(estado.naoConfirmados)}` : base;
     }
+    case "simulado":
+      return `Aviso simulado no modo demonstração. Nenhum e-mail foi enviado. ${estado.avisados} ${estado.avisados === 1 ? "pessoa seria avisada" : "pessoas seriam avisadas"}.`;
     case "nao_confirmados":
       return semConfirmacao(estado.naoConfirmados);
     case "sem_vinculo":
@@ -57,7 +59,7 @@ export default function BotaoAjuda() {
 
   const enviando = estado.tipo === "enviando";
   const texto = mensagem(estado);
-  const deuCerto = estado.tipo === "enviado";
+  const deuCerto = estado.tipo === "enviado" || estado.tipo === "simulado";
 
   return (
     <>

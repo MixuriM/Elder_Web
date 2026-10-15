@@ -6,6 +6,7 @@ import { chamarApi } from '../lib/chamarApi'
 export type ResultadoAviso =
   | { tipo: 'enviado'; avisados: number; total: number; naoConfirmados: number }
   | { tipo: 'nao_confirmados'; naoConfirmados: number }
+  | { tipo: 'simulado'; avisados: number }
   | { tipo: 'sem_vinculo' | 'limite' | 'indisponivel' | 'falha' }
 
 export async function avisarEmergencia(): Promise<ResultadoAviso> {
@@ -15,6 +16,8 @@ export async function avisarEmergencia(): Promise<ResultadoAviso> {
     const tentados = avisados + Number(corpo?.falharam)
     const naoConfirmados = Number(corpo?.nao_confirmados ?? 0)
     if (![avisados, tentados, naoConfirmados].every(Number.isInteger)) return { tipo: 'falha' }
+    // Modo demonstração: nenhum e-mail saiu de verdade.
+    if (corpo?.simulado === true) return { tipo: 'simulado', avisados }
     if (tentados === 0) return naoConfirmados > 0 ? { tipo: 'nao_confirmados', naoConfirmados } : { tipo: 'sem_vinculo' }
     return avisados > 0
       ? { tipo: 'enviado', avisados, total: tentados + naoConfirmados, naoConfirmados }

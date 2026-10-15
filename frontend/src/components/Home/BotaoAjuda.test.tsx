@@ -120,6 +120,17 @@ describe("BotaoAjuda: avisar família e cuidadores", () => {
     );
   });
 
+  it("modo demonstração: mostra o aviso simulado (nenhum e-mail enviado), com destaque de sucesso", async () => {
+    mockChamarApi.mockResolvedValue({ avisados: 2, falharam: 0, nao_confirmados: 0, mensagem: "texto do servidor", simulado: true });
+    const user = await abrir();
+    await user.click(botaoAvisar());
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent(
+      /^Aviso simulado no modo demonstração\. Nenhum e-mail foi enviado\. 2 pessoas seriam avisadas\.$/,
+    );
+    expect(status).not.toHaveTextContent("texto do servidor");
+  });
+
   it("singular: Avisamos 1 de 1 pessoa.", async () => {
     mockChamarApi.mockResolvedValue({ avisados: 1, falharam: 0 });
     const user = await abrir();
