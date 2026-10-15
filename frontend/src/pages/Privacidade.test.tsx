@@ -68,14 +68,20 @@ describe('Política de Privacidade', () => {
     for (const c of contatos) expect(c).toHaveAttribute('href', `mailto:${EMAIL_SUPORTE}`)
   })
 
-  it('diz o que não fazemos e não diz que o aceite é registrado', () => {
+  it('diz o que não fazemos', () => {
     const { container } = renderPagina()
     const texto = container.textContent ?? ''
     expect(texto).toMatch(/não vendemos/i)
     expect(texto).toMatch(/192/)
-    expect(texto).not.toMatch(/(registramos|guardamos|salvamos|armazenamos) (o |seu |a data do )?aceite/i)
-    expect(texto).not.toMatch(/aceite[^.]*(fica|é|será) (registrado|guardado|salvo)/i)
     expect(texto).not.toMatch(/lembrete|alarme|monitoramos/i)
+  })
+
+  // D9 (2026-10-14): o aceite passou a ser gravado; a lista de dados diz isso.
+  it('a tabela de dados lista o registro do aceite (data e versão)', () => {
+    renderPagina()
+    const dados = screen.getByRole('table', { name: /dados que coletamos/i })
+    expect(within(dados).getByText('Registro do aceite (data e versão)')).toBeInTheDocument()
+    expect(VERSAO_DOCUMENTOS).toBe('1.1')
   })
 
   it('tem as tabelas de dados e de compartilhamento', () => {

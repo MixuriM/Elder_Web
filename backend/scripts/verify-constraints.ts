@@ -331,6 +331,22 @@ async function main() {
     });
   });
 
+  // 16. CK_Usuario_aceite_documentos_conjunto (aceite gravado, migration 20261014120000_add_aceite_documentos):
+  // versão sem as duas datas deve ser rejeitada; os 3 campos juntos (controle positivo) são aceitos.
+  await runExpectingRejection(
+    "CK_Usuario_aceite_documentos_conjunto",
+    async (tx) => {
+      await tx.usuario.create({ data: baseUsuario({ aceite_documentos_versao: "1.1" }) });
+    },
+    "CK_Usuario_aceite_documentos_conjunto",
+  );
+  await runExpectingSuccess("CK_Usuario_aceite_documentos_conjunto (3 campos juntos aceitos)", async (tx) => {
+    const agora = new Date();
+    await tx.usuario.create({
+      data: baseUsuario({ aceite_documentos_em: agora, aceite_documentos_versao: "1.1", consentimento_saude_em: agora }),
+    });
+  });
+
   console.log("\nConstraint".padEnd(52) + "Resultado");
   console.log("-".repeat(70));
   for (const r of results) {

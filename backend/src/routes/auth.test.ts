@@ -30,10 +30,12 @@ jest.mock("../lib/prisma", () => ({
 }));
 
 import authRouter from "./auth";
+import { comAceiteValido } from "../testSupport/aceiteDocumentosTeste";
 
 function buildApp() {
   const app = express();
   app.use(express.json());
+  app.use(comAceiteValido); // testes anteriores ao D9: ver testSupport/aceiteDocumentosTeste.ts
   app.use("/auth", authRouter);
   app.use((_err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(500).json({ error: "Erro interno." });
@@ -890,7 +892,13 @@ describe("POST /auth/sync — idoso assume conta cadastrada por Familiar (3.3)",
     expect(res.status).toBe(200);
     expect(updateUsuario).toHaveBeenCalledWith({
       where: { id: 55 },
-      data: { firebase_uid: "uid-novo-do-idoso" },
+      // O anexo também grava o aceite (D9, 2026-10-14; detalhes em authAceiteDocumentos.test.ts).
+      data: {
+        firebase_uid: "uid-novo-do-idoso",
+        aceite_documentos_em: expect.any(Date),
+        aceite_documentos_versao: "1.1",
+        consentimento_saude_em: expect.any(Date),
+      },
       select: expect.any(Object),
     });
   });
@@ -907,7 +915,13 @@ describe("POST /auth/sync — idoso assume conta cadastrada por Familiar (3.3)",
     expect(res.body.criado).toBe(false);
     expect(updateUsuario).toHaveBeenCalledWith({
       where: { id: 55 },
-      data: { firebase_uid: "uid-novo-do-idoso" },
+      // O anexo também grava o aceite (D9, 2026-10-14; detalhes em authAceiteDocumentos.test.ts).
+      data: {
+        firebase_uid: "uid-novo-do-idoso",
+        aceite_documentos_em: expect.any(Date),
+        aceite_documentos_versao: "1.1",
+        consentimento_saude_em: expect.any(Date),
+      },
       select: expect.any(Object),
     });
     expect(create).not.toHaveBeenCalled();

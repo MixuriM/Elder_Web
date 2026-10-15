@@ -24,10 +24,12 @@ jest.mock("../lib/prisma", () => ({
 }));
 
 import authRouter from "./auth";
+import { comAceiteValido } from "../testSupport/aceiteDocumentosTeste";
 
 function buildApp() {
   const app = express();
   app.use(express.json());
+  app.use(comAceiteValido); // testes anteriores ao D9: ver testSupport/aceiteDocumentosTeste.ts
   app.use("/auth", authRouter);
   return app;
 }

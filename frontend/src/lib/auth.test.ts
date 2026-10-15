@@ -262,3 +262,25 @@ describe('limite de taxa no /auth/sync (2026-10-14)', () => {
     expect(mensagemErroCadastro(err)).toBe(MENSAGEM_LIMITE_TAXA)
   })
 })
+
+// D9 (2026-10-14): o aceite vai ao /auth/sync só quando o chamador passa a versão (cadastro e anexo).
+describe('syncUser — aceite dos documentos', () => {
+  const originalFetch = global.fetch
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
+
+  it('com aceiteDocumentos, manda aceite_documentos com a versão e as duas flags true', async () => {
+    global.fetch = jest.fn().mockResolvedValue(respostaJson(201, { criado: true }))
+    await syncUser({ tipoPerfil: 'cuidador', nome: 'Pessoa Ficticia', aceiteDocumentos: '1.1' })
+    const corpo = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body)
+    expect(corpo.aceite_documentos).toEqual({ versao: '1.1', termos_privacidade: true, consentimento_saude: true })
+  })
+
+  it('sem aceiteDocumentos (login), não manda aceite_documentos', async () => {
+    global.fetch = jest.fn().mockResolvedValue(respostaJson(200, { criado: false }))
+    await syncUser()
+    const corpo = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body)
+    expect(corpo).not.toHaveProperty('aceite_documentos')
+  })
+})

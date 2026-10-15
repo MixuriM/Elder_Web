@@ -70,6 +70,11 @@ model Usuario {
   foto_perfil                         Bytes?
   foto_perfil_mime_type               String?   @db.NVarChar(50)
   foto_perfil_atualizada_em           DateTime? @db.DateTime2
+  // Aceite gravado (D9, 2026-10-14): Termos e Privacidade (data e versão) e consentimento de saúde (data). Os 3 andam
+  // juntos (CK_Usuario_aceite_documentos_conjunto, manual na migration). NULL em conta anterior: sem backfill.
+  aceite_documentos_em                DateTime? @db.DateTime2
+  aceite_documentos_versao            String?   @db.NVarChar(20)
+  consentimento_saude_em              DateTime? @db.DateTime2
   created_at                          DateTime  @default(now()) @db.DateTime2
   updated_at                          DateTime  @updatedAt @db.DateTime2
 

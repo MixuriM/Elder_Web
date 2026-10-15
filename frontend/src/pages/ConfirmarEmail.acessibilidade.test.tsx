@@ -63,6 +63,8 @@ describe('ConfirmarEmail (acessibilidade)', () => {
     const user = userEvent.setup()
     const { container } = render(<ConfirmarEmail />)
 
+    // D9: o botão exige as duas caixas do aceite.
+    for (const caixa of screen.getAllByRole('checkbox')) await user.click(caixa)
     await user.click(screen.getByRole('button', { name: /^confirmar e-mail$/i }))
 
     expect(await screen.findByRole('button', { name: /confirmando/i })).toBeDisabled()
@@ -76,6 +78,8 @@ describe('ConfirmarEmail (acessibilidade)', () => {
     const user = userEvent.setup()
     const { container } = render(<ConfirmarEmail />)
 
+    // D9: o botão exige as duas caixas do aceite.
+    for (const caixa of screen.getAllByRole('checkbox')) await user.click(caixa)
     await user.click(screen.getByRole('button', { name: /^confirmar e-mail$/i }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(/confirmado com sucesso/i)
@@ -91,11 +95,25 @@ describe('ConfirmarEmail (acessibilidade)', () => {
     const user = userEvent.setup()
     const { container } = render(<ConfirmarEmail />)
 
+    // D9: o botão exige as duas caixas do aceite.
+    for (const caixa of screen.getAllByRole('checkbox')) await user.click(caixa)
     await user.click(screen.getByRole('button', { name: /^confirmar e-mail$/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/falha de rede/i)
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
     jest.restoreAllMocks()
+  })
+
+  it('erro de aceite (caixas desmarcadas): não tem violações detectáveis pelo axe', async () => {
+    mockOnAuthChange.mockImplementation((cb: (user: unknown) => void) => {
+      cb({ uid: 'uid-ficticio', email: 'ficticio@teste.invalid' })
+      return () => {}
+    })
+    const user = userEvent.setup()
+    const { container } = render(<ConfirmarEmail />)
+    await user.click(await screen.findByRole('button', { name: /^confirmar e-mail$/i }))
+    await screen.findByRole('alert')
+    expect(await axe(container, AXE)).toHaveNoViolations()
   })
 })
