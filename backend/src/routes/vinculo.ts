@@ -697,7 +697,7 @@ router.post("/:id/recusar-convite", requireAuthRevogacao, (req, res, next) => re
 //
 // Contestar o próprio vínculo dá 403: é desvincular (outro requisito) e poderia deixar sem
 // familiar um idoso cadastrado via RF-030, que não tem login.
-router.post("/:id/contestar", requireAuth, async (req, res, next) => {
+router.post("/:id/contestar", requireAuthRevogacao, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
