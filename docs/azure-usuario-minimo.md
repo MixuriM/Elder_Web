@@ -113,17 +113,44 @@ separada do Marcos a cada migration.
 
 ## Firewall do Azure
 
-Só fatos e uma decisão que **ainda é do Marcos**. Este documento não decide nada aqui.
+**DECIDIDO em 2026-10-15:** firewall restringido. A regra aberta (0.0.0.0 a 255.255.255.255) foi removida e a opção
+"Permitir serviços do Azure" ficou desmarcada.
 
-- O Render não é um serviço do Azure. A opção "Allow Azure services and resources to access this server" **não**
-  cobre o Render.
-- O Render usa faixas de IP de saída compartilhadas por região. Elas aparecem no painel do serviço, em Connect,
-  Outbound.
-- Qualquer IP da faixa pode ser usado nas conexões de saída. Por isso uma regra de firewall teria que cobrir os
-  blocos CIDR inteiros, não um IP isolado.
+Regras ativas:
+
+| Regra | Faixa |
+| --- | --- |
+| `render-1` | 74.220.48.0 a 74.220.48.255 |
+| `render-2` | 74.220.56.0 a 74.220.56.255 |
+| IP de casa do desenvolvedor | um IP só (não registrado aqui) |
+
+Fatos que embasam a decisão:
+
+- O Render não é um serviço do Azure. A opção "Permitir serviços do Azure" **não** cobre o Render.
+- O Render usa faixas de IP de saída compartilhadas por região, visíveis no serviço em Connect, Outbound.
+- Qualquer IP da faixa pode ser usado nas conexões de saída. Por isso as regras cobrem os blocos inteiros, não um IP
+  isolado.
 - A documentação do Render não afirma que as faixas padrão nunca mudam. **Não confirmado** que elas sejam estáveis.
-- Hoje a regra do Azure está aberta de propósito (0.0.0.0 a 255.255.255.255), por causa desse ponto (item 2 do
-  checklist).
+  Por isso existe a seção seguinte.
 
-Decisão pendente do Marcos: manter a regra aberta (aceitando o risco, com o usuário mínimo como mitigação) ou trocar
-pelos blocos CIDR do Render e assumir a manutenção quando mudarem.
+Teste feito depois de remover a regra aberta: o site gravou um registro e o Editor de Consultas do portal funcionou.
+
+## Se o site perder o banco
+
+- **Sintoma:** os logs do Render mostram `P1001` ou `Can't reach database server`, e o site deixa de ler e gravar.
+- **Causa provável:** a faixa de IP de saída do Render mudou. A doc do Render não garante que ela seja fixa.
+- **Conferir:** Render, serviço `elder-web-backend`, Connect, Outbound. Compare as faixas listadas com as regras
+  `render-1` e `render-2`.
+- **Corrigir:** no portal do Azure, servidor SQL, Segurança, Rede. Atualize ou acrescente as regras com os blocos
+  novos e salve. A regra vale em poucos minutos.
+- **Emergência:** se o site precisa voltar já e as faixas novas não estão claras, recrie temporariamente uma regra
+  aberta (0.0.0.0 a 255.255.255.255), confirme que o site voltou e **remova-a assim que as regras certas estiverem
+  salvas**. O usuário `elder_app` (só leitura e escrita) segue como proteção enquanto ela existir.
+
+## Se o seu IP mudar
+
+- **Sintoma:** o SSMS, o Editor de Consultas ou o `prisma migrate deploy` na sua máquina dão
+  `Client with IP address ... is not allowed to access the server`.
+- **Corrigir:** no portal do Azure, servidor SQL, Segurança, Rede, libere o seu IP novo (o próprio erro mostra qual é).
+  Remova a regra do IP antigo.
+- **Nunca** reabra 0.0.0.0 a 255.255.255.255 por comodidade. Libere só o IP que você precisa.
