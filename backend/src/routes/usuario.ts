@@ -3,6 +3,7 @@ import multer from "multer";
 import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
 import { requireAuth, requireAuthRevogacao } from "../middleware/requireAuth";
+import { bloquearContaDemo } from "../middleware/bloquearContaDemo";
 import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
 import { emailDoTokenConfere, isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
@@ -403,7 +404,7 @@ router.patch("/me/modo-decisao", requireAuthRevogacao, async (req, res, next) =>
 // firebase_uid (CK_Usuario_firebase_uid_cadastrado_por libera isso porque
 // cadastrado_por_id vem preenchido). Usuario + Vinculo em um único create aninhado
 // (transação implícita do Prisma): ou criam os dois, ou nenhum.
-router.post("/cadastrar-idoso", requireAuthRevogacao, limiteCadastrarIdoso, async (req, res, next) => {
+router.post("/cadastrar-idoso", requireAuthRevogacao, bloquearContaDemo, limiteCadastrarIdoso, async (req, res, next) => {
   try {
     const chamador = await prisma.usuario.findUnique({
       where: { id: req.usuarioId },

@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { ehUidDemo } from "../lib/demo/elenco";
 
 // Tarefa 2.3 (RF-023, RNF-003) — middleware factory: libera rota de Cuidador/Familiar
 // sobre dados de um Idoso só se existir Vinculo aprovado entre req.usuarioId (o
@@ -34,7 +35,14 @@ export function requireVinculoAprovado(paramIdoso: string) {
 
       // Mesma resposta pra "não existe" e pra "existe mas pendente/recusado" — não
       // vaza estado do vínculo pra quem não tem autorização.
-      if (!vinculo) {
+      // Modo demonstração: conta do elenco só alcança idoso do elenco, mesmo com vínculo aprovado no banco (o admin
+      // nunca lê dado real). A consulta extra só acontece para conta do elenco.
+      const foraDoElenco =
+        vinculo !== null &&
+        req.contaDemo === true &&
+        !ehUidDemo((await prisma.usuario.findUnique({ where: { id: idosoId }, select: { firebase_uid: true } }))?.firebase_uid);
+
+      if (!vinculo || foraDoElenco) {
         return res.status(403).json({ error: "Vínculo aprovado não encontrado para este idoso." });
       }
 
