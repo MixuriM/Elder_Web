@@ -264,12 +264,12 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Endurecimento (2026-10-14, histórico e `docs/checklist-seguranca-producao.md`): `lib/limiteTaxa.ts` (Map, 429 fixo,
   desligado no Jest, `LIMITE_TAXA_DESLIGADO=1` só fora de produção): 2000/15 min por usuário no `requireAuth`, `/auth/sync`
   300 por IP e 60 por uid, solicitar 20, convidar e `PATCH /usuario/me` 30, `cadastrar-idoso` 10/h. `trust proxy` só em
-  produção, `TRUST_PROXY_SALTOS` (padrão 1, não verificado). `requireAuthRevogacao` (token revogado: 401) só nas 14 rotas
+  produção, `TRUST_PROXY_SALTOS` (padrão 1, não verificado). `requireAuthRevogacao` (token revogado: 401) só nas 15 rotas
   `revogacao` de `ROTAS_ESPERADAS`, nunca em leitura, saúde, remédio, agenda, alimentação, emergência ou foto.
 - Vínculo: terceiro recebe o mesmo 404 antes de qualquer 400 ou 409 (idoso dono sem autoridade: 403); convite pendente
   não mostra a conta convidada; `solicitar-cuidador` sem lista de idosos. Cabeçalhos: `middleware/cabecalhosSeguranca.ts`
   e `vercel.json`, CSP completa só em Report-Only até o Marcos promover; nada de script inline no `index.html`.
-- `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor). Publicar: migration no Azure, depois
+- `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`). Publicar: migration no Azure, depois
   Vercel, depois Render. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
 
 **Testes**

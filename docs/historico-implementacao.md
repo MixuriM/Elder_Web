@@ -2475,3 +2475,18 @@ lista fechada de versões do aceite no backend (hoje vale qualquer versão no fo
 lista de avisos aceitos em vez de `critical` inteiro; limite por IP antes do token no `requireAuth` (conta Firebase sem
 `Usuario` e 429 nas rotas com revogação ainda custam banco ou Firebase); chave por prefixo /64 para IPv6 no limite por IP;
 `contestar` com revogação; `report-to` na CSP de relatório para colher violações de usuários reais.
+
+## Ajustes pós-endurecimento: contestar com revogação, versões do aceite e migration no Azure (2026-10-15, sem PR ainda)
+
+- `POST /vinculo/:id/contestar` (RF-022) passou a usar `requireAuthRevogacao`: tira acesso como `/recusar`, então também
+  recusa token revogado (401). O inventário (`ROTAS_ESPERADAS`) marca a rota com `revogacao: true`; agora são 15 rotas.
+  Teste em `revogacaoRotas.test.ts`; mutação (voltar a `requireAuth`) derrubou 3 testes.
+- `aceite_documentos.versao` só aceita valores da lista fechada `VERSOES_DOCUMENTOS` em `backend/src/routes/auth.ts`
+  (hoje `["1.1"]`); qualquer outra versão dá o mesmo 400 do aceite ausente. Ao publicar documentos novos, o backend vai
+  antes, com a versão nova somada à lista. Mutação (voltar ao formato livre) derrubou 6 testes.
+- Conferido: `VERSAO_DOCUMENTOS` é `"1.1"` e a linha "Registro do aceite (data e versão)" de `pages/Privacidade.tsx`
+  tem teste (`Privacidade.test.tsx`); mutações da linha e da versão derrubaram 1 e 6 testes.
+- Migration `20261014120000_add_aceite_documentos` aplicada no Azure com autorização explícita do Marcos, por
+  `npx prisma migrate deploy` local. A primeira conexão deu P1001 com a porta 1433 aberta (banco serverless retomando,
+  o Prisma espera 5 s por padrão); funcionou com `connectTimeout=60` acrescentado à URL só no comando. `migrate status`
+  depois: em dia. Próximos passos da publicação: frontend (Vercel), depois backend (Render).
