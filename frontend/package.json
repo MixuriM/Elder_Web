@@ -63,5 +63,8 @@
     "protobufjs@7.6.6": true,
     "@parcel/watcher@2.6.0": true,
     "unrs-resolver@1.12.2": true
+  },
+  "overrides": {
+    "postcss-selector-parser": "7.1.6"
   }
 }

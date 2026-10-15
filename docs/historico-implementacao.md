@@ -2504,3 +2504,16 @@ lista de avisos aceitos em vez de `critical` inteiro; limite por IP antes do tok
   ignorado: exige ESLint 9 ou 10 e o projeto usa ESLint 8 (o `npm ci` do PR do grupo do frontend dava ERESOLVE).
   `infra/cadeiaSuprimentos.test.ts` exige as regras (4 testes novos); 6 mutações (tirar cada regra, trocar a versão,
   trocar major por minor) derrubaram 1 teste cada.
+
+## Alertas de segurança do Dependabot sem a Tailwind 4 (2026-10-15)
+
+- O PR #191 do Dependabot (security updates, base `main`) subia `tailwindcss` 3 para 4 só para tirar o
+  `postcss-selector-parser` vulnerável, e o `vite build` quebrava (a Tailwind 4 exige `@tailwindcss/postcss`, dependência
+  nova). As regras ignore de major não valem para security updates quando o bloco usa `target-branch`.
+- Fix em `development`, só dependências transitivas de desenvolvimento: `overrides` com `postcss-selector-parser` 7.1.6 em
+  `frontend/package.json` (nenhuma 6.x tem o fix e a Tailwind 3.4.19 pede `^6.1.2`); `brace-expansion` 1.1.21, 2.1.7 e
+  5.0.12 nos dois lockfiles; `handlebars` 4.7.10 no backend (vem do `ts-jest`). Resolve os alertas de `handlebars` (2
+  critical, 1 medium), `brace-expansion` (6 medium) e `postcss-selector-parser` (1 medium); `source-map-js` 1.2.2 já tinha
+  chegado pelo grupo do frontend.
+- Conferido: o CSS gerado pelo build é idêntico byte a byte ao de antes do override. Backend 63 suítes e 3211 testes,
+  frontend 107 suítes e 1194 testes, lint, `tsc`, build e `npm audit --omit=dev` do CI sem erro. O #191 deve ser fechado.
