@@ -2335,3 +2335,135 @@ texto da lei (planalto.gov.br recusou a conexão).
 
 **Pendências manuais (Marcos).** Confirmar o e-mail de suporte como canal oficial do titular; regiões dos provedores;
 prazo das cópias de segurança do Azure; revisão jurídica; rodar `test:a11y`, `test:responsivo` e o e2e localmente.
+
+## Resumo dos itens implementados movido do CLAUDE.md (2026-10-14)
+
+Movido do `CLAUDE.md` (seção "Itens implementados") para abrir espaço abaixo do limite de 30.000 caracteres. Texto
+sem mudança; o CLAUDE.md ficou com um ponteiro de uma linha para cá.
+
+- 8.1 "Sobre Nós" (`/sobre-nos`, pública) e 8.2 Orientações (`/orientacoes`, dentro de `RotaProtegida`): conteúdo
+  provisório, texto final é da Laureane e da Jennifer.
+- 9.1 auditoria axe (RNF-007): jest-axe e `npm run test:a11y`; falha só em critical/serious.
+- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (HSTS só com `NODE_ENV=production`, sem
+  `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect para HTTPS é do Render; TDE só verificado.
+- 9.3 CI builda a imagem do backend (RNF-010), último passo do job `backend`, sem publicar nem rodar
+  (`infra/dockerCi.test.ts`).
+- 9.4 suíte de autorização no CI (RNF-003): `routes/autorizacaoRotas.test.ts` compara as rotas de `app._router.stack`
+  com `ROTAS_ESPERADAS` (rota nova sem classificação falha), mais limiares de cobertura.
+
+## Endurecimento de segurança (2026-10-14, sem PR ainda)
+
+Rodada guiada por uma revisão de segurança (pontos H1 a H12) com as decisões D1 a D13 tomadas sob delegação do Marcos
+em 2026-10-14. Reabriu de propósito: "sem `npm audit` no CI" (9.3), "aceite só na tela" e os riscos de enumeração e de
+limite de taxa. Sem dependência nova. Commits em `development`: `dd39568`, `903d298`, `0548f47`, `c1d636a`, `92d8acb`,
+`68f370b`, `a2f18db`, `44c7391`, `d77df78`, `8bbac5e` e o desta documentação (hashes mudam em merge por rebase).
+
+**Limite de taxa (D1).** `backend/src/lib/limiteTaxa.ts`: `criarLimitador({ janelaMs, maximo, chave })`, janela fixa por
+chave em `Map` na memória do processo, 429 `{ error: "Muitas tentativas. Aguarde alguns minutos e tente de novo." }` com
+`Retry-After`, sem log de chave, IP ou corpo. O `Map` fica em ordem de início (a chave que reinicia a janela sai e volta
+pelo fim), a purga das vencidas roda acima de 5.000 chaves e para na primeira viva (achado da revisão automática: antes
+cada chave nova varria o mapa inteiro), e há teto rígido de 50.000 chaves (descarta as mais antigas). Sob Jest vem
+desligado; os testes o ligam com `definirLimitesEmTeste(true)`. Fora de produção, `LIMITE_TAXA_DESLIGADO=1` desliga;
+em produção é ignorado. Limites: geral de 2000 por 15 min por usuário dentro do `requireAuth` (não 600: a entrada na
+Home faz 12 chamadas à API, medida do item de desempenho, e um uso intenso chega a cerca de 180 em 15 min, então 600
+ficaria abaixo de 10 vezes); `/auth/sync` com 300 por 15 min por IP antes do token e 60 por uid depois (a rota virou a
+cadeia limite por IP, `verificarTokenSync`, limite por uid, handler); `solicitar-cuidador` e `solicitar-familiar` 20,
+`convidar-cuidador`, `convidar-familiar` e `PATCH /usuario/me` 30 por 15 min; `cadastrar-idoso` 10 por hora. Emergência
+e foto mantêm os limites próprios. Frontend: `chamarApi`, `mensagensVinculo.mensagemPorStatus` e as mensagens de login
+e cadastro mostram a frase fixa no 429.
+
+**trust proxy (D1).** Só com `NODE_ENV=production`, `app.set("trust proxy", n)` com `n` de `TRUST_PROXY_SALTOS` (0 a 3,
+ausente ou inválido vale 1), documentada como comentário no `render.yaml`. Fontes: o artigo do Render sobre DDoS
+(render.com/articles/how-render-handles-ddos-attacks) diz que todo tráfego passa pelo Cloudflare e pelos balanceadores
+do Render e manda ler `x-forwarded-for`, sem dizer quantos saltos há; o guia do Express
+(expressjs.com/en/guide/behind-proxies.html) define o número como saltos lidos da direita. **Não verificado**: receita
+no item 5 do `docs/checklist-seguranca-producao.md`.
+
+**Cabeçalhos da API e container (D2, D3).** `middleware/cabecalhosSeguranca.ts`, montado primeiro: `nosniff`,
+`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, CSP `default-src 'none'; frame-ancestors 'none'` e
+`Permissions-Policy`; `app.disable("x-powered-by")`; sem `Cache-Control`. O 404 padrão do Express (finalhandler) troca a
+CSP pela dele, `default-src 'none'` (igualmente restrita, documentado no teste). `backend/Dockerfile` ganhou `USER node`
+depois do build; validado com `docker build` e `docker run --rm --entrypoint id` (`uid=1000(node)`), imagem apagada em
+seguida. O `docker-compose.yml` monta `./backend:/app` e roda `npm run dev`, que não escreve em `/app`. O health check
+do Render continua sendo a prova final do runtime.
+
+**Enumeração (D4).** (a) `solicitar-cuidador` responde o mesmo 404 com a mesma mensagem em todo caso sem alvo único; o
+422 com `candidatos` acabou. Os 201 de `solicitar-cuidador` e `solicitar-familiar` devolvem só `{ registrado: true }`
+(o frontend não lia o corpo). `SolicitarVinculo.tsx` mostra sempre o campo opcional "Nome do idoso" para cuidador. (b)
+`GET /vinculo`: para o idoso dono, vínculo `convite_idoso` pendente vem com `vinculado` sem id, nome e e-mail; o cartão
+mostra "Convite enviado, aguardando resposta". (c) Em `aprovar`, `recusar`, `contestar`, `definir-permissoes`,
+`solicitar-transferencia-decisao` e `confirmar-transferencia-decisao` a autoridade vem antes de qualquer 400 de tipo ou
+409 de estado: terceiro recebe sempre `404 { error: "Vínculo não encontrado." }`; o idoso dono sem autoridade segue com
+403 (decisão do Marcos nesta rodada, para manter a regra do CLAUDE.md). `aceitar-convite` e `recusar-convite` já estavam
+na ordem certa; ganharam testes de acesso cruzado. (d) Risco aceito: diferença de tempo de resposta com e sem conta em
+`convidar-familiar`. Risco residual registrado: a simples presença do vínculo pendente na lista do idoso ainda mostra
+que o e-mail convidado tem conta (sem conta, nada aparece).
+
+**Revogação de token (D5).** `verifyFirebaseToken(idToken, { checarRevogado })` chama `verifyIdToken(idToken, true)` só
+quando pedido; `requireAuthRevogacao` nas 14 ações sensíveis (perfil, modo de decisão, cadastro de idoso, convites,
+pedidos, respostas a vínculo e a convite, permissões e transferência), marcadas com `revogacao: true` em
+`ROTAS_ESPERADAS`; o inventário exige o handler exato em cada rota. Token revogado: 401; Firebase fora: 503. `contestar`
+ficou fora porque não está na lista da D5. `revokeRefreshTokens` na troca de e-mail adiado: o efeito sobre o fluxo de
+confirmação de e-mail não dá para testar sem Firebase real. A redefinição de senha pelo Firebase já revoga os tokens.
+
+**Frontend: cabeçalhos e CSP (D6).** `frontend/vercel.json` manda HSTS (sem `includeSubDomains` nem `preload`),
+`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy:
+same-origin-allow-popups` (popup do Google; a doc oficial do Firebase não trata de COOP, fontes de terceiros) e a CSP
+mínima (`frame-ancestors`, `base-uri`, `object-src`, `form-action`). A CSP completa vai em
+`Content-Security-Policy-Report-Only`; as origens saíram do bundle real (`apis.google.com`, `identitytoolkit`,
+`securetoken`, o `authDomain`) e da API de produção (`https://elder-web-backend.onrender.com`, da memória do projeto).
+`www.googleapis.com` da lista inicial ficou fora porque o bundle não usa. Estilo inline de atributo segue permitido
+por `'unsafe-inline'` só em `style-src` (aceito). O script de preferências saiu do `index.html` para
+`frontend/public/inicio-preferencias.js`, síncrono no `head`. Validação: build, `vite preview` local e script Playwright
+descartável (fora do repo) com a CSP do `vercel.json` injetada e requisições externas abortadas: zero violação em `/`,
+`/login`, `/cadastro`, `/privacidade`, `/termos` e `/cookies`, em modo relatório e simulando a CSP obrigatória; o
+controle negativo (fontes e API bloqueadas) achou 18. A promoção para obrigatória é do Marcos (checklist, item 11).
+
+**Senha (D10).** Mínimo de 8 caracteres no cliente (`MINIMO_SENHA`), com a dica junto ao campo e erro claro;
+`auth/weak-password` e `auth/password-does-not-meet-requirements` têm mensagem sem citar regra que o console não imponha.
+
+**CI e cadeia de suprimentos (D7, D8).** `ci.yml` com `permissions: contents: read` e `npm audit --omit=dev` em cada job:
+backend `low` (0 avisos em 2026-10-14, maior rigor que passa) e frontend `critical` (4 altos de `@grpc/grpc-js` via
+firebase, aceitos). `.github/dependabot.yml`: npm em `/backend` e `/frontend`, `github-actions` em `/`, `docker` em
+`/backend`, semanal, para `development`, até 5 PRs, minor e patch agrupados, sem merge automático. Teste de contrato em
+`infra/cadeiaSuprimentos.test.ts`. Varredura do histórico (798 commits, só leitura): nenhum segredo real. Achados todos
+fictícios (senhas `fake` e marcadores `...` em comentários de `verify-rotas-*`, chaves de teste da Brevo nos testes) ou
+esperados (chave web `AIza` do Firebase, pública por desenho); nenhum `.pem`, `.key`, service account nem JSON com
+`private_key`; só os `.env.example` rastreados; `.env.azure` não rastreado. Nada a rotacionar por causa do histórico.
+
+**Aceite gravado (D9).** Migration à mão `20261014120000_add_aceite_documentos`: `aceite_documentos_em`,
+`aceite_documentos_versao` (`NVARCHAR(20)`) e `consentimento_saude_em`, anuláveis, com
+`CK_Usuario_aceite_documentos_conjunto` dentro de `EXEC`. Aplicada só no SQL Server local: `migrate status` em dia e
+`verify-constraints.ts` 26/26 (2 casos novos). `/auth/sync` exige `aceite_documentos: { versao, termos_privacidade:
+true, consentimento_saude: true }` na criação e no anexo do idoso (item 3.3), com flags estritamente `true` e versão de
+até 20 caracteres de `[0-9A-Za-z.-]`; grava o horário do servidor e a versão; login não pede nada. `GET /usuario/me`
+não mostra os campos. Frontend: `Cadastro.tsx` e `ConfirmarEmail.tsx` (que agora mostra `AceiteCadastro` e exige as
+duas caixas, inclusive para quem já tem conta e só confirma o e-mail: o servidor ignora o aceite nesse caso) mandam
+`VERSAO_DOCUMENTOS`, que subiu para "1.1"; a tabela de dados da Política ganhou "Registro do aceite (data e versão)".
+Contas anteriores ficam com `NULL`, sem backfill e sem reaceite forçado (aceito). Os testes de `/auth/sync` anteriores
+recebem um aceite válido por `testSupport/aceiteDocumentosTeste.ts`; as regras do aceite ficam em
+`authAceiteDocumentos.test.ts`. O e2e `idoso-assume-conta.spec.ts` ganhou o passo do aceite (não executado).
+**Ordem de publicação:** migration no Azure (autorização explícita e separada do Marcos), depois frontend (Vercel),
+depois backend (Render). Backend antes do frontend quebra todo cadastro novo (400).
+
+**Exclusão de conta (D11), fora desta rodada.** As chaves de autoria obrigatória (`RegistroSaude.editado_por_id`,
+`registrado_por_id`) e a CHECK que só permite `firebase_uid` nulo com `cadastrado_por_id` exigem decidir entre
+anonimizar e apagar em cascata, com migration: fica para prompt próprio. Os textos não prometem autoatendimento ("Não
+há botão para excluir a conta"); ressalva: a Política diz "Se você pedir a exclusão, apagamos os dados", e o processo
+manual ainda não existe no código.
+
+**Mutações locais** (todas derrubaram ao menos um teste e foram restauradas por cópia): limitador que nunca bloqueia,
+cada rota sem o limitador, chave global, `requireAuth` sem o limite geral, purga sem reordenar, sem teto, `trust proxy`
+sempre ligado e sempre desligado, cabeçalho tirado da API e do `vercel.json`, `x-powered-by` ligado, `unsafe-eval` e
+script inline de volta, `candidatos` e `idoso_id` de volta, nome do convidado de volta, 409 e 400 antes da autoridade,
+terceiro com 403, cada uma das 14 rotas sem revogação, revogação numa leitura, `checkRevoked` nunca enviado, conta sem
+aceite, horário vindo do cliente, anexo sem aceite, `ConfirmarEmail` sem exigir as caixas, `syncUser` sem mandar o
+aceite, sem mínimo de senha, sem audit, `|| true`, sem `permissions` e sem `USER node`.
+
+**Não verificado:** saltos de proxy do Render; login com Google sob a CSP completa; `USER node` no runtime real do
+Render (só a imagem local); firewall e usuário do Azure; política de senha do Firebase; collation do Azure para as
+colunas novas. Pendências do Marcos no `docs/checklist-seguranca-producao.md`.
+
+**Contrato HTTP mudado:** 201 de `solicitar-*` (só `{ registrado: true }`), 404 único de `solicitar-cuidador` (sem 422),
+`GET /vinculo` com convidado pendente sem dados, 404 para terceiros nas ações de vínculo, 401 por token revogado nas 14
+ações, 429 nas rotas limitadas, `aceite_documentos` obrigatório no cadastro e no anexo.

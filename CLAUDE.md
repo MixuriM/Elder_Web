@@ -261,6 +261,16 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Medicamento também é dado sensível (mesmas regras de log de `RegistroSaude`). Cuidador
   nunca cria medicamento (regra fixa de ator, independe das flags `permite_*`). Familiar só
   cria com `modo_decisao` efetivo `'familiar'` (via `resolverModoDecisao`).
+- Endurecimento (2026-10-14, histórico e `docs/checklist-seguranca-producao.md`): `lib/limiteTaxa.ts` (Map, 429 fixo,
+  desligado no Jest, `LIMITE_TAXA_DESLIGADO=1` só fora de produção): 2000/15 min por usuário no `requireAuth`, `/auth/sync`
+  300 por IP e 60 por uid, solicitar 20, convidar e `PATCH /usuario/me` 30, `cadastrar-idoso` 10/h. `trust proxy` só em
+  produção, `TRUST_PROXY_SALTOS` (padrão 1, não verificado). `requireAuthRevogacao` (token revogado: 401) só nas 14 rotas
+  `revogacao` de `ROTAS_ESPERADAS`, nunca em leitura, saúde, remédio, agenda, alimentação, emergência ou foto.
+- Vínculo: terceiro recebe o mesmo 404 antes de qualquer 400 ou 409 (idoso dono sem autoridade: 403); convite pendente
+  não mostra a conta convidada; `solicitar-cuidador` sem lista de idosos. Cabeçalhos: `middleware/cabecalhosSeguranca.ts`
+  e `vercel.json`, CSP completa só em Report-Only até o Marcos promover; nada de script inline no `index.html`.
+- `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor). Publicar: migration no Azure, depois
+  Vercel, depois Render. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
 
 **Testes**
 - TDD: escrever o teste antes, confirmar RED, depois implementar. Fakes de Prisma devem
@@ -324,7 +334,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
   com `NODE_ENV=production`. `backend/.dockerignore` tira `node_modules`, `dist` e `.env*` (menos `.env.example`).
 - Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem tabela de auditoria.
-- Docs legais: `lib/documentosLegais.ts`. Aceite só na tela (gravar: RF futuro, `/auth/sync`); sem cookie
+- Docs legais: `lib/documentosLegais.ts`. Aceite gravado desde 2026-10-14 (ver Segurança); sem cookie
   nem banner (2026-10-14). Dado ou storage novo: `VERSAO_DOCUMENTOS`.
 - Exclusão de registro, paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC
   não justifica. O PDF é montado em memória, sem limite (aceito); fora de Latin-1 vira `?` (aceito).
@@ -375,15 +385,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - 7.1 e 7.2 alimentação (RF-018, RF-019): `routes/alimentacao.ts`. Cuidador nunca cria (403, resolver nunca chamado);
   familiar só com `modo_decisao` efetivo `'familiar'`; `refeicao` com 6 valores só na aplicação, `descricao` 1 a 500
   (dado sensível); leitura com vínculo aprovado, ordem `data_hora` e `id` decrescentes.
-- 8.1 "Sobre Nós" (`/sobre-nos`, pública) e 8.2 Orientações (`/orientacoes`, dentro de `RotaProtegida`): conteúdo
-  provisório, texto final é da Laureane e da Jennifer.
-- 9.1 auditoria axe (RNF-007): jest-axe e `npm run test:a11y`; falha só em critical/serious.
-- 9.2 TLS e criptografia em repouso (RNF-002): `middleware/hsts.ts` (HSTS só com `NODE_ENV=production`, sem
-  `includeSubDomains` nem `preload`) e `scripts/smoke-*.ts`. Redirect para HTTPS é do Render; TDE só verificado.
-- 9.3 CI builda a imagem do backend (RNF-010), último passo do job `backend`, sem publicar nem rodar
-  (`infra/dockerCi.test.ts`).
-- 9.4 suíte de autorização no CI (RNF-003): `routes/autorizacaoRotas.test.ts` compara as rotas de `app._router.stack`
-  com `ROTAS_ESPERADAS` (rota nova sem classificação falha), mais limiares de cobertura.
+- 8.1, 8.2 e 9.1 a 9.4: resumos no histórico ("Resumo dos itens implementados movido do CLAUDE.md", 2026-10-14).
 - Os `backend/scripts/verify-rotas-*.ts` NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é
   substituído): limpam por sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo
   `verify-*-` marca conta residual se o processo morrer no meio.
