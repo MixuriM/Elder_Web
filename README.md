@@ -48,7 +48,7 @@ Legenda: ✅ concluído, 🟡 parcial, ⏳ pendente.
 
 | Módulo | O que oferece | Perfis | Status |
 |---|---|---|---|
-| Autenticação e cadastro | Cadastro e login por e-mail e senha ou Google, recuperação de senha, confirmação de e-mail, perfil escolhido no cadastro, aceite dos Termos e do consentimento de saúde registrado | Todos | ✅ |
+| Autenticação e cadastro | Cadastro e login por e-mail e senha ou Google, recuperação de senha, confirmação de e-mail, perfil escolhido no cadastro, senha validada no cadastro pela política do Firebase (mínimo de 8 caracteres, maiúscula, minúscula, número e caractere especial), aceite dos Termos e do consentimento de saúde registrado | Todos | ✅ |
 | Vínculos e permissões | Solicitação, convite, aprovação, recusa e contestação de vínculo; 3 permissões do cuidador; modo de decisão | Todos | ✅ |
 | Cadastro de idoso pelo familiar | O familiar cria a conta do idoso, com termo de responsabilidade | Familiar | ✅ |
 | Saúde | Registro e edição de medições (pressão, por exemplo), com autoria de quem registrou e de quem editou | Todos | ✅ |
@@ -257,7 +257,7 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 | `backend/.env` | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Conta de serviço do Firebase Admin SDK |
 | `backend/.env` | `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` | E-mail do aviso de emergência (sem elas, só esse aviso responde 503) |
 | `backend/.env` | `NODE_ENV` | `production` ativa o HSTS, o `trust proxy` e o limite de taxa sempre ligado (só no deploy) |
-| `backend/.env` | `TRUST_PROXY_SALTOS` | Opcional, só em produção: quantos proxies há antes da API (0 a 3, padrão 1) |
+| `backend/.env` | `TRUST_PROXY_SALTOS` | Opcional, só em produção: quantos proxies há antes da API (0 a 3, padrão 1; no Render vale 3, declarado no `render.yaml`) |
 | `backend/.env` | `LIMITE_TAXA_DESLIGADO` | Opcional, só fora de produção: `1` desliga o limite de taxa no desenvolvimento local |
 | `frontend/.env` | `VITE_API_URL` | Endereço da API |
 | `frontend/.env` | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID` | Configuração do Firebase Web SDK |
@@ -268,9 +268,9 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 
 | Comando | O que cobre | Onde roda | Pré-requisitos |
 |---|---|---|---|
-| `npm test` em `backend/` | 63 suítes e 3207 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
+| `npm test` em `backend/` | 63 suítes e 3212 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
 | `npm run test:coverage` em `backend/` | Os mesmos testes, com limiares de cobertura | CI | Nenhum |
-| `npm test` em `frontend/` | 107 suítes e 1194 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
+| `npm test` em `frontend/` | 107 suítes e 1202 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
 | `npm audit --omit=dev` | Avisos de segurança nas dependências de produção (backend a partir de `low`, frontend a partir de `critical`) | CI | Nenhum |
 | `npm run lint` | ESLint | CI | Nenhum |
 | `npm run build` | `tsc` no backend; `tsc -b` e Vite no frontend | CI | Nenhum |
@@ -289,7 +289,7 @@ O CI (`.github/workflows/ci.yml`) roda em todo push e em pull requests para `mai
 - `frontend`: `npm ci`, `npm audit --omit=dev --audit-level=critical`, `npm run lint`, `npm test`, `npm run build`.
 - `backend`: `npm ci`, `npm audit --omit=dev --audit-level=low`, `npm run lint`, `npx prisma validate`, `npm run test:coverage`, `npm run build` e `docker build` da imagem do backend.
 
-O Dependabot (`.github/dependabot.yml`) abre, toda semana, pull requests de atualização para `development`, sem merge automático.
+O Dependabot (`.github/dependabot.yml`) abre, toda semana, pull requests de atualização minor e patch para `development`, sem merge automático. Versão major (por exemplo Prisma 6 ou Node 25) é decidida à mão e não gera pull request.
 
 ## Deploy
 
@@ -297,7 +297,7 @@ O Dependabot (`.github/dependabot.yml`) abre, toda semana, pull requests de atua
 |---|---|---|
 | Frontend | Vercel | Build do Vite; `frontend/vercel.json` reescreve todas as rotas para `index.html` e define os cabeçalhos de segurança |
 | Backend | Render | Runtime Docker com `backend/Dockerfile`; `render.yaml` define `npm start` e o health check em `/health`; segredos no painel do Render |
-| Banco | Azure SQL Database | Conexão com `encrypt=true` e `trustServerCertificate=false`; TDE e TLS mínimo 1.2 |
+| Banco | Azure SQL Database | Conexão com `encrypt=true` e `trustServerCertificate=false`; TDE e TLS mínimo 1.2; o backend usa um usuário só com `db_datareader` e `db_datawriter`, e as migrations rodam com o admin |
 
 As migrations não rodam no deploy. Elas são aplicadas à mão, de uma máquina local, com `npx prisma migrate deploy`, antes do deploy que as exige. Itens de segurança que dependem dos painéis (Azure, Render, Firebase, GitHub) estão em [docs/checklist-seguranca-producao.md](docs/checklist-seguranca-producao.md).
 
@@ -366,6 +366,7 @@ Elder_Web/
 | [Modelagem ER](docs/Elder%20Web%20-%20Modelagem%20ER.md) | Entidades, atributos, relacionamentos e mecanismos de permissão |
 | [Histórico de implementação](docs/historico-implementacao.md) | Diário por tarefa (consulta sob demanda, é extenso) |
 | [Checklist de segurança de produção](docs/checklist-seguranca-producao.md) | O que conferir nos painéis do Azure, Render, Firebase, Google Cloud, GitHub e Brevo |
+| [Azure SQL: usuário mínimo](docs/azure-usuario-minimo.md) | Roteiro do usuário de runtime sem permissão de DDL e o que o código prova sobre SQL cru |
 | [Modelo de pull request](.github/pull_request_template.md) | Checklist de migrations, rotas, contrato HTTP e verificação |
 | [Workflow de CI](.github/workflows/ci.yml) | Passos do CI |
 | [Backend: exemplo de ambiente](backend/.env.example) | Variáveis do backend |
