@@ -1,8 +1,9 @@
 import { MENSAGEM_LIMITE_TAXA } from './limiteTaxa'
-import { SyncError, emailConfirmado, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, syncUser } from './auth'
+import { SyncError, emailConfirmado, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, mensagemRequisitosSenha, syncUser, validarSenha } from './auth'
 
 // lib/auth.ts inicializa o Firebase de verdade no import; mocks evitam isso (mesmo
 // padrão de Home.test.tsx / RotaProtegida.test.tsx).
+const mockValidatePassword = jest.fn()
 const mockGetIdToken = jest.fn().mockResolvedValue('token-fake')
 // Usuário atual do Firebase (fake), trocável por teste; getter para o auth do import ver a troca.
 let mockUsuarioAtual: Record<string, unknown> | null = null
@@ -13,6 +14,7 @@ jest.mock('firebase/auth', () => ({
     },
   })),
   GoogleAuthProvider: jest.fn(),
+  validatePassword: (...args: unknown[]) => mockValidatePassword(...args),
 }))
 jest.mock('./firebase', () => ({ app: {} }))
 
@@ -124,16 +126,67 @@ describe('syncUser — retry com backoff', () => {
   })
 })
 
-it('auth/password-does-not-meet-requirements: não cita composição da senha', () => {
-  const msg = mensagemErroCadastro({ code: 'auth/password-does-not-meet-requirements' })
-  expect(msg).not.toMatch(/letra|número|numero|maiúscul|maiuscul|símbolo|simbolo|caractere especial/i)
+const TODOS_REQUISITOS =
+  'pelo menos 8 caracteres, uma letra maiúscula, uma letra minúscula, um número e um caractere especial'
+
+const STATUS_TUDO_FALTANDO = {
+  isValid: false,
+  meetsMinPasswordLength: false,
+  containsUppercaseLetter: false,
+  containsLowercaseLetter: false,
+  containsNumericCharacter: false,
+  containsNonAlphanumericCharacter: false,
+}
+
+describe('validarSenha (política real do console via validatePassword)', () => {
+  beforeEach(() => mockValidatePassword.mockReset())
+
+  it('tudo faltando: lista os 5 requisitos em português, na ordem', async () => {
+    mockValidatePassword.mockResolvedValue(STATUS_TUDO_FALTANDO)
+    expect(await validarSenha('abc')).toEqual([
+      'pelo menos 8 caracteres',
+      'uma letra maiúscula',
+      'uma letra minúscula',
+      'um número',
+      'um caractere especial',
+    ])
+  })
+
+  it('requisito ausente no status (undefined) não é exigido', async () => {
+    mockValidatePassword.mockResolvedValue({ isValid: false, meetsMinPasswordLength: true, containsUppercaseLetter: false })
+    expect(await validarSenha('abcdefgh')).toEqual(['uma letra maiúscula'])
+  })
+
+  it('senha válida: lista vazia', async () => {
+    mockValidatePassword.mockResolvedValue({ isValid: true, meetsMinPasswordLength: true })
+    expect(await validarSenha('Abcdef1!')).toEqual([])
+  })
+
+  it('menos de MINIMO_SENHA caracteres falta mesmo se o SDK não reclamar', async () => {
+    mockValidatePassword.mockResolvedValue({ isValid: true, meetsMinPasswordLength: true })
+    expect(await validarSenha('Ab1!')).toEqual(['pelo menos 8 caracteres'])
+  })
+
+  it('SDK falha (rede, política indisponível): só confere o mínimo local', async () => {
+    mockValidatePassword.mockRejectedValue(new Error('x'))
+    expect(await validarSenha('abc')).toEqual(['pelo menos 8 caracteres'])
+    expect(await validarSenha('abcdefgh')).toEqual([])
+  })
+})
+
+describe('mensagemRequisitosSenha', () => {
+  it('junta com vírgulas e "e"', () => {
+    expect(mensagemRequisitosSenha(['um número'])).toBe('A senha precisa ter um número.')
+    expect(mensagemRequisitosSenha(['um número', 'um caractere especial'])).toBe('A senha precisa ter um número e um caractere especial.')
+    expect(mensagemRequisitosSenha(['a', 'b', 'c'])).toBe('A senha precisa ter a, b e c.')
+  })
 })
 
 describe('mensagemErroCadastro — erros do Firebase que o usuário resolve sozinho', () => {
   it.each([
     ['auth/email-already-in-use', /já existe uma conta com este e-mail/i],
-    ['auth/weak-password', /^Senha fraca\. Use pelo menos 8 caracteres/],
-    ['auth/password-does-not-meet-requirements', /^A senha precisa ter pelo menos 8 caracteres\.$/],
+    ['auth/weak-password', new RegExp(`^Senha fraca\\. A senha precisa ter ${TODOS_REQUISITOS}\\.$`)],
+    ['auth/password-does-not-meet-requirements', new RegExp(`^A senha precisa ter ${TODOS_REQUISITOS}\\.$`)],
     ['auth/invalid-email', /e-mail inválido/i],
     ['auth/network-request-failed', /sem conexão/i],
     ['auth/popup-closed-by-user', /janela do google foi fechada/i],

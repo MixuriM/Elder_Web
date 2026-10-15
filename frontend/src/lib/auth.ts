@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   sendEmailVerification as firebaseSendEmailVerification,
+  validatePassword,
   type User,
 } from "firebase/auth";
 import { app } from "./firebase";
@@ -17,9 +18,50 @@ export const auth = getAuth(app);
 
 const googleProvider = new GoogleAuthProvider();
 
-// Mínimo de caracteres da senha no cadastro (D10, 2026-10-14). A política do console do Firebase é conferida à parte
-// (docs/checklist-seguranca-producao.md); as mensagens abaixo não citam regra que o console talvez não imponha.
+// Mínimo de caracteres da senha no cadastro. A política real (modo Require: mínimo 8, maiúscula, minúscula, número e
+// caractere especial) vive no console do Firebase; validarSenha lê essa política pelo SDK, sem repetir a lista de símbolos.
 export const MINIMO_SENHA = 8;
+
+const REQUISITO_MINIMO = `pelo menos ${MINIMO_SENHA} caracteres`;
+const REQUISITOS_SENHA = [
+  REQUISITO_MINIMO,
+  "uma letra maiúscula",
+  "uma letra minúscula",
+  "um número",
+  "um caractere especial",
+];
+
+// "a, b e c" a partir da lista de requisitos.
+function juntarRequisitos(requisitos: string[]): string {
+  return requisitos.length < 2
+    ? requisitos.join("")
+    : `${requisitos.slice(0, -1).join(", ")} e ${requisitos[requisitos.length - 1]}`;
+}
+
+export const TEXTO_REQUISITOS_SENHA = juntarRequisitos(REQUISITOS_SENHA);
+
+export function mensagemRequisitosSenha(requisitos: string[]): string {
+  return `A senha precisa ter ${juntarRequisitos(requisitos)}.`;
+}
+
+// Requisitos que faltam à senha, em português ([] = atende). Usa a política do console via validatePassword; campo
+// undefined no status = requisito não exigido. Se o SDK falhar (rede, política indisponível), só vale o mínimo local e
+// o Firebase barra o resto no createUser (auth/password-does-not-meet-requirements).
+export async function validarSenha(password: string): Promise<string[]> {
+  const faltam: string[] = [];
+  let status: Awaited<ReturnType<typeof validatePassword>> | null = null;
+  try {
+    status = await validatePassword(auth, password);
+  } catch {
+    status = null;
+  }
+  if (password.length < MINIMO_SENHA || status?.meetsMinPasswordLength === false) faltam.push(REQUISITO_MINIMO);
+  if (status?.containsUppercaseLetter === false) faltam.push(REQUISITOS_SENHA[1]);
+  if (status?.containsLowercaseLetter === false) faltam.push(REQUISITOS_SENHA[2]);
+  if (status?.containsNumericCharacter === false) faltam.push(REQUISITOS_SENHA[3]);
+  if (status?.containsNonAlphanumericCharacter === false) faltam.push(REQUISITOS_SENHA[4]);
+  return faltam;
+}
 
 // Cadastro
 export async function registerUser(email: string, password: string) {
@@ -262,9 +304,9 @@ function mensagemErroFirebaseCadastro(err: unknown): string | null {
     case "auth/email-already-in-use":
       return "Já existe uma conta com este e-mail. Entre com ela ou, se esqueceu a senha, use \"Esqueci minha senha\".";
     case "auth/weak-password":
-      return `Senha fraca. Use pelo menos ${MINIMO_SENHA} caracteres e evite sequências fáceis.`;
+      return `Senha fraca. ${mensagemRequisitosSenha(REQUISITOS_SENHA)}`;
     case "auth/password-does-not-meet-requirements":
-      return `A senha precisa ter pelo menos ${MINIMO_SENHA} caracteres.`;
+      return mensagemRequisitosSenha(REQUISITOS_SENHA);
     case "auth/invalid-email":
       return "E-mail inválido. Confira se digitou corretamente.";
     case "auth/network-request-failed":
