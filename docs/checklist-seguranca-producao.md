@@ -21,8 +21,12 @@ rodada provou o item; troque para "verificado em AAAA-MM-DD" quando conferir.
 
 ## Ordem de publicação do aceite gravado
 
-1. Migration `20261014120000_add_aceite_documentos` no Azure, com autorização explícita e separada do Marcos
-   (`npx prisma migrate deploy` com a `DATABASE_URL` do Azure, de uma máquina local).
+1. Migration `20261014120000_add_aceite_documentos` no Azure: **aplicada em 2026-10-15** com autorização do Marcos
+   (`migrate deploy` de uma máquina local; `migrate status` depois: em dia).
 2. Frontend (Vercel): passa a mandar `aceite_documentos` no cadastro e na confirmação de e-mail. O backend antigo
    ignora o campo.
 3. Backend (Render): passa a exigir o aceite. Publicado antes do frontend, todo cadastro novo daria 400.
+
+Ao lançar uma versão nova dos documentos, a ordem se inverte: primeiro o backend com a versão nova em
+`VERSOES_DOCUMENTOS` (`backend/src/routes/auth.ts`, mantendo a anterior na lista), depois o frontend com o
+`VERSAO_DOCUMENTOS` novo.
