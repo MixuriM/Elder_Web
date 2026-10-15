@@ -2536,3 +2536,94 @@ lista de avisos aceitos em vez de `critical` inteiro; limite por IP antes do tok
   laço com 3 chamadas já contadas, 3 mais 297 igual a 300, e o 429 veio na requisição 298).
 - Backend: 63 suítes e 3212 testes (antes 3211), cobertura igual (97,67 / 96,24 / 100 / 98,26), `tsc --noEmit`, lint e
   build sem erro.
+
+## Modo demonstração (perfil admin) (2026-10-15)
+
+Acesso de administrador para banca e feira: entra, por custom token do Firebase, em seis contas fictícias já vinculadas.
+Guia de uso, roteiro e riscos em `docs/modo-demonstracao.md`.
+
+- D1: troca de perfil é login em conta fictícia real do elenco (`createCustomToken` e `signInWithCustomToken`), nunca
+  troca de `tipo_perfil`; admin é só uid em `DEMO_ADMIN_UIDS`; sem migration e sem mudança no `schema.prisma`.
+- D2: `DEMO_MODO_ATIVO` liga só com `"1"`; token ausente, inválido ou revogado dá 401; depois flag desligada ou quem não
+  é admin dá o 404 de rota inexistente (`next("route")`); `render.yaml` com `sync: false`, `.env.example` sem valor.
+- D3: elenco fixo em `backend/src/lib/demo/elenco.ts` (Helena, Antônio, Marta, Paulo, Carlos, Renata), uid `demo-<slug>`,
+  e-mail `<slug>@demo.elderweb.test`; vínculos replicam o que as rotas gravam (`solicitacao_cuidador` e
+  `solicitacao_familiar`, aprovador conforme a autoridade, flags com `definido_por_id`).
+- D4: `montarDadosDemo(agora)` em `lib/demo/dados.ts`, pura e determinística, relativa ao dia de Brasília (Intl), hoje
+  parcial (doses até 18:00, refeições só café e almoço), autoria conforme as regras de ator, só Latin-1.
+- D5: `semearDemo` e `removerDemo` em `lib/demo/semear.ts` com Prisma e Firebase injetados; Usuario do elenco atualizado
+  no lugar (id estável), domínio ligado ao elenco apagado e recriado numa transação (timeout 60 s); contas no Firebase
+  sem senha e com e-mail verificado; CLI `scripts/semear-demo.ts` (recusa banco não local sem `--confirmo-azure`) e
+  `scripts/verify-demo-semente.ts` (SQL Server local, Firebase falso).
+- D6: `routes/demo.ts` em `/demo` (`GET /estado`, `POST /entrar-como`, `POST /restaurar`), categoria `token_proprio` no
+  inventário com contagem de handlers por rota (2, 3 e 3); claims `{ demo: true, demo_admin_uid }`; limites 30 por 15 min
+  e 5 por hora, chave no admin efetivo.
+- D7: rota pública `/demo` (`pages/Demo.tsx`) e `BarraDemonstracao` no `LayoutAutenticado`, acima da moldura e em fluxo
+  normal, com `useModoDemo`; sem storage nem cookie.
+- D8: `POST /emergencia/avisar` com idoso do elenco responde 200 `simulado: true` sem `getUsers` nem `enviarEmail`;
+  `BotaoAjuda` mostra o texto fixo do aviso simulado.
+- D9: riscos aceitos registrados em `docs/modo-demonstracao.md`.
+- D10: `docs/modo-demonstracao.md` com ligar, desligar, contas, dados, roteiro de 7 a 8 minutos, plano B e falhas comuns.
+- D11: sem dependência, migration, `schema.prisma`, `package.json` nem lockfile; `CLAUDE.md` intocado.
+- D12: TDD com RED confirmado em cada parte e mutações abaixo.
+
+Fonte do Firebase sobre claims (consultada em 2026-10-15, firebase.google.com/docs/auth/admin/create-custom-tokens e
+/custom-claims): as claims extras do custom token ficam disponíveis no token, mas a documentação não garante que
+sobrevivem à renovação do ID token. Pior caso adotado: sessão de conta do elenco vale sem a claim; com a claim, o admin
+dela precisa continuar em `DEMO_ADMIN_UIDS`. O frontend mostra a barra pela claim ou pelo uid `demo-`.
+
+Modelo de ameaça: atacante sem conta para no token (401) e na flag e na lista (404); usuário real não passa da lista
+(comparação exata, nunca prefixo); claim forjada não basta (o uid também precisa ser do elenco); corpo malicioso em
+`entrar-como` para na lista fechada de slugs (400) e o uid emitido sai sempre do elenco; as contas do elenco não têm
+senha. Furo além da D6, fechado aqui: a conta do elenco é conta real do sistema, então o admin poderia pedir vínculo a
+um idoso real ou cadastrar como familiar um idoso com o e-mail de uma vítima e depois ler dado real. Correção:
+`requireAuth` marca `req.contaDemo`; `middleware/bloquearContaDemo.ts` dá 403 nas 6 rotas que criam vínculo ou conta
+(`solicitar-cuidador`, `solicitar-familiar`, `convidar-familiar`, `convidar-cuidador`, `aceitar-convite`,
+`cadastrar-idoso`); `requireVinculoAprovado` nega conta do elenco sobre idoso fora do elenco (consulta extra só para
+conta do elenco). Testes em `middleware/contaDemo.test.ts`.
+
+Mutações (aplicadas uma por vez, revertidas por cópia, verde depois):
+- M1 aceitar `conta` do corpo como uid: falham "conta uid de usuário real", "uid no lugar do slug", `__proto__`,
+  `constructor`, caminho e maiúsculas (6) em `demo.test.ts`.
+- M2 aceitar qualquer `demo_admin_uid`: falham os 3 "t-demo-admin-fora: 404".
+- M3 flag diferente de `"1"`: falham os 9 de flag `'0'`, `'true'` e `' 1'`.
+- M4 sem `checarRevogado`: falham os 3 "401 ... token revogado".
+- M5 sem lista fechada de slugs (mapa por objeto): falham `__proto__` e `constructor` em `entrar-como` e
+  "contaPorSlug só aceita um slug exato" em `elenco.test.ts`.
+- M6 semente apaga fora do elenco: falham "não toca em nenhuma linha fora do elenco" e os 2 de `removerDemo`.
+- M7 `bloquearContaDemo` sem efeito: falham os 6 "403 fixo" de `contaDemo.test.ts`.
+- M8 `requireVinculoAprovado` sem checar o elenco: falha "Marta com vínculo aprovado no banco com idoso REAL".
+- M9 uid do elenco por prefixo: falham os 3 "t-uid-demo-parecido: 404".
+- M10 e M11 `render.yaml` com `value: "1"` e `.env.example` com `DEMO_MODO_ATIVO=1`: falham os testes de
+  `infra/modoDemonstracao.test.ts`.
+
+Outros: `VERSOES_DOCUMENTOS` saiu de `routes/auth.ts` para `lib/versoesDocumentos.ts` (a semente usa a mesma lista;
+`docs/checklist-seguranca-producao.md` atualizado); `lib/recarregar.ts` ganhou `irPara` e `lib/auth.ts` ganhou
+`entrarComTokenDemo`. Contagens: backend 63 suítes e 3212 testes antes, 69 e 3374 depois, cobertura 97,73 / 96,39 / 100
+/ 98,27 (antes 97,67 / 96,24 / 100 / 98,26); frontend 107 suítes e 1202 testes antes, 109 e 1220 depois. Lint, `tsc` e
+build sem erro nos dois. `verify-demo-semente.ts` escrito, ainda não rodado: o SQL Server local estava parado.
+
+## Modo demonstração, fechamento (2026-10-15)
+
+- Verify local (`scripts/verify-demo-semente.ts`, SQL Server local, Firebase falso): 3 execuções seguidas, 28 de 28 na
+  primeira versão do script (CHECK e FK aceitaram tudo, leituras reais, PDF de Helena com 5 KB, idempotência, remoção sem
+  tocar linha de fora do elenco). Achados no banco: nenhum. Depois dos endurecimentos o script ganhou o rollback real e o
+  Usuario estranho: 31 de 31 em 2 execuções.
+- D2: a ordem da semente passou a ser (a) `exigirSemInvasorNoBanco`, (b) `prepararContasFirebase`, (c) `gravarNoBanco`
+  (transação). Antes, o Firebase vinha depois da transação: falha dele deixava o banco já trocado.
+- D3: Usuario de fora do elenco com e-mail reservado (`@demo.elderweb.test`), inclusive com `firebase_uid` nulo, aborta a
+  semente antes de qualquer escrita com `ErroSemente` e mensagem fixa (sem e-mail, id nem nome); o CLI sai com código 2.
+  No Firebase, `getUserByEmail` com conta de uid fora do elenco e e-mail reservado leva `deleteUser`; e-mail fora do
+  domínio reservado nunca é apagado. Cadastro nas rotas de produção não foi bloqueado (risco aceito).
+- D4: `removerDemo` chama `deleteUser` por conta do elenco (ignora `auth/user-not-found`), no lugar de `deleteUsers`.
+- Barra: linha nova avisando que pedir vínculo, aceitar convite e cadastrar idoso não funcionam no modo (as 6 rotas dão 403).
+- Mutações, uma por vez, revertidas: M12 banco antes do Firebase derrubou "todo o Firebase acontece antes da transação" e
+  "falha do Firebase deixa o banco intacto"; M13 sem checagem do Usuario estranho derrubou "Usuario invasor ... aborta
+  antes de qualquer exclusão"; M14 sem `deleteUser` no `removerDemo` derrubou os 3 testes de `removerDemo`; M15 sem checar o
+  domínio reservado derrubou "conta com e-mail que não é reservado nunca é apagada"; M16 apagando também a conta do
+  próprio elenco derrubou o teste de Firebase e o de falha do Firebase.
+- Riscos aceitos: cadastro de estranho com e-mail reservado (a semente avisa e não apaga nada; no Firebase apaga a intrusa);
+  pedido de vínculo de estranho à Helena ou ao Antônio aparece na lista (e no telão) até a próxima restauração; "hoje" da
+  semente depende da hora da restauração (usar entre 10:00 e 18:00).
+- `CLAUDE.md`: uma linha de ponteiro em Segurança. Medido em caracteres: 29.626 antes, 29.811 depois (limite 30.000). Em
+  bytes (`wc -c`) o arquivo já estava acima de 30.000 e passou de 30.310 para 30.500.
