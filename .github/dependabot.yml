@@ -1,5 +1,6 @@
 # D7 (2026-10-14): atualizações semanais em PR para development, nunca com merge automático. Minor e patch vêm
-# agrupados num PR só por ecossistema; major vem em PR próprio para revisão (upgrade de dependência é decisão do grupo).
+# agrupados num PR só por ecossistema. Major é decidido à mão, sem PR automático (ignore em npm e docker, 2026-10-15):
+# o Prisma fica na 5.22 por causa do migration_lock.toml e o Node fica na 24 por causa do engines e do Render.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -11,6 +12,9 @@ updates:
     groups:
       minor-e-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/frontend"
@@ -21,6 +25,12 @@ updates:
     groups:
       minor-e-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # 0.5 exige ESLint 9 ou 10; o frontend usa ESLint 8 (o npm ci do PR dá ERESOLVE).
+      - dependency-name: "eslint-plugin-react-refresh"
+        versions: [">=0.5.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -41,3 +51,6 @@ updates:
     groups:
       minor-e-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

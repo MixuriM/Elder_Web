@@ -73,6 +73,34 @@ describe("Dependabot (D7)", () => {
     }
   });
 
+  // 2026-10-15: major é decidido à mão (Prisma preso na 5.22 pelo migration_lock.toml, Node na 24 pelo engines e
+  // pelo Render). eslint-plugin-react-refresh 0.5 exige ESLint 9 ou 10 e o frontend usa ESLint 8 (npm ci dá ERESOLVE).
+  const blocoDe = (ecossistema: string, diretorio: string): string =>
+    dependabot
+      .split(/^ {2}- /m)
+      .find((b) => new RegExp(`package-ecosystem:\\s*"?${ecossistema}"?\\s*\\n\\s*directory:\\s*"?${diretorio}"?\\s*$`, "m").test(b)) ?? "";
+  const ignora = (bloco: string, nome: string, chave: string, valor: string): boolean =>
+    bloco
+      .split(/^ {6}- /m)
+      .slice(1)
+      .some(
+        (regra) =>
+          new RegExp(`^\\s*dependency-name:\\s*"${nome.replace(/[*.]/g, "\\$&")}"\\s*$`, "m").test(regra) &&
+          new RegExp(`^\\s*${chave}:\\s*\\[\\s*"${valor}"\\s*\\]\\s*$`, "m").test(regra),
+      );
+
+  it.each([
+    ["npm", "/backend"],
+    ["npm", "/frontend"],
+    ["docker", "/backend"],
+  ])("%s %s ignora toda atualização major", (ecossistema, diretorio) => {
+    expect(ignora(blocoDe(ecossistema, diretorio), "*", "update-types", "version-update:semver-major")).toBe(true);
+  });
+
+  it("npm /frontend ignora eslint-plugin-react-refresh a partir de 0.5.0 (exige ESLint 9 ou 10)", () => {
+    expect(ignora(blocoDe("npm", "/frontend"), "eslint-plugin-react-refresh", "versions", ">=0.5.0")).toBe(true);
+  });
+
   it("não configura merge automático", () => {
     expect(dependabot).not.toMatch(/auto-?merge/i);
   });
