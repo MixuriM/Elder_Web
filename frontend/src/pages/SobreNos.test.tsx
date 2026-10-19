@@ -1,8 +1,20 @@
+
 import '@testing-library/jest-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { axe, toHaveNoViolations } from 'jest-axe'
 
 import SobreNos from './SobreNos'
+
+expect.extend(toHaveNoViolations)
+
+// O jsdom não calcula o contraste real das cores.
+// O contraste deve ser validado separadamente.
+const AXE = {
+  rules: {
+    'color-contrast': { enabled: false },
+  },
+}
 
 function renderSobreNos() {
   return render(
@@ -16,7 +28,9 @@ describe('SobreNos (item 8.1, RF-029)', () => {
   it('renderiza a página Sobre nós', () => {
     renderSobreNos()
 
-    expect(screen.getByRole('main')).toBeInTheDocument()
+    expect(
+      screen.getByRole('main'),
+    ).toBeInTheDocument()
 
     expect(
       screen.getByRole('heading', {
@@ -40,7 +54,7 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     ).toHaveLength(1)
   })
 
-  it('renderiza as 5 seções do Sobre nós', () => {
+  it('renderiza as cinco seções informativas', () => {
     renderSobreNos()
 
     const titulos = [
@@ -81,24 +95,24 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     })
   })
 
-  it('exibe as informações sobre o Elder Web', () => {
+  it('exibe a apresentação do Elder Web', () => {
     renderSobreNos()
 
     expect(
       screen.getByText(
-        /O Elder Web é uma aplicação web que apoia idosos/i,
+        /O Elder Web é uma aplicação web acessível/i,
       ),
     ).toBeInTheDocument()
 
     expect(
       screen.getByText(
-        /Para o idoso, o cuidador e o familiar/i,
+        /idosos, cuidadores e familiares/i,
       ),
     ).toBeInTheDocument()
 
     expect(
       screen.getByText(
-        /Registro de saúde/i,
+        /registros de saúde, controle de medicamentos/i,
       ),
     ).toBeInTheDocument()
   })
@@ -106,9 +120,19 @@ describe('SobreNos (item 8.1, RF-029)', () => {
   it('exibe o compromisso com acessibilidade', () => {
     renderSobreNos()
 
+    const secao = screen.getByRole('region', {
+      name: 'Nosso compromisso com a acessibilidade',
+    })
+
     expect(
-      screen.getByText(
-        /Buscamos letras grandes, bom contraste/i,
+      within(secao).getByText(
+        /A acessibilidade é uma prioridade do Elder Web/i,
+      ),
+    ).toBeInTheDocument()
+
+    expect(
+      within(secao).getByText(
+        /modos claro e escuro/i,
       ),
     ).toBeInTheDocument()
   })
@@ -116,51 +140,59 @@ describe('SobreNos (item 8.1, RF-029)', () => {
   it('exibe as informações de quem fez o projeto', () => {
     renderSobreNos()
 
-    expect(
-      screen.getByRole('heading', {
-        level: 2,
-        name: 'Quem fez',
-      }),
-    ).toBeInTheDocument()
+    const secao = screen.getByRole('region', {
+      name: 'Quem fez',
+    })
 
     expect(
-      screen.getByText(
+      within(secao).getByText(
         /Projeto de Conclusão de Curso/i,
       ),
     ).toBeInTheDocument()
 
     expect(
-      screen.getByText(
+      within(secao).getByText(
         /Etec Fernando Prestes/i,
       ),
     ).toBeInTheDocument()
   })
 
-  it('exibe os integrantes da equipe', () => {
+  it('exibe os três integrantes da equipe', () => {
     renderSobreNos()
 
-    expect(
-      screen.getByText('Marcos'),
-    ).toBeInTheDocument()
+    const secao = screen.getByRole('region', {
+      name: 'Quem fez',
+    })
 
-    expect(
-      screen.getByText('Laureane'),
-    ).toBeInTheDocument()
+    const integrantes = [
+      'Marcos',
+      'Laureane',
+      'Jennifer',
+    ]
 
-    expect(
-      screen.getByText('Jennifer'),
-    ).toBeInTheDocument()
+    integrantes.forEach((nome) => {
+      expect(
+        within(secao).getByRole('heading', {
+          level: 3,
+          name: nome,
+        }),
+      ).toBeInTheDocument()
+    })
   })
 
   it('possui link para a página inicial', () => {
     renderSobreNos()
 
     const linkInicial = screen.getByRole('link', {
-      name: /página inicial/i,
+      name: /voltar ao início/i,
     })
 
     expect(linkInicial).toBeInTheDocument()
-    expect(linkInicial).toHaveAttribute('href', '/')
+
+    expect(linkInicial).toHaveAttribute(
+      'href',
+      '/',
+    )
   })
 
   it('possui link para entrar ou criar conta', () => {
@@ -171,10 +203,45 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     })
 
     expect(linkWelcome).toBeInTheDocument()
+
     expect(linkWelcome).toHaveAttribute(
       'href',
       '/welcome',
     )
+  })
+
+  it('possui convite para conhecer o Elder', () => {
+    renderSobreNos()
+
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: /cuidar também pode ser mais simples/i,
+      }),
+    ).toBeInTheDocument()
+
+    const link = screen.getByRole('link', {
+      name: /conhecer o elder$/i,
+    })
+
+    expect(link).toHaveAttribute(
+      'href',
+      '/welcome',
+    )
+  })
+
+  it('mantém as folhas decorativas fora da árvore acessível', () => {
+    const { container } = renderSobreNos()
+
+    const imagensDecorativas = container.querySelectorAll(
+      'img[alt=""]',
+    )
+
+    expect(imagensDecorativas).toHaveLength(3)
+
+    imagensDecorativas.forEach((imagem) => {
+      expect(imagem).toHaveAttribute('alt', '')
+    })
   })
 
   it('não contém termos proibidos', () => {
@@ -186,5 +253,13 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     expect(texto).not.toMatch(/\bmicrofone\b/i)
     expect(texto).not.toMatch(/\bloja\b/i)
     expect(texto).not.toMatch(/São Vicente/i)
+  })
+
+  it('não apresenta violações automáticas de acessibilidade', async () => {
+    const { container } = renderSobreNos()
+
+    const resultados = await axe(container, AXE)
+
+    expect(resultados).toHaveNoViolations()
   })
 })

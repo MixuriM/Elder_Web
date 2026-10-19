@@ -1,3 +1,4 @@
+
 import SobreCard from './SobreCard'
 import { secoes } from './sobreNosData'
 
@@ -6,16 +7,18 @@ function SobreCards() {
     <div
       className="
         mt-10
-        grid
-        grid-cols-1
+        grid grid-cols-1
         gap-6
-
         md:grid-cols-2
+        sm:gap-7
       "
     >
-      {secoes.map((secao, index) => {
-        const primeiroCard = index === 0
-        const ultimoCard = index === secoes.length - 1
+      {secoes.map((secao) => {
+        const destaque = [
+          'o-que-e',
+          'acessibilidade',
+          'quem-fez',
+        ].includes(secao.id)
 
         return (
           <SobreCard
@@ -24,7 +27,7 @@ function SobreCards() {
             titulo={secao.titulo}
             texto={secao.texto}
             icone={secao.icone}
-            destaque={primeiroCard || ultimoCard}
+            destaque={destaque}
           />
         )
       })}

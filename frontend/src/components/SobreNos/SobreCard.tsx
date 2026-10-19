@@ -1,5 +1,7 @@
+
 import type { LucideIcon } from 'lucide-react'
 import { UserRound } from 'lucide-react'
+import { equipe } from './sobreNosData'
 
 type SobreCardProps = {
   id: string
@@ -16,280 +18,173 @@ function SobreCard({
   icone: Icone,
   destaque = false,
 }: SobreCardProps) {
-  const quemFez = id === 'quem-fez'
+  const mostrarEquipe = id === 'quem-fez'
 
   return (
     <section
-      aria-labelledby={id}
+      aria-labelledby={`titulo-${id}`}
       className={`
-        rounded-3xl
-        border
-        border-[#E5E1FF]
-        bg-white
+        relative min-w-0
+        rounded-2xl
+        border border-[#E6E2F5]
+        bg-white/90
         p-6
-        shadow-sm
-        transition-all
-        duration-300
-
-        hover:-translate-y-1
-        hover:shadow-lg
-
         sm:p-8
-
-        dark:border-white/10
-        dark:bg-[#191B28]
-
+        dark:border-[#303149]
+        dark:bg-[#191B2A]/95
         ${destaque ? 'md:col-span-2' : ''}
       `}
     >
-      {/* ÍCONE */}
-      <div
-        className="
-          flex
-          h-14
-          w-14
-          items-center
-          justify-center
-          rounded-2xl
-          bg-[#F0EDFF]
-          text-[#6C63FF]
-
-          dark:bg-[#6C63FF]/15
-          dark:text-[#A18BFF]
-        "
-      >
-        <Icone size={28} />
-      </div>
-
-      {/* TÍTULO */}
-      <h2
-        id={id}
-        className="
-          mt-5
-          text-2xl
-          font-bold
-          text-[#071A38]
-
-          dark:text-[#F5F5FA]
-        "
-      >
-        {titulo}
-      </h2>
-
-      {/* CONTEÚDO NORMAL */}
-      {!quemFez && (
-        <p
+      {/* CABEÇALHO DO CARD */}
+      <div className="flex items-start gap-4">
+        <div
+          aria-hidden="true"
           className="
-            mt-3
-            max-w-3xl
-            text-lg
-            leading-8
-            text-[#56657D]
-
-            dark:text-[#C7C7D1]
+            flex h-12 w-12
+            shrink-0 items-center
+            justify-center rounded-xl
+            bg-[#EAE6FF]
+            text-[#6258E8]
+            dark:bg-[#292641]
+            dark:text-[#B9B3FF]
           "
         >
-          {texto}
-        </p>
-      )}
+          <Icone size={25} strokeWidth={1.8} />
+        </div>
 
-      {/* QUEM FEZ */}
-      {quemFez && (
-        <div className="mt-4">
-          <p
+        <div className="min-w-0 flex-1">
+          <h2
+            id={`titulo-${id}`}
             className="
-              max-w-3xl
-              text-lg
-              leading-8
-              text-[#56657D]
-
-              dark:text-[#C7C7D1]
+              text-xl font-bold
+              leading-snug
+              text-[#071A38]
+              sm:text-2xl
+              dark:text-[#F5F5FA]
             "
           >
-            {texto}
-          </p>
+            {titulo}
+          </h2>
 
           <div
+            aria-hidden="true"
             className="
-              mt-7
-              grid
-              grid-cols-1
-              gap-4
-
-              sm:grid-cols-3
+              mt-3 h-1 w-12
+              rounded-full bg-[#6C63FF]
+              dark:bg-[#A18BFF]
             "
-          >
-            {/* MARCOS */}
-            <div
+          />
+        </div>
+      </div>
+
+      {/* DESCRIÇÃO */}
+      <p
+        className="
+          mt-5 text-base
+          leading-8 text-[#46536B]
+          dark:text-[#C7C7D1]
+        "
+      >
+        {texto}
+      </p>
+
+      {/* EQUIPE DE DESENVOLVIMENTO */}
+      {mostrarEquipe && (
+        <div
+          className="
+            mt-9 grid grid-cols-1
+            gap-6 sm:grid-cols-2
+            lg:grid-cols-3
+          "
+        >
+          {equipe.map((integrante) => (
+            <article
+              key={integrante.id}
               className="
-                flex
-                items-center
-                gap-4
+                flex min-w-0
+                flex-col items-center
                 rounded-2xl
                 bg-[#F8F7FF]
-                p-4
-
+                p-5 text-center
                 dark:bg-[#11141D]
               "
             >
+              {/* FOTOGRAFIA 4:5 */}
               <div
                 className="
-                  flex
-                  h-12
-                  w-12
-                  shrink-0
-                  items-center
-                  justify-center
-                  rounded-full
-                  bg-[#ECE9FF]
-                  text-[#6C63FF]
-
-                  dark:bg-[#6C63FF]/20
-                  dark:text-[#A18BFF]
+                  flex aspect-[4/5]
+                  w-full max-w-[240px]
+                  items-center justify-center
+                  overflow-hidden rounded-xl
+                  bg-[#EAE6FF]
+                  dark:bg-[#25243B]
                 "
               >
-                <UserRound size={24} />
+                {integrante.foto ? (
+                  <img
+                    src={integrante.foto}
+                    alt={`Foto de ${integrante.nome}`}
+                    loading="lazy"
+                    decoding="async"
+                    className="
+                      h-full w-full
+                      object-cover object-center
+                    "
+                  />
+                ) : (
+                  <div
+                    role="img"
+                    aria-label={`Fotografia de ${integrante.nome} indisponível`}
+                    className="
+                      flex h-full w-full
+                      items-center justify-center
+                      text-[#6258E8]
+                      dark:text-[#B9B3FF]
+                    "
+                  >
+                    <UserRound
+                      size={64}
+                      strokeWidth={1.4}
+                      aria-hidden="true"
+                    />
+                  </div>
+                )}
               </div>
 
-              <div className="min-w-0 break-words">
-                <p
-                  className="
-                    font-bold
-                    text-[#071A38]
-
-                    dark:text-[#F5F5FA]
-                  "
-                >
-                  Marcos
-                </p>
-
-                <p
-                  className="
-                    text-sm
-                    text-[#56657D]
-
-                    dark:text-[#C7C7D1]
-                  "
-                >
-                  Desenvolvimento
-                </p>
-              </div>
-            </div>
-
-            {/* LAUREANE */}
-            <div
-              className="
-                flex
-                items-center
-                gap-4
-                rounded-2xl
-                bg-[#F8F7FF]
-                p-4
-
-                dark:bg-[#11141D]
-              "
-            >
-              <div
+              {/* NOME */}
+              <h3
                 className="
-                  flex
-                  h-12
-                  w-12
-                  shrink-0
-                  items-center
-                  justify-center
-                  rounded-full
-                  bg-[#ECE9FF]
-                  text-[#6C63FF]
-
-                  dark:bg-[#6C63FF]/20
-                  dark:text-[#A18BFF]
+                  mt-5 text-xl font-bold
+                  text-[#071A38]
+                  dark:text-[#F5F5FA]
                 "
               >
-                <UserRound size={24} />
-              </div>
+                {integrante.nome}
+              </h3>
 
-              <div className="min-w-0 break-words">
-                <p
-                  className="
-                    font-bold
-                    text-[#071A38]
-
-                    dark:text-[#F5F5FA]
-                  "
-                >
-                  Laureane
-                </p>
-
-                <p
-                  className="
-                    text-sm
-                    text-[#56657D]
-
-                    dark:text-[#C7C7D1]
-                  "
-                >
-                  Desenvolvimento
-                </p>
-              </div>
-            </div>
-
-            {/* JENNIFER */}
-            <div
-              className="
-                flex
-                items-center
-                gap-4
-                rounded-2xl
-                bg-[#F8F7FF]
-                p-4
-
-                dark:bg-[#11141D]
-              "
-            >
-              <div
+              {/* FUNÇÃO */}
+              <p
                 className="
-                  flex
-                  h-12
-                  w-12
-                  shrink-0
-                  items-center
-                  justify-center
-                  rounded-full
-                  bg-[#ECE9FF]
-                  text-[#6C63FF]
-
-                  dark:bg-[#6C63FF]/20
-                  dark:text-[#A18BFF]
+                  mt-1 text-sm font-semibold
+                  text-[#5147B5]
+                  dark:text-[#B9B3FF]
                 "
               >
-                <UserRound size={24} />
-              </div>
+                {integrante.cargo}
+              </p>
 
-              <div className="min-w-0 break-words">
-                <p
-                  className="
-                    font-bold
-                    text-[#071A38]
-
-                    dark:text-[#F5F5FA]
-                  "
-                >
-                  Jennifer
-                </p>
-
-                <p
-                  className="
-                    text-sm
-                    text-[#56657D]
-
-                    dark:text-[#C7C7D1]
-                  "
-                >
-                  Desenvolvimento
-                </p>
-              </div>
-            </div>
-          </div>
+              {/* DESCRIÇÃO */}
+              <p
+                className="
+                  mt-3 text-sm leading-6
+                  text-[#46536B]
+                  dark:text-[#C7C7D1]
+                "
+              >
+                {integrante.descricao}
+              </p>
+            </article>
+          ))}
         </div>
       )}
     </section>
