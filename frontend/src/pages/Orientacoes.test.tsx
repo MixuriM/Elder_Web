@@ -1,6 +1,6 @@
 
 import '@testing-library/jest-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import Orientacoes from './Orientacoes'
@@ -27,9 +27,9 @@ function renderPagina() {
   )
 }
 
-describe('Orientacoes — RF-031', () => {
+describe('Orientacoes — RF-031 | Item 8.2', () => {
   describe('Estrutura e acessibilidade', () => {
-    it('possui apenas um h1 com o título correto', () => {
+    it('possui somente um h1 com o título correto', () => {
       renderPagina()
 
       const titulos = screen.getAllByRole('heading', {
@@ -46,7 +46,7 @@ describe('Orientacoes — RF-031', () => {
       ).toBeInTheDocument()
     })
 
-    it('não possui main próprio, pois utiliza o layout', () => {
+    it('não cria main duplicado', () => {
       renderPagina()
 
       expect(
@@ -54,7 +54,7 @@ describe('Orientacoes — RF-031', () => {
       ).not.toBeInTheDocument()
     })
 
-    it('exibe os cinco títulos h2 na ordem correta', () => {
+    it('exibe cinco títulos h2 na ordem correta', () => {
       renderPagina()
 
       const titulos = screen
@@ -62,6 +62,14 @@ describe('Orientacoes — RF-031', () => {
         .map((elemento) => elemento.textContent)
 
       expect(titulos).toEqual(TITULOS)
+    })
+
+    it('possui cinco regiões acessíveis', () => {
+      renderPagina()
+
+      expect(
+        screen.getAllByRole('region')
+      ).toHaveLength(5)
     })
 
     it('cada seção possui uma região acessível nomeada', () => {
@@ -76,7 +84,7 @@ describe('Orientacoes — RF-031', () => {
       })
     })
 
-    it('cada seção possui um título associado por aria-labelledby', () => {
+    it('associa os títulos às seções por aria-labelledby', () => {
       renderPagina()
 
       const secoes = [
@@ -92,10 +100,13 @@ describe('Orientacoes — RF-031', () => {
           name: titulo,
         })
 
-        const heading = screen.getByRole('heading', {
-          level: 2,
-          name: titulo,
-        })
+        const heading = within(regiao).getByRole(
+          'heading',
+          {
+            level: 2,
+            name: titulo,
+          }
+        )
 
         expect(regiao).toHaveAttribute(
           'aria-labelledby',
@@ -108,46 +119,63 @@ describe('Orientacoes — RF-031', () => {
   })
 
   describe('Conteúdo das orientações', () => {
-    it('exibe todas as orientações cadastradas', () => {
+    it('exibe as quatro orientações cadastradas', () => {
       renderPagina()
 
+      expect(secoesOrientacoes).toHaveLength(4)
+
       secoesOrientacoes.forEach((secao) => {
-        expect(
-          screen.getByText(secao.texto)
-        ).toBeInTheDocument()
+        const regiao = screen.getByRole('region', {
+          name: secao.titulo,
+        })
+
+        expect(regiao).toHaveTextContent(
+          secao.texto
+        )
       })
     })
 
     it('apresenta informações sobre cadastro e acesso', () => {
       renderPagina()
 
-      expect(
-        screen.getByText(/conta Google/i)
-      ).toBeInTheDocument()
+      const regiao = screen.getByRole('region', {
+        name: 'Como começar',
+      })
 
-      expect(
-        screen.getByText(/confirme o e-mail/i)
-      ).toBeInTheDocument()
+      expect(regiao).toHaveTextContent(/conta Google/i)
+      expect(regiao).toHaveTextContent(/confirme o e-mail/i)
     })
 
     it('orienta sobre recuperação de senha', () => {
       renderPagina()
 
-      expect(
-        screen.getByText(/Esqueci minha senha/i)
-      ).toBeInTheDocument()
+      const regiao = screen.getByRole('region', {
+        name: 'Senha e acesso',
+      })
+
+      expect(regiao).toHaveTextContent(
+        /Esqueci minha senha/i
+      )
     })
 
     it('explica os vínculos entre cuidadores e idosos', () => {
       renderPagina()
 
-      expect(
-        screen.getByText(/vínculo aprovado/i)
-      ).toBeInTheDocument()
+      const regiao = screen.getByRole('region', {
+        name: 'Perfis e vínculos',
+      })
+
+      expect(regiao).toHaveTextContent(
+        /vínculo aprovado/i
+      )
     })
 
     it('informa as funcionalidades disponíveis', () => {
       renderPagina()
+
+      const regiao = screen.getByRole('region', {
+        name: 'O que você encontra no Elder Web',
+      })
 
       const funcionalidades = [
         /Saúde/i,
@@ -156,14 +184,92 @@ describe('Orientacoes — RF-031', () => {
         /Alimentação/i,
       ]
 
-      const regiao = screen.getByRole('region', {
-        name: 'O que você encontra no Elder Web',
+      funcionalidades.forEach((funcionalidade) => {
+        expect(regiao).toHaveTextContent(
+          funcionalidade
+        )
+      })
+    })
+  })
+
+  describe('Identidade visual e decoração', () => {
+    it('exibe a folha decorativa no cabeçalho', () => {
+      const { container } = renderPagina()
+
+      const cabecalho = container.querySelector('header')
+
+      expect(cabecalho).toBeInTheDocument()
+
+      const folha = cabecalho?.querySelector('img')
+
+      expect(folha).toBeInTheDocument()
+      expect(folha).toHaveAttribute('alt', '')
+      expect(folha).toHaveAttribute(
+        'aria-hidden',
+        'true'
+      )
+
+      expect(folha).toHaveClass(
+        'pointer-events-none'
+      )
+    })
+
+    it('não exibe folhas no cartão de ajuda', () => {
+      renderPagina()
+
+      const ajuda = screen.getByRole('region', {
+        name: 'Ajuda e aviso importante',
       })
 
-      funcionalidades.forEach((funcionalidade) => {
-        expect(
-          regiao.textContent
-        ).toMatch(funcionalidade)
+      expect(
+        ajuda.querySelector('img')
+      ).not.toBeInTheDocument()
+    })
+
+    it('mantém os cartões de orientação sem hover', () => {
+      renderPagina()
+
+      secoesOrientacoes.forEach((secao) => {
+        const cartao = screen.getByRole('region', {
+          name: secao.titulo,
+        })
+
+        const classes = cartao.className
+
+        expect(classes).not.toMatch(/hover:/)
+        expect(classes).not.toMatch(/cursor-pointer/)
+        expect(classes).not.toMatch(/transition-/)
+      })
+    })
+
+    it('mantém o cartão de ajuda sem hover', () => {
+      renderPagina()
+
+      const ajuda = screen.getByRole('region', {
+        name: 'Ajuda e aviso importante',
+      })
+
+      expect(ajuda.className).not.toMatch(/hover:/)
+      expect(ajuda.className).not.toMatch(
+        /cursor-pointer/
+      )
+    })
+
+    it('mantém os ícones decorativos fora da leitura acessível', () => {
+      renderPagina()
+
+      secoesOrientacoes.forEach((secao) => {
+        const regiao = screen.getByRole('region', {
+          name: secao.titulo,
+        })
+
+        const icone = regiao.querySelector('svg')
+
+        expect(icone).toBeInTheDocument()
+        expect(icone).toHaveAttribute(
+          'aria-hidden',
+          'true'
+        )
       })
     })
   })
@@ -185,33 +291,44 @@ describe('Orientacoes — RF-031', () => {
     it('orienta a não enviar dados de saúde por e-mail', () => {
       renderPagina()
 
-      expect(
-        screen.getByText(
-          /não envie valores nem informações de saúde por e-mail/i
-        )
-      ).toBeInTheDocument()
+      const ajuda = screen.getByRole('region', {
+        name: 'Ajuda e aviso importante',
+      })
+
+      expect(ajuda).toHaveTextContent(
+        /não envie valores nem informações de saúde por e-mail/i
+      )
     })
 
     it('informa que o Elder não substitui profissionais de saúde', () => {
       renderPagina()
 
-      expect(
-        screen.getByText(
-          /não substitui consulta nem orientação de profissionais de saúde/i
-        )
-      ).toBeInTheDocument()
+      const ajuda = screen.getByRole('region', {
+        name: 'Ajuda e aviso importante',
+      })
+
+      expect(ajuda).toHaveTextContent(
+        /não substitui consulta nem orientação de profissionais de saúde/i
+      )
     })
 
-    it('exibe o número de emergência do SAMU', () => {
+    it('exibe o telefone de emergência do SAMU', () => {
       renderPagina()
 
-      expect(
-        screen.getByText(/Em emergência, ligue para o SAMU/i)
-      ).toBeInTheDocument()
-
-      const telefone = screen.getByRole('link', {
-        name: /Ligar para o SAMU no número 192/i,
+      const ajuda = screen.getByRole('region', {
+        name: 'Ajuda e aviso importante',
       })
+
+      expect(ajuda).toHaveTextContent(
+        /Em emergência, ligue para o SAMU/i
+      )
+
+      const telefone = within(ajuda).getByRole(
+        'link',
+        {
+          name: 'Ligar para o SAMU no número 192',
+        }
+      )
 
       expect(telefone).toHaveAttribute(
         'href',
@@ -219,6 +336,26 @@ describe('Orientacoes — RF-031', () => {
       )
 
       expect(telefone).toHaveTextContent('192')
+    })
+
+    it('mantém os três avisos importantes', () => {
+      renderPagina()
+
+      const ajuda = screen.getByRole('region', {
+        name: 'Ajuda e aviso importante',
+      })
+
+      expect(ajuda).toHaveTextContent(
+        /não envie valores/i
+      )
+
+      expect(ajuda).toHaveTextContent(
+        /não substitui consulta/i
+      )
+
+      expect(ajuda).toHaveTextContent(
+        /Em emergência/i
+      )
     })
   })
 
