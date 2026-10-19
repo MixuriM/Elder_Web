@@ -2,6 +2,7 @@ import { menuItems } from "../data/menuItems";
 import type { Acesso } from "../contexts/useAcesso";
 import type { MenuItem } from "../components/types/home";
 
+
 const MODULOS_DE_DADOS = ["/saude", "/remedios", "/agenda", "/alimentacao"];
 const SO_BASICOS = ["/Home", "/perfil", "/orientacoes"];
 
