@@ -1,7 +1,7 @@
 import BotaoVoltar from "./BotaoVoltar";
 
 import folhasDecorativas from "../../Img/folhaInformativo.webp";
-import florCadastro from "../../Img/folha_inicioD.webp";
+import florCadastro from "../../Img/flor_cadastro.svg";
 import logoElder from "../../Img/Elder_logo.webp";
 
 import type { TipoPerfil } from "../../lib/auth";

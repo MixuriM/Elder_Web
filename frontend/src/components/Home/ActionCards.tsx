@@ -1,8 +1,8 @@
 import {
   CalendarDays,
+  FileText,
   HeartPulse,
   Pill,
-  Utensils,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ function ActionCards() {
       className="
         grid
         grid-cols-1
+
         gap-3.5
 
         sm:grid-cols-2
@@ -25,7 +26,6 @@ function ActionCards() {
         xl:grid-cols-4
       "
     >
-      {/* Minha Saúde */}
       <ActionCard
         title="Minha Saúde"
         description="Acompanhe seus registros de saúde."
@@ -38,7 +38,6 @@ function ActionCards() {
         "
       />
 
-      {/* Meus Medicamentos */}
       <ActionCard
         title="Meus Medicamentos"
         description="Veja seus remédios e o histórico de doses."
@@ -51,7 +50,6 @@ function ActionCards() {
         "
       />
 
-      {/* Minha Agenda */}
       <ActionCard
         title="Minha Agenda"
         description="Consulte seus compromissos."
@@ -64,11 +62,10 @@ function ActionCards() {
         "
       />
 
-      {/* Alimentação e Nutrição */}
       <ActionCard
         title="Alimentação e Nutrição"
         description="Visualize seus registros e históricos."
-        icon={Utensils}
+        icon={FileText}
         onClick={() => navigate("/alimentacao")}
         color="
           bg-gradient-to-br
