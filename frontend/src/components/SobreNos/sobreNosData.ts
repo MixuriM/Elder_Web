@@ -11,14 +11,14 @@ import {
 // FOTOGRAFIAS DA EQUIPE
 // ==========================================
 
-import fotoMarcos from '../../img/marcos.png'
-import fotoLaureane from '../../img/laureane.jpeg'
+import fotoMarcos from '../../Img/marcos.png'
+import fotoLaureane from '../../Img/laureane.jpeg'
 
 // ==========================================
 // IMAGEM DECORATIVA DO ELDER WEB
 // ==========================================
 
-import folhaInicioD from '../../img/folha_inicioD.webp'
+import folhaInicioD from '../../Img/folha_inicioD.webp'
 
 // Disponibiliza a folha para outros componentes
 export { folhaInicioD }
