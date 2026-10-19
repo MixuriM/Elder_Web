@@ -1,110 +1,84 @@
+
 import { ArrowLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
-
 import BotaoTema from '../layout/BotaoTema'
 
 function SobreHeader() {
   return (
     <header
       className="
-        sticky
-        top-0
-        z-40
-        border-b
-        border-[#E7E4F5]
-        bg-white/90
-        backdrop-blur-md
-
-        dark:border-white/10
+        relative z-20
+        w-full
+        border-b border-[#E6E2F5]
+        bg-white/80
+        dark:border-[#303149]
         dark:bg-[#11141D]/90
       "
     >
       <div
         className="
-          mx-auto
-          flex
-          min-h-[76px]
-          w-full
-          max-w-6xl
-          items-center
-          justify-between
-          gap-3
-          px-5
-
-          sm:px-8
-          lg:px-10
+          mx-auto flex min-h-[76px]
+          w-full max-w-6xl
+          flex-wrap items-center
+          justify-between gap-3
+          px-5 py-3
+          sm:px-8 lg:px-10
         "
       >
+        {/* VOLTAR PARA O INÍCIO */}
         <Link
           to="/"
           className="
-            inline-flex
-            min-h-[44px]
-            items-center
-            gap-2
-            rounded-xl
-            px-3
-            font-semibold
-            text-[#071A38]
-            transition-colors
-
-            hover:bg-[#F3F0FF]
-            hover:text-[#6C63FF]
-
+            inline-flex min-h-11
+            items-center gap-2
+            rounded-lg
+            px-2 py-2
+            text-sm font-semibold
+            text-[#5147B5]
+            dark:text-[#B9B3FF]
             focus-visible:outline
-            focus-visible:outline-4
+            focus-visible:outline-2
             focus-visible:outline-offset-2
             focus-visible:outline-[#6C63FF]
-
-            dark:text-[#F5F5FA]
-            dark:hover:bg-white/10
-            dark:hover:text-[#A18BFF]
           "
         >
-          <ArrowLeft size={22} />
+          <ArrowLeft
+            size={20}
+            aria-hidden="true"
+          />
 
-          <span className="hidden sm:inline">
-            Página inicial
-          </span>
-
-          <span className="sm:hidden">
-            Voltar
-          </span>
+          <span>Voltar ao início</span>
         </Link>
 
-        <div className="flex items-center gap-3">
+        {/* AÇÕES DO CABEÇALHO */}
+        <div
+          className="
+            flex items-center
+            gap-3 sm:gap-4
+          "
+        >
+          {/* ALTERNAR TEMA */}
           <BotaoTema compacto />
 
+          {/* ENTRAR OU CRIAR CONTA */}
           <Link
             to="/welcome"
             className="
-              inline-flex
-              min-h-[44px]
-              items-center
-              justify-center
+              inline-flex min-h-11
+              items-center justify-center
               rounded-xl
-              bg-[#5F56EC]
-              px-5
-              font-bold
-              text-white
-              transition-all
-
-              hover:bg-[#554CD8]
-              hover:shadow-md
-
+              bg-[#6258E8]
+              px-4 py-2
+              text-center text-sm
+              font-semibold text-white
+              sm:px-5
               focus-visible:outline
-              focus-visible:outline-4
+              focus-visible:outline-2
               focus-visible:outline-offset-2
-              focus-visible:outline-[#6C63FF]
+              focus-visible:outline-[#A18BFF]
             "
           >
-            <span className="hidden sm:inline">
-              Entrar ou criar conta
-            </span>
-
-            <span className="sm:hidden">
-              Entrar
-            </span>
+            Entrar ou criar conta
           </Link>
         </div>
       </div>

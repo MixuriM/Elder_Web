@@ -1,3 +1,4 @@
+
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -8,12 +9,13 @@ import SobreNos from './SobreNos'
 expect.extend(toHaveNoViolations)
 
 // LIMITE:
-// O jsdom não calcula cores reais, então contraste não é
-// verificado neste teste automatizado.
+// O jsdom não calcula as cores reais.
+// Por isso, o contraste deve ser verificado
+// separadamente no navegador.
 //
-// A existência do H1 também é verificada manualmente,
-// pois algumas regras de página inteira não são executadas
-// normalmente pelo jest-axe.
+// A existência de um único H1 e de um único main
+// é verificada explicitamente nestes testes.
+
 const AXE = {
   rules: {
     'color-contrast': {
@@ -31,7 +33,7 @@ function renderSobreNos() {
 }
 
 describe('SobreNos (acessibilidade)', () => {
-  it('possui um único título principal', () => {
+  it('possui um único título principal H1', () => {
     renderSobreNos()
 
     expect(
@@ -56,7 +58,7 @@ describe('SobreNos (acessibilidade)', () => {
     ).toHaveLength(1)
   })
 
-  it('possui regiões identificadas pelos títulos das seções', () => {
+  it('possui regiões identificadas pelos títulos', () => {
     renderSobreNos()
 
     const secoes = [
@@ -79,17 +81,72 @@ describe('SobreNos (acessibilidade)', () => {
   it('possui links acessíveis de navegação', () => {
     renderSobreNos()
 
-    expect(
-      screen.getByRole('link', {
-        name: /página inicial/i,
-      }),
-    ).toHaveAttribute('href', '/')
+    const linkInicio = screen.getByRole('link', {
+      name: /voltar ao início/i,
+    })
+
+    expect(linkInicio).toHaveAttribute(
+      'href',
+      '/',
+    )
+
+    const linkWelcome = screen.getByRole('link', {
+      name: /entrar ou criar conta/i,
+    })
+
+    expect(linkWelcome).toHaveAttribute(
+      'href',
+      '/welcome',
+    )
+  })
+
+  it('possui link acessível para conhecer o Elder', () => {
+    renderSobreNos()
+
+    const link = screen.getByRole('link', {
+      name: /conhecer o elder$/i,
+    })
+
+    expect(link).toHaveAttribute(
+      'href',
+      '/welcome',
+    )
+  })
+
+  it('mantém as folhas decorativas ocultas dos leitores de tela', () => {
+    const { container } = renderSobreNos()
+
+    const folhas = container.querySelectorAll(
+      'img[alt=""]',
+    )
+
+    expect(folhas).toHaveLength(3)
+
+    folhas.forEach((folha) => {
+      expect(folha).toHaveAttribute('alt', '')
+    })
+  })
+
+  it('possui imagens da equipe com descrição acessível', () => {
+    renderSobreNos()
 
     expect(
-      screen.getByRole('link', {
-        name: /entrar ou criar conta/i,
+      screen.getByRole('img', {
+        name: /foto de marcos/i,
       }),
-    ).toHaveAttribute('href', '/welcome')
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('img', {
+        name: /foto de laureane/i,
+      }),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('img', {
+        name: /fotografia de jennifer indisponível/i,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('não possui violações detectáveis pelo axe', async () => {
