@@ -56,7 +56,7 @@ function SobreCard({
           <h2
             id={`titulo-${id}`}
             className="
-              text-xl font-bold
+              break-words text-xl font-bold
               leading-snug
               text-[#071A38]
               sm:text-2xl
