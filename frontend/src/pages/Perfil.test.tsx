@@ -21,6 +21,12 @@ jest.mock("../components/perfil/SituacaoEmail", () => {
   };
 });
 
+// A exclusão de conta tem teste próprio (ExcluirConta.test.tsx); aqui só importa que a seção aparece, no fim, para todo perfil.
+jest.mock("../components/perfil/ExcluirConta", () => ({
+  __esModule: true,
+  default: ({ tipoPerfil }: { tipoPerfil: string | null }) => <p>secao-excluir-conta:{String(tipoPerfil)}</p>,
+}));
+
 // O contexto de foto importa useAuthUser (Firebase); o teste não precisa dele.
 jest.mock("../hooks/useAuthUser", () => ({
   useAuthUser: () => ({ usuario: null, carregando: false }),
@@ -290,6 +296,30 @@ describe("Perfil: situação do e-mail só para cuidador e familiar", () => {
     );
     await screen.findByDisplayValue("Ana");
     expect(screen.queryByText("secao-situacao-email") !== null).toBe(aparece);
+  });
+
+  it.each(["idoso", "cuidador", "familiar"])("%s: a seção Excluir minha conta aparece depois do formulário", async (tipoPerfil) => {
+    render(
+      <MemoryRouter>
+        <AcessoContext.Provider value={{ tipoPerfil, estado: "ok", temVinculoAprovado: false, temVinculoPendente: false }}>
+          <Perfil />
+        </AcessoContext.Provider>
+      </MemoryRouter>
+    );
+    await screen.findByDisplayValue("Ana");
+    const secao = screen.getByText(`secao-excluir-conta:${tipoPerfil}`);
+    const formulario = screen.getByDisplayValue("Ana").closest("form") as HTMLElement;
+    expect(formulario.compareDocumentPosition(secao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("a seção Excluir minha conta não aparece enquanto o perfil carrega", () => {
+    mockBuscarPerfil.mockReturnValue(new Promise(() => {}));
+    render(
+      <MemoryRouter>
+        <Perfil />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText(/secao-excluir-conta/)).not.toBeInTheDocument();
   });
 
   // O backend zera a verificação do Firebase ao trocar o e-mail. A seção "Confirmação de e-mail" lê a situação só ao

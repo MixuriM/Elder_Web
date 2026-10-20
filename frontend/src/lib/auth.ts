@@ -3,6 +3,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
   signInWithCustomToken,
   GoogleAuthProvider,
   signOut,
@@ -82,6 +85,26 @@ export async function loginWithGoogle() {
 // Modo demonstração: entra numa conta fictícia do elenco com o custom token emitido por POST /demo/entrar-como.
 export async function entrarComTokenDemo(token: string) {
   return signInWithCustomToken(auth, token);
+}
+
+// Exclusão de conta (2026-10-20): o backend só aceita ID Token de login com até 5 minutos. A conta tem senha quando o
+// Firebase lista o provedor password (uma conta pode ter os dois: a senha vale).
+export function contaComSenha(): boolean {
+  return auth.currentUser?.providerData.some((p) => p.providerId === "password") === true;
+}
+
+// Confirma a identidade de novo (senha ou popup do Google) e renova o ID Token, que passa a trazer o auth_time novo.
+// Erros do Firebase (senha errada, popup fechado) sobem como estão; a tela escolhe a mensagem pelo code.
+export async function reautenticar(senha?: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Sem usuário logado.");
+  if (contaComSenha()) {
+    if (!senha || !user.email) throw new Error("Senha obrigatória.");
+    await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, senha));
+  } else {
+    await reauthenticateWithPopup(user, googleProvider);
+  }
+  await user.getIdToken(true);
 }
 
 // Logout

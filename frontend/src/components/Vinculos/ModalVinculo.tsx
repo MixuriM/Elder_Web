@@ -7,11 +7,13 @@ type ModalVinculoProps = {
   aberto: boolean;
   titulo: string;
   onFechar: () => void;
+  // Id do texto que descreve o diálogo (aria-describedby), quando há um.
+  idDescricao?: string;
   children: ReactNode;
 };
 
 // Contêiner dos formulários de vínculo. Não fecha ao clicar fora: quem digita devagar não perde o que escreveu.
-export default function ModalVinculo({ aberto, titulo, onFechar, children }: ModalVinculoProps) {
+export default function ModalVinculo({ aberto, titulo, onFechar, idDescricao, children }: ModalVinculoProps) {
   const idTitulo = useId();
   const dialogoRef = useRef<HTMLElement>(null);
 
@@ -43,6 +45,7 @@ export default function ModalVinculo({ aberto, titulo, onFechar, children }: Mod
         role="dialog"
         aria-modal="true"
         aria-labelledby={idTitulo}
+        aria-describedby={idDescricao}
         className="flex max-h-full w-full min-w-0 max-w-2xl flex-col overflow-y-auto rounded-3xl border border-[#E5E2F5] bg-white shadow-2xl focus:!outline-none dark:border-[#393947] dark:bg-[#171721]"
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#EEEAF8] px-5 py-5 sm:px-7 dark:border-[#393947]">

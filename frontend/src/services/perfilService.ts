@@ -1,4 +1,5 @@
 import { getCurrentUserToken } from "../lib/auth";
+import { chamarApi } from "../lib/chamarApi";
 
 // Campos de quem decide por esta conta, como GET /usuario/me e PATCH /usuario/me/modo-decisao devolvem.
 export type EstadoDecisao = {
@@ -124,4 +125,10 @@ export function enviarFotoPerfil(arquivo: File) {
 // Remove a foto (idempotente); devolve sempre null
 export function removerFotoPerfil() {
   return chamarFoto("DELETE");
+}
+
+// Exclusão da própria conta (LGPD art. 18). 204 sem corpo é sucesso. Antes, a tela confirma a identidade de novo
+// (reautenticar em lib/auth): o backend recusa login com mais de 5 minutos (401, codigo 'reautenticar').
+export async function excluirConta(): Promise<void> {
+  await chamarApi("/usuario/me", { method: "DELETE", body: JSON.stringify({ confirmacao: "EXCLUIR" }) });
 }

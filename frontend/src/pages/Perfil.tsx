@@ -25,6 +25,7 @@ import FormularioPerfil from "../components/perfil/FormularioPerfil";
 // Importa o layout da página de perfil
 import LayoutPerfil from "../components/perfil/LayoutPerfil";
 import SituacaoEmail from "../components/perfil/SituacaoEmail";
+import ExcluirConta from "../components/perfil/ExcluirConta";
 import { useAcesso } from "../contexts/useAcesso";
 import { useTitulo } from "../hooks/useTitulo";
 
@@ -226,6 +227,9 @@ function Perfil() {
 
       {/* Aviso de emergência só vai para e-mail confirmado: quem recebe (cuidador e familiar) vê a situação. */}
       {(tipoPerfil === "cuidador" || tipoPerfil === "familiar") && <SituacaoEmail key={versaoSituacaoEmail} />}
+
+      {/* Exclusão da própria conta (LGPD art. 18), sempre no fim da página. */}
+      <ExcluirConta tipoPerfil={tipoPerfil} />
     </LayoutPerfil>
   );
 }
