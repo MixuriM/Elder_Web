@@ -2,6 +2,7 @@ import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ConfirmarEmail from "./ConfirmarEmail";
+import { VERSAO_DOCUMENTOS } from "../lib/documentosLegais";
 
 const mockSyncUser = jest.fn();
 const mockGetCurrentUserToken = jest.fn();
@@ -52,7 +53,7 @@ describe("ConfirmarEmail", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/confirmado com sucesso/i));
 
     expect(mockGetCurrentUserToken).toHaveBeenCalledWith(true);
-    expect(mockSyncUser).toHaveBeenCalledWith({ tipoPerfil: "idoso", aceiteDocumentos: "1.1" });
+    expect(mockSyncUser).toHaveBeenCalledWith({ tipoPerfil: "idoso", aceiteDocumentos: VERSAO_DOCUMENTOS });
     expect(mockSyncUser).toHaveBeenCalledTimes(1);
   });
 
