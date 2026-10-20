@@ -16,8 +16,9 @@ rodada provou o item; troque para "verificado em AAAA-MM-DD" quando conferir.
 | 8. Autenticação em dois fatores | GitHub, Vercel, Render, Azure, Google/Firebase e Brevo | Ligar 2FA na conta de cada pessoa do grupo que tem acesso. | não verificado |
 | 9. GitHub: proteção da `main` (PR obrigatório, CI verde, sem force push), secret scanning e push protection, alertas e atualizações de segurança do Dependabot | GitHub, Settings do repositório | Branch protection rules ou rulesets na `main`; Code security: secret scanning, push protection, Dependabot alerts e security updates. O `dependabot.yml` só abre PRs para `development`, sem merge automático. | não verificado |
 | 10. Brevo: chave com escopo mínimo, rotação se houver dúvida, domínio próprio com SPF e DKIM | Painel da Brevo e DNS do domínio | Conferir permissões da chave usada em `EMAIL_API_KEY`; domínio próprio com SPF e DKIM continua pendente (já listado no CLAUDE.md). | não verificado |
-| 11. Promover a CSP de relatório para obrigatória | `frontend/vercel.json` | Depois de publicar, com o console do navegador aberto em produção, testar: login por e-mail, login com Google, cadastro, foto, PDF do histórico, aprovar e recusar vínculo, trocar tema. Só sem nenhuma violação, trocar a chave `Content-Security-Policy-Report-Only` por `Content-Security-Policy` (juntando com a que já existe) e ajustar `cabecalhosVercel.test.ts`. Conferir também a origem da API no `connect-src` (`https://elder-web-backend.onrender.com`). | não verificado |
-| 12. Registrar o item 9.5 (endurecimento de segurança) no plano de desenvolvimento | Cofre Obsidian, `Elder Web - Plano de Desenvolvimento.md` | Acrescentar o item com o resumo do histórico. | não verificado |
+| 11. Promover a CSP de relatório para obrigatória | `frontend/vercel.json` | Depois de publicar, com o console do navegador aberto em produção, testar: login por e-mail, login com Google, cadastro, foto, PDF do histórico, aprovar e recusar vínculo, trocar tema. Só sem nenhuma violação, trocar a chave `Content-Security-Policy-Report-Only` por `Content-Security-Policy` (juntando com a que já existe) e ajustar `cabecalhosVercel.test.ts`. Conferir também a origem da API no `connect-src` (`https://elder-web-backend.onrender.com`). **Resultado de 2026-10-20 (em ambiente local, antes de publicar):** a CSP completa do `vercel.json`, injetada como obrigatória no HTML, deu 0 violações (`securitypolicyviolation`) e nenhum erro de CSP no console em 39 telas e estados: as 11 rotas protegidas de cada perfil (idoso, cuidador e familiar; cuidador sem `/familia`), `/vinculos/:id` e o Perfil com o diálogo de exclusão aberto em 1280 e 320 px, sem confirmar. Controle negativo: um script inline e um `fetch` a origem fora da lista dispararam `script-src-elem` e `connect-src`. Cadastro, login por e-mail, aprovar vínculo e o diálogo foram exercitados; **não cobertos**: login com Google, foto, PDF do histórico e recusar vínculo, que continuam por conta do Marcos em produção. | não verificado (rotas autenticadas sem violação em 2026-10-20, local; faltam os fluxos acima em produção) |
+| 12. Registrar o item 9.5 (endurecimento de segurança) no plano de desenvolvimento | Cofre Obsidian, `Elder Web - Plano de Desenvolvimento.md` | Acrescentar o item com o resumo do histórico, incluindo "Fechamento do item 9.5 (2026-10-20)". | não verificado |
+| 13. Exclusão de conta em produção: testar uma vez com uma conta descartável criada pelo próprio Marcos, conferir no Firebase que o usuário sumiu e no banco que a linha foi anonimizada | Site em produção, Console do Firebase (Users) e SSMS no banco de produção | Depois de publicar (backend no Render, depois frontend na Vercel): criar uma conta nova com e-mail seu e descartável, entrar, abrir Meu Perfil, Excluir minha conta. No Firebase, o usuário não aparece mais. No SSMS: `SELECT id, nome, email, telefone, aceite_documentos_versao FROM Usuario WHERE id = <id>` deve mostrar nome `Conta excluída`, e-mail `excluido-<id>@excluido.invalid`, telefone nulo e a versão do aceite preservada. Nunca usar uma conta real nem a de demonstração. | não verificado |
 
 ## Teste do trust proxy (item 5)
 
@@ -70,3 +71,32 @@ Resultado medido pelo Marcos em 2026-10-15:
 Ao lançar uma versão nova dos documentos, a ordem se inverte: primeiro o backend com a versão nova em
 `VERSOES_DOCUMENTOS` (`backend/src/lib/versoesDocumentos.ts`, mantendo a anterior na lista), depois o frontend com o
 `VERSAO_DOCUMENTOS` novo.
+
+## Valores recomendados e ordem de execução (2026-10-20)
+
+Só organiza o que já está nos itens acima: nenhum estado mudou. Ordem sugerida, uma linha por item; "Valor" é o que deve
+estar no painel quando o item for marcado como verificado.
+
+| Ordem | Item | Valor recomendado |
+| --- | --- | --- |
+| 1 | 8. 2FA | Ligado em todos os serviços (GitHub, Vercel, Render, Azure, Google/Firebase e Brevo), na conta de cada pessoa do grupo com acesso. Primeiro, porque protege as contas dos demais painéis. |
+| 2 | 9. GitHub | `main` com PR obrigatório, checks `backend` e `frontend` obrigatórios, sem force push; secret scanning e push protection ligados; alertas e security updates do Dependabot ligados. |
+| 3 | 6. Firebase Auth | Política de senha: mínimo 8, maiúscula, minúscula, número e caractere especial, modo Require, "Forçar upgrade no login" desmarcado. Proteção contra enumeração de e-mail: ligada. Domínios autorizados: só a Vercel de produção e `localhost`. Apagar as contas `e2e-*@e2e.elderweb.test`. |
+| 4 | 7. Chave web do Google Cloud | Referrers HTTP: Vercel de produção, `elder-web.firebaseapp.com`, `elder-web.web.app` e `localhost`. APIs: só Identity Toolkit e Token Service. |
+| 5 | 4. Render, ambiente | Sem `DEBUG` nem variável `PRISMA_*`; `TRUST_PROXY_SALTOS` = `3`; Secret Files e grupos vinculados revistos. |
+| 6 | 1. Usuário do banco | A aplicação conecta só com `db_datareader` e `db_datawriter`; o admin só migra. |
+| 7 | 3. Backup do Azure | Retenção point-in-time conferida e uma restauração de teste num banco descartável, apagado depois. |
+| 8 | 10. Brevo | Chave com escopo mínimo (só envio); domínio próprio com SPF e DKIM quando houver. |
+| 9 | Publicar | Backend (Render), depois frontend (Vercel); nenhuma migration (ver "Ordem de publicação da exclusão de conta"). |
+| 10 | 13. Exclusão em produção | Um teste com conta descartável, como descrito no item. |
+| 11 | 11. CSP obrigatória | Só depois dos fluxos que faltam em produção (login com Google, foto, PDF, recusar vínculo) sem violação. |
+| 12 | 12. Plano de desenvolvimento | Registrar o item 9.5 no vault. |
+
+## Ordem de publicação da exclusão de conta
+
+Sem migration (o Azure não é tocado). `VERSAO_DOCUMENTOS` do frontend passou a `1.2` e o frontend novo manda `1.2` no
+cadastro; por isso:
+
+1. Backend (Render): `VERSOES_DOCUMENTOS` aceita `1.1` e `1.2`, e a rota `DELETE /usuario/me` entra no ar.
+2. Frontend (Vercel): texto legal 1.2 e a seção Excluir minha conta. Publicado antes do backend, todo cadastro novo daria 400
+   (versão `1.2` desconhecida) e o botão de exclusão receberia 404.
