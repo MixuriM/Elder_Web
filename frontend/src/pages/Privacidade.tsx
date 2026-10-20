@@ -208,8 +208,8 @@ export default function Privacidade() {
           Seus dados ficam guardados enquanto a conta existir. Você pode excluir a conta em Meu Perfil, no botão
           Excluir minha conta. Se a conta for de idoso, isso apaga o histórico de saúde, remédios, agenda e
           alimentação e remove o acesso de familiares e cuidadores. Se for de cuidador ou familiar, remove os seus
-          vínculos e os seus dados de perfil. Idosos que você cadastrou e que não tenham outro vínculo aprovado também são
-          apagados. Não dá para desfazer.
+          vínculos e os seus dados de perfil. Idosos que você cadastrou, que ainda não acessaram a própria conta e que não tenham outro
+          vínculo aprovado também são apagados. Não dá para desfazer.
         </p>
         <p>
           O que permanece: o que você registrou sobre outros idosos continua no histórico deles, sem o seu nome (a conta

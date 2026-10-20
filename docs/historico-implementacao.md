@@ -2865,3 +2865,12 @@ reautenticação e nunca com a reautenticação falha; `usuarioExcluirConta.test
 **Revisão.** Mutações locais restauradas por cópia, todas derrubaram testes: M1 e M2 (sync e marcador), M3a a M3i (um ponto da
 varredura por vez), M4a a M4c (reconciliação) e M5a a M5f (script de limpeza). Um mutante da varredura (M3h) e um da
 limpeza (M5a, o prefixo `e2e-` mascarado pela checagem de tamanho) exigiram reescrever a mutação ou o teste para morrer.
+
+**Revisão final (subagente `security-auditor`).** Sem achado crítico nem alto. Corrigido: o texto "Idosos que você cadastrou e que
+não tenham outro vínculo aprovado também são apagados" valia só para idoso que nunca acessou a própria conta (`firebase_uid`
+nulo); quem assumiu a conta pelo passo 3.3 fica. Agora Privacidade e diálogo dizem "que ainda não acessaram a própria conta".
+Não reproduzido, mantido como risco aceito: o auditor apontou que o guarda do marcador é um teste em JavaScript e a busca
+compara no banco; com a collation do banco local (`SQL_Latin1_General_CP1_CI_AS`) o hífen suave (U+00AD) e o espaço de largura
+zero (U+200B) NÃO são ignorados (`=` deu diferente), então o desvio não existe aqui. O Azure usa a collation padrão igual, mas
+não foi conferida: `SELECT DATABASEPROPERTYEX(DB_NAME(),'Collation')` e, no mesmo banco, `SELECT COUNT(*) FROM Usuario WHERE
+email LIKE '%@excluido.invalid' AND email NOT LIKE 'excluido-%'` (esperado 0; o local deu 0) ficam com o Marcos.
