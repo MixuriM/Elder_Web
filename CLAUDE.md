@@ -372,11 +372,15 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `modo_decisao` efetivo `'familiar'`, flag exata e estrita).
 
 - Frontend (2026-10-08, decisões do grupo): menu por perfil (D1, D2): idoso vê tudo; cuidador ou familiar sem vínculo
-  aprovado vê só Início, Meu Perfil, a lista do seu tipo (Família ou Cuidadores) e Orientações; Saúde, Medicamentos,
+  aprovado vê só Início, Meu Perfil, a lista do seu tipo (Família ou Cuidadores), Orientações e Sobre nós; Saúde, Medicamentos,
   Agenda e Alimentação exigem ao menos 1 vínculo aprovado (`RotaComVinculo`); cuidador não vê Família. Falha ao carregar
   perfil ou vínculos falha aberto com aviso (D3; a barreira real é o 403). `/familia` e `/cuidadores` filtram no
   cliente o `GET /vinculo` (D4); `/vinculos` redireciona para `/familia`, `/vinculos/:id` é o detalhe. Rotas
   protegidas aninhadas em `LayoutAutenticado` (D5): páginas não têm `<main>` próprio nem botão que saia do site.
+- Frontend (2026-10-19, decisões do grupo): `/orientacoes` pública (`MolduraOrientacoes`: logado na moldura autenticada,
+  visitante com `SobreHeader` e `Footer`); "Sobre nós" na sidebar de todos os perfis, `/sobre-nos` segue standalone (logado
+  vê "Voltar ao início" e CTA para `/Home`, sem "Entrar"); Footer da landing com nav "Ajuda e informações". Navbar
+  (medido 1024 a 1536 px, folga mínima 19 px): tema só ícone de `lg` a `xl`; texto grande tira o "Sobre" entre `lg` e `xl`.
 
 **Itens implementados (resumo; detalhes, PRs e hashes no histórico)**
 - 5.2 a 5.4 (dose, histórico de remédios, PDF): leituras com vínculo aprovado basta. PDF montado inteiro em memória
