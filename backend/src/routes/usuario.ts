@@ -273,7 +273,7 @@ async function anonimizarUsuario(tx: Tx, id: number) {
 }
 
 // Idoso que perdeu o último familiar aprovado não pode ficar decidido por 'familiar' nem com transferência pendente; e
-// transferência iniciada ou confirmada por quem foi excluído não tem mais quem a sustente. Não usa resolverModoDecisao:
+// transferência iniciada por quem foi excluído não tem mais quem a sustente (a confirmação dele, só sai). Não usa resolverModoDecisao:
 // ele lê pelo prisma global e travaria nas linhas que esta transação já escreveu.
 async function reconciliarDecisao(tx: Tx, idosoId: number, excluidoId: number) {
   const idoso = await tx.usuario.findFirst({
@@ -294,11 +294,13 @@ async function reconciliarDecisao(tx: Tx, idosoId: number, excluidoId: number) {
       data: { modo_decisao: "idoso", ...CANCELAMENTO_SOLICITACAO },
       select: { id: true },
     });
-  } else if (
-    pendente &&
-    (idoso.modo_decisao_solicitado_por_id === excluidoId || idoso.modo_decisao_segunda_confirmacao_id === excluidoId)
-  ) {
+  } else if (pendente && idoso.modo_decisao_solicitado_por_id === excluidoId) {
+    // O iniciador deixou de existir: ninguém sustenta a transferência.
     await tx.usuario.update({ where: { id: idosoId }, data: { ...CANCELAMENTO_SOLICITACAO }, select: { id: true } });
+  } else if (pendente && idoso.modo_decisao_segunda_confirmacao_id === excluidoId) {
+    // Só a segunda confirmação some: o resolver decide no vencimento (1 familiar restante dispensa a confirmação, 2 ou
+    // mais sem ela deixam a transferência vencer sem efeito), como se a confirmação nunca tivesse sido dada.
+    await tx.usuario.update({ where: { id: idosoId }, data: { modo_decisao_segunda_confirmacao_id: null }, select: { id: true } });
   }
 }
 

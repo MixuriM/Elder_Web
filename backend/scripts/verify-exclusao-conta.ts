@@ -287,6 +287,96 @@ async function main() {
     ok("Firebase falhando: o banco inteiro foi desfeito (6 tabelas e a linha de Usuario iguais)", JSON.stringify(antes7) === JSON.stringify(depois7) && JSON.stringify(await linha(idoso7.id)) === linhaAntes7, JSON.stringify(depois7));
     const r7b = await excluir(idoso7.token);
     ok("depois que o Firebase volta, a mesma conta é excluída normalmente", r7b.status === 204 && (await linha(idoso7.id))?.nome === "Conta excluída", `status ${r7b.status}`);
+
+    // ---- 8: reconciliarDecisao contra o resolver REAL (fechamento do 9.5, F4) ----
+    // Depois de excluir, resolverModoDecisao (que também efetiva a transferência vencida) tem que devolver o que as regras
+    // de autoridade pedem: ninguém perde autoridade indevidamente nem ganha sem base.
+    const { resolverModoDecisao } = await import("../src/routes/vinculo");
+    const passado = new Date(Date.now() - 24 * 3600 * 1000);
+    const futuro = new Date(Date.now() + 5 * 24 * 3600 * 1000);
+    const solicitar = (idosoId: number, porId: number, expira: Date, segundaId: number | null = null) =>
+      prisma.usuario.update({
+        where: { id: idosoId },
+        data: {
+          modo_decisao: "idoso",
+          modo_decisao_solicitado: "familiar",
+          modo_decisao_solicitado_por_id: porId,
+          modo_decisao_solicitado_em: new Date(expira.getTime() - 7 * 24 * 3600 * 1000),
+          modo_decisao_expira_em: expira,
+          modo_decisao_segunda_confirmacao_id: segundaId,
+        },
+      });
+    const caso = async (nome: string, esperado: string, obtido: Promise<string>) => {
+      const o = await obtido;
+      ok(`resolver, caso ${nome}: esperado '${esperado}'`, o === esperado, `obtido '${o}'`);
+    };
+
+    // (1) único familiar aprovado excluído, idoso em 'familiar'.
+    const i1 = await conta("idoso", { modo_decisao: "familiar" });
+    const f1a = await conta("familiar");
+    await vincular(i1.id, f1a.id, "familiar");
+    await excluir(f1a.token);
+    await caso("1 (único familiar excluído)", "idoso", resolverModoDecisao(i1.id));
+
+    // (2) dois familiares, um excluído.
+    const i2 = await conta("idoso", { modo_decisao: "familiar" });
+    const f2a = await conta("familiar");
+    const f2b = await conta("familiar");
+    await vincular(i2.id, f2a.id, "familiar");
+    await vincular(i2.id, f2b.id, "familiar");
+    await excluir(f2a.token);
+    await caso("2 (dois familiares, um excluído)", "familiar", resolverModoDecisao(i2.id));
+
+    // (3) solicitação iniciada pelo excluído, ainda dentro da carência, com outro familiar aprovado.
+    const i3 = await conta("idoso", { modo_decisao: "idoso" });
+    const f3a = await conta("familiar");
+    const f3b = await conta("familiar");
+    await vincular(i3.id, f3a.id, "familiar");
+    await vincular(i3.id, f3b.id, "familiar");
+    await solicitar(i3.id, f3a.id, futuro);
+    await excluir(f3a.token);
+    await caso("3 (iniciador excluído, na carência)", "idoso", resolverModoDecisao(i3.id));
+    const l3i = await linha(i3.id);
+    ok("caso 3: solicitação limpa", l3i?.modo_decisao_solicitado === null && l3i?.modo_decisao_solicitado_por_id === null, "ok");
+
+    // (4) carência vencida, segunda confirmação do excluído; o iniciador segue e fica 1 familiar: a confirmação deixa de ser exigida.
+    const i4 = await conta("idoso", { modo_decisao: "idoso" });
+    const f4ini = await conta("familiar");
+    const f4conf = await conta("familiar");
+    await vincular(i4.id, f4ini.id, "familiar");
+    await vincular(i4.id, f4conf.id, "familiar");
+    await solicitar(i4.id, f4ini.id, passado, f4conf.id);
+    await excluir(f4conf.token);
+    await caso("4 (vencida, confirmador excluído, 1 familiar restante)", "familiar", resolverModoDecisao(i4.id));
+
+    // (4b) mesmo caso com 3 familiares: sobram 2, a confirmação retirada faz a transferência vencer sem efeito.
+    const i4b = await conta("idoso", { modo_decisao: "idoso" });
+    const f4bini = await conta("familiar");
+    const f4bconf = await conta("familiar");
+    const f4bout = await conta("familiar");
+    for (const f of [f4bini, f4bconf, f4bout]) await vincular(i4b.id, f.id, "familiar");
+    await solicitar(i4b.id, f4bini.id, passado, f4bconf.id);
+    await excluir(f4bconf.token);
+    await caso("4b (vencida, confirmador excluído, 2 familiares restantes)", "idoso", resolverModoDecisao(i4b.id));
+
+    // (5) vencida, sem segunda confirmação, iniciada por quem continua; o outro familiar é excluído e sobra 1.
+    const i5 = await conta("idoso", { modo_decisao: "idoso" });
+    const f5ini = await conta("familiar");
+    const f5out = await conta("familiar");
+    await vincular(i5.id, f5ini.id, "familiar");
+    await vincular(i5.id, f5out.id, "familiar");
+    await solicitar(i5.id, f5ini.id, passado);
+    await excluir(f5out.token);
+    await caso("5 (vencida, sem confirmação, iniciador segue, outro excluído)", "familiar", resolverModoDecisao(i5.id));
+
+    // (6) idoso sem login que fica por causa de um cuidador aprovado, sem nenhum familiar.
+    const f8 = await conta("familiar");
+    const c8 = await conta("cuidador");
+    const i8 = await idosoSemLogin(f8.id, { modo_decisao: "familiar" });
+    await vincular(i8.id, f8.id, "familiar", "aprovado", "cadastro_familiar");
+    await vincular(i8.id, c8.id, "cuidador");
+    await excluir(f8.token);
+    await caso("6 (sem login, só cuidador restante)", "idoso", resolverModoDecisao(i8.id));
   } finally {
     // Ordem de FK: doses, medicamentos, registros, eventos, vínculos; depois as referências entre contas; por fim as contas.
     const m = await prisma.medicamento.findMany({ where: { OR: [{ idoso_id: { in: usuarios } }, { criado_por_id: { in: usuarios } }] }, select: { id: true } });
