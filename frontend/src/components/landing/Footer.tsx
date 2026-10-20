@@ -2,6 +2,11 @@ import { Link } from "react-router-dom";
 
 import { DOCUMENTOS_LEGAIS } from "../../lib/documentosLegais";
 
+const AJUDA = [
+  { caminho: "/orientacoes", titulo: "Orientações gerais" },
+  { caminho: "/sobre-nos", titulo: "Sobre nós" },
+];
+
 function Footer() {
   return (
     <footer
@@ -33,6 +38,7 @@ function Footer() {
           text-center
 
           md:flex-row
+          md:flex-wrap
           md:text-left
         "
       >
@@ -49,20 +55,37 @@ function Footer() {
           Todos os direitos reservados.
         </p>
 
-        <nav aria-label="Documentos legais">
-          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-            {DOCUMENTOS_LEGAIS.map((d) => (
-              <li key={d.caminho}>
-                <Link
-                  to={d.caminho}
-                  className="inline-flex min-h-11 items-center px-1 text-base font-semibold text-[#071A38] underline underline-offset-4 hover:text-[#5F56EC] dark:text-[#F5F5FA] dark:hover:text-[#B6B0FF]"
-                >
-                  {d.titulo}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+          <nav aria-label="Ajuda e informações">
+            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+              {AJUDA.map((a) => (
+                <li key={a.caminho}>
+                  <Link
+                    to={a.caminho}
+                    className="inline-flex min-h-11 items-center px-1 text-base font-semibold text-[#071A38] underline underline-offset-4 hover:text-[#5F56EC] dark:text-[#F5F5FA] dark:hover:text-[#B6B0FF]"
+                  >
+                    {a.titulo}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav aria-label="Documentos legais">
+            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+              {DOCUMENTOS_LEGAIS.map((d) => (
+                <li key={d.caminho}>
+                  <Link
+                    to={d.caminho}
+                    className="inline-flex min-h-11 items-center px-1 text-base font-semibold text-[#071A38] underline underline-offset-4 hover:text-[#5F56EC] dark:text-[#F5F5FA] dark:hover:text-[#B6B0FF]"
+                  >
+                    {d.titulo}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
 
         {/* Frase do Elder */}
         <p

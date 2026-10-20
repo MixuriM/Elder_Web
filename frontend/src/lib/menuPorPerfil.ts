@@ -4,7 +4,7 @@ import type { MenuItem } from "../components/types/home";
 
 
 const MODULOS_DE_DADOS = ["/saude", "/remedios", "/agenda", "/alimentacao"];
-const SO_BASICOS = ["/Home", "/perfil", "/orientacoes"];
+const SO_BASICOS = ["/Home", "/perfil", "/orientacoes", "/sobre-nos"];
 
 // Tabela D2. Carregando mostra só o básico; erro falha aberto (menu completo do perfil conhecido,
 // ou todos se nem o perfil carregou): esconder módulo por falha de rede seria pior que mostrá-lo,

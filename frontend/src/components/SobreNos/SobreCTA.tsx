@@ -2,7 +2,12 @@
 import { ArrowRight, HeartHandshake } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { useAuthUser } from '../../hooks/useAuthUser'
+
 function SobreCTA() {
+  // Enquanto a sessão carrega, mostra a versão do visitante.
+  const { usuario } = useAuthUser()
+
   return (
     <section
       aria-labelledby="sobre-cta-titulo"
@@ -89,7 +94,7 @@ function SobreCTA() {
 
         {/* BOTÃO */}
         <Link
-          to="/welcome"
+          to={usuario ? '/Home' : '/welcome'}
           className="
             mt-8 inline-flex
             min-h-12 items-center
@@ -104,7 +109,7 @@ function SobreCTA() {
             focus-visible:outline-white
           "
         >
-          Conhecer o Elder
+          {usuario ? 'Ir para o meu início' : 'Conhecer o Elder'}
 
           <ArrowRight
             size={20}
