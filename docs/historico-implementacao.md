@@ -2954,3 +2954,30 @@ Texto original (no `CLAUDE.md` saiu só a contagem "em 22 variantes"):
 
 Antes: a pendência de Emergência listava "rodar `scripts/limpar-contas-e2e.ts`"; as 48 contas `e2e-*@e2e.elderweb.test` do projeto
 `elder-web` foram apagadas e o item saiu das pendências.
+
+## Publicação do PR #210 e correções do CodeQL (2026-10-20, tarde)
+
+**Publicação.** O PR #210 (18 commits de `development`, de `158a169` a `bacc8fc` na `main` depois do rebase) foi mergeado em `main`
+por rebase em 2026-10-20T17:25:35Z (14:25 em Brasília); `main` com 477 commits. Checks `frontend` e `backend` verdes e `CodeQL`
+verde depois da correção. O Marcos seguiu o roteiro de "Publicação da exclusão de conta" do checklist (backend no Render antes do
+frontend na Vercel) e relatou que todos os passos, inclusive o teste de exclusão com conta descartável (item 13), deram certo
+(relato dele, sem comando registrado). Sem migration; o Azure não foi tocado. A Vercel já tinha feito um deploy de pré-visualização da
+branch durante o PR (não é produção). O `development` local e o `origin/development` seguem com os hashes de antes do rebase.
+
+**CodeQL.** O check do PR acusou 6 alertas novos (`gh api` em `code-scanning/alerts` com `ref=refs/pull/210/head` e as anotações do
+check). (1) `js/polynomial-redos` em `isValidEmailFormat` (`backend/src/lib/authHelpers.ts`): a regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` virou
+verificação linear com a mesma regra (um `@`, parte local não vazia, sem espaço em branco, ponto que não seja o primeiro nem o último
+caractere do domínio, teto de 320); 11 testes novos de equivalência e de entrada patológica; também fecha o alerta antigo #1 da `main`.
+(2) Quatro `js/missing-rate-limiting` nos testes novos do `requireAuth` (`requireAuth.test.ts`): os testes passaram a chamar o
+middleware direto, sem rota Express de teste; mutação no guarda de conta excluída derrubou o teste. (3) Um `js/missing-rate-limiting`
+em `DELETE /usuario/me` (`routes/usuario.ts`): falso positivo, descartado como alerta #72 com comentário (a rota tem
+`limiteExcluirConta`, 3 por hora por usuário, e o limite geral do `requireAuth`; o CodeQL só reconhece bibliotecas como
+`express-rate-limit`, e o projeto não adiciona dependência para isso). Os cerca de 50 alertas antigos da `main` seguem abertos
+(quase todos `missing-rate-limiting` pelo mesmo motivo, mais `bad-tag-filter`, `incomplete-sanitization` e três de `sondaHttp.test.ts`);
+a decisão sobre eles continua com o Marcos. Provas: backend 74 suítes e 3553 testes, cobertura 97,73 % de instruções e 96,36 % de
+ramos, `tsc` e lint limpos.
+
+**Pendências do Marcos.** Itens de painel do checklist (2FA, `main` protegida e secret scanning no GitHub, Firebase Auth, chave web do
+Google Cloud, Render, backup do Azure com restauração de teste, Brevo); promoção da CSP depois do login com Google em produção; avisar
+Laureane e Jennifer (Perfil, Privacidade, Termos, landing e `ModalVinculo`); decidir os alertas antigos do CodeQL; sincronizar o
+`development` com a `main` antes do próximo PR (os hashes mudaram no rebase).
