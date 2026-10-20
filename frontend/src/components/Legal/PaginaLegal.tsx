@@ -145,7 +145,7 @@ export default function PaginaLegal({ titulo, resumo, avisoAcademico = false, ch
 
       <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-8 leading-relaxed sm:px-6">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold sm:text-4xl">{titulo}</h1>
+          <h1 className="break-words text-3xl font-bold sm:text-4xl">{titulo}</h1>
           <p className="text-base text-slate-700 dark:text-[#D5D5E0]">
             Versão {VERSAO_DOCUMENTOS}. Última atualização: {DATA_ATUALIZACAO}.
           </p>

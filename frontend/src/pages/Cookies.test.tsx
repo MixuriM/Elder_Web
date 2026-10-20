@@ -52,6 +52,11 @@ describe('Política de Cookies', () => {
     expect(screen.getAllByRole('main')).toHaveLength(1)
   })
 
+  it('o h1 parte palavra longa em vez de vazar em 320 px com texto muito grande (break-words)', () => {
+    renderPagina()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('break-words')
+  })
+
   it('mostra as seções na ordem, cada uma como região', () => {
     renderPagina()
     const h2 = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
