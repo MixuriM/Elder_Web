@@ -288,7 +288,7 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   `#5F56EC` em `text-`/`bg-` e `#554CD8` no hover com texto branco.
 - A matriz `backend/src/testSupport/matrizAcessoLeitura.ts` é compartilhada por `saudeHistorico` e
   `remediosHistorico`. Toda nova rota de leitura por vínculo deve entrar nela.
-- O e2e cria contas `e2e-*@e2e.elderweb.test` no Firebase real, sem limpeza; o `test:a11y` cria 3 e as vincula pela UI.
+- O e2e cria contas `e2e-*@e2e.elderweb.test` no Firebase real; limpar à mão com `scripts/limpar-contas-e2e.ts` (simulação; `--confirmo-firebase` apaga). `test:a11y` cria 3.
 - Celular (2026-10-10): menor largura 320 px, mobile-first; alvo 44x44 com 8 px livres (exceção: link em texto corrido e
   dias da grade do calendário); `input`/`select`/`textarea` com 16 px; `min-h-dvh` (não `min-h-screen`); `grid-cols-1`
   no base de grid responsivo; estouro se corrige na origem, nunca com `overflow-x-hidden`. `npm run test:responsivo`
@@ -317,7 +317,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20).
 - Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
-- Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; apagar as contas `e2e-*@e2e.elderweb.test` do Firebase;
+- Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; rodar `scripts/limpar-contas-e2e.ts`;
   cuidadores e familiares cadastrados antes do PR #162 confirmarem o e-mail no Perfil.
 - Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
   por `status`). Decisões de 2026-10-09 (Marcos, no histórico): `convidar-familiar` com `modo_decisao` efetivo `idoso` e
