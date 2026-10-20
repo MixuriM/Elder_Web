@@ -5,6 +5,7 @@ import { criarLimitador, QUINZE_MIN } from "../lib/limiteTaxa";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
 import { VERSOES_DOCUMENTOS } from "../lib/versoesDocumentos";
+import { ehContaExcluida, MSG_TOKEN_INVALIDO } from "../lib/contaExcluida";
 import { baixarFotoDoGoogle, semFotoPerfil, USUARIO_SEM_FOTO_SELECT } from "../lib/fotoPerfil";
 import {
   isTipoPerfil,
@@ -131,6 +132,12 @@ router.post("/sync", limiteSyncIp, verificarTokenSync, limiteSyncUid, async (req
     });
 
     if (usuarioExistente) {
+      // Conta excluída (anonimizada): o ID Token de antes da exclusão segue válido no Firebase por até 1 h e a linha mantém
+      // o firebase_uid. 401 igual ao do requireAuth, antes de qualquer escrita (ultimo_login_em, promoção de vínculo,
+      // cancelamento de solicitação). O ramo de criação não muda: o e-mail real da conta antiga já não existe na linha.
+      if (ehContaExcluida(usuarioExistente.email)) {
+        return res.status(401).json({ error: MSG_TOKEN_INVALIDO });
+      }
       // RF-033 (item 2.9): login do idoso sempre cancela uma transferência de
       // modo_decisao em curso, com prioridade sobre a expiração da janela de 7 dias —
       // mesmo se as duas coisas "acontecerem ao mesmo tempo". modo_decisao_motivo é

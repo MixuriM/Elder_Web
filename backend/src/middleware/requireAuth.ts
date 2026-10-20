@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { verifyFirebaseToken } from "../lib/authHelpers";
 import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
 import { ehUidDemo } from "../lib/demo/elenco";
+import { ehContaExcluida, MSG_TOKEN_INVALIDO } from "../lib/contaExcluida";
 
 // Limite geral por usuário em toda rota autenticada (decisão D1 de 2026-10-14). 2000 por 15 min, não 600: a entrada na
 // Home faz 12 chamadas à API e um uso intenso (voltar à Home a cada minuto) chega a cerca de 180 em 15 min; o limite
@@ -48,8 +49,8 @@ function criarRequireAuth(checarRevogado: boolean) {
 
       // Conta excluída (anonimizada): o ID Token de antes da exclusão segue válido no Firebase por até 1 h e a linha
       // mantém o firebase_uid. Mesma resposta do token inválido, para a rota nunca escrever na conta que ninguém apaga mais.
-      if (usuario.email?.endsWith("@excluido.invalid")) {
-        return res.status(401).json({ error: "Token inválido ou expirado." });
+      if (ehContaExcluida(usuario.email)) {
+        return res.status(401).json({ error: MSG_TOKEN_INVALIDO });
       }
 
       req.usuarioId = usuario.id;

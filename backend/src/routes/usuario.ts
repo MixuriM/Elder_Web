@@ -9,6 +9,7 @@ import { criarLimitador, porUsuario, QUINZE_MIN } from "../lib/limiteTaxa";
 import { emailDoTokenConfere, isDuplicateEmail, isValidEmailFormat } from "../lib/authHelpers";
 import { resolverEstadoModoDecisao, MODO_DECISAO_SELECT } from "./vinculo";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
+import { emailContaExcluida } from "../lib/contaExcluida";
 import { CONFLITO_EMAIL } from "../lib/mensagensConflito";
 import {
   FOTO_LIMITE_BYTES,
@@ -254,7 +255,7 @@ async function anonimizarUsuario(tx: Tx, id: number) {
     where: { id },
     data: {
       nome: "Conta excluída",
-      email: `excluido-${id}@excluido.invalid`,
+      email: emailContaExcluida(id),
       telefone: null,
       email_convite_familiar: null,
       ultimo_login_em: null,

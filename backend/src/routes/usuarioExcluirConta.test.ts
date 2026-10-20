@@ -343,6 +343,24 @@ describe("DELETE /usuario/me: o que se apaga (idoso)", () => {
   });
 });
 
+// Fechamento do 9.5 (F1, F2): a linha anonimizada que a rota grava é reconhecida por quem recusa o token antigo. Sem esta
+// ligação, mudar o marcador de um lado só deixaria o ID Token de antes da exclusão valendo por até 1 h.
+describe("DELETE /usuario/me: token emitido antes da exclusão", () => {
+  it("depois de excluir, o mesmo token leva 401 em rota autenticada e no /auth/sync, sem escrita nova", async () => {
+    expect((await excluir(`t${IDOSO}`)).status).toBe(204);
+    const antes = structuredClone(dados);
+
+    const leitura = await request(app).get("/usuario/me").set("Authorization", `Bearer t${IDOSO}`);
+    const sync = await request(app).post("/auth/sync").set("Authorization", `Bearer t${IDOSO}`).send({});
+
+    expect(leitura.status).toBe(401);
+    expect(sync.status).toBe(401);
+    expect(sync.body).toEqual(leitura.body);
+    expect(dados).toEqual(antes);
+    expect(usuarioDe(IDOSO).ultimo_login_em).toBeNull();
+  });
+});
+
 describe("DELETE /usuario/me: o que se preserva (autoria sobre outro idoso)", () => {
   it("cuidador excluído: nada que ele escreveu sobre outro idoso é apagado nem editado; só os vínculos dele saem", async () => {
     const antes = structuredClone({
