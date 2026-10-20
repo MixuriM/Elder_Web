@@ -110,6 +110,27 @@ describe('Orientacoes — Acessibilidade (RF-031)', () => {
       })
     })
 
+    it('expõe as orientações como lista nomeada com um item por orientação', () => {
+      renderPagina()
+
+      // aria-label em div sem role não vale para leitor de tela (axe: aria-prohibited-attr).
+      const lista = screen.getByRole('list', {
+        name: 'Lista de orientações do Elder Web',
+      })
+
+      const itens = within(lista).getAllByRole('listitem')
+
+      expect(itens).toHaveLength(secoesOrientacoes.length)
+
+      secoesOrientacoes.forEach((secao, index) => {
+        expect(
+          within(itens[index]).getByRole('region', {
+            name: secao.titulo,
+          })
+        ).toBeInTheDocument()
+      })
+    })
+
     it('mantém a hierarquia correta dos títulos', () => {
       renderPagina()
 

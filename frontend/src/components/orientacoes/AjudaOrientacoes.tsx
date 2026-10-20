@@ -107,7 +107,7 @@ export default function AjudaOrientacoes() {
                 <a
                   href="tel:192"
                   aria-label="Ligar para o SAMU no número 192"
-                  className={`inline-block rounded font-bold underline ${foco}`}
+                  className={`rounded font-bold underline ${foco}`}
                 >
                   192
                 </a>.
