@@ -2627,3 +2627,43 @@ build sem erro nos dois. `verify-demo-semente.ts` escrito, ainda não rodado: o 
   semente depende da hora da restauração (usar entre 10:00 e 18:00).
 - `CLAUDE.md`: uma linha de ponteiro em Segurança. Medido em caracteres: 29.626 antes, 29.811 depois (limite 30.000). Em
   bytes (`wc -c`) o arquivo já estava acima de 30.000 e passou de 30.310 para 30.500.
+
+## Orientações pública, Sobre nós na sidebar e landing (2026-10-19)
+
+Pedido do Marcos: Orientações gerais para todos, sem login; Orientações na landing; "Sobre nós" na sidebar da Home.
+Decisões do grupo (delegadas), todas só no frontend:
+
+- D1 a D4: `/orientacoes` saiu do `LayoutAutenticado` e virou rota pública com `MolduraOrientacoes`
+  (`components/layout/`): logado vê a página na moldura autenticada, visitante vê `SobreHeader`, um `<main id="conteudo">`
+  e o `Footer` da landing; auth pendente mostra "Carregando...". `Orientacoes.tsx` não mudou (sem API, sem `useAcesso`,
+  links só `mailto:` e `tel:192`). D9: fora de `ROTAS_DE_ENTRADA`.
+- D5 e D6: Navbar com Orientações por último no grupo central e "Sobre" no bloco da direita; Footer ganhou o nav
+  "Ajuda e informações" (Orientações gerais, Sobre nós), o caminho no celular.
+- D7: item "Sobre nós" (ícone `Info`) depois de Orientações em `menuItems`, também em `SO_BASICOS`.
+- D8 revisto: `SobreHeader` e `SobreCTA` leem `useAuthUser()`. Logado: link da esquerda "Voltar ao início" para `/Home`,
+  sem "Entrar ou criar conta", CTA "Ir para o meu início" para `/Home`. Visitante e `carregando`: inalterado. O texto real
+  do visitante já era "Voltar ao início" (o prompt dizia "Página inicial").
+- D10 e D11: backend, banco, Firebase e documentos legais intactos; `/orientacoes` entrou em `ROTAS_PUBLICAS` do
+  `acessibilidade-publicas.spec.ts` (Playwright não rodado).
+
+Navbar, opção D (a D5 original não cabia: medido em 1024 px, 58 px de sobreposição; o original já sobrepunha 11 px):
+tema só com ícone (`BotaoTema compacto`, 44x44, `aria-label`) de `lg` a `xl`, com rótulo de `xl` em diante; grupo central
+`gap-4` em `lg` e `xl:gap-8`. Com texto grande ou muito grande (`html[class*=texto-]`) o rótulo do tema só volta em `2xl`,
+o grupo central usa `gap-2` e o "Sobre" some entre `lg` e `xl` (o Footer cobre): regressão consciente, só nesse caso.
+Medido (Chromium headless contra o `vite`, claro, texto grande e escuro com texto muito grande) em 640, 800, 1023, 1024,
+1100, 1279, 1280, 1440, 1535 e 1536 px: folga mínima 19 px (1024 px, texto muito grande), sem rolagem horizontal; alvos de
+tema e Entrar de 44 px ou mais. Só classes do Tailwind, sem JS de medição.
+
+Testes: `App.orientacoes.test.tsx` reescrito (visitante, logado, pendente, landmarks), `Orientacoes.publica.acessibilidade
+.test.tsx` (axe, 1 main, 1 h1, banner antes do main e contentinfo depois), `Navbar.test.tsx`, `SobreSessao.test.tsx`,
+nav novo em `Footer.test.tsx`, listas de menu em `SidebarPorPerfil`, `menuPorPerfil` e `Vinculos.convite.acesso`, mock de
+`lib/auth` em `SobreNos.test` e `SobreNos.acessibilidade.test`. O `<header>` de `CabecalhoOrientacoes` fica dentro do
+`<main>` e não é banner real, mas o jsdom o conta; os testes filtram o banner de fora do `<main>`.
+Contagem frontend: 109 suítes e 1265 testes antes, 112 e 1282 depois; `tsc`, lint e build sem erro. Mutações revertidas:
+M1 (moldura sempre autenticada) derrubou os 2 testes do visitante; M2 (sem "Sobre nós" em `menuItems`) derrubou 5 testes da
+sidebar; M3 (sem "Orientações gerais" no Footer) derrubou o teste do nav novo.
+
+Pendências do Marcos: rodar `npm run test:a11y` e `npm run test:responsivo`; avisar Laureane e Jennifer (Navbar, Footer,
+`SobreHeader`, `SobreCTA`, menu, testes de Sobre nós); no vault, item 8.2 do plano ("exigindo login" passa a "pública, com
+moldura autenticada para quem está logado"), linha de RF-031, lista do menu na Seção 1 e Log de Verificação; conferir a
+landing no celular no deploy da Vercel.

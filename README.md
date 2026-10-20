@@ -60,8 +60,8 @@ Legenda: ✅ concluído, 🟡 parcial, ⏳ pendente.
 | Perfil e foto | Dados da conta, situação do e-mail e foto de perfil (inclusive HEIC de iPhone, convertida no navegador) | Todos | ✅ |
 | Avisos | Pedidos de vínculo a responder e compromissos de hoje e de amanhã, exibidos só dentro do site | Todos | ✅ |
 | Configurações | Tema claro, escuro ou do sistema; tamanho do texto; menos movimento; modo de decisão; conta | Todos | ✅ |
-| Orientações | Página de orientações gerais, para quem está logado | Todos | 🟡 |
-| Sobre Nós | Página pública sobre o projeto | Visitante | 🟡 |
+| Orientações | Página de orientações gerais, pública (logado a vê dentro do menu) | Visitante e logados | 🟡 |
+| Sobre Nós | Página pública sobre o projeto, aberta pela landing (Navbar e rodapé) e pelo menu lateral | Visitante e logados | 🟡 |
 
 As duas páginas marcadas com 🟡 funcionam, mas o texto final ainda está em revisão pela equipe.
 
