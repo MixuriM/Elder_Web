@@ -2644,7 +2644,7 @@ Decisões do grupo (delegadas), todas só no frontend:
   sem "Entrar ou criar conta", CTA "Ir para o meu início" para `/Home`. Visitante e `carregando`: inalterado. O texto real
   do visitante já era "Voltar ao início" (o prompt dizia "Página inicial").
 - D10 e D11: backend, banco, Firebase e documentos legais intactos; `/orientacoes` entrou em `ROTAS_PUBLICAS` do
-  `acessibilidade-publicas.spec.ts` (Playwright não rodado).
+  `acessibilidade-publicas.spec.ts` (Playwright rodado depois, ver "Verificação Playwright e correções").
 
 Navbar, opção D (a D5 original não cabia: medido em 1024 px, 58 px de sobreposição; o original já sobrepunha 11 px):
 tema só com ícone (`BotaoTema compacto`, 44x44, `aria-label`) de `lg` a `xl`, com rótulo de `xl` em diante; grupo central
@@ -2663,7 +2663,26 @@ Contagem frontend: 109 suítes e 1265 testes antes, 112 e 1282 depois; `tsc`, li
 M1 (moldura sempre autenticada) derrubou os 2 testes do visitante; M2 (sem "Sobre nós" em `menuItems`) derrubou 5 testes da
 sidebar; M3 (sem "Orientações gerais" no Footer) derrubou o teste do nav novo.
 
-Pendências do Marcos: rodar `npm run test:a11y` e `npm run test:responsivo`; avisar Laureane e Jennifer (Navbar, Footer,
-`SobreHeader`, `SobreCTA`, menu, testes de Sobre nós); no vault, item 8.2 do plano ("exigindo login" passa a "pública, com
-moldura autenticada para quem está logado"), linha de RF-031, lista do menu na Seção 1 e Log de Verificação; conferir a
-landing no celular no deploy da Vercel.
+### Verificação Playwright e correções
+
+Resultado final: `test:a11y` 17 de 17, `test:responsivo` 6 de 6, Jest 112 suítes e 1286 testes (baseline 109 e 1265), `tsc`,
+lint e build limpos. SQL Server local (`localhost:14330`, migrations em dia), nada contra o Azure.
+
+- Ambiente: Playwright 1.64.0 pedia o Chromium build 1248, que não estava instalado (todos os 17 casos do `test:a11y`
+  falharam no lançamento). Instalado só com `npx playwright install chromium` (118,1 MiB, em `%LOCALAPPDATA%\ms-playwright`);
+  o instalador removeu o Chromium 1243 e o WebKit 2359, então `--browser=webkit` do `test:responsivo` exige reinstalar o WebKit.
+- Falhas achadas e corrigidas, todas anteriores aos nossos commits: `#6C63FF` sólido (contraste 4,31) no selo e no link de
+  e-mail de Orientações, e `aria-label` em `div` sem role na lista (agora `ul` com `li`), `fa43192`; texto de 12 px em
+  `SobreHero` e estouro do h2 em `SobreCard`, `0b2c740`; estouro do h1 em `PaginaLegal` (Cookies), `f4ac43d`. O link "192"
+  perdeu o `inline-block` para valer como link em texto corrido, e `textoOrientacao` ganhou `break-words`.
+- Cobertura nova, `ffeb47e`: `/orientacoes` do visitante entre as telas públicas do `test:responsivo`, e a Navbar da landing
+  em 1024, 1100, 1280 e 1440 px (texto padrão e muito grande) com folga mínima de 16 px na constante `FOLGA_NAVBAR_MIN`.
+  Mutação do teste (mínimo em 500) o fez falhar com 49, 87, 45 e 125 px, os valores da medição manual; revertida.
+- Contas `e2e-*@e2e.elderweb.test` no Firebase real: 21 por contagem (9 em 3 execuções do `test:a11y`, 12 em 3 do
+  `test:responsivo`). O log não imprime as contas; a limpeza deve filtrar por esse padrão.
+
+Pendências do Marcos: push de `development`; conferir a landing no celular na prévia da Vercel; avisar Laureane e Jennifer
+(`Navbar`, `Footer`, `SobreHeader`, `SobreCTA`, menu, `SobreHero`, `SobreCard` e os componentes de Orientações); apagar as contas
+`e2e-*` no Firebase; no vault, item 8.2 do plano ("exigindo login" passa a "pública, com moldura autenticada para quem está
+logado"), linha de RF-031, lista do menu na Seção 1 e Log de Verificação; levar ao grupo que "Sobre" some da Navbar entre
+1024 e 1279 px quando o texto está grande ou muito grande (o caminho passa a ser o Footer).
