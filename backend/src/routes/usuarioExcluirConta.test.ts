@@ -332,7 +332,14 @@ describe("DELETE /usuario/me: o que se apaga (idoso)", () => {
 
   it("roda numa transação com timeout de 20 s e espera de 5 s", async () => {
     await excluir(`t${IDOSO}`);
-    expect(opcoesTransacao.ultima).toEqual({ timeout: 20000, maxWait: 5000 });
+    expect(opcoesTransacao.ultima).toMatchObject({ timeout: 20000, maxWait: 5000 });
+  });
+
+  // Auditoria de segurança (2026-10-20): duas exclusões simultâneas (ou uma aprovação de vínculo em paralelo) não podem
+  // deixar um idoso sem login órfão nem apagar um que acabou de ganhar vínculo; no SQL Server padrão a leitura não bloqueia.
+  it("a transação é Serializable (leituras de vínculo seguram o intervalo até o commit)", async () => {
+    await excluir(`t${IDOSO}`);
+    expect(opcoesTransacao.ultima).toMatchObject({ isolationLevel: "Serializable" });
   });
 });
 

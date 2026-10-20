@@ -33,7 +33,7 @@ function criarRequireAuth(checarRevogado: boolean) {
       // filtrado e manual, ver schema.prisma) — mesmo padrão usado em /auth/sync.
       const usuario = await prisma.usuario.findFirst({
         where: { firebase_uid: resultado.decoded.uid },
-        select: { id: true }, // sem select traria o BLOB da foto a cada requisição autenticada
+        select: { id: true, email: true }, // sem select traria o BLOB da foto a cada requisição autenticada
       });
 
       if (!usuario) {
@@ -44,6 +44,12 @@ function criarRequireAuth(checarRevogado: boolean) {
         // /auth/sync, mas é decisão de arquitetura maior ainda não discutida com o grupo.
         // Pode mudar.
         return res.status(403).json({ error: "Usuário não sincronizado." });
+      }
+
+      // Conta excluída (anonimizada): o ID Token de antes da exclusão segue válido no Firebase por até 1 h e a linha
+      // mantém o firebase_uid. Mesma resposta do token inválido, para a rota nunca escrever na conta que ninguém apaga mais.
+      if (usuario.email?.endsWith("@excluido.invalid")) {
+        return res.status(401).json({ error: "Token inválido ou expirado." });
       }
 
       req.usuarioId = usuario.id;
