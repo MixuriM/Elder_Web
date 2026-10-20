@@ -98,7 +98,7 @@ describe("ExcluirConta: o diálogo", () => {
     renderSecao(perfil);
     const dialogo = await abrir(user);
     expect(dialogo).toHaveAccessibleDescription(
-      "Remove seus vínculos e seus dados de perfil. O que você registrou sobre idosos continua no histórico deles, sem o seu nome (aparece como Conta excluída). Idosos que você cadastrou e que não tenham outro vínculo aprovado também são apagados. Não dá para desfazer.",
+      "Remove seus vínculos e seus dados de perfil. O que você registrou sobre idosos continua no histórico deles, sem o seu nome (a conta passa a se chamar Conta excluída). Idosos que você cadastrou e que não tenham outro vínculo aprovado também são apagados. Não dá para desfazer.",
     );
   });
 

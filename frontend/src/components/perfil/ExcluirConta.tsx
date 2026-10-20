@@ -13,7 +13,7 @@ const CONFIRMACAO = "EXCLUIR";
 const TEXTO_IDOSO =
   "Apaga seu histórico de saúde, remédios, agenda e alimentação e remove o acesso de familiares e cuidadores. Não dá para desfazer.";
 const TEXTO_VINCULADO =
-  "Remove seus vínculos e seus dados de perfil. O que você registrou sobre idosos continua no histórico deles, sem o seu nome (aparece como Conta excluída). Idosos que você cadastrou e que não tenham outro vínculo aprovado também são apagados. Não dá para desfazer.";
+  "Remove seus vínculos e seus dados de perfil. O que você registrou sobre idosos continua no histórico deles, sem o seu nome (a conta passa a se chamar Conta excluída). Idosos que você cadastrou e que não tenham outro vínculo aprovado também são apagados. Não dá para desfazer.";
 
 const MSG_FALHOU = "Não foi possível excluir a conta agora. Nada foi apagado. Tente de novo em alguns minutos.";
 const MSG_MUITAS = "Muitas tentativas. Aguarde alguns minutos e tente de novo.";
