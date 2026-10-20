@@ -58,8 +58,27 @@ export function isTipoPerfil(value: unknown): value is TipoPerfil {
 // Usada por /auth/sync (email_convite_familiar, RF-024).
 // E-mail do marcador de conta excluída nunca é válido (F3 do fechamento do 9.5): senão alguém abriria vínculo ou convite para uma
 // conta morta, ou gravaria o marcador no próprio cadastro e se trancaria para fora.
+// Sem regex (CodeQL: polynomial-redos em /^[^\s@]+@[^\s@]+\.[^\s@]+$/): mesma regra em passo linear. Um "@" só, parte local não
+// vazia, sem espaço em branco, e na parte do domínio um "." que não seja o primeiro nem o último caractere. 320 é o teto do
+// formato de e-mail; os chamadores já limitam a 255.
 export function isValidEmailFormat(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && !ehContaExcluida(value);
+  if (value.length > 320) return false;
+  const arroba = value.indexOf("@");
+  if (arroba < 1 || value.indexOf("@", arroba + 1) !== -1) return false;
+  for (let i = 0; i < value.length; i++) {
+    const c = value.charCodeAt(i);
+    // \s do JavaScript: espaço, tabulação, quebras de linha, NBSP, separadores Unicode e BOM.
+    if (c === 32 || (c >= 9 && c <= 13) || c === 160 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff) return false;
+  }
+  const dominio = value.slice(arroba + 1);
+  let achouPonto = false;
+  for (let i = 1; i <= dominio.length - 2; i++) {
+    if (dominio[i] === ".") {
+      achouPonto = true;
+      break;
+    }
+  }
+  return achouPonto && !ehContaExcluida(value);
 }
 
 // "E-mail verificado" do token vale para o e-mail DO TOKEN. O ID token emitido antes de uma troca de e-mail segue com
