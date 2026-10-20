@@ -2989,6 +2989,9 @@ política completa de antes (edição do Marcos). `cabecalhosVercel.test.ts`: a 
 `Content-Security-Policy-Report-Only` ausente e confere as 11 diretivas da CSP completa em `Content-Security-Policy`; o teste de
 `unsafe-eval`/`unsafe-inline` olha só a `Content-Security-Policy`. `CLAUDE.md` e item 11 do checklist atualizados.
 
-**Estado.** Pendente de teste em produção depois do deploy na Vercel: foto, PDF do histórico, recusar vínculo e login com Google (as
-rotas autenticadas tinham dado 0 violações em local). Se houver violação, reverter a chave para `Content-Security-Policy-Report-Only`.
-Sem dependência nova e sem mudança no backend.
+**Publicação e verificação.** PR #212, mergeado em `main` como `efad843`. Verificado em produção em 2026-10-20: `curl -I` mostra
+`Content-Security-Policy` e nenhum `Content-Security-Policy-Report-Only`; teste manual do Marcos com o Console aberto, sem nenhuma
+violação, em login com Google, login com e-mail e senha, troca de foto, PDF do histórico, diálogo de excluir conta, tema claro e
+Família (relato dele, sem comando registrado além do `curl -I`). Não testados em produção: recusar vínculo, contestar, cadastro novo,
+Saúde, Agenda e Alimentação. Se houver violação, reverter a chave para `Content-Security-Policy-Report-Only`. Sem dependência nova e sem
+mudança no backend.
