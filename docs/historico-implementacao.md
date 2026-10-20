@@ -2874,3 +2874,83 @@ compara no banco; com a collation do banco local (`SQL_Latin1_General_CP1_CI_AS`
 zero (U+200B) NÃO são ignorados (`=` deu diferente), então o desvio não existe aqui. O Azure usa a collation padrão igual, mas
 não foi conferida: `SELECT DATABASEPROPERTYEX(DB_NAME(),'Collation')` e, no mesmo banco, `SELECT COUNT(*) FROM Usuario WHERE
 email LIKE '%@excluido.invalid' AND email NOT LIKE 'excluido-%'` (esperado 0; o local deu 0) ficam com o Marcos.
+
+## Trechos movidos do CLAUDE.md (2026-10-20)
+
+Texto original dos trechos que saíram do `CLAUDE.md` na compactação para menos de 30 mil bytes. O que ainda vale como regra
+ficou no `CLAUDE.md` em versão curta; aqui está o texto completo de antes, sem alteração.
+
+**Itens implementados: alimentação (7.1 e 7.2)**
+
+- 7.1 e 7.2 alimentação (RF-018, RF-019): `routes/alimentacao.ts`. Cuidador nunca cria (403, resolver nunca chamado);
+  familiar só com `modo_decisao` efetivo `'familiar'`; `refeicao` com 6 valores só na aplicação, `descricao` 1 a 500
+  (dado sensível); leitura com vínculo aprovado, ordem `data_hora` e `id` decrescentes.
+
+**Itens implementados: emergência**
+
+- Emergência (RF novo, número a definir pelo grupo): `POST /emergencia/avisar` (só idoso; 403 nos outros) manda
+  e-mail aos vínculos aprovados com e-mail verificado no Firebase (`auth.getUsers`, mesmo e-mail do cadastro; erro do
+  Firebase: 503, ninguém recebe) via `lib/enviarEmail.ts` (único ponto do provedor, API HTTPS: Render free bloqueia
+  SMTP). Env `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` (sem elas, 503). Resposta só com contagens
+  (`nao_confirmados` inclusive). `BotaoAjuda` no `Header` só para idoso; perfil com mais de 3 s ou falha: só o link
+  "Ligar 192". Cadastro pede a confirmação de e-mail aos 3 perfis (`SituacaoEmail` no Perfil, só cuidador e
+  familiar). No ar desde 2026-10-10. Bloqueio de IPs da Brevo fica desligado
+  (o IP do Render free muda); entrega em escala exige domínio próprio (aceito). Teste: `backend/scripts/testar-email.ts <endereço>` (só ao e-mail do Marcos).
+
+**Decisões fechadas: frontend de 2026-10-19**
+
+- Frontend (2026-10-19, decisões do grupo): `/orientacoes` pública (`MolduraOrientacoes`: logado na moldura autenticada,
+  visitante com `SobreHeader` e `Footer`); "Sobre nós" na sidebar de todos os perfis, `/sobre-nos` segue standalone (logado
+  vê "Voltar ao início" e CTA para `/Home`, sem "Entrar"); Footer da landing com nav "Ajuda e informações". Navbar
+  (medido 1024 a 1536 px, folga mínima 21 px): "Sobre" ao lado de Orientações; tema só ícone de `lg` a `xl`.
+
+**Pendências manuais: convite do idoso ao cuidador (2026-10-12)**
+
+- Convite do idoso ao cuidador (2026-10-12): `POST /vinculo/convidar-cuidador` (só `modo_decisao` efetivo `idoso`; familiar
+  titular não convida) cria `Vinculo` pendente (cuidador, `convite_idoso`) só se há conta de cuidador. O cuidador aprova em
+  `aceitar-convite` (e-mail verificado, até 7 dias). Convite vencido é substituído ao convidar de novo (pendente de
+  `solicitacao_cuidador` ou aprovado dá 409; o pedido do cuidador também o substitui). Convite repetido válido responde
+  201 igual (sem 409: seria oráculo), e o aceite exige o e-mail do token igual ao do cadastro. Riscos aceitos: sem conta some em silêncio; idoso falso convida e-mail
+  adivinhado (cuidador só recusa); sem limite de convites pendentes.
+
+**Pendências manuais: telas de vínculo (decisões de 2026-10-09)**
+
+- Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`; botão só para quem tem autoridade, textos fixos
+  por `status`). Decisões de 2026-10-09 (Marcos, no histórico): `convidar-familiar` com `modo_decisao` efetivo `idoso` e
+  resposta igual com ou sem conta; aprovar origem `convite_idoso` ou `cadastro_familiar` dá 409 (só recusar ou contestar);
+  `GET /vinculo` traz `decisao` (sem motivo nem id) no vínculo aprovado de familiar do chamador.
+
+**Decisões fechadas: frontend de 2026-10-08 (menu por perfil)**
+
+- Frontend (2026-10-08, decisões do grupo): menu por perfil (D1, D2): idoso vê tudo; cuidador ou familiar sem vínculo
+  aprovado vê só Início, Meu Perfil, a lista do seu tipo (Família ou Cuidadores), Orientações e Sobre nós; Saúde, Medicamentos,
+  Agenda e Alimentação exigem ao menos 1 vínculo aprovado (`RotaComVinculo`); cuidador não vê Família. Falha ao carregar
+  perfil ou vínculos falha aberto com aviso (D3; a barreira real é o 403). `/familia` e `/cuidadores` filtram no
+  cliente o `GET /vinculo` (D4); `/vinculos` redireciona para `/familia`, `/vinculos/:id` é o detalhe. Rotas
+  protegidas aninhadas em `LayoutAutenticado` (D5): páginas não têm `<main>` próprio nem botão que saia do site.
+
+**Decisões fechadas: item 9.4 (D1 a D9)**
+
+- Item 9.4 (D1 a D9, fechadas): o item só vai a ✅ com o CI remoto verde num push em `development`; sem dependência
+  nova; código de produção só muda se um teste novo provar furo real de autorização (RED, correção mínima, commit
+  `fix(auth):` separado; 400 antes de 403 não é furo); testes com Prisma mockado (não prova o filtro do SQL Server
+  real, aceito); `npm test` segue `jest` e o CI roda `npm run test:coverage` no lugar dele; CI em push de todas as
+  branches mais PR para `main`, com `concurrency` (execução duplicada aceita); limiares = floor(medido) menos 1 (valores
+  em `backend/jest.config.js`, metas mínimas em `infra/ciAutorizacao.test.ts`); mutação local vale como RED em
+  teste de caracterização; regra de ator vem do código (cuidador nunca cria medicamento nem refeição, familiar só com
+  `modo_decisao` efetivo `'familiar'`, flag exata e estrita).
+
+**Convenções, testes: Celular (2026-10-10)**
+
+Texto original (no `CLAUDE.md` saiu só a contagem "em 22 variantes"):
+
+- Celular (2026-10-10): menor largura 320 px, mobile-first; alvo 44x44 com 8 px livres (exceção: link em texto corrido e
+  dias da grade do calendário); `input`/`select`/`textarea` com 16 px; `min-h-dvh` (não `min-h-screen`); `grid-cols-1`
+  no base de grid responsivo; estouro se corrige na origem, nunca com `overflow-x-hidden`. `npm run test:responsivo`
+  (local, fora do CI, mesmas exigências do `test:a11y`; cria 4 contas) mede tudo isso em 22 variantes; WebKit com
+  `--browser=webkit`.
+
+**Pendências manuais: contas e2e (limpeza concluída em 2026-10-20)**
+
+Antes: a pendência de Emergência listava "rodar `scripts/limpar-contas-e2e.ts`"; as 48 contas `e2e-*@e2e.elderweb.test` do projeto
+`elder-web` foram apagadas e o item saiu das pendências.
