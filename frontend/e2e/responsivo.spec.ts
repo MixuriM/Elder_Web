@@ -190,6 +190,40 @@ test("meta viewport não bloqueia o zoom (D5)", async ({ page }) => {
   expect(await falhasMetaViewport(page)).toEqual([]);
 });
 
+// Navbar da landing em desktop (opção D, 2026-10-19): o grupo central é absolute e o bloco da direita (Sobre, tema,
+// Entrar) cresce com o texto grande; sem folga os links se sobrepõem. Mede só o que está visível (com texto grande o
+// "Sobre" some entre lg e xl). Cria 0 contas.
+const FOLGA_NAVBAR_MIN = 16;
+const LARGURAS_NAVBAR = [1024, 1100, 1280, 1440];
+test("landing: folga da Navbar entre o grupo central e o bloco da direita", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  await page.goto("/");
+  await aguardarTelaPronta(page);
+  const folgas: string[] = [];
+  for (const texto of ["padrao", "muito-grande"] as const) {
+    for (const width of LARGURAS_NAVBAR) {
+      await aplicarVariante(page, { nome: "", viewport: { width, height: 900 }, escuro: false, texto });
+      const m = await page.evaluate(() => {
+        const botao = (nome: string) => [...document.querySelectorAll("nav button")].find((b) => b.textContent?.trim() === nome);
+        const central = botao("Funcionalidades")?.parentElement;
+        const direita = botao("Entrar")?.parentElement;
+        if (!central || !direita) return null;
+        const visiveis = [...direita.children].map((c) => c.getBoundingClientRect()).filter((r) => r.width > 0);
+        return {
+          folga: Math.min(...visiveis.map((r) => r.left)) - central.getBoundingClientRect().right,
+          rolagem: document.documentElement.scrollWidth - window.innerWidth,
+        };
+      });
+      if (!m) folgas.push(`${width} ${texto}: Navbar sem os botões esperados`);
+      else if (m.folga < FOLGA_NAVBAR_MIN) folgas.push(`${width} ${texto}: folga ${Math.round(m.folga)}px (mínimo ${FOLGA_NAVBAR_MIN})`);
+      else if (m.rolagem > 0) folgas.push(`${width} ${texto}: rolagem horizontal de ${m.rolagem}px`);
+    }
+  }
+  await context.close();
+  expect(folgas).toEqual([]);
+});
+
 // D10: com mouse o hover aparece; no toque (sem hover) o estilo de hover não fica preso depois do toque.
 test("hover só com mouse (D10)", async ({ browser }) => {
   const fundoDoEntrar = async (context: BrowserContext) => {
@@ -260,6 +294,7 @@ test("responsivo: telas públicas", async ({ browser }) => {
     for (const rota of [
       "/",
       "/sobre-nos",
+      "/orientacoes",
       "/welcome",
       "/login",
       "/esqueci-senha",
