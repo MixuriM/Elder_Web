@@ -22,6 +22,7 @@ const TODOS = [
   'Família',
   'Cuidadores',
   'Orientações',
+  'Sobre nós',
 ]
 
 describe('itensDoMenu (decisão D2)', () => {
@@ -34,13 +35,14 @@ describe('itensDoMenu (decisão D2)', () => {
     expect(rotulos({ tipoPerfil: 'familiar', temVinculoAprovado: true })).toEqual(TODOS)
   })
 
-  it('familiar sem vínculo aprovado: Início, Meu Perfil, Família, Orientações', () => {
-    expect(rotulos({ tipoPerfil: 'familiar' })).toEqual(['Início', 'Meu Perfil', 'Família', 'Orientações'])
+  it('familiar sem vínculo aprovado: Início, Meu Perfil, Família, Orientações, Sobre nós', () => {
+    expect(rotulos({ tipoPerfil: 'familiar' })).toEqual(['Início', 'Meu Perfil', 'Família', 'Orientações', 'Sobre nós'])
     expect(rotulos({ tipoPerfil: 'familiar', temVinculoPendente: true })).toEqual([
       'Início',
       'Meu Perfil',
       'Família',
       'Orientações',
+      'Sobre nós',
     ])
   })
 
@@ -50,12 +52,12 @@ describe('itensDoMenu (decisão D2)', () => {
     )
   })
 
-  it('cuidador sem vínculo aprovado: Início, Meu Perfil, Cuidadores, Orientações', () => {
-    expect(rotulos({ tipoPerfil: 'cuidador' })).toEqual(['Início', 'Meu Perfil', 'Cuidadores', 'Orientações'])
+  it('cuidador sem vínculo aprovado: Início, Meu Perfil, Cuidadores, Orientações, Sobre nós', () => {
+    expect(rotulos({ tipoPerfil: 'cuidador' })).toEqual(['Início', 'Meu Perfil', 'Cuidadores', 'Orientações', 'Sobre nós'])
   })
 
   it('carregando: sem módulos de dados nem listas de vínculo', () => {
-    expect(rotulos({ estado: 'carregando' })).toEqual(['Início', 'Meu Perfil', 'Orientações'])
+    expect(rotulos({ estado: 'carregando' })).toEqual(['Início', 'Meu Perfil', 'Orientações', 'Sobre nós'])
   })
 
   it('erro com perfil desconhecido: falha aberto, menu completo', () => {

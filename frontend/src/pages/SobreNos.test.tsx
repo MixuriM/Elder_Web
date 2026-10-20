@@ -8,6 +8,15 @@ import SobreNos from './SobreNos'
 
 expect.extend(toHaveNoViolations)
 
+// SobreHeader e SobreCTA leem a sessão; aqui a página é vista como visitante.
+jest.mock('../lib/auth', () => ({
+  onAuthChange: (cb: (u: unknown) => void) => {
+    cb(null)
+    return () => {}
+  },
+}))
+
+
 // O jsdom não calcula o contraste real das cores.
 // O contraste deve ser validado separadamente.
 const AXE = {

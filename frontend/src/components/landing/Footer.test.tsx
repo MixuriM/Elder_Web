@@ -16,4 +16,16 @@ describe('Footer da landing: documentos legais', () => {
     expect(within(nav).getByRole('link', { name: 'Termos de Uso' })).toHaveAttribute('href', '/termos')
     expect(within(nav).getByRole('link', { name: /Política de Cookies/ })).toHaveAttribute('href', '/cookies')
   })
+
+  it('tem um nav "Ajuda e informações" com Orientações gerais e Sobre nós', () => {
+    render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>,
+    )
+    const nav = screen.getByRole('navigation', { name: 'Ajuda e informações' })
+    expect(within(nav).getByRole('link', { name: 'Orientações gerais' })).toHaveAttribute('href', '/orientacoes')
+    expect(within(nav).getByRole('link', { name: 'Sobre nós' })).toHaveAttribute('href', '/sobre-nos')
+    expect(within(nav).getAllByRole('link')).toHaveLength(2)
+  })
 })

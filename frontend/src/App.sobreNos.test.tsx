@@ -37,4 +37,21 @@ describe('App: rota pública /sobre-nos', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Sobre o Elder Web' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/sobre-nos')
   })
+
+  it('visitante: voltar leva a / e há "Entrar ou criar conta"', async () => {
+    mockUsuario = null
+    renderApp()
+    await screen.findByRole('heading', { level: 1, name: 'Sobre o Elder Web' })
+    expect(screen.getByRole('link', { name: 'Voltar ao início' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: 'Entrar ou criar conta' })).toBeInTheDocument()
+  })
+
+  it('logado: voltar e CTA levam a /Home e não há "Entrar ou criar conta"', async () => {
+    mockUsuario = { uid: 'u1' }
+    renderApp()
+    await screen.findByRole('heading', { level: 1, name: 'Sobre o Elder Web' })
+    expect(screen.getByRole('link', { name: 'Voltar ao início' })).toHaveAttribute('href', '/Home')
+    expect(screen.getByRole('link', { name: 'Ir para o meu início' })).toHaveAttribute('href', '/Home')
+    expect(screen.queryByRole('link', { name: 'Entrar ou criar conta' })).not.toBeInTheDocument()
+  })
 })
