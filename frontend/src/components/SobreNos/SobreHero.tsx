@@ -39,7 +39,7 @@ function SobreHero() {
           border border-[#DCD6FF]
           bg-[#F1EEFF]
           px-5 py-2
-          text-xs font-bold
+          text-sm font-bold
           uppercase tracking-[0.16em]
           text-[#5147B5]
           dark:border-[#49446F]

@@ -264,6 +264,24 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     expect(texto).not.toMatch(/São Vicente/i)
   })
 
+  // Medido pelo responsivo (320 px): fonte mínima de 14 px e título que parte palavra longa em vez de vazar.
+  it('o selo "Conheça o Elder" usa fonte de pelo menos 14 px (text-sm)', () => {
+    renderSobreNos()
+
+    const selo = screen.getByText('Conheça o Elder')
+
+    expect(selo).toHaveClass('text-sm')
+    expect(selo).not.toHaveClass('text-xs')
+  })
+
+  it('os títulos dos cards partem palavra longa (break-words)', () => {
+    const { container } = renderSobreNos()
+
+    const titulo = container.querySelector('h2#titulo-acessibilidade')
+
+    expect(titulo).toHaveClass('break-words')
+  })
+
   it('não apresenta violações automáticas de acessibilidade', async () => {
     const { container } = renderSobreNos()
 
