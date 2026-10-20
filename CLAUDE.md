@@ -380,7 +380,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Frontend (2026-10-19, decisões do grupo): `/orientacoes` pública (`MolduraOrientacoes`: logado na moldura autenticada,
   visitante com `SobreHeader` e `Footer`); "Sobre nós" na sidebar de todos os perfis, `/sobre-nos` segue standalone (logado
   vê "Voltar ao início" e CTA para `/Home`, sem "Entrar"); Footer da landing com nav "Ajuda e informações". Navbar
-  (medido 1024 a 1536 px, folga mínima 19 px): tema só ícone de `lg` a `xl`; texto grande tira o "Sobre" entre `lg` e `xl`.
+  (medido 1024 a 1536 px, folga mínima 21 px): "Sobre" ao lado de Orientações; tema só ícone de `lg` a `xl`.
 
 **Itens implementados (resumo; detalhes, PRs e hashes no histórico)**
 - 5.2 a 5.4 (dose, histórico de remédios, PDF): leituras com vínculo aprovado basta. PDF montado inteiro em memória
