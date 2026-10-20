@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { CANCELAMENTO_SOLICITACAO } from "../lib/modoDecisao";
 import { emailDoTokenConfere, isValidEmailFormat } from "../lib/authHelpers";
+import { ehContaExcluida } from "../lib/contaExcluida";
 import { mascararEmail } from "../lib/mascararEmail";
 import { requireAuth, requireAuthRevogacao } from "../middleware/requireAuth";
 import { bloquearContaDemo } from "../middleware/bloquearContaDemo";
@@ -61,6 +62,8 @@ router.post("/solicitar-cuidador", requireAuthRevogacao, bloquearContaDemo, limi
       return res.status(400).json({ error: "E-mail é obrigatório." });
     }
     const emailBusca = email.trim();
+    // E-mail do marcador de conta excluída: mesma resposta com ou sem conta morta (F3 do fechamento do 9.5).
+    if (ehContaExcluida(emailBusca)) return res.status(400).json({ error: "E-mail inválido." });
 
     // Mesmo 404 e mesma mensagem em todo caso sem alvo único (sem conta, familiar sem idoso sob seu controle, mais de
     // um idoso sem nome ou com nome que não casa): nada revela se o e-mail existe nem quantos idosos há atrás dele, e
@@ -207,6 +210,8 @@ router.post("/solicitar-familiar", requireAuthRevogacao, bloquearContaDemo, limi
     if (typeof email !== "string" || !email.trim()) {
       return res.status(400).json({ error: "E-mail é obrigatório." });
     }
+
+    if (ehContaExcluida(email.trim())) return res.status(400).json({ error: "E-mail inválido." });
 
     const idosoAlvo = await prisma.usuario.findFirst({
       where: { email: email.trim(), tipo_perfil: "idoso" },

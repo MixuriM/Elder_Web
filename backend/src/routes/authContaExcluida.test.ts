@@ -102,6 +102,31 @@ describe("POST /auth/sync: token de conta excluída", () => {
   });
 });
 
+// Fechamento do 9.5 (F3): o e-mail do marcador não pode entrar por aqui nem como e-mail da conta nem como convite.
+describe("POST /auth/sync: e-mail do marcador na criação", () => {
+  it("token com e-mail do marcador: 400 E-mail inválido., sem consultar nem criar (igual com ou sem conta morta)", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: EXCLUIDO, email_verified: true, name: "Pessoa Ficticia" });
+    findFirst.mockResolvedValue(null);
+    const res = await SYNC({ tipo_perfil: "idoso" });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "E-mail inválido." });
+    expect(create).not.toHaveBeenCalled();
+    expect(updateUsuario).not.toHaveBeenCalled(); // inclui o anexo do firebase_uid a idoso sem login
+    // Só a consulta por firebase_uid acontece; a busca por e-mail (colisão) não chega a rodar.
+    expect(findFirst.mock.calls.filter(([a]) => a?.where?.email !== undefined)).toEqual([]);
+  });
+
+  it("email_convite_familiar do marcador: 400 formato inválido, nenhum vínculo", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "pessoa@exemplo.test", name: "Pessoa Ficticia" });
+    findFirst.mockResolvedValue(null);
+    const res = await SYNC({ tipo_perfil: "idoso", email_convite_familiar: EXCLUIDO });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "email_convite_familiar em formato inválido." });
+    expect(create).not.toHaveBeenCalled();
+    expect(createVinculo).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /auth/sync: o ramo de criação não muda", () => {
   it("uid novo e o MESMO e-mail real da conta que foi excluída: cria linha nova (a antiga já não tem esse e-mail)", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid-novo", email: "pessoa@exemplo.test", email_verified: false, name: "Pessoa Ficticia" });

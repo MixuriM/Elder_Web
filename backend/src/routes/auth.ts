@@ -208,6 +208,10 @@ router.post("/sync", limiteSyncIp, verificarTokenSync, limiteSyncUid, async (req
     if (!decoded.email && !decoded.phone_number) {
       return res.status(400).json({ error: "Conta Firebase sem e-mail ou telefone associado." });
     }
+    // E-mail do marcador de conta excluída: nunca cria nem anexa (F3 do fechamento do 9.5), antes de qualquer busca por e-mail.
+    if (ehContaExcluida(decoded.email)) {
+      return res.status(400).json({ error: "E-mail inválido." });
+    }
 
     // email_convite_familiar (RF-024): só o idoso informa, pra casar depois com o
     // cadastro de um Familiar (RF-025, fora de escopo aqui). Não é único — mais de um
