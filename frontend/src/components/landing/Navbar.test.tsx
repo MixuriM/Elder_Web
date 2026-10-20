@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
@@ -25,7 +25,7 @@ describe('Navbar da landing: links de informação', () => {
     const posicoes = esperados.map((n) => nomes.indexOf(n))
     expect(posicoes.every((p) => p >= 0)).toBe(true)
     expect([...posicoes].sort((a, b) => a - b)).toEqual(posicoes)
-    // Sobre abre o canto direito: depois dele só o tema e o Entrar.
+    // Depois do Sobre vêm só o tema e o Entrar.
     expect(nomes.indexOf('Entrar')).toBeGreaterThan(posicoes[5])
     expect(nomes[nomes.length - 1]).toBe('Entrar')
   })
@@ -42,10 +42,18 @@ describe('Navbar da landing: links de informação', () => {
     expect(screen.getByText('Rota sobre nós')).toBeInTheDocument()
   })
 
-  it('"Sobre" aparece desde lg (classes de visibilidade)', () => {
+  it('"Sobre" fica no mesmo grupo de "Orientações", logo depois dele', () => {
     renderNavbar()
+    const orientacoes = screen.getByRole('button', { name: 'Orientações' })
     const sobre = screen.getByRole('button', { name: 'Sobre' })
-    expect(sobre).toHaveClass('hidden', 'lg:block')
+    expect(sobre.parentElement).toBe(orientacoes.parentElement)
+    expect(orientacoes.nextElementSibling).toBe(sobre)
+  })
+
+  it('o bloco da direita tem só o tema e o Entrar', () => {
+    renderNavbar()
+    const direita = screen.getByRole('button', { name: 'Entrar' }).parentElement as HTMLElement
+    expect(within(direita).queryByRole('button', { name: 'Sobre' })).not.toBeInTheDocument()
   })
 
   it('o botão de tema tem nome acessível em todas as larguras (compacto e com rótulo)', () => {

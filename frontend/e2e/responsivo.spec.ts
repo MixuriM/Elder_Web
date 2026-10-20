@@ -190,9 +190,8 @@ test("meta viewport não bloqueia o zoom (D5)", async ({ page }) => {
   expect(await falhasMetaViewport(page)).toEqual([]);
 });
 
-// Navbar da landing em desktop (opção D, 2026-10-19): o grupo central é absolute e o bloco da direita (Sobre, tema,
-// Entrar) cresce com o texto grande; sem folga os links se sobrepõem. Mede só o que está visível (com texto grande o
-// "Sobre" some entre lg e xl). Cria 0 contas.
+// Navbar da landing em desktop (opção D, 2026-10-19): o grupo central é absolute e o bloco da direita (tema, Entrar)
+// cresce com o texto grande; sem folga os links se sobrepõem. Mede só o que está visível. Cria 0 contas.
 const FOLGA_NAVBAR_MIN = 16;
 const LARGURAS_NAVBAR = [1024, 1100, 1280, 1440];
 test("landing: folga da Navbar entre o grupo central e o bloco da direita", async ({ browser }) => {
