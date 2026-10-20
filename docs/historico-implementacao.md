@@ -2450,7 +2450,7 @@ depois backend (Render). Backend antes do frontend quebra todo cadastro novo (40
 `registrado_por_id`) e a CHECK que só permite `firebase_uid` nulo com `cadastrado_por_id` exigem decidir entre
 anonimizar e apagar em cascata, com migration: fica para prompt próprio. Os textos não prometem autoatendimento ("Não
 há botão para excluir a conta"); ressalva: a Política diz "Se você pedir a exclusão, apagamos os dados", e o processo
-manual ainda não existe no código.
+manual ainda não existe no código. **Resolvido em 2026-10-20**: ver "Fechamento do item 9.5 (2026-10-20)", no fim deste arquivo.
 
 **Mutações locais** (todas derrubaram ao menos um teste e foram restauradas por cópia): limitador que nunca bloqueia,
 cada rota sem o limitador, chave global, `requireAuth` sem o limite geral, purga sem reordenar, sem teto, `trust proxy`
@@ -2696,3 +2696,105 @@ levar isso ao grupo caiu). Só com texto grande ou muito grande, entre `lg` e `x
 direita `gap-2` para manter a folga. Medido em 1024, 1100, 1279, 1280, 1440 e 1536 px (claro, texto grande, escuro com texto
 muito grande): folga mínima 21 px (1024 px, texto muito grande); o teste `landing: folga da Navbar` do `test:responsivo`
 passa. `Navbar.test.tsx` agora exige o "Sobre" logo depois de Orientações, no mesmo grupo, e o bloco da direita sem ele.
+
+## Fechamento do item 9.5 (2026-10-20)
+
+Fecha o que mantinha o item 9.5 em 🟡: exclusão de conta (LGPD art. 18, antes adiada como D11 de 14/10), a CSP completa
+vista nas rotas autenticadas e a regressão das regras do 9.5. Decisões D1 a D14 do Marcos (delegação de 2026-10-20), todas
+cumpridas; este texto só registra o resultado.
+
+**Exclusão de conta (D2 a D6).** `DELETE /usuario/me`, sem id em path, query ou corpo: o alvo é sempre `req.usuarioId`. Corpo
+`{ confirmacao: "EXCLUIR" }` (string, igualdade exata; senão 400 "Confirmação inválida."). `requireAuthRevogacao` (16ª rota
+`revogacao`), `bloquearContaDemo` (403 no elenco) e limite de 3 por hora por usuário. `requireAuth` passou a expor
+`req.authTime` (a premissa P7 era falsa: só número finito vale). `auth_time` de até 300 s, inclusive; ausente, texto ou mais
+velho: 401 `{ error, codigo: "reautenticar" }` (a confirmação inválida vence o login vencido: 400 antes de 401).
+Resposta de sucesso: 204 sem corpo. Firebase falhando: 502 fixo, sem eco do erro.
+
+**Dados (D4).** Uma transação interativa (`timeout` 20000, `maxWait` 5000; o Prisma 5.22 aceitou as opções no SQL Server):
+(a) apaga, nesta ordem, doses (pelos medicamentos), medicamentos, registros de saúde, registros alimentares, eventos e
+vínculos em que `idoso_id` é o excluído; (b) apaga os vínculos em que ele é o vinculado; (c) não toca no que ele escreveu
+sobre outros idosos (autoria obrigatória, RNF-006): `criado_por`, `editado_por`, `registrado_por`, `aprovador` e `definido_por`
+seguem apontando para a linha anonimizada; (d) anonimiza a linha, nunca `DELETE`: nome "Conta excluída", e-mail
+`excluido-<id>@excluido.invalid`, telefone, convite de familiar, último login, foto (3 campos), termo de responsabilidade e
+`modo_decisao*` nulos; ficam `firebase_uid`, `tipo_perfil`, `created_at`, `cadastrado_por_id` e o aceite
+(`aceite_documentos_*`, `consentimento_saude_em`: prova de consentimento sem identidade, LGPD art. 16, I); (e) idoso sem login
+que o excluído cadastrou e que não tem outro vínculo aprovado recebe (a) e (d); com outro vínculo aprovado, fica; (f) idoso
+que perdeu o último familiar aprovado e estava em `'familiar'` (ou com transferência pendente) volta a `'idoso'` com a
+solicitação limpa. As CHECKs de `Usuario` (e-mail ou telefone, uid nulo só com cadastrante, grupos de foto, aceite e
+solicitação, termo só com cadastrante, convite só de idoso) cabem sem migration (D7): nada foi aplicado no Azure.
+
+**Duas diferenças da letra da D4, ambas para fechar buraco.** (1) Em (e) e (f) a decisão não usa `resolverModoDecisao`: ele lê
+pelo `prisma` global e, dentro da transação, travaria nas linhas já escritas (SQL Server, read committed). A regra direta
+(sem familiar aprovado restante, e `modo_decisao === 'familiar'` ou solicitação pendente) equivale ao efetivo, porque uma
+transferência vencida também é limpa. (2) A transferência de decisão pendente iniciada ou confirmada pelo excluído em outro
+idoso é cancelada; sem isso a carência venceria depois e o idoso viraria `'familiar'` com um iniciador anonimizado. Se o grupo
+não quiser a (2), basta tirar a segunda condição de `reconciliarDecisao` em `routes/usuario.ts` e os dois testes de
+transferência pendente.
+
+**Firebase dentro da transação (D5).** `auth.deleteUser(firebase_uid)` por último, antes do commit; se lançar, o banco inteiro é
+desfeito e a rota responde 502. A segunda chamada com o mesmo token falha em 401 no Firebase (o usuário já não existe).
+
+**Textos legais (D9).** "Não há botão para excluir a conta" saiu de Privacidade e Termos; os dois descrevem o botão, o que é
+apagado e o que permanece (autoria sem nome, prova de aceite sem identidade, cópias de segurança do provedor por prazo do
+provedor, sem prometer prazo). O idoso cadastrado por familiar que ainda não entrou no site só se exclui pelo contato.
+`VERSAO_DOCUMENTOS` = 1.2, `DATA_ATUALIZACAO` = 20 de outubro de 2026, `VERSOES_DOCUMENTOS` = `["1.1","1.2"]`. A seed do modo
+demonstração usa a última versão da lista.
+
+**Frontend (D8).** `components/perfil/ExcluirConta.tsx` no fim de Meu Perfil, dentro do `ModalVinculo` (ganhou `idDescricao`
+para o `aria-describedby`): texto por perfil, campo "Digite EXCLUIR", senha só para conta com senha, botão desabilitado até
+a confirmação bater, erros por caso (senha errada, `reautenticar`, 429, 502, 403, rede). Reautentica no Firebase antes da API
+(`contaComSenha` e `reautenticar` em `lib/auth.ts`: `reauthenticateWithCredential` para senha, `reauthenticateWithPopup` para
+Google, depois `getIdToken(true)`); `chamarApi` passou a repassar `codigo`. Sucesso: navega para a landing com o aviso "Conta
+excluída." e só então sai da sessão (sair antes fazia a `RotaProtegida` levar a `/login` e o aviso se perdia; achado pelo
+e2e). A conta de demonstração não vê a seção. Fontes consultadas via Context7: Firebase Admin `deleteUser` e claim
+`auth_time` (firebase.google.com/docs/auth/admin/manage-users e verify-id-tokens) e `reauthenticateWithCredential`,
+`reauthenticateWithPopup` e `getIdToken` (firebase-js-sdk, docs-devsite/auth.md).
+
+**Provas.** Backend: 70 suítes e 3471 testes (eram 69 e 3382), cobertura 97,71 % de instruções e 96,31 % de ramos, `tsc` e
+`lint` limpos. Frontend: 114 suítes e 1342 testes (eram 112 e 1287). `scripts/verify-exclusao-conta.ts` (rota, Prisma e SQL
+Server locais reais, só o Firebase trocado): 29/29, inclusive Firebase falhando com o banco intacto e a contagem de todas as
+tabelas igual depois da limpeza; `verify-constraints.ts`: 26/26. e2e `exclusao-conta.spec.ts` (conta `e2e-*`, só ela é
+excluída): senha errada com erro claro, exclusão, aviso, login que passa a falhar e linha anonimizada no SQL local.
+`test:a11y` 17/17 (agora com o diálogo aberto) e `test:responsivo` 6/6.
+
+**Mutações locais** (restauradas por cópia, cada uma derrubou testes): M1 `requireAuth` no lugar de `requireAuthRevogacao`;
+M2 sem checagem de `auth_time`, limite exclusivo, `auth_time` ausente aceito; M3 sem barrar a confirmação e qualquer string;
+M4 cada tabela do idoso sem ser apagada (doses, medicamentos, saúde, alimentação, eventos, vínculos do idoso e como
+vinculado) e doses depois dos medicamentos; M5 apagando o que o excluído autorou; M6 cada campo da anonimização (12) e a
+limpeza da solicitação; M7 Firebase engolido e Firebase fora da transação; M8 sem `bloquearContaDemo`; M9 sem limitador; M10
+alvo lido do corpo; M11 idoso sem login apagado com vínculo restante e mantido sem ninguém; M12 sem voltar a `'idoso'`, sem
+reconciliar, sem cancelar a transferência do excluído e contando familiar não aprovado; M13 (frontend) botão habilitado sem
+confirmação, sem senha ou com minúsculas, API sem reautenticar, API mesmo com a reautenticação falha, seção na conta de
+demonstração, sem aviso na landing, Esc fechando durante a exclusão e mensagem bruta no alerta. Sete mutantes do backend
+sobreviveram na primeira rodada porque não compilavam (`noUnusedLocals`); foram reescritos para compilar e então morreram. Um
+mutante do frontend (confirmação em minúsculas) sobreviveu de verdade: o teste do botão só tentava minúsculas sem a senha
+preenchida; o teste foi corrigido e o mutante morreu.
+
+**CSP nas rotas autenticadas (D10).** Script Playwright descartável, fora do repositório: o bundle foi construído com
+`VITE_API_URL` igual à origem de produção do `connect-src` e o Playwright atendeu essa origem pelo backend local (a
+produção nunca foi chamada); a CSP completa foi lida do `vercel.json` e injetada como obrigatória no HTML, junto com a que já
+é obrigatória. 39 telas e estados (11 rotas de cada perfil, `/vinculos/:id` e o Perfil com o diálogo aberto em 1280 e 320 px):
+0 violações, 0 erros de CSP no console, sem estouro horizontal nem alvo abaixo de 44 px no diálogo. Controle negativo: script
+inline e `fetch` a origem fora da lista dispararam `script-src-elem` e `connect-src`. Nenhuma correção em `vercel.json`; a CSP
+completa continua só em Report-Only. Não coberto: login com Google, foto, PDF e recusar vínculo (item 11 do checklist).
+
+**Riscos aceitos.** (D4 e) o idoso sem login que fica (outro vínculo aprovado) mas perde o familiar que decidia por ele fica sem
+ninguém com autoridade de decisão, igual à janela de autoridade vazia já documentada. (D4 g) nenhum aviso por e-mail aos
+familiares e cuidadores que perdem o vínculo; sem backup nem período de arrependimento (a confirmação digitada e a
+reautenticação são a salvaguarda). (D5) se o Firebase apagou e o commit falhou (janela rara), a pessoa fica sem login e os
+dados intactos; limpeza manual: achar o `Usuario` pelo e-mail e repetir a exclusão (as mesmas etapas da transação, por SQL) ou
+recriar o usuário no Firebase com o mesmo uid pelo Admin SDK. (Volume) `in` com os ids dos medicamentos do idoso: o limite de
+parâmetros do SQL Server está longe do volume do TCC.
+
+**Não verificado.** Login com Google sob a CSP e `reauthenticateWithPopup` em produção; a exclusão em produção (item 13 do
+checklist); `USER node` no runtime do Render; a janela rara do commit depois do Firebase (só descrita, não reproduzida).
+
+**Ordem de publicação.** Backend (Render), depois frontend (Vercel); nenhuma migration; o Azure não foi tocado. Contas
+`e2e-*@e2e.elderweb.test` criadas nesta rodada no Firebase real: 2 do spec de exclusão (as duas já excluídas pela própria
+interface), 3 do `test:a11y`, 4 do `test:responsivo` e 3 do script de CSP; as demais seguem sem limpeza (item 6 do
+checklist). O ER.md está em REV.18 (não REV.21 como o prompt supunha), então não foi alterado.
+
+**Pendências do Marcos.** Publicar na ordem acima; itens de painel do checklist; teste de exclusão em produção; promover a
+CSP; avisar Laureane e Jennifer (Perfil, Privacidade e Termos mudaram; a landing ganhou o aviso; `ModalVinculo` ganhou
+`idDescricao`); `git push` quando quiser; no vault, linha 9.5, "Por que 🟡", tabela de testes da Fase 9, Stacks e ER (nota
+da regra de exclusão e revisão nova).

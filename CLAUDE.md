@@ -264,13 +264,17 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Endurecimento (2026-10-14, histórico e `docs/checklist-seguranca-producao.md`): `lib/limiteTaxa.ts` (Map, 429 fixo,
   desligado no Jest, `LIMITE_TAXA_DESLIGADO=1` só fora de produção): 2000/15 min por usuário no `requireAuth`, `/auth/sync`
   300 por IP e 60 por uid, solicitar 20, convidar e `PATCH /usuario/me` 30, `cadastrar-idoso` 10/h. `trust proxy` só em
-  produção, `TRUST_PROXY_SALTOS` (padrão 1; Render: 3, medido em 2026-10-15). `requireAuthRevogacao` (token revogado: 401) só nas 15 rotas
+  produção, `TRUST_PROXY_SALTOS` (padrão 1; Render: 3, medido em 2026-10-15). `requireAuthRevogacao` (token revogado: 401) só nas 16 rotas
   `revogacao` de `ROTAS_ESPERADAS`, nunca em leitura, saúde, remédio, agenda, alimentação, emergência ou foto.
 - Vínculo: terceiro recebe o mesmo 404 antes de qualquer 400 ou 409 (idoso dono sem autoridade: 403); convite pendente
   não mostra a conta convidada; `solicitar-cuidador` sem lista de idosos. Cabeçalhos: `middleware/cabecalhosSeguranca.ts`
   e `vercel.json`, CSP completa só em Report-Only até o Marcos promover; nada de script inline no `index.html`.
-- `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`). Publicar: migration no Azure, depois
-  Vercel, depois Render. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
+- `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`, hoje `["1.1","1.2"]`). Publicar: migration no Azure, depois
+  Vercel, depois Render; versão nova de documentos: Render antes da Vercel. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
+- Exclusão de conta (2026-10-20): `DELETE /usuario/me`, só a própria; corpo `{ confirmacao: "EXCLUIR" }`, `auth_time` de até 300 s (senão 401
+  `reautenticar`), 3/h. Numa transação: apaga os dados do idoso (e do idoso sem login que ele cadastrou e ficou sem vínculo aprovado),
+  tira os vínculos, anonimiza `Usuario` (nome "Conta excluída", e-mail `excluido-<id>@excluido.invalid`; uid, aceite e autoria ficam) e
+  chama `auth.deleteUser` por último (falha: 502, nada apagado). Sem migration. Detalhes: histórico, "Fechamento do item 9.5".
 - Modo demonstração (`docs/modo-demonstracao.md`): `DEMO_MODO_ATIVO=1` e `DEMO_ADMIN_UIDS` só no painel do Render; conta do elenco nunca cria vínculo nem alcança idoso fora do elenco.
 
 **Testes**
@@ -310,7 +314,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 **Pendências manuais (Marcos)**
 - Avisar Laureane e Jennifer: PDF do histórico (5.4, `lib/baixarPdf.ts`, `Remedios.tsx`); cores (PR #143); layout e
   revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing); calendário
-  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10).
+  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20).
 - Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo; apagar as contas `e2e-*@e2e.elderweb.test` do Firebase;
