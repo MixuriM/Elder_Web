@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { auditarRota } from "./helpers/axe";
 
-// Item 9.1 (RNF-007), camada Playwright: axe-core nas 7 rotas públicas. Sem login e sem conta
+// Item 9.1 (RNF-007), camada Playwright: axe-core nas rotas públicas. Sem login e sem conta
 // nova. O estado de erro do login chama o Firebase real (credencial inexistente), sem backend.
 // Rodar: npm run test:a11y
 test.describe.configure({ timeout: 90_000 });
@@ -9,6 +9,7 @@ test.describe.configure({ timeout: 90_000 });
 const ROTAS_PUBLICAS = [
   "/",
   "/sobre-nos",
+  "/orientacoes",
   "/welcome",
   "/login",
   "/cadastro",

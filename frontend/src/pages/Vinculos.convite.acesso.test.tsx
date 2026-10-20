@@ -51,7 +51,7 @@ describe("Vinculos: o aceite do convite libera o menu do cuidador", () => {
   });
   afterEach(() => jest.restoreAllMocks());
 
-  it("antes: só Início, Meu Perfil, Cuidadores e Orientações; depois de aceitar: libera o resto", async () => {
+  it("antes: só Início, Meu Perfil, Cuidadores, Orientações e Sobre nós; depois de aceitar: libera o resto", async () => {
     let aceito = false;
     global.fetch = jest.fn((url: string, init?: RequestInit) => {
       const rota = String(url).replace(/^.*?(\/(vinculo|usuario).*)$/, "$1");
@@ -90,7 +90,7 @@ describe("Vinculos: o aceite do convite libera o menu do cuidador", () => {
     await screen.findByRole("heading", { name: "Convites para você" });
     const nomes = () => within(menu).getAllByRole("listitem").map((li) => li.textContent);
     await screen.findByText("Cuidadores", { selector: "li" });
-    expect(nomes()).toEqual(["Início", "Meu Perfil", "Cuidadores", "Orientações"]);
+    expect(nomes()).toEqual(["Início", "Meu Perfil", "Cuidadores", "Orientações", "Sobre nós"]);
 
     await userEvent.click(screen.getByRole("button", { name: "Aceitar o convite de Maria Idosa" }));
 
@@ -105,6 +105,7 @@ describe("Vinculos: o aceite do convite libera o menu do cuidador", () => {
       "Alimentação e Nutrição",
       "Cuidadores",
       "Orientações",
+      "Sobre nós",
     ]);
   });
 });
