@@ -26,6 +26,8 @@ async function requisitar(path: string, options: RequestInit, token: string | nu
     throw Object.assign(new Error(mensagem), {
       status: res.status,
       proximo_passo: typeof corpo?.proximo_passo === 'string' ? corpo.proximo_passo : undefined,
+      // codigo (ex.: 'reautenticar' na exclusão de conta) deixa a tela escolher a ação sem comparar texto.
+      codigo: typeof corpo?.codigo === 'string' ? corpo.codigo : undefined,
     })
   }
   return corpo

@@ -1,5 +1,5 @@
 import { MENSAGEM_LIMITE_TAXA } from './limiteTaxa'
-import { SyncError, emailConfirmado, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, mensagemRequisitosSenha, syncUser, validarSenha } from './auth'
+import { SyncError, contaComSenha, emailConfirmado, reautenticar, erroSemContaNoLogin, mensagemErroCadastro, mensagemErroLogin, mensagemRequisitosSenha, syncUser, validarSenha } from './auth'
 
 // lib/auth.ts inicializa o Firebase de verdade no import; mocks evitam isso (mesmo
 // padrão de Home.test.tsx / RotaProtegida.test.tsx).
@@ -7,7 +7,12 @@ const mockValidatePassword = jest.fn()
 const mockGetIdToken = jest.fn().mockResolvedValue('token-fake')
 // Usuário atual do Firebase (fake), trocável por teste; getter para o auth do import ver a troca.
 let mockUsuarioAtual: Record<string, unknown> | null = null
+const mockReauthCredencial = jest.fn()
+const mockReauthPopup = jest.fn()
 jest.mock('firebase/auth', () => ({
+  EmailAuthProvider: { credential: (...args: unknown[]) => ({ credencial: args }) },
+  reauthenticateWithCredential: (...args: unknown[]) => mockReauthCredencial(...args),
+  reauthenticateWithPopup: (...args: unknown[]) => mockReauthPopup(...args),
   getAuth: jest.fn(() => ({
     get currentUser() {
       return mockUsuarioAtual ?? { getIdToken: (...args: unknown[]) => mockGetIdToken(...args) }
@@ -340,5 +345,78 @@ describe('syncUser — aceite dos documentos', () => {
     await syncUser()
     const corpo = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body)
     expect(corpo).not.toHaveProperty('aceite_documentos')
+  })
+})
+
+// Exclusão de conta (2026-10-20): login recente de novo antes do DELETE. Senha: credencial de e-mail; Google: popup.
+describe('contaComSenha e reautenticar', () => {
+  const usuario = (providers: string[]) => ({
+    email: 'ficticio@exemplo.test',
+    providerData: providers.map((providerId) => ({ providerId })),
+    getIdToken: (...args: unknown[]) => mockGetIdToken(...args),
+  })
+
+  beforeEach(() => {
+    mockReauthCredencial.mockReset().mockResolvedValue({})
+    mockReauthPopup.mockReset().mockResolvedValue({})
+    mockGetIdToken.mockClear()
+    mockUsuarioAtual = null
+  })
+  afterEach(() => {
+    mockUsuarioAtual = null
+  })
+
+  it('contaComSenha: true só com o provedor password', () => {
+    mockUsuarioAtual = usuario(['password'])
+    expect(contaComSenha()).toBe(true)
+    mockUsuarioAtual = usuario(['google.com'])
+    expect(contaComSenha()).toBe(false)
+    mockUsuarioAtual = usuario(['google.com', 'password'])
+    expect(contaComSenha()).toBe(true)
+  })
+
+  it('contaComSenha: sem usuário logado é false', () => {
+    mockUsuarioAtual = { providerData: [] }
+    expect(contaComSenha()).toBe(false)
+  })
+
+  it('conta com senha: reautentica com a credencial de e-mail e senha e renova o token', async () => {
+    const u = usuario(['password'])
+    mockUsuarioAtual = u
+    await reautenticar('SenhaFicticia1!')
+    expect(mockReauthCredencial).toHaveBeenCalledTimes(1)
+    expect(mockReauthCredencial.mock.calls[0][0]).toBe(u)
+    expect(mockReauthCredencial.mock.calls[0][1]).toEqual({ credencial: ['ficticio@exemplo.test', 'SenhaFicticia1!'] })
+    expect(mockReauthPopup).not.toHaveBeenCalled()
+    expect(mockGetIdToken).toHaveBeenCalledWith(true)
+  })
+
+  it('conta Google: reautentica por popup e renova o token', async () => {
+    const u = usuario(['google.com'])
+    mockUsuarioAtual = u
+    await reautenticar()
+    expect(mockReauthPopup).toHaveBeenCalledTimes(1)
+    expect(mockReauthPopup.mock.calls[0][0]).toBe(u)
+    expect(mockReauthCredencial).not.toHaveBeenCalled()
+    expect(mockGetIdToken).toHaveBeenCalledWith(true)
+  })
+
+  it('conta com senha sem a senha: lança e não chama o Firebase', async () => {
+    mockUsuarioAtual = usuario(['password'])
+    await expect(reautenticar('')).rejects.toThrow()
+    await expect(reautenticar(undefined)).rejects.toThrow()
+    expect(mockReauthCredencial).not.toHaveBeenCalled()
+  })
+
+  it('erro do Firebase sobe sem renovar o token (a tela mostra a mensagem)', async () => {
+    mockUsuarioAtual = usuario(['password'])
+    mockReauthCredencial.mockRejectedValue(Object.assign(new Error('x'), { code: 'auth/wrong-password' }))
+    await expect(reautenticar('errada')).rejects.toMatchObject({ code: 'auth/wrong-password' })
+    expect(mockGetIdToken).not.toHaveBeenCalled()
+  })
+
+  it('sem usuário logado: lança', async () => {
+    mockUsuarioAtual = { providerData: [] }
+    await expect(reautenticar('x')).rejects.toThrow()
   })
 })

@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import Perfil from './Perfil'
@@ -16,6 +17,9 @@ jest.mock('../hooks/useAuthUser', () => ({
 jest.mock('../lib/auth', () => ({
   emailConfirmado: jest.fn().mockResolvedValue(false),
   sendEmailVerification: jest.fn(),
+  contaComSenha: () => true,
+  reautenticar: jest.fn(),
+  logoutUser: jest.fn(),
 }))
 
 const mockBuscarPerfil = jest.fn()
@@ -24,6 +28,7 @@ jest.mock('../services/perfilService', () => ({
   salvarPerfil: jest.fn(),
   enviarFotoPerfil: jest.fn(),
   removerFotoPerfil: jest.fn(),
+  excluirConta: jest.fn(),
 }))
 
 // LIMITE: jsdom não calcula cor, então contraste NÃO é verificado aqui (coberto pelo Playwright, item 9.1).
@@ -64,5 +69,20 @@ describe('Perfil (acessibilidade)', () => {
     await screen.findByRole('button', { name: /remover foto/i })
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
     expect(await axe(container, AXE)).toHaveNoViolations()
+  })
+
+  // Exclusão de conta (2026-10-20): o diálogo aberto também não tem violação, e o foco entra nele.
+  it('com a seção de exclusão e o diálogo aberto: dialog nomeado e descrito, sem violações detectáveis pelo axe', async () => {
+    const user = userEvent.setup()
+    const { container } = renderPerfil(null)
+    await screen.findByLabelText(/nome/i)
+    expect(await axe(container, AXE)).toHaveNoViolations()
+    await user.click(screen.getByRole('button', { name: 'Excluir minha conta' }))
+    const dialogo = screen.getByRole('dialog')
+    expect(dialogo).toHaveAccessibleName(/excluir minha conta/i)
+    expect(dialogo).toHaveAccessibleDescription(/não dá para desfazer/i)
+    expect(dialogo).toHaveFocus()
+    // O diálogo fica fora do container (como no app); a regra de região é de página inteira e o jsdom não tem <main>.
+    expect(await axe(document.body, { rules: { ...AXE.rules, region: { enabled: false } } })).toHaveNoViolations()
   })
 })

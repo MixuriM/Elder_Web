@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 // Componentes da Landing Page
 import Navbar from "../components/landing/Navbar";
@@ -17,6 +17,8 @@ function LandingPage() {
   useTitulo("Página inicial");
   // Hook utilizado para navegar entre páginas
   const navigate = useNavigate();
+  // Depois de excluir a conta, o Perfil volta para cá com este estado (só o valor true conta).
+  const contaExcluida = (useLocation().state as { contaExcluida?: unknown } | null)?.contaExcluida === true;
 
   // Navega para a página de boas-vindas (mesmo destino do botão "Entrar")
   function handleCadastro() {
@@ -53,6 +55,12 @@ function LandingPage() {
         dark:text-white
       "
     >
+      {contaExcluida && (
+        <p role="status" className="bg-[#EEF4FF] px-6 py-3 text-center text-base font-semibold text-[#101828] dark:bg-[#20202A] dark:text-white">
+          Conta excluída.
+        </p>
+      )}
+
       {/* Barra de navegação */}
       <Navbar onEntrar={handleLogin} />
 

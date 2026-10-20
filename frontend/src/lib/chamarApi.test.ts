@@ -20,6 +20,18 @@ describe('chamarApi: erro carrega o status HTTP', () => {
     await expect(chamarApi('/x')).rejects.toMatchObject({ message: 'Conflito', status: 409, proximo_passo: 'Faça isto' })
   })
 
+  it('erro repassa o codigo do corpo quando é texto (ex.: reautenticar na exclusão de conta)', async () => {
+    global.fetch = jest.fn().mockResolvedValue(resposta(401, { error: 'Confirme de novo.', codigo: 'reautenticar' }))
+    await expect(chamarApi('/x')).rejects.toMatchObject({ status: 401, codigo: 'reautenticar' })
+    global.fetch = jest.fn().mockResolvedValue(resposta(400, { error: 'x', codigo: { a: 1 } }))
+    await expect(chamarApi('/x')).rejects.toMatchObject({ codigo: undefined })
+  })
+
+  it('204 sem corpo é sucesso e devolve null', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 204, json: () => Promise.reject(new Error('sem corpo')) })
+    await expect(chamarApi('/x', { method: 'DELETE' })).resolves.toBeNull()
+  })
+
   it('corpo sem JSON ainda traz o status', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 502, json: () => Promise.reject(new Error('x')) })
     await expect(chamarApi('/x')).rejects.toMatchObject({ status: 502 })
