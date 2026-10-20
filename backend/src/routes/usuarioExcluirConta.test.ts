@@ -579,7 +579,10 @@ describe("DELETE /usuario/me: modo_decisao de quem perde o último familiar (D4 
     for (const u of dados.usuario as Linha[]) expect(respeitaChecks(u)).toBe(true);
   });
 
-  it("transferência pendente confirmada (segunda confirmação) pelo excluído também é cancelada", async () => {
+  // Fechamento do 9.5 (F4): a transferência é do iniciador; só a segunda confirmação some. O resolver decide sozinho no
+  // vencimento: com 1 familiar aprovado restante a segunda confirmação não é exigida e a transferência vale; com 2 ou mais
+  // e sem confirmação, ela vence sem efeito. Cancelar tudo tiraria do iniciador uma transferência que ainda valeria.
+  it("transferência pendente cujo iniciador segue: só a segunda confirmação do excluído é retirada", async () => {
     Object.assign(usuarioDe(OUTRO_IDOSO), {
       modo_decisao: "idoso",
       modo_decisao_solicitado: "familiar",
@@ -589,7 +592,13 @@ describe("DELETE /usuario/me: modo_decisao de quem perde o último familiar (D4 
       modo_decisao_segunda_confirmacao_id: FAMILIAR,
     });
     await excluir(`t${FAMILIAR}`);
-    expect(usuarioDe(OUTRO_IDOSO)).toMatchObject({ modo_decisao: "idoso", ...SEM_SOLICITACAO });
+    expect(usuarioDe(OUTRO_IDOSO)).toMatchObject({
+      modo_decisao: "idoso",
+      modo_decisao_solicitado: "familiar",
+      modo_decisao_solicitado_por_id: OUTRO_FAMILIAR,
+      modo_decisao_segunda_confirmacao_id: null,
+    });
+    for (const u of dados.usuario as Linha[]) expect(respeitaChecks(u)).toBe(true);
   });
 });
 
