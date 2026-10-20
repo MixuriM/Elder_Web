@@ -98,6 +98,43 @@ describe("requireAuth", () => {
     expect(res.body).toEqual({ emailVerificado: esperado });
   });
 
+  // Auditoria de segurança (2026-10-20): o ID Token emitido antes da exclusão segue válido por até 1 h no Firebase (sem
+  // checkRevoked) e a linha anonimizada continua com o firebase_uid. Sem este bloqueio, o token antigo escreveria dado de
+  // saúde numa conta que ninguém consegue mais apagar.
+  it("conta já excluída (e-mail anonimizado): 401 igual ao de token inválido, e a rota não roda", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "u" });
+    findFirst.mockResolvedValue({ id: 42, email: "excluido-42@excluido.invalid" });
+    const app = express();
+    const handler = jest.fn((_req, res) => res.sendStatus(200));
+    app.get("/p", requireAuth, handler);
+
+    const res = await request(app).get("/p").set("Authorization", "Bearer t");
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "Token inválido ou expirado." });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it.each([["pessoa@exemplo.test"], [null], [undefined], ["excluido-42@excluido.invalid.exemplo.test"]])(
+    "e-mail %p não é conta excluída: segue",
+    async (email) => {
+      verifyIdToken.mockResolvedValue({ uid: "u" });
+      findFirst.mockResolvedValue({ id: 42, email });
+      const app = express();
+      app.get("/p", requireAuth, (_req, res) => res.sendStatus(200));
+      expect((await request(app).get("/p").set("Authorization", "Bearer t")).status).toBe(200);
+    },
+  );
+
+  it("busca só id e e-mail do usuário (nunca a foto)", async () => {
+    verifyIdToken.mockResolvedValue({ uid: "u" });
+    findFirst.mockResolvedValue({ id: 42, email: "a@b.test" });
+    const app = express();
+    app.get("/p", requireAuth, (_req, res) => res.sendStatus(200));
+    await request(app).get("/p").set("Authorization", "Bearer t");
+    expect(findFirst.mock.calls[0][0].select).toEqual({ id: true, email: true });
+  });
+
   // Exclusão de conta (2026-10-20): auth_time (segundos) diz quando o login foi feito; só número vale, o resto é ausente.
   it.each([
     [{ uid: "u", auth_time: 1_800_000_000 }, 1_800_000_000],

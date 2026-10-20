@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
+import { Prisma } from "@prisma/client";
 import multer from "multer";
 import { prisma } from "../lib/prisma";
 import { auth as firebaseAuth } from "../lib/firebaseAdmin";
@@ -355,7 +356,9 @@ router.delete("/me", requireAuthRevogacao, bloquearContaDemo, limiteExcluirConta
             throw new FalhaFirebase();
           }
         },
-        { timeout: 20000, maxWait: 5000 },
+        // Serializable: duas exclusões ao mesmo tempo (ou uma aprovação de vínculo em paralelo) não podem deixar um idoso
+        // sem login órfão nem apagar um que acabou de ganhar vínculo. Conflito vira erro (500) e nada é apagado.
+        { timeout: 20000, maxWait: 5000, isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (e) {
       if (e instanceof FalhaFirebase) return res.status(502).json({ error: MSG_EXCLUSAO_FALHOU });

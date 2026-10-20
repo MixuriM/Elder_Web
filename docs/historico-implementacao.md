@@ -2786,6 +2786,17 @@ dados intactos; limpeza manual: achar o `Usuario` pelo e-mail e repetir a exclus
 recriar o usuário no Firebase com o mesmo uid pelo Admin SDK. (Volume) `in` com os ids dos medicamentos do idoso: o limite de
 parâmetros do SQL Server está longe do volume do TCC.
 
+**Revisão final (subagente `security-auditor` e revisão do diff).** Sem achado crítico ou alto. Corrigidos: (M) o ID Token de
+antes da exclusão segue válido no Firebase por até 1 h e a linha anonimizada mantém o `firebase_uid`, então um token antigo
+escreveria dado de saúde numa conta que ninguém mais apaga; `requireAuth` agora seleciona o e-mail e responde o mesmo 401 do
+token inválido quando termina em `@excluido.invalid`; (L) duas exclusões simultâneas, ou uma aprovação de vínculo em
+paralelo, podiam deixar um idoso sem login órfão ou apagar um que acabou de ganhar vínculo (leitura sem bloqueio no padrão
+do SQL Server); a transação passou a `Serializable` (conflito vira 500 e nada é apagado; `verify-exclusao-conta.ts` segue
+29/29). Aceitos: (L2) o idoso sem login que fica por causa de um cuidador aprovado, sem familiar, não tem quem revogue o
+cuidador (é o risco D4 e, já registrado; a regra segue contando cuidador e familiar como a D4 manda); vínculo só pendente
+não segura o idoso; token emitido nos últimos 5 minutos exclui a conta sem a senha (inerente ao `auth_time`); estouro do
+`timeout` do Prisma (P2028) depois de o Firebase apagar cai na mesma janela rara do commit.
+
 **Não verificado.** Login com Google sob a CSP e `reauthenticateWithPopup` em produção; a exclusão em produção (item 13 do
 checklist); `USER node` no runtime do Render; a janela rara do commit depois do Firebase (só descrita, não reproduzida).
 
