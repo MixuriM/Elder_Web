@@ -2809,3 +2809,59 @@ checklist). O ER.md está em REV.18 (não REV.21 como o prompt supunha), então 
 CSP; avisar Laureane e Jennifer (Perfil, Privacidade e Termos mudaram; a landing ganhou o aviso; `ModalVinculo` ganhou
 `idDescricao`); `git push` quando quiser; no vault, linha 9.5, "Por que 🟡", tabela de testes da Fase 9, Stacks e ER (nota
 da regra de exclusão e revisão nova).
+
+## Correções do fechamento do 9.5 (2026-10-20)
+
+Revisão posterior ao fechamento achou seis pontos (F1 a F6) e pediu uma confirmação explícita na exclusão (F7). Decisões
+D1 a D8 do Marcos (delegação de 2026-10-20).
+
+**F1 e F2, token antigo no `/auth/sync`.** `POST /auth/sync` não passa pelo `requireAuth` e achava a linha anonimizada pelo
+`firebase_uid`, gravava `ultimo_login_em` e respondia 200 a um ID Token emitido antes da exclusão (válido por até 1 h). Agora o
+ramo "usuário existente" responde o mesmo 401 `Token inválido ou expirado.` do `requireAuth`, antes de qualquer escrita
+(`ultimo_login_em`, promoção de vínculo, cancelamento de solicitação). Sem `checkRevoked` no sync (custo por login e não
+cobre a janela do Firebase). O ramo de criação não muda: o e-mail real da conta antiga já não está na linha, então o mesmo
+e-mail cria conta nova. O marcador vive só em `lib/contaExcluida.ts` (`DOMINIO_CONTA_EXCLUIDA`, `emailContaExcluida`,
+`ehContaExcluida`, `MSG_TOKEN_INVALIDO`); um teste varre `src` e falha se o texto do domínio aparecer em outro arquivo de
+produção. Teste de integração: depois de excluir, o mesmo token leva 401 em `GET /usuario/me` e em `/auth/sync`.
+
+**F3, a linha anonimizada como alvo de busca.** Varredura de todo `usuario.find*`/`count` em `routes/` e `lib/`. Alcançam a
+linha só os pontos em que o chamador digita o e-mail (o marcador é um e-mail de formato válido e `tipo_perfil` é
+preservado): `solicitar-cuidador` (idoso direto e familiar), `solicitar-familiar`, `convidar-familiar`, `convidar-cuidador`,
+`cadastrar-idoso` (colisão), `PATCH /usuario/me` (unicidade e gravação do marcador no próprio cadastro), `email_convite_familiar`
+no sync e a criação no sync (colisão e anexo ao idoso sem login). Não alcançam: leituras por `req.usuarioId` (atrás do
+`requireAuth`, que agora recusa a conta excluída), leituras por id vindo de vínculo (os vínculos do excluído são apagados),
+`emergencia` (destinatários vêm de vínculos), `vincularFamiliarConvidado` (busca `email_convite_familiar`, que a
+anonimização zera), a corrida de `firebase_uid` duplicado no sync (a linha acabou de ser criada) e a seed da demonstração.
+Correção: e-mail do marcador é inválido em toda entrada. O `isValidEmailFormat` compartilhado o rejeita (convidar, cadastrar
+idoso, troca de e-mail, convite no sync) e `solicitar-*` e a criação no sync ganharam a guarda própria; todos respondem 400
+`E-mail inválido.` igual com ou sem conta morta (sem oráculo). Onde a conta excluída aparece de forma legítima (nome "Conta
+excluída" em dado de outro idoso) nada mudou.
+
+**F4, `reconciliarDecisao` contra o resolver real.** `verify-exclusao-conta.ts` passou a chamar `resolverModoDecisao` depois de
+cada exclusão, em 7 casos (SQL local): único familiar excluído, dois familiares com um excluído, iniciador excluído dentro da
+carência, carência vencida com confirmador excluído (1 e 2 familiares restantes), vencida sem confirmação com iniciador vivo e
+idoso sem login que fica só com cuidador. Todos deram o esperado. A leitura do resolver mostrou uma divergência, corrigida:
+cancelar a transferência inteira quando só o confirmador era o excluído tirava do iniciador uma transferência que ainda
+valeria (com 1 familiar restante a segunda confirmação nem é exigida). Agora só a segunda confirmação é retirada; o resolver
+decide no vencimento. Iniciador excluído continua cancelando tudo.
+
+**F5, texto legal.** Cada afirmação do trecho novo foi ligada a um teste ou linha. Três não se sustentavam e foram
+corrigidas, sem subir a versão (`VERSAO_DOCUMENTOS` segue 1.2, ainda não publicada): nenhuma tela mostra o nome de quem
+registrou, então "aparece como Conta excluída" virou "a conta passa a se chamar Conta excluída" (Privacidade e diálogo);
+"guardamos só o registro de aceite" perdeu o "só" (a linha também guarda `firebase_uid`, `tipo_perfil` e datas); e a Privacidade
+passou a dizer que idosos cadastrados pelo excluído e sem outro vínculo aprovado também são apagados, como já dizia o diálogo.
+`test:a11y` 17/17 e `test:responsivo` 6/6 depois da mudança.
+
+**F6, contas e2e.** `scripts/limpar-contas-e2e.ts` (só à mão, fora do CI) com a lógica em `lib/limparContasE2e.ts`:
+simulação por padrão, `--confirmo-firebase` apaga em lotes de 100, teto de 500 por execução, só e-mail que começa com `e2e-` e
+termina em `@e2e.elderweb.test`, nunca imprime e-mail, uid nem erro bruto. Testado só com o Admin mockado (22 testes); o
+script NÃO foi executado contra o Firebase real. Comando no item 6 do checklist.
+
+**F7, confirmação explícita.** Sem mudança de produto: digitar EXCLUIR mais reautenticar é a confirmação. Os testes que a
+provam já existiam (`ExcluirConta.test.tsx`: botão desabilitado sem EXCLUIR, sem senha e com minúsculas, API só depois da
+reautenticação e nunca com a reautenticação falha; `usuarioExcluirConta.test.ts`: 400 sem `confirmacao` exata e 401
+`reautenticar` com login antigo, ausente ou não numérico).
+
+**Revisão.** Mutações locais restauradas por cópia, todas derrubaram testes: M1 e M2 (sync e marcador), M3a a M3i (um ponto da
+varredura por vez), M4a a M4c (reconciliação) e M5a a M5f (script de limpeza). Um mutante da varredura (M3h) e um da
+limpeza (M5a, o prefixo `e2e-` mascarado pela checagem de tamanho) exigiram reescrever a mutação ou o teste para morrer.

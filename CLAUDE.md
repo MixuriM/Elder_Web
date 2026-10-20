@@ -274,7 +274,7 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Exclusão de conta (2026-10-20): `DELETE /usuario/me`, só a própria; corpo `{ confirmacao: "EXCLUIR" }`, `auth_time` de até 300 s (senão 401
   `reautenticar`), 3/h. Numa transação: apaga os dados do idoso (e do idoso sem login que ele cadastrou e ficou sem vínculo aprovado),
   tira os vínculos, anonimiza `Usuario` (nome "Conta excluída", e-mail `excluido-<id>@excluido.invalid`; uid, aceite e autoria ficam) e
-  chama `auth.deleteUser` por último (falha: 502, nada apagado). Sem migration. Detalhes: histórico, "Fechamento do item 9.5".
+  chama `auth.deleteUser` por último (falha: 502, nada apagado). Sem migration. Marcador só em `lib/contaExcluida.ts`: `requireAuth` e `/auth/sync` dão 401; e-mail do marcador é inválido em toda entrada. Detalhes: histórico, "Fechamento do item 9.5".
 - Modo demonstração (`docs/modo-demonstracao.md`): `DEMO_MODO_ATIVO=1` e `DEMO_ADMIN_UIDS` só no painel do Render; conta do elenco nunca cria vínculo nem alcança idoso fora do elenco.
 
 **Testes**
