@@ -2637,7 +2637,7 @@ Decisões do grupo (delegadas), todas só no frontend:
   (`components/layout/`): logado vê a página na moldura autenticada, visitante vê `SobreHeader`, um `<main id="conteudo">`
   e o `Footer` da landing; auth pendente mostra "Carregando...". `Orientacoes.tsx` não mudou (sem API, sem `useAcesso`,
   links só `mailto:` e `tel:192`). D9: fora de `ROTAS_DE_ENTRADA`.
-- D5 e D6: Navbar com Orientações por último no grupo central e "Sobre" no bloco da direita; Footer ganhou o nav
+- D5 e D6: Navbar com Orientações por último no grupo central e "Sobre" no bloco da direita (até o ajuste abaixo); Footer ganhou o nav
   "Ajuda e informações" (Orientações gerais, Sobre nós), o caminho no celular.
 - D7: item "Sobre nós" (ícone `Info`) depois de Orientações em `menuItems`, também em `SO_BASICOS`.
 - D8 revisto: `SobreHeader` e `SobreCTA` leem `useAuthUser()`. Logado: link da esquerda "Voltar ao início" para `/Home`,
@@ -2649,7 +2649,7 @@ Decisões do grupo (delegadas), todas só no frontend:
 Navbar, opção D (a D5 original não cabia: medido em 1024 px, 58 px de sobreposição; o original já sobrepunha 11 px):
 tema só com ícone (`BotaoTema compacto`, 44x44, `aria-label`) de `lg` a `xl`, com rótulo de `xl` em diante; grupo central
 `gap-4` em `lg` e `xl:gap-8`. Com texto grande ou muito grande (`html[class*=texto-]`) o rótulo do tema só volta em `2xl`,
-o grupo central usa `gap-2` e o "Sobre" some entre `lg` e `xl` (o Footer cobre): regressão consciente, só nesse caso.
+o grupo central usa `gap-2` (nessa versão o "Sobre" sumia entre `lg` e `xl`; revisto no ajuste abaixo).
 Medido (Chromium headless contra o `vite`, claro, texto grande e escuro com texto muito grande) em 640, 800, 1023, 1024,
 1100, 1279, 1280, 1440, 1535 e 1536 px: folga mínima 19 px (1024 px, texto muito grande), sem rolagem horizontal; alvos de
 tema e Entrar de 44 px ou mais. Só classes do Tailwind, sem JS de medição.
@@ -2684,5 +2684,15 @@ lint e build limpos. SQL Server local (`localhost:14330`, migrations em dia), na
 Pendências do Marcos: push de `development`; conferir a landing no celular na prévia da Vercel; avisar Laureane e Jennifer
 (`Navbar`, `Footer`, `SobreHeader`, `SobreCTA`, menu, `SobreHero`, `SobreCard` e os componentes de Orientações); apagar as contas
 `e2e-*` no Firebase; no vault, item 8.2 do plano ("exigindo login" passa a "pública, com moldura autenticada para quem está
-logado"), linha de RF-031, lista do menu na Seção 1 e Log de Verificação; levar ao grupo que "Sobre" some da Navbar entre
-1024 e 1279 px quando o texto está grande ou muito grande (o caminho passa a ser o Footer).
+logado"), linha de RF-031, lista do menu na Seção 1 e Log de Verificação.
+
+### Ajuste da Navbar: Sobre ao lado de Orientações (2026-10-19, depois do PR #208)
+
+Pedido do Marcos, vendo a landing no navegador: o "Sobre" no canto direito ficava longe dos outros links. Voltou para o
+grupo central, depois de Orientações (ordem: Início, Funcionalidades, Para quem é, Acessibilidade, Orientações, Sobre; no
+bloco da direita ficam só o tema e o Entrar). Sem o "Sobre" na direita sobrou espaço: ele aparece em todas as larguras
+desde `lg` e em todos os tamanhos de texto, e a regressão "Sobre some entre 1024 e 1279 px" deixou de existir (a pendência de
+levar isso ao grupo caiu). Só com texto grande ou muito grande, entre `lg` e `xl`, o contêiner usa `px-6` e o bloco da
+direita `gap-2` para manter a folga. Medido em 1024, 1100, 1279, 1280, 1440 e 1536 px (claro, texto grande, escuro com texto
+muito grande): folga mínima 21 px (1024 px, texto muito grande); o teste `landing: folga da Navbar` do `test:responsivo`
+passa. `Navbar.test.tsx` agora exige o "Sobre" logo depois de Orientações, no mesmo grupo, e o bloco da direita sem ele.
