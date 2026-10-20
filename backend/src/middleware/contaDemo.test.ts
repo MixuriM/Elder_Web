@@ -73,12 +73,13 @@ const BLOQUEADAS = [
   "POST /vinculo/convidar-cuidador",
   "POST /vinculo/:id/aceitar-convite",
   "POST /usuario/cadastrar-idoso",
+  "DELETE /usuario/me",
 ];
 
 describe("conta do elenco não cria vínculo nem conta", () => {
   const rotas = enumerarRotas(app);
 
-  it("bloquearContaDemo vem logo depois da autenticação nas 6 rotas, e só nelas", () => {
+  it("bloquearContaDemo vem logo depois da autenticação nas 7 rotas, e só nelas", () => {
     const com = rotas.filter((r) => r.handlers.includes(bloquearContaDemo)).map((r) => `${r.metodo} ${r.caminho}`);
     expect(com.sort()).toEqual([...BLOQUEADAS].sort());
     for (const r of rotas.filter((x) => x.handlers.includes(bloquearContaDemo))) {

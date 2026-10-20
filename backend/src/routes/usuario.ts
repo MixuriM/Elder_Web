@@ -23,6 +23,7 @@ const router = Router();
 // Limites por usuário (decisão D1 de 2026-10-14). Emergência e foto têm os seus próprios.
 const limiteAtualizarPerfil = criarLimitador({ janelaMs: QUINZE_MIN, maximo: 30, chave: porUsuario });
 const limiteCadastrarIdoso = criarLimitador({ janelaMs: 60 * 60 * 1000, maximo: 10, chave: porUsuario });
+const limiteExcluirConta = criarLimitador({ janelaMs: 60 * 60 * 1000, maximo: 3, chave: porUsuario });
 
 // Tarefa 2.9 (RF-033) — resolverEstadoModoDecisao roda a checagem preguiçosa de
 // expiração da janela de transferência (efetiva a mudança ou limpa solicitação vencida)
@@ -209,6 +210,158 @@ router.delete("/me/foto", requireAuth, async (req, res, next) => {
       select: { id: true },
     });
     res.status(200).json({ foto_perfil_url: null });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Exclusão de conta (item 9.5, LGPD art. 18). Só a PRÓPRIA conta (alvo = req.usuarioId, nunca id de path, query ou corpo).
+// Tudo numa transação do Prisma: apaga os dados do idoso, anonimiza a linha de Usuario (a autoria sobre outros idosos é
+// obrigatória, RNF-006, e as FKs são NoAction: a linha não pode sumir) e, por último, apaga o login no Firebase. Firebase
+// falhou: a exceção desfaz o banco. Risco aceito: Firebase apagou e o commit falhou (conta sem login, dados intactos).
+// ponytail: apagarDadosDoIdoso usa `in` com os ids dos medicamentos; acima de ~2000 medicamentos de um idoso estoura o
+// limite de parâmetros do SQL Server (volume do TCC não chega perto).
+const MSG_CONFIRMACAO_INVALIDA = "Confirmação inválida.";
+const MSG_REAUTENTICAR = {
+  error: "Por segurança, confirme sua identidade de novo para excluir a conta.",
+  codigo: "reautenticar",
+};
+const MSG_EXCLUSAO_FALHOU = "Não foi possível excluir a conta agora. Nada foi apagado. Tente de novo em alguns minutos.";
+const LOGIN_RECENTE_SEGUNDOS = 300;
+
+class FalhaFirebase extends Error {}
+
+// O cliente do callback de $transaction (o `prisma` daqui é o cliente estendido, com retry de conexão).
+type Tx = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
+
+async function apagarDadosDoIdoso(tx: Tx, idosoId: number) {
+  const medicamentos = await tx.medicamento.findMany({ where: { idoso_id: idosoId }, select: { id: true } });
+  const ids = medicamentos.map((m) => m.id);
+  // As doses antes dos medicamentos: a FK da dose aponta para o medicamento.
+  if (ids.length > 0) await tx.registroDoseMedicamento.deleteMany({ where: { medicamento_id: { in: ids } } });
+  await tx.medicamento.deleteMany({ where: { idoso_id: idosoId } });
+  await tx.registroSaude.deleteMany({ where: { idoso_id: idosoId } });
+  await tx.registroAlimentar.deleteMany({ where: { idoso_id: idosoId } });
+  await tx.evento.deleteMany({ where: { idoso_id: idosoId } });
+  await tx.vinculo.deleteMany({ where: { idoso_id: idosoId } });
+}
+
+// Fica o que não identifica: firebase_uid (uid apagado no Firebase não é reutilizado), tipo_perfil, created_at,
+// cadastrado_por_id e a prova de aceite (LGPD art. 16, I). Respeita as CHECKs de Usuario (grupos de campos juntos).
+async function anonimizarUsuario(tx: Tx, id: number) {
+  await tx.usuario.update({
+    where: { id },
+    data: {
+      nome: "Conta excluída",
+      email: `excluido-${id}@excluido.invalid`,
+      telefone: null,
+      email_convite_familiar: null,
+      ultimo_login_em: null,
+      foto_perfil: null,
+      foto_perfil_mime_type: null,
+      foto_perfil_atualizada_em: null,
+      termo_responsabilidade_aceito_em: null,
+      modo_decisao: null,
+      modo_decisao_alterado_por_id: null,
+      modo_decisao_alterado_em: null,
+      ...CANCELAMENTO_SOLICITACAO,
+    },
+    select: { id: true },
+  });
+}
+
+// Idoso que perdeu o último familiar aprovado não pode ficar decidido por 'familiar' nem com transferência pendente; e
+// transferência iniciada ou confirmada por quem foi excluído não tem mais quem a sustente. Não usa resolverModoDecisao:
+// ele lê pelo prisma global e travaria nas linhas que esta transação já escreveu.
+async function reconciliarDecisao(tx: Tx, idosoId: number, excluidoId: number) {
+  const idoso = await tx.usuario.findFirst({
+    where: { id: idosoId },
+    select: {
+      modo_decisao: true,
+      modo_decisao_solicitado: true,
+      modo_decisao_solicitado_por_id: true,
+      modo_decisao_segunda_confirmacao_id: true,
+    },
+  });
+  if (!idoso) return;
+  const familiares = await tx.vinculo.count({ where: { idoso_id: idosoId, tipo_vinculo: "familiar", status: "aprovado" } });
+  const pendente = idoso.modo_decisao_solicitado !== null;
+  if (familiares === 0 && (idoso.modo_decisao === "familiar" || pendente)) {
+    await tx.usuario.update({
+      where: { id: idosoId },
+      data: { modo_decisao: "idoso", ...CANCELAMENTO_SOLICITACAO },
+      select: { id: true },
+    });
+  } else if (
+    pendente &&
+    (idoso.modo_decisao_solicitado_por_id === excluidoId || idoso.modo_decisao_segunda_confirmacao_id === excluidoId)
+  ) {
+    await tx.usuario.update({ where: { id: idosoId }, data: { ...CANCELAMENTO_SOLICITACAO }, select: { id: true } });
+  }
+}
+
+router.delete("/me", requireAuthRevogacao, bloquearContaDemo, limiteExcluirConta, async (req, res, next) => {
+  try {
+    const confirmacao = (req.body as { confirmacao?: unknown } | undefined)?.confirmacao;
+    if (typeof confirmacao !== "string" || confirmacao !== "EXCLUIR") {
+      return res.status(400).json({ error: MSG_CONFIRMACAO_INVALIDA });
+    }
+    // Login recente (auth_time em segundos, relógio do servidor). Ausente ou não numérico conta como vencido.
+    const idade = req.authTime === undefined ? Infinity : Date.now() / 1000 - req.authTime;
+    if (!(idade <= LOGIN_RECENTE_SEGUNDOS)) return res.status(401).json(MSG_REAUTENTICAR);
+
+    const usuarioId = req.usuarioId;
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const eu = await tx.usuario.findFirst({ where: { id: usuarioId }, select: { firebase_uid: true } });
+          if (!eu?.firebase_uid) throw new Error("conta sem login");
+
+          // Lido antes de apagar os vínculos: quem perde o último familiar e o que U deixou pendente.
+          const comoFamiliar = await tx.vinculo.findMany({
+            where: { vinculado_id: usuarioId, tipo_vinculo: "familiar", status: "aprovado" },
+            select: { idoso_id: true },
+          });
+          const semLogin = await tx.usuario.findMany({
+            where: { cadastrado_por_id: usuarioId, firebase_uid: null },
+            select: { id: true },
+          });
+          const iniciadas = await tx.usuario.findMany({ where: { modo_decisao_solicitado_por_id: usuarioId }, select: { id: true } });
+          const confirmadas = await tx.usuario.findMany({ where: { modo_decisao_segunda_confirmacao_id: usuarioId }, select: { id: true } });
+          const afetados = new Set<number>([...comoFamiliar.map((v) => v.idoso_id), ...iniciadas.map((u) => u.id), ...confirmadas.map((u) => u.id)]);
+          afetados.delete(usuarioId);
+
+          await apagarDadosDoIdoso(tx, usuarioId);
+          await tx.vinculo.deleteMany({ where: { vinculado_id: usuarioId } });
+
+          // Idoso sem login que U cadastrou: sem mais ninguém com acesso, o dado não tem finalidade.
+          for (const { id } of semLogin) {
+            const aprovados = await tx.vinculo.count({ where: { idoso_id: id, status: "aprovado" } });
+            if (aprovados === 0) {
+              await apagarDadosDoIdoso(tx, id);
+              await anonimizarUsuario(tx, id);
+              afetados.delete(id);
+            } else {
+              afetados.add(id);
+            }
+          }
+          for (const id of afetados) await reconciliarDecisao(tx, id, usuarioId);
+
+          await anonimizarUsuario(tx, usuarioId);
+          try {
+            await firebaseAuth.deleteUser(eu.firebase_uid);
+          } catch {
+            // Sem log nem eco: a mensagem do Firebase pode trazer o uid. A exceção desfaz a transação.
+            throw new FalhaFirebase();
+          }
+        },
+        { timeout: 20000, maxWait: 5000 },
+      );
+    } catch (e) {
+      if (e instanceof FalhaFirebase) return res.status(502).json({ error: MSG_EXCLUSAO_FALHOU });
+      throw e;
+    }
+    res.status(204).end();
   } catch (e) {
     next(e);
   }

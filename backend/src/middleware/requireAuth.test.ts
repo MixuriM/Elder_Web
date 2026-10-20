@@ -98,6 +98,26 @@ describe("requireAuth", () => {
     expect(res.body).toEqual({ emailVerificado: esperado });
   });
 
+  // Exclusão de conta (2026-10-20): auth_time (segundos) diz quando o login foi feito; só número vale, o resto é ausente.
+  it.each([
+    [{ uid: "u", auth_time: 1_800_000_000 }, 1_800_000_000],
+    [{ uid: "u", auth_time: "1800000000" }, undefined],
+    [{ uid: "u", auth_time: null }, undefined],
+    [{ uid: "u", auth_time: Number.NaN }, undefined],
+    [{ uid: "u" }, undefined],
+  ])("expõe req.authTime (%j -> %s)", async (decoded, esperado) => {
+    verifyIdToken.mockResolvedValue(decoded);
+    findFirst.mockResolvedValue({ id: 42, firebase_uid: "u" });
+    const app = express();
+    app.get("/p", requireAuth, (req, res) => {
+      res.json({ temAuthTime: "authTime" in req && req.authTime !== undefined, authTime: req.authTime ?? null });
+    });
+
+    const res = await request(app).get("/p").set("Authorization", "Bearer t");
+
+    expect(res.body).toEqual({ temAuthTime: esperado !== undefined, authTime: esperado ?? null });
+  });
+
   it.each([
     [{ uid: "u", email: "Pessoa.Ficticia@exemplo.test" }, "Pessoa.Ficticia@exemplo.test"],
     [{ uid: "u" }, undefined],

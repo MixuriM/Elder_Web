@@ -33,6 +33,7 @@ const chamar = (metodo: Metodo, caminho: string) =>
 
 const COM_REVOGACAO: [Metodo, string][] = [
   ["patch", "/usuario/me"],
+  ["delete", "/usuario/me"],
   ["patch", "/usuario/me/modo-decisao"],
   ["post", "/usuario/cadastrar-idoso"],
   ["post", "/vinculo/convidar-cuidador"],
