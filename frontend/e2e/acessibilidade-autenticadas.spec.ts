@@ -42,6 +42,17 @@ test("acessibilidade autenticada (idoso, cuidador e familiar vinculados)", async
       expect(href).toMatch(/^\/vinculos\/\d+$/);
       await auditarRota(contas.idoso.context, href!, { rotulo: "idoso /vinculos/:id" });
     });
+
+    // Exclusão de conta (2026-10-20): o diálogo aberto, que o axe da página fechada não enxerga. Só abre, nunca confirma.
+    await test.step("idoso /perfil com o diálogo de exclusão aberto", async () => {
+      await auditarRota(contas.idoso.context, "/perfil", {
+        rotulo: "idoso /perfil diálogo de exclusão",
+        estado: async (page) => {
+          await page.getByRole("button", { name: "Excluir minha conta" }).click();
+          await expect(page.getByRole("dialog", { name: /excluir minha conta/i })).toBeVisible();
+        },
+      });
+    });
   } finally {
     for (const conta of Object.values(contas)) await conta.context.close();
   }

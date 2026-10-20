@@ -14,7 +14,7 @@ export async function aceitarTermosNoCadastro(page: Page) {
   await page.getByLabel(/consinto com o uso dos dados de saúde/i).check();
 }
 
-const SENHA = "SenhaE2eTeste123!";
+export const SENHA = "SenhaE2eTeste123!";
 
 // Trava de segurança: sem MSSQL_SA_PASSWORD o playwright.config.ts não define DATABASE_URL e o
 // backend de teste cai no .env, que aponta para o Azure de produção. Nunca imprime o valor.
