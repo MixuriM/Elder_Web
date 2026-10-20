@@ -53,6 +53,15 @@ describe('Termos de Uso', () => {
     expect(within(nav).getByRole('link', { name: 'Política de Privacidade' })).not.toHaveAttribute('aria-current')
   })
 
+  it('diz que a conta se exclui pelo botão em Meu Perfil, sem o antigo "não há botão"', () => {
+    const { container } = renderPagina()
+    const texto = (container.textContent ?? '').replace(/\s+/g, ' ')
+    expect(texto).not.toMatch(/não há botão para excluir a conta/i)
+    expect(texto).toMatch(/Excluir minha conta/)
+    expect(texto).toMatch(/Meu Perfil/)
+    expect(texto).toMatch(/Política de Privacidade/)
+  })
+
   it('mostra versão, data, aviso acadêmico e contato por mailto', () => {
     renderPagina()
     expect(screen.getByText(`Versão ${VERSAO_DOCUMENTOS}`, { exact: false })).toBeInTheDocument()

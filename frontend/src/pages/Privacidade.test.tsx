@@ -81,7 +81,26 @@ describe('Política de Privacidade', () => {
     renderPagina()
     const dados = screen.getByRole('table', { name: /dados que coletamos/i })
     expect(within(dados).getByText('Registro do aceite (data e versão)')).toBeInTheDocument()
-    expect(VERSAO_DOCUMENTOS).toBe('1.1')
+    expect(VERSAO_DOCUMENTOS).toBe('1.2')
+  })
+
+  // 2026-10-20: a exclusão de conta passou a existir (botão em Meu Perfil); o texto diz o que apaga e o que permanece.
+  it('descreve a exclusão da conta: botão, o que é apagado e o que permanece', () => {
+    const { container } = renderPagina()
+    const texto = (container.textContent ?? '').replace(/\s+/g, ' ')
+    expect(texto).not.toMatch(/não há botão para excluir a conta/i)
+    expect(texto).toMatch(/Excluir minha conta/)
+    expect(texto).toMatch(/Meu Perfil/)
+    expect(texto).toMatch(/Conta excluída/)
+    expect(texto).toMatch(/data e versão/)
+    expect(texto).toMatch(/cópias de segurança/i)
+    // Sem prometer prazo que não foi verificado: nenhum "em até N dias" para apagar cópias de segurança.
+    expect(texto).not.toMatch(/cópias de segurança[^.]*\d+ dias/i)
+  })
+
+  it('o idoso cadastrado por familiar e sem login segue pedindo a exclusão pelo contato', () => {
+    const { container } = renderPagina()
+    expect(container.textContent?.replace(/\s+/g, ' ')).toMatch(/idoso cadastrado por um familiar que ainda não entrou no site[^.]*contato/i)
   })
 
   it('tem as tabelas de dados e de compartilhamento', () => {

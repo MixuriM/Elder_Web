@@ -123,8 +123,10 @@ export default function Termos() {
 
       <Secao id="encerramento" titulo="Encerramento e exclusão da conta">
         <p>
-          Você pode parar de usar o Elder Web quando quiser. Não há botão para excluir a conta: peça a exclusão pelo
-          contato. Se quiser, baixe antes o histórico em PDF.
+          Você pode parar de usar o Elder Web quando quiser. Para excluir a conta, use o botão Excluir minha conta em
+          Meu Perfil: o que isso apaga e o que permanece está na Política de Privacidade. A conta de um idoso cadastrado
+          por um familiar que ainda não entrou no site só se exclui pelo contato. Se quiser, baixe antes o histórico em
+          PDF.
         </p>
         <p>
           Podemos suspender ou encerrar uma conta que não cumpra estes Termos, por exemplo uma conta usada por outra

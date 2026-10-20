@@ -205,9 +205,16 @@ export default function Privacidade() {
 
       <Secao id="retencao" titulo="Por quanto tempo guardamos">
         <p>
-          Seus dados ficam guardados enquanto a conta existir. Se você pedir a exclusão, apagamos os dados, menos o que a
-          lei mandar guardar. Cópias de segurança automáticas do provedor do banco de dados podem manter os dados por um
-          tempo limitado depois disso, até serem substituídas.
+          Seus dados ficam guardados enquanto a conta existir. Você pode excluir a conta em Meu Perfil, no botão
+          Excluir minha conta. Se a conta for de idoso, isso apaga o histórico de saúde, remédios, agenda e
+          alimentação e remove o acesso de familiares e cuidadores. Se for de cuidador ou familiar, remove os seus
+          vínculos e os seus dados de perfil. Não dá para desfazer.
+        </p>
+        <p>
+          O que permanece: o que você registrou sobre outros idosos continua no histórico deles, sem o seu nome (aparece
+          como Conta excluída), e guardamos só o registro de que os documentos foram aceitos (data e versão), sem nome
+          nem contato. Cópias de segurança automáticas do provedor do banco de dados podem manter os dados por um
+          tempo limitado, definido pelo provedor, até serem substituídas.
         </p>
       </Secao>
 
@@ -230,8 +237,9 @@ export default function Privacidade() {
           baixar o histórico de remédios e saúde em PDF.
         </p>
         <p>
-          Não há botão para excluir a conta. Para isso e para os outros pedidos, escreva para <LinkContato />.
-          Respondemos em até 15 dias (Art. 19, II). Podemos pedir uma confirmação para ter certeza de que o pedido é seu.
+          Para excluir a conta, use o botão Excluir minha conta em Meu Perfil. A conta de um idoso cadastrado por um
+          familiar que ainda não entrou no site só se exclui pelo contato, assim como os outros pedidos: escreva para{' '}
+          <LinkContato />. Respondemos em até 15 dias (Art. 19, II). Podemos pedir uma confirmação para ter certeza de que o pedido é seu.
           Não envie valores nem informações de saúde por e-mail. Você também pode reclamar à Autoridade Nacional de
           Proteção de Dados (ANPD).
         </p>

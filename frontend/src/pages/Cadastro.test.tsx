@@ -11,6 +11,7 @@ import {
   MENSAGEM_ACEITE,
   TEXTO_ACEITE_TERMOS,
   TEXTO_CONSENTIMENTO_SAUDE,
+  VERSAO_DOCUMENTOS,
 } from "../lib/documentosLegais";
 
 const mockValidatePassword = jest.fn();
@@ -180,7 +181,7 @@ describe("Cadastro", () => {
           tipoPerfil: "idoso",
           nome: "Ana Silva",
           // D9 (2026-10-14): o aceite vai gravado com a versão dos documentos.
-          aceiteDocumentos: "1.1",
+          aceiteDocumentos: VERSAO_DOCUMENTOS,
         })
       );
 
@@ -530,7 +531,7 @@ describe("Cadastro", () => {
           },
         })
       );
-      expect(mockSyncUser).toHaveBeenCalledWith(expect.objectContaining({ tipoPerfil: perfil, aceiteDocumentos: "1.1" }));
+      expect(mockSyncUser).toHaveBeenCalledWith(expect.objectContaining({ tipoPerfil: perfil, aceiteDocumentos: VERSAO_DOCUMENTOS }));
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(JSON.stringify(espiao.mock.calls)).not.toContain("ana@a.com");
       espiao.mockRestore();

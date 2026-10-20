@@ -2,8 +2,8 @@
 // Mudou dado coletado, provedor ou armazenamento do navegador: atualize as páginas e suba VERSAO_DOCUMENTOS.
 // O aceite é gravado no servidor no cadastro e no anexo do idoso (D9, 2026-10-14): data, hora e esta versão.
 
-export const VERSAO_DOCUMENTOS = '1.1'
-export const DATA_ATUALIZACAO = '14 de outubro de 2026'
+export const VERSAO_DOCUMENTOS = '1.2'
+export const DATA_ATUALIZACAO = '20 de outubro de 2026'
 
 // Canal de suporte e de pedidos sobre dados pessoais (o mesmo das Orientações).
 export const EMAIL_SUPORTE = 'elder.web.suporte@gmail.com'
