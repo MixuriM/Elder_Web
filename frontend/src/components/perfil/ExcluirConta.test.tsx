@@ -196,7 +196,7 @@ describe("ExcluirConta: o botão Excluir só liga com a confirmação", () => {
 });
 
 describe("ExcluirConta: o fluxo", () => {
-  it("conta com senha: reautentica com a senha, depois exclui, depois sai e vai para a landing com o aviso", async () => {
+  it("conta com senha: reautentica com a senha, depois exclui, vai para a landing com o aviso e só então sai da sessão", async () => {
     const user = userEvent.setup();
     renderSecao();
     const dialogo = await abrir(user);
@@ -204,9 +204,9 @@ describe("ExcluirConta: o fluxo", () => {
     await user.type(within(dialogo).getByLabelText(/sua senha/i), "SenhaFicticia1!");
     await user.click(botaoExcluir(dialogo));
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
+    await waitFor(() => expect(mockLogout).toHaveBeenCalled());
     expect(mockReautenticar).toHaveBeenCalledWith("SenhaFicticia1!");
-    expect(ordem).toEqual(["reautenticar", "excluirConta", "logout", "navigate"]);
+    expect(ordem).toEqual(["reautenticar", "excluirConta", "navigate", "logout"]);
     expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true, state: { contaExcluida: true } });
   });
 
@@ -218,8 +218,9 @@ describe("ExcluirConta: o fluxo", () => {
     await digitarConfirmacao(user, dialogo);
     await user.click(botaoExcluir(dialogo));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
+    await waitFor(() => expect(mockLogout).toHaveBeenCalled());
     expect(mockReautenticar).toHaveBeenCalledWith(undefined);
-    expect(ordem).toEqual(["reautenticar", "excluirConta", "logout", "navigate"]);
+    expect(ordem).toEqual(["reautenticar", "excluirConta", "navigate", "logout"]);
   });
 
   it("enquanto exclui, o botão diz Excluindo e fica desabilitado (sem envio duplo)", async () => {

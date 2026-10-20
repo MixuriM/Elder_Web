@@ -98,9 +98,10 @@ export default function ExcluirConta({ tipoPerfil }: { tipoPerfil: string | null
         setErro(mensagemApi(err));
         return;
       }
-      // A conta já foi excluída: falha ao sair da sessão não pode segurar a pessoa na tela.
-      await logoutUser().catch(() => undefined);
+      // Navega ANTES de sair da sessão: com o usuário já nulo, a RotaProtegida desta tela redirecionaria para /login e
+      // o aviso se perderia. A conta já foi excluída, então falha ao sair da sessão não pode segurar a pessoa aqui.
       navigate("/", { replace: true, state: { contaExcluida: true } });
+      await logoutUser().catch(() => undefined);
     } finally {
       setExcluindo(false);
     }
