@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { ELENCO, UIDS_ELENCO } from "./elenco";
 import { montarDadosDemo } from "./dados";
 import { removerDemo, semearDemo, type AuthDemo } from "./semear";
+import { VERSOES_DOCUMENTOS } from "../versoesDocumentos";
 
 // Modo demonstração (D5): semente idempotente e removível, com Prisma e Firebase FALSOS. O fake de Prisma FILTRA de
 // verdade pelo where (igualdade, { in } e OR) e lança em filtro não suportado, para nenhum teste passar por vacuidade.
@@ -173,7 +174,7 @@ describe("semearDemo", () => {
     for (const c of ELENCO) {
       const u = db.usuario.find((x) => x.firebase_uid === c.uid);
       expect(u).toMatchObject({ nome: c.nome, email: c.email, tipo_perfil: c.tipo_perfil, telefone: null, foto_perfil: null, cadastrado_por_id: null, termo_responsabilidade_aceito_em: null });
-      expect(u?.aceite_documentos_versao).toBe("1.1");
+      expect(u?.aceite_documentos_versao).toBe(VERSOES_DOCUMENTOS[VERSOES_DOCUMENTOS.length - 1]);
       expect(u?.consentimento_saude_em).toEqual(u?.aceite_documentos_em);
     }
     const antonio = db.usuario.find((x) => x.firebase_uid === "demo-idoso-antonio");

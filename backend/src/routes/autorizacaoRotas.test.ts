@@ -87,6 +87,7 @@ const ROTAS_ESPERADAS: Regra[] = [
   { rota: "POST /usuario/me/foto", categoria: "autenticada" },
   { rota: "DELETE /usuario/me/foto", categoria: "autenticada" },
   { rota: "PATCH /usuario/me", categoria: "autenticada", revogacao: true },
+  { rota: "DELETE /usuario/me", categoria: "autenticada", revogacao: true },
   { rota: "PATCH /usuario/me/modo-decisao", categoria: "autenticada", revogacao: true },
   { rota: "POST /usuario/cadastrar-idoso", categoria: "autenticada", revogacao: true },
 
@@ -337,9 +338,9 @@ describe("A. completude do inventário de rotas", () => {
     expect(semAuth).toEqual([]);
   });
 
-  it("D5: as 15 ações sensíveis (14 da D5 mais contestar, 2026-10-15), e só elas, checam revogação; nenhuma rota de vínculo por idoso, leitura nem emergência", () => {
+  it("D5: as 16 ações sensíveis (14 da D5, contestar em 2026-10-15 e excluir conta em 2026-10-20), e só elas, checam revogação; nenhuma rota de vínculo por idoso, leitura nem emergência", () => {
     const marcadas = ROTAS_ESPERADAS.filter((r) => r.revogacao).map((r) => r.rota);
-    expect(marcadas).toHaveLength(15);
+    expect(marcadas).toHaveLength(16);
     for (const r of marcadas) {
       expect(r).not.toMatch(/^GET /);
       expect(r).not.toMatch(/:idosoId|emergencia|foto/);

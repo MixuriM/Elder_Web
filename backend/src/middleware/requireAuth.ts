@@ -51,6 +51,9 @@ function criarRequireAuth(checarRevogado: boolean) {
       req.emailVerificado = resultado.decoded.email_verified ?? false;
       // O aceite de convite compara este e-mail com o do cadastro (email_verified sozinho não diz de quem é o e-mail).
       req.emailDoToken = typeof resultado.decoded.email === "string" ? resultado.decoded.email : undefined;
+      // A exclusão de conta exige login recente: só número finito vale como auth_time.
+      const authTime = resultado.decoded.auth_time;
+      req.authTime = typeof authTime === "number" && Number.isFinite(authTime) ? authTime : undefined;
       // Modo demonstração: conta fictícia do elenco (bloquearContaDemo e requireVinculoAprovado usam).
       req.contaDemo = ehUidDemo(resultado.decoded.uid);
       limiteGeral(req, res, next);

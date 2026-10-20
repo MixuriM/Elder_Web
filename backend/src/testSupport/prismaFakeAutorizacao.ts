@@ -15,7 +15,7 @@ export const dados: Record<string, Linha[]> = {};
 
 const mocks = new Map<string, jest.Mock>();
 
-function casa(linha: Linha, where: Linha | undefined): boolean {
+export function casa(linha: Linha, where: Linha | undefined): boolean {
   for (const [campo, valor] of Object.entries(where ?? {})) {
     if (valor === undefined) continue; // Prisma ignora filtro com valor undefined
     if (valor !== null && typeof valor === "object") {

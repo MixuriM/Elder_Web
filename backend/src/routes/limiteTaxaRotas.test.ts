@@ -54,7 +54,7 @@ afterEach(() => {
   limparLimitadores();
 });
 
-type Metodo = "get" | "post" | "patch";
+type Metodo = "get" | "post" | "patch" | "delete";
 
 async function chamar(metodo: Metodo, caminho: string, id: number) {
   return request(servidor)[metodo](caminho).set("Authorization", `Bearer ${tokenDe(id)}`).send({});
@@ -66,6 +66,7 @@ const ROTAS: [Metodo, string, number, number, number][] = [
   ["post", "/vinculo/convidar-cuidador", 30, IDOSO, OUTRO_IDOSO],
   ["post", "/vinculo/convidar-familiar", 30, IDOSO, OUTRO_IDOSO],
   ["patch", "/usuario/me", 30, IDOSO, OUTRO_IDOSO],
+  ["delete", "/usuario/me", 3, IDOSO, OUTRO_IDOSO],
   ["post", "/usuario/cadastrar-idoso", 10, FAMILIAR, OUTRO_FAMILIAR],
 ];
 
