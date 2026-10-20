@@ -97,7 +97,7 @@ describe('Política de Privacidade', () => {
     expect(texto).not.toMatch(/aparece como Conta excluída/)
     expect(texto).toMatch(/a conta passa a se chamar Conta excluída/)
     // Quem cadastrou um idoso sem login e era o único vínculo aprovado dele apaga os dados desse idoso também.
-    expect(texto).toMatch(/Idosos que você cadastrou e que não tenham outro vínculo aprovado também são apagados/)
+    expect(texto).toMatch(/Idosos que você cadastrou, que ainda não acessaram a própria conta e que não tenham outro vínculo aprovado também são apagados/)
     // O que fica na linha não é só a prova de aceite (também uid, tipo de perfil e datas): sem "só".
     expect(texto).not.toMatch(/guardamos só o registro/)
     expect(texto).toMatch(/data e versão/)
