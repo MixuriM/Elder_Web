@@ -1,4 +1,5 @@
 import express from "express";
+import type { Request, Response } from "express";
 import request from "supertest";
 
 const verifyIdToken = jest.fn();
@@ -98,21 +99,39 @@ describe("requireAuth", () => {
     expect(res.body).toEqual({ emailVerificado: esperado });
   });
 
+  // Chama o middleware direto, sem rota Express: os testes abaixo só precisam do resultado do requireAuth, e uma rota de teste
+  // sem limite de taxa dispara o alerta js/missing-rate-limiting do CodeQL (o limitador do projeto é próprio).
+  async function executar() {
+    const req = { headers: { authorization: "Bearer t" } } as unknown as Request;
+    const res = {
+      statusCode: 200,
+      corpo: undefined as unknown,
+      status(codigo: number) {
+        this.statusCode = codigo;
+        return this;
+      },
+      json(corpo: unknown) {
+        this.corpo = corpo;
+        return this;
+      },
+    };
+    const next = jest.fn();
+    await requireAuth(req, res as unknown as Response, next);
+    return { req, res, next };
+  }
+
   // Auditoria de segurança (2026-10-20): o ID Token emitido antes da exclusão segue válido por até 1 h no Firebase (sem
   // checkRevoked) e a linha anonimizada continua com o firebase_uid. Sem este bloqueio, o token antigo escreveria dado de
   // saúde numa conta que ninguém consegue mais apagar.
   it("conta já excluída (e-mail anonimizado): 401 igual ao de token inválido, e a rota não roda", async () => {
     verifyIdToken.mockResolvedValue({ uid: "u" });
     findFirst.mockResolvedValue({ id: 42, email: "excluido-42@excluido.invalid" });
-    const app = express();
-    const handler = jest.fn((_req, res) => res.sendStatus(200));
-    app.get("/p", requireAuth, handler);
 
-    const res = await request(app).get("/p").set("Authorization", "Bearer t");
+    const { res, next } = await executar();
 
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: "Token inválido ou expirado." });
-    expect(handler).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
+    expect(res.corpo).toEqual({ error: "Token inválido ou expirado." });
+    expect(next).not.toHaveBeenCalled();
   });
 
   it.each([["pessoa@exemplo.test"], [null], [undefined], ["excluido-42@excluido.invalid.exemplo.test"]])(
@@ -120,18 +139,18 @@ describe("requireAuth", () => {
     async (email) => {
       verifyIdToken.mockResolvedValue({ uid: "u" });
       findFirst.mockResolvedValue({ id: 42, email });
-      const app = express();
-      app.get("/p", requireAuth, (_req, res) => res.sendStatus(200));
-      expect((await request(app).get("/p").set("Authorization", "Bearer t")).status).toBe(200);
+
+      const { res, next } = await executar();
+
+      expect(res.statusCode).toBe(200);
+      expect(next).toHaveBeenCalledTimes(1);
     },
   );
 
   it("busca só id e e-mail do usuário (nunca a foto)", async () => {
     verifyIdToken.mockResolvedValue({ uid: "u" });
     findFirst.mockResolvedValue({ id: 42, email: "a@b.test" });
-    const app = express();
-    app.get("/p", requireAuth, (_req, res) => res.sendStatus(200));
-    await request(app).get("/p").set("Authorization", "Bearer t");
+    await executar();
     expect(findFirst.mock.calls[0][0].select).toEqual({ id: true, email: true });
   });
 
@@ -145,14 +164,11 @@ describe("requireAuth", () => {
   ])("expõe req.authTime (%j -> %s)", async (decoded, esperado) => {
     verifyIdToken.mockResolvedValue(decoded);
     findFirst.mockResolvedValue({ id: 42, firebase_uid: "u" });
-    const app = express();
-    app.get("/p", requireAuth, (req, res) => {
-      res.json({ temAuthTime: "authTime" in req && req.authTime !== undefined, authTime: req.authTime ?? null });
-    });
 
-    const res = await request(app).get("/p").set("Authorization", "Bearer t");
+    const { req, next } = await executar();
 
-    expect(res.body).toEqual({ temAuthTime: esperado !== undefined, authTime: esperado ?? null });
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(req.authTime).toBe(esperado);
   });
 
   it.each([

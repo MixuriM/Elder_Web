@@ -40,8 +40,28 @@ describe("isValidEmailFormat", () => {
     ["excluido-5@excluido.invalid", false], // marcador de conta excluida
     ["EXCLUIDO-5@EXCLUIDO.INVALID", false],
     ["excluido-5@excluido.invalid.exemplo.test", true],
+    // Mesma regra do antigo /^[^\s@]+@[^\s@]+\.[^\s@]+$/, agora sem regex (CodeQL: polynomial-redos).
+    ["a@..b", true], // o ponto do meio pode vir depois de outro ponto
+    ["a@b.", false],
+    ["a@.b", false],
+    ["a@b@c.d", false],
+    ["a b@c.d", false],
+    ["a@b .c", false],
+    ["a@b\t.c", false],
+    ["a\n@b.c", false],
+    ["", false],
+    ["a@b.c".padEnd(321, "x"), false], // acima de 320 caracteres nunca vale (os chamadores já limitam a 255)
   ])("isValidEmailFormat(%p) -> %p", (valor, esperado) => {
     expect(isValidEmailFormat(valor)).toBe(esperado);
+  });
+
+  it("entrada patológica longa responde rápido (sem backtracking polinomial)", () => {
+    const ruim = "!@!." + "!.".repeat(20000);
+    const t0 = Date.now();
+    isValidEmailFormat(ruim);
+    isValidEmailFormat("!@".repeat(20000));
+    isValidEmailFormat("a".repeat(20000) + "@" + ".".repeat(20000));
+    expect(Date.now() - t0).toBeLessThan(200);
   });
 });
 
