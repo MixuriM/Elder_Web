@@ -2981,3 +2981,14 @@ ramos, `tsc` e lint limpos.
 Google Cloud, Render, backup do Azure com restauração de teste, Brevo); promoção da CSP depois do login com Google em produção; avisar
 Laureane e Jennifer (Perfil, Privacidade, Termos, landing e `ModalVinculo`); decidir os alertas antigos do CodeQL; sincronizar o
 `development` com a `main` antes do próximo PR (os hashes mudaram no rebase).
+
+## Promoção da CSP completa para obrigatória (2026-10-20, noite)
+
+**O que mudou.** Em `frontend/vercel.json`, a CSP mínima saiu e `Content-Security-Policy-Report-Only` virou `Content-Security-Policy`, com a
+política completa de antes (edição do Marcos). `cabecalhosVercel.test.ts`: a linha da CSP mínima saiu de `ESPERADOS`; um teste exige
+`Content-Security-Policy-Report-Only` ausente e confere as 11 diretivas da CSP completa em `Content-Security-Policy`; o teste de
+`unsafe-eval`/`unsafe-inline` olha só a `Content-Security-Policy`. `CLAUDE.md` e item 11 do checklist atualizados.
+
+**Estado.** Pendente de teste em produção depois do deploy na Vercel: foto, PDF do histórico, recusar vínculo e login com Google (as
+rotas autenticadas tinham dado 0 violações em local). Se houver violação, reverter a chave para `Content-Security-Policy-Report-Only`.
+Sem dependência nova e sem mudança no backend.

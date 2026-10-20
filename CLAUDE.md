@@ -268,7 +268,7 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   `revogacao` de `ROTAS_ESPERADAS`, nunca em leitura, saúde, remédio, agenda, alimentação, emergência ou foto.
 - Vínculo: terceiro recebe o mesmo 404 antes de qualquer 400 ou 409 (idoso dono sem autoridade: 403); convite pendente
   não mostra a conta convidada; `solicitar-cuidador` sem lista de idosos. Cabeçalhos: `middleware/cabecalhosSeguranca.ts`
-  e `vercel.json`, CSP completa só em Report-Only até o Marcos promover; nada de script inline no `index.html`.
+  e `vercel.json`, CSP completa obrigatória em `Content-Security-Policy` desde 20/10/2026; nada de script inline no `index.html`.
 - `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`, hoje `["1.1","1.2"]`). Publicar: migration no Azure, depois
   Vercel, depois Render; versão nova de documentos: Render antes da Vercel. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
 - Exclusão de conta (2026-10-20): `DELETE /usuario/me`, só a própria; corpo `{ confirmacao: "EXCLUIR" }`, `auth_time` de até 300 s (senão 401
