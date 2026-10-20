@@ -72,6 +72,7 @@ function Navbar({ onEntrar }: NavbarProps) {
 
           px-6
           lg:px-10
+          [html[class*=texto-]_&]:lg:max-xl:px-6
         "
       >
         {/* LOGO */}
@@ -151,22 +152,22 @@ function Navbar({ onEntrar }: NavbarProps) {
           >
             Orientações
           </button>
-        </div>
 
-        {/* CANTO DIREITO */}
-        <div className="flex items-center gap-4">
-          {/* Sobre */}
+          {/* 6 - Sobre */}
           <button
             type="button"
             onClick={() => navigate("/sobre-nos")}
-            className={`hidden lg:block [html[class*=texto-]_&]:lg:max-xl:hidden ${estiloLink}`}
+            className={estiloLink}
           >
             Sobre
           </button>
+        </div>
 
+        {/* CANTO DIREITO */}
+        <div className="flex items-center gap-4 [html[class*=texto-]_&]:lg:max-xl:gap-2">
           {/* Tema */}
-          {/* De lg a xl só o ícone, para caber ao lado do Sobre; de xl em diante, com rótulo.
-              Com texto grande ou muito grande, o rótulo só a partir de 2xl e o Sobre some entre lg e xl (o Footer cobre). */}
+          {/* De lg a xl só o ícone, para caber ao lado do grupo central; de xl em diante, com rótulo.
+              Com texto grande ou muito grande, o rótulo só a partir de 2xl. */}
           <div className="hidden lg:flex xl:[html:not([class*=texto-])_&]:hidden 2xl:hidden">
             <BotaoTema compacto />
           </div>
