@@ -1,5 +1,6 @@
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { auth as firebaseAuth } from "./firebaseAdmin";
+import { ehContaExcluida } from "./contaExcluida";
 
 export type TokenVerificationResult =
   | { ok: true; decoded: DecodedIdToken }
@@ -55,8 +56,10 @@ export function isTipoPerfil(value: unknown): value is TipoPerfil {
 // Validação simples de formato — sem lib de e-mail no projeto, checagem real de
 // entregabilidade não é o objetivo aqui, só barrar lixo óbvio antes de persistir.
 // Usada por /auth/sync (email_convite_familiar, RF-024).
+// E-mail do marcador de conta excluída nunca é válido (F3 do fechamento do 9.5): senão alguém abriria vínculo ou convite para uma
+// conta morta, ou gravaria o marcador no próprio cadastro e se trancaria para fora.
 export function isValidEmailFormat(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && !ehContaExcluida(value);
 }
 
 // "E-mail verificado" do token vale para o e-mail DO TOKEN. O ID token emitido antes de uma troca de e-mail segue com

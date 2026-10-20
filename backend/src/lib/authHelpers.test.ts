@@ -37,6 +37,9 @@ describe("isValidEmailFormat", () => {
     ["@sem-local.com", false],
     ["com espaco@a.com", false],
     ["ana@a", false],
+    ["excluido-5@excluido.invalid", false], // marcador de conta excluida
+    ["EXCLUIDO-5@EXCLUIDO.INVALID", false],
+    ["excluido-5@excluido.invalid.exemplo.test", true],
   ])("isValidEmailFormat(%p) -> %p", (valor, esperado) => {
     expect(isValidEmailFormat(valor)).toBe(esperado);
   });
