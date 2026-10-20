@@ -1,9 +1,13 @@
 
 import { ArrowLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useAuthUser } from '../../hooks/useAuthUser'
 import BotaoTema from '../layout/BotaoTema'
 
 function SobreHeader() {
+  // Enquanto a sessão carrega, mostra a versão do visitante (sem piscar no cabeçalho).
+  const { usuario } = useAuthUser()
+
   return (
     <header
       className="
@@ -27,7 +31,7 @@ function SobreHeader() {
       >
         {/* VOLTAR PARA O INÍCIO */}
         <Link
-          to="/"
+          to={usuario ? '/Home' : '/'}
           className="
             inline-flex min-h-11
             items-center gap-2
@@ -60,26 +64,28 @@ function SobreHeader() {
           {/* ALTERNAR TEMA */}
           <BotaoTema compacto />
 
-          {/* ENTRAR OU CRIAR CONTA */}
-          <Link
-            to="/welcome"
-            className="
-              inline-flex min-h-11
-              items-center justify-center
-              rounded-xl
-              bg-[#6258E8]
-              px-4 py-2
-              text-center text-sm
-              font-semibold text-white
-              sm:px-5
-              focus-visible:outline
-              focus-visible:outline-2
-              focus-visible:outline-offset-2
-              focus-visible:outline-[#A18BFF]
-            "
-          >
-            Entrar ou criar conta
-          </Link>
+          {/* ENTRAR OU CRIAR CONTA (só para visitante) */}
+          {!usuario && (
+            <Link
+              to="/welcome"
+              className="
+                inline-flex min-h-11
+                items-center justify-center
+                rounded-xl
+                bg-[#6258E8]
+                px-4 py-2
+                text-center text-sm
+                font-semibold text-white
+                sm:px-5
+                focus-visible:outline
+                focus-visible:outline-2
+                focus-visible:outline-offset-2
+                focus-visible:outline-[#A18BFF]
+              "
+            >
+              Entrar ou criar conta
+            </Link>
+          )}
         </div>
       </div>
     </header>

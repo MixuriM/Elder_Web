@@ -27,6 +27,7 @@ const SobreNos = lazy(() => import('./pages/SobreNos').then(carregouChunk))
 const Privacidade = lazy(() => import('./pages/Privacidade').then(carregouChunk))
 const Termos = lazy(() => import('./pages/Termos').then(carregouChunk))
 const Cookies = lazy(() => import('./pages/Cookies').then(carregouChunk))
+const MolduraOrientacoes = lazy(() => import('./components/layout/MolduraOrientacoes').then(carregouChunk))
 const Orientacoes = lazy(() => import('./pages/Orientacoes').then(carregouChunk))
 const Avisos = lazy(() => import('./pages/Avisos').then(carregouChunk))
 const Configuracoes = lazy(() => import('./pages/Configuracoes').then(carregouChunk))
@@ -82,6 +83,10 @@ function App() {
       <Route path="/esqueci-senha" element={<EsqueciSenha />} />
       <Route path="/confirmar-email" element={<ConfirmarEmail />} />
       <Route path="/demo" element={<Demo />} />
+      {/* Pública: a moldura escolhe a casca (autenticada ou de visitante) pela sessão. */}
+      <Route path="/orientacoes" element={<MolduraOrientacoes />}>
+        <Route index element={<Orientacoes />} />
+      </Route>
 
       {/* Telas autenticadas: menu, cabeçalho e <main> únicos vêm do layout. */}
       <Route element={<LayoutAutenticado />}>
@@ -98,7 +103,6 @@ function App() {
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/alimentacao" element={<Alimentacao />} />
         </Route>
-        <Route path="/orientacoes" element={<Orientacoes />} />
         <Route path="/avisos" element={<Avisos />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
       </Route>

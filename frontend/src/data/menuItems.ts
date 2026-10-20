@@ -3,6 +3,7 @@ import {
   HeartHandshake,
   HeartPulse,
   Home,
+  Info,
   LifeBuoy,
   Pill,
   Utensils,
@@ -21,4 +22,5 @@ export const menuItems: MenuItem[] = [
   { label: "Família", to: "/familia", icon: Users },
   { label: "Cuidadores", to: "/cuidadores", icon: HeartHandshake },
   { label: "Orientações", to: "/orientacoes", icon: LifeBuoy },
+  { label: "Sobre nós", to: "/sobre-nos", icon: Info },
 ];

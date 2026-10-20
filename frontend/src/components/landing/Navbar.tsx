@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 // Logo exibido com 60 px: versão de 120 px (2x para tela retina), 7,7 kB no lugar dos 46 kB do original de 480 px.
 import logoElder from "../../Img/Elder_logo_120.webp";
+import BotaoTema from "../layout/BotaoTema";
 import ControleTema from "../layout/ControleTema";
 
 type NavbarProps = {
@@ -99,9 +100,11 @@ function Navbar({ onEntrar }: NavbarProps) {
             hidden
             -translate-x-1/2
             items-center
-            gap-8
+            gap-4
 
             lg:flex
+            xl:gap-8
+            [html[class*=texto-]_&]:max-xl:gap-2
           "
         >
           {/* 1 - Início */}
@@ -122,16 +125,7 @@ function Navbar({ onEntrar }: NavbarProps) {
             Funcionalidades
           </button>
 
-          {/* 3 - Sobre */}
-          <button
-            type="button"
-            onClick={() => navigate("/sobre-nos")}
-            className={estiloLink}
-          >
-            Sobre
-          </button>
-
-          {/* 4 - Para quem é */}
+          {/* 3 - Para quem é */}
           <button
             type="button"
             onClick={() => irParaSecao("publico")}
@@ -140,7 +134,7 @@ function Navbar({ onEntrar }: NavbarProps) {
             Para quem é
           </button>
 
-          {/* 5 - Acessibilidade */}
+          {/* 4 - Acessibilidade */}
           <button
             type="button"
             onClick={() => irParaSecao("acessibilidade")}
@@ -148,12 +142,35 @@ function Navbar({ onEntrar }: NavbarProps) {
           >
             Acessibilidade
           </button>
+
+          {/* 5 - Orientações */}
+          <button
+            type="button"
+            onClick={() => navigate("/orientacoes")}
+            className={estiloLink}
+          >
+            Orientações
+          </button>
         </div>
 
         {/* CANTO DIREITO */}
         <div className="flex items-center gap-4">
+          {/* Sobre */}
+          <button
+            type="button"
+            onClick={() => navigate("/sobre-nos")}
+            className={`hidden lg:block [html[class*=texto-]_&]:lg:max-xl:hidden ${estiloLink}`}
+          >
+            Sobre
+          </button>
+
           {/* Tema */}
-          <div className="hidden sm:flex">
+          {/* De lg a xl só o ícone, para caber ao lado do Sobre; de xl em diante, com rótulo.
+              Com texto grande ou muito grande, o rótulo só a partir de 2xl e o Sobre some entre lg e xl (o Footer cobre). */}
+          <div className="hidden lg:flex xl:[html:not([class*=texto-])_&]:hidden 2xl:hidden">
+            <BotaoTema compacto />
+          </div>
+          <div className="hidden sm:flex lg:hidden xl:flex [html[class*=texto-]_&]:xl:max-2xl:hidden">
             <ControleTema />
           </div>
 
