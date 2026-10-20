@@ -26,7 +26,7 @@ export default function CabecalhoOrientacoes() {
       <div
         className={`${conteudoDecorado} max-w-3xl space-y-4`}
       >
-        <p className="text-sm font-bold uppercase tracking-[0.15em] text-[#6C63FF] dark:text-[#A18BFF]">
+        <p className="text-sm font-bold uppercase tracking-[0.15em] text-[#5F56EC] dark:text-[#A18BFF]">
           Cuidado e acompanhamento
         </p>
 

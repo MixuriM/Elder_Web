@@ -41,7 +41,7 @@ export const cardOrientacao =
 
 // Ícones das orientações
 export const iconeOrientacao =
-  'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDE9FF] text-[#6C63FF] dark:bg-[#29263F] dark:text-[#A18BFF]'
+  'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDE9FF] text-[#5F56EC] dark:bg-[#29263F] dark:text-[#A18BFF]'
 
 // Numeração dos cartões
 export const numeroOrientacao =
@@ -53,7 +53,7 @@ export const tituloSecao =
 
 // Texto das orientações
 export const textoOrientacao =
-  'text-base leading-relaxed text-[#475569] sm:text-lg dark:text-[#D1D0E0]'
+  'break-words text-base leading-relaxed text-[#475569] sm:text-lg dark:text-[#D1D0E0]'
 
 // Cartão de ajuda com decoração interna
 export const cardAjuda =
@@ -61,7 +61,7 @@ export const cardAjuda =
 
 // Botão de suporte
 export const link =
-  `inline-flex min-h-[48px] max-w-full items-center justify-center gap-3 rounded-xl bg-[#6C63FF] px-5 py-3 text-base font-bold text-white [overflow-wrap:anywhere] transition-colors hover:bg-[#5145D9] dark:bg-[#5B50DF] dark:hover:bg-[#7065F0] ${foco}`
+  `inline-flex min-h-[48px] max-w-full items-center justify-center gap-3 rounded-xl bg-[#5F56EC] px-5 py-3 text-base font-bold text-white [overflow-wrap:anywhere] transition-colors hover:bg-[#554CD8] dark:bg-[#5B50DF] dark:hover:bg-[#7065F0] ${foco}`
 
 // Avisos de atenção
 export const avisoAtencao =
