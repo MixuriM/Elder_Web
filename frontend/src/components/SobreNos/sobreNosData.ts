@@ -11,8 +11,9 @@ import {
 // FOTOGRAFIAS DA EQUIPE
 // ==========================================
 
-import fotoMarcos from '../../Img/marcos.png'
-import fotoLaureane from '../../Img/laureane.jpeg'
+import fotoMarcos from '../../Img/Marc.jpeg'
+import fotoLaureane from '../../Img/Lau.jpeg'
+import fotoJennifer from '../../Img/Jen.jpeg'
 
 // ==========================================
 // IMAGEM DECORATIVA DO ELDER WEB
@@ -72,26 +73,26 @@ export const secoes = [
 export const equipe = [
   {
     id: 'marcos',
-    nome: 'Marcos',
+    nome: 'Marcos Castelli',
     cargo: 'Desenvolvedor',
     foto: fotoMarcos,
     descricao:
-      'Integrante da equipe responsável pelo desenvolvimento do Elder Web.',
+      'Líder do projeto. Integrante da equipe responsável pelo backeand, banco de dados, infraestrutura e frontend',
   },
   {
     id: 'laureane',
-    nome: 'Laureane',
+    nome: 'Laureane Almeida',
     cargo: 'Desenvolvedora',
     foto: fotoLaureane,
     descricao:
-      'Integrante da equipe responsável pelo desenvolvimento do Elder Web.',
+      'Integrante da equipe responsável pelo frontend e acessibilidade de telas.',
   },
   {
     id: 'jennifer',
-    nome: 'Jennifer',
+    nome: 'Jennifer Galan',
     cargo: 'Desenvolvedora',
-    foto: '',
+    foto: fotoJennifer,
     descricao:
-      'Integrante da equipe responsável pelo desenvolvimento do Elder Web.',
+      'Integrante da equipe responsável pelo frontend e acessibilidade de telas.',
   },
 ]

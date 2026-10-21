@@ -109,16 +109,16 @@ function SobreCard({
                 dark:bg-[#11141D]
               "
             >
-              {/* FOTOGRAFIA 4:5 */}
+              {/* FOTOGRAFIA */}
               <div
-                className="
-                  flex aspect-[4/5]
-                  w-full max-w-[240px]
+                className={`
+                  flex ${integrante.id === 'todos' ? 'aspect-[1138/752]' : 'aspect-[4/5]'}
+                  w-full ${integrante.id === 'todos' ? 'max-w-[360px]' : 'max-w-[240px]'}
                   items-center justify-center
                   overflow-hidden rounded-xl
                   bg-[#EAE6FF]
                   dark:bg-[#25243B]
-                "
+                `}
               >
                 {integrante.foto ? (
                   <img
@@ -126,10 +126,9 @@ function SobreCard({
                     alt={`Foto de ${integrante.nome}`}
                     loading="lazy"
                     decoding="async"
-                    className="
-                      h-full w-full
-                      object-cover object-center
-                    "
+                    className={`h-full w-full object-cover object-center ${
+                      integrante.id === 'todos' ? 'scale-110' : ''
+                    }`}
                   />
                 ) : (
                   <div
