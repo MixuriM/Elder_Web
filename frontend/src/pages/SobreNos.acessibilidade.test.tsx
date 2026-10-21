@@ -153,7 +153,7 @@ describe('SobreNos (acessibilidade)', () => {
 
     expect(
       screen.getByRole('img', {
-        name: /fotografia de jennifer indisponível/i,
+        name: /foto de jennifer/i,
       }),
     ).toBeInTheDocument()
   })

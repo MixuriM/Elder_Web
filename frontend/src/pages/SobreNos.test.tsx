@@ -174,9 +174,9 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     })
 
     const integrantes = [
-      'Marcos',
-      'Laureane',
-      'Jennifer',
+      'Marcos Castelli',
+      'Laureane Almeida',
+      'Jennifer Galan',
     ]
 
     integrantes.forEach((nome) => {
