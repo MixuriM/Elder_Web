@@ -1,7 +1,12 @@
 
 import '@testing-library/jest-dom'
 
-import { render, screen, within } from '@testing-library/react'
+import {
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
+
 import { MemoryRouter } from 'react-router-dom'
 
 import Cookies from './Cookies'
@@ -15,7 +20,7 @@ import {
 } from '../lib/documentosLegais'
 
 // ==========================================
-// CONFIGURAÇÃO
+// CONFIGURAÇÃO DOS TESTES
 // ==========================================
 
 function renderPagina() {
@@ -39,9 +44,13 @@ const SECOES_ESPERADAS = [
   'Contato',
 ]
 
-// Mesmas chaves documentadas no sistema.
-// Se adicionar uma chave nova, atualizar
-// também a página Cookies.tsx.
+// ==========================================
+// CHAVES DOCUMENTADAS
+// ==========================================
+
+// Ao adicionar uma nova chave de armazenamento,
+// atualizar também Cookies.tsx e
+// lib/armazenamentoDocumentado.test.ts.
 
 const CHAVES = [
   'tema',
@@ -56,16 +65,28 @@ const CHAVES = [
 ]
 
 // ==========================================
-// TESTES
+// TESTES DA POLÍTICA DE COOKIES
 // ==========================================
 
 describe('Política de Cookies', () => {
-  // ESTRUTURA
+  // ========================================
+  // ESTRUTURA DA PÁGINA
+  // ========================================
 
   it('possui um único conteúdo principal', () => {
     renderPagina()
 
-    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(
+      screen.getAllByRole('main'),
+    ).toHaveLength(1)
+  })
+
+  it('possui um único documento principal', () => {
+    renderPagina()
+
+    expect(
+      screen.getAllByRole('article'),
+    ).toHaveLength(1)
   })
 
   it('exibe o título da Política de Cookies', () => {
@@ -80,6 +101,21 @@ describe('Política de Cookies', () => {
     ).toBeInTheDocument()
   })
 
+  it('associa corretamente o título ao documento', () => {
+    renderPagina()
+
+    const artigo = screen.getByRole('article')
+
+    const titulo = within(artigo).getByRole('heading', {
+      name: 'Política de Cookies e armazenamento no navegador',
+    })
+
+    expect(artigo).toHaveAttribute(
+      'aria-labelledby',
+      titulo.id,
+    )
+  })
+
   it('permite quebrar o título em telas pequenas', () => {
     renderPagina()
 
@@ -92,7 +128,9 @@ describe('Política de Cookies', () => {
     expect(titulo).toHaveClass('break-words')
   })
 
-  // SEÇÕES
+  // ========================================
+  // SEÇÕES DO DOCUMENTO
+  // ========================================
 
   it('mostra todas as seções como regiões acessíveis', () => {
     renderPagina()
@@ -121,13 +159,16 @@ describe('Política de Cookies', () => {
 
     for (let i = 1; i < secoes.length; i++) {
       expect(
-        secoes[i - 1].compareDocumentPosition(secoes[i]) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
+        secoes[i - 1].compareDocumentPosition(
+          secoes[i],
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy()
     }
   })
 
+  // ========================================
   // RESUMO
+  // ========================================
 
   it('exibe o resumo da política', () => {
     renderPagina()
@@ -141,7 +182,19 @@ describe('Política de Cookies', () => {
     ).toBeInTheDocument()
   })
 
-  // NAVEGAÇÃO
+  // ========================================
+  // NAVEGAÇÃO SUPERIOR
+  // ========================================
+
+  it('exibe a navegação entre documentos legais', () => {
+    renderPagina()
+
+    expect(
+      screen.getByRole('navigation', {
+        name: 'Documentos legais',
+      }),
+    ).toBeInTheDocument()
+  })
 
   it('marca Cookies como documento atual', () => {
     renderPagina()
@@ -169,7 +222,23 @@ describe('Política de Cookies', () => {
     ).toHaveAttribute('href', '/privacidade')
   })
 
+  // ========================================
+  // MENU LATERAL REMOVIDO
+  // ========================================
+
+  it('não exibe o menu lateral de seções', () => {
+    renderPagina()
+
+    expect(
+      screen.queryByRole('navigation', {
+        name: 'Seções deste documento',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  // ========================================
   // VERSÃO E CONTATO
+  // ========================================
 
   it('mostra versão e data de atualização', () => {
     renderPagina()
@@ -206,7 +275,9 @@ describe('Política de Cookies', () => {
     }
   })
 
-  // ARMAZENAMENTO
+  // ========================================
+  // ARMAZENAMENTO DO NAVEGADOR
+  // ========================================
 
   it('documenta todas as chaves guardadas no navegador', () => {
     renderPagina()
@@ -224,7 +295,33 @@ describe('Política de Cookies', () => {
     }
   })
 
+  it('possui as colunas corretas na tabela', () => {
+    renderPagina()
+
+    const tabela = screen.getByRole('table', {
+      name: /guardado no seu navegador/i,
+    })
+
+    const colunas = [
+      'Nome',
+      'Onde fica',
+      'Para que serve',
+      'Quando sai',
+      'Quem define',
+    ]
+
+    for (const coluna of colunas) {
+      expect(
+        within(tabela).getByRole('columnheader', {
+          name: coluna,
+        }),
+      ).toBeInTheDocument()
+    }
+  })
+
+  // ========================================
   // COOKIES E CONSENTIMENTO
+  // ========================================
 
   it('informa que não cria cookies próprios', () => {
     const { container } = renderPagina()
@@ -244,7 +341,9 @@ describe('Política de Cookies', () => {
     ).not.toBeInTheDocument()
   })
 
+  // ========================================
   // LINKS EXTERNOS
+  // ========================================
 
   it('possui apenas os dois links externos permitidos', () => {
     renderPagina()
@@ -284,7 +383,9 @@ describe('Política de Cookies', () => {
     }
   })
 
+  // ========================================
   // CONTEÚDO FORA DO ESCOPO
+  // ========================================
 
   it('não menciona funcionalidades fora do projeto', () => {
     const { container } = renderPagina()

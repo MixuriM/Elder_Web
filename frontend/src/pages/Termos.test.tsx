@@ -55,16 +55,23 @@ const SECOES_ESPERADAS = [
 // ==========================================
 
 describe('Termos de Uso', () => {
-
-  // ----------------------------------------
+  // ========================================
   // ESTRUTURA DA PÁGINA
-  // ----------------------------------------
+  // ========================================
 
   it('possui um único conteúdo principal', () => {
     renderPagina()
 
     expect(
       screen.getAllByRole('main')
+    ).toHaveLength(1)
+  })
+
+  it('possui um único documento principal', () => {
+    renderPagina()
+
+    expect(
+      screen.getAllByRole('article')
     ).toHaveLength(1)
   })
 
@@ -80,9 +87,25 @@ describe('Termos de Uso', () => {
     ).toBeInTheDocument()
   })
 
-  // ----------------------------------------
+  it('associa corretamente o título ao documento', () => {
+    renderPagina()
+
+    const artigo = screen.getByRole('article')
+
+    const titulo = within(artigo).getByRole(
+      'heading',
+      { name: 'Termos de Uso' }
+    )
+
+    expect(artigo).toHaveAttribute(
+      'aria-labelledby',
+      titulo.id
+    )
+  })
+
+  // ========================================
   // SEÇÕES DO DOCUMENTO
-  // ----------------------------------------
+  // ========================================
 
   it('mostra todas as seções dos Termos', () => {
     renderPagina()
@@ -112,15 +135,16 @@ describe('Termos de Uso', () => {
 
     for (let i = 1; i < secoes.length; i++) {
       expect(
-        secoes[i - 1].compareDocumentPosition(secoes[i]) &
-          Node.DOCUMENT_POSITION_FOLLOWING
+        secoes[i - 1].compareDocumentPosition(
+          secoes[i]
+        ) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy()
     }
   })
 
-  // ----------------------------------------
+  // ========================================
   // RESUMO
-  // ----------------------------------------
+  // ========================================
 
   it('exibe o resumo dos Termos de Uso', () => {
     renderPagina()
@@ -134,9 +158,19 @@ describe('Termos de Uso', () => {
     ).toBeInTheDocument()
   })
 
-  // ----------------------------------------
+  // ========================================
   // NAVEGAÇÃO ENTRE DOCUMENTOS
-  // ----------------------------------------
+  // ========================================
+
+  it('exibe a navegação superior dos documentos', () => {
+    renderPagina()
+
+    expect(
+      screen.getByRole('navigation', {
+        name: 'Documentos legais',
+      })
+    ).toBeInTheDocument()
+  })
 
   it('marca Termos de Uso como página atual', () => {
     renderPagina()
@@ -158,49 +192,23 @@ describe('Termos de Uso', () => {
     ).not.toHaveAttribute('aria-current')
   })
 
-  // ----------------------------------------
-  // MENU LATERAL
-  // ----------------------------------------
+  // ========================================
+  // MENU LATERAL REMOVIDO
+  // ========================================
 
-  it('exibe o índice lateral de seções', () => {
+  it('não exibe o menu lateral de seções', () => {
     renderPagina()
 
-    const menu = screen.getByRole('navigation', {
-      name: 'Seções deste documento',
-    })
-
-    expect(menu).toBeInTheDocument()
-
     expect(
-      within(menu).getAllByRole('link', {
-        name: /Sobre o Elder Web/i,
-      }).length
-    ).toBeGreaterThan(0)
+      screen.queryByRole('navigation', {
+        name: 'Seções deste documento',
+      })
+    ).not.toBeInTheDocument()
   })
 
-  it('possui links para as seções corretas', () => {
-    renderPagina()
-
-    const menu = screen.getByRole('navigation', {
-      name: 'Seções deste documento',
-    })
-
-    expect(
-      within(menu).getAllByRole('link', {
-        name: /Contato/i,
-      })[0]
-    ).toHaveAttribute('href', '#contato')
-
-    expect(
-      within(menu).getAllByRole('link', {
-        name: /Saúde/i,
-      })[0]
-    ).toHaveAttribute('href', '#saude')
-  })
-
-  // ----------------------------------------
+  // ========================================
   // EXCLUSÃO DA CONTA
-  // ----------------------------------------
+  // ========================================
 
   it('informa como excluir a conta', () => {
     const { container } = renderPagina()
@@ -218,9 +226,9 @@ describe('Termos de Uso', () => {
     )
   })
 
-  // ----------------------------------------
+  // ========================================
   // VERSÃO E AVISO ACADÊMICO
-  // ----------------------------------------
+  // ========================================
 
   it('mostra versão e data de atualização', () => {
     renderPagina()
@@ -250,9 +258,9 @@ describe('Termos de Uso', () => {
     ).toBeInTheDocument()
   })
 
-  // ----------------------------------------
+  // ========================================
   // CONTATO
-  // ----------------------------------------
+  // ========================================
 
   it('possui contato por e-mail', () => {
     renderPagina()
@@ -271,9 +279,9 @@ describe('Termos de Uso', () => {
     }
   })
 
-  // ----------------------------------------
+  // ========================================
   // AVISOS DE SAÚDE
-  // ----------------------------------------
+  // ========================================
 
   it('informa que não substitui atendimento médico', () => {
     const { container } = renderPagina()
@@ -286,9 +294,9 @@ describe('Termos de Uso', () => {
     expect(texto).toMatch(/Sorocaba/)
   })
 
-  // ----------------------------------------
+  // ========================================
   // FUNCIONALIDADES NÃO PROMETIDAS
-  // ----------------------------------------
+  // ========================================
 
   it('não promete funcionalidades inexistentes', () => {
     const { container } = renderPagina()

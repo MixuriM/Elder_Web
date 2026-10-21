@@ -52,17 +52,27 @@ const SECOES_ESPERADAS = [
 ]
 
 // ==========================================
-// TESTES
+// TESTES DA POLÍTICA DE PRIVACIDADE
 // ==========================================
 
 describe('Política de Privacidade', () => {
+  // ========================================
   // ESTRUTURA DA PÁGINA
+  // ========================================
 
   it('possui um único conteúdo principal', () => {
     renderPagina()
 
     expect(
       screen.getAllByRole('main'),
+    ).toHaveLength(1)
+  })
+
+  it('possui um único documento principal', () => {
+    renderPagina()
+
+    expect(
+      screen.getAllByRole('article'),
     ).toHaveLength(1)
   })
 
@@ -78,7 +88,24 @@ describe('Política de Privacidade', () => {
     ).toBeInTheDocument()
   })
 
+  it('associa o título ao documento', () => {
+    renderPagina()
+
+    const artigo = screen.getByRole('article')
+
+    const titulo = within(artigo).getByRole('heading', {
+      name: 'Política de Privacidade',
+    })
+
+    expect(artigo).toHaveAttribute(
+      'aria-labelledby',
+      titulo.id,
+    )
+  })
+
+  // ========================================
   // SEÇÕES DO DOCUMENTO
+  // ========================================
 
   it('mostra todas as seções como regiões acessíveis', () => {
     renderPagina()
@@ -113,7 +140,9 @@ describe('Política de Privacidade', () => {
     }
   })
 
+  // ========================================
   // RESUMO
+  // ========================================
 
   it('exibe o resumo da política', () => {
     renderPagina()
@@ -127,7 +156,19 @@ describe('Política de Privacidade', () => {
     ).toBeInTheDocument()
   })
 
+  // ========================================
   // NAVEGAÇÃO ENTRE DOCUMENTOS
+  // ========================================
+
+  it('exibe a navegação superior dos documentos', () => {
+    renderPagina()
+
+    expect(
+      screen.getByRole('navigation', {
+        name: 'Documentos legais',
+      }),
+    ).toBeInTheDocument()
+  })
 
   it('marca Privacidade como página atual', () => {
     renderPagina()
@@ -161,56 +202,23 @@ describe('Política de Privacidade', () => {
     ).toHaveAttribute('href', '/')
   })
 
-  // MENU LATERAL
+  // ========================================
+  // MENU LATERAL REMOVIDO
+  // ========================================
 
-  it('exibe o menu lateral de seções', () => {
+  it('não exibe o menu lateral de seções', () => {
     renderPagina()
 
-    const menu = screen.getByRole('navigation', {
-      name: 'Seções deste documento',
-    })
-
-    expect(menu).toBeInTheDocument()
-
     expect(
-      within(menu).getAllByRole('link', {
-        name: /Dados coletados/i,
-      }).length,
-    ).toBeGreaterThan(0)
+      screen.queryByRole('navigation', {
+        name: 'Seções deste documento',
+      }),
+    ).not.toBeInTheDocument()
   })
 
-  it('possui links para as seções corretas', () => {
-    renderPagina()
-
-    const menu = screen.getByRole('navigation', {
-      name: 'Seções deste documento',
-    })
-
-    const links = within(menu).getAllByRole('link')
-
-    expect(
-      links.some(
-        (link) =>
-          link.getAttribute('href') === '#dados',
-      ),
-    ).toBe(true)
-
-    expect(
-      links.some(
-        (link) =>
-          link.getAttribute('href') === '#direitos',
-      ),
-    ).toBe(true)
-
-    expect(
-      links.some(
-        (link) =>
-          link.getAttribute('href') === '#contato',
-      ),
-    ).toBe(true)
-  })
-
+  // ========================================
   // VERSÃO E CONTATO
+  // ========================================
 
   it('mostra versão e data de atualização', () => {
     renderPagina()
@@ -257,7 +265,9 @@ describe('Política de Privacidade', () => {
     }
   })
 
+  // ========================================
   // PROTEÇÃO DE DADOS E SAÚDE
+  // ========================================
 
   it('informa que não vendemos dados', () => {
     const { container } = renderPagina()
@@ -272,7 +282,9 @@ describe('Política de Privacidade', () => {
     )
   })
 
+  // ========================================
   // REGISTRO DO ACEITE
+  // ========================================
 
   it('a tabela lista o registro do aceite', () => {
     renderPagina()
@@ -290,7 +302,9 @@ describe('Política de Privacidade', () => {
     expect(VERSAO_DOCUMENTOS).toBe('1.2')
   })
 
+  // ========================================
   // EXCLUSÃO DE CONTA
+  // ========================================
 
   it('explica a exclusão da conta e os dados mantidos', () => {
     const { container } = renderPagina()
@@ -324,7 +338,7 @@ describe('Política de Privacidade', () => {
     )
 
     expect(texto).toMatch(/data e versão/)
-    expect(texto).toMatch(/cópias de segurança/)
+    expect(texto).toMatch(/cópias de segurança/i)
 
     expect(texto).not.toMatch(
       /cópias de segurança[^.]*\d+ dias/i,
@@ -343,7 +357,9 @@ describe('Política de Privacidade', () => {
     )
   })
 
+  // ========================================
   // TABELAS
+  // ========================================
 
   it('possui a tabela de dados coletados', () => {
     renderPagina()
@@ -379,7 +395,9 @@ describe('Política de Privacidade', () => {
     }
   })
 
+  // ========================================
   // CONTEÚDOS FORA DO ESCOPO
+  // ========================================
 
   it('não menciona funcionalidades fora do projeto', () => {
     const { container } = renderPagina()
