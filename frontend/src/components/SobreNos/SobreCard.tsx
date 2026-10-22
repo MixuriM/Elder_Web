@@ -171,17 +171,6 @@ function SobreCard({
                   dark:text-[#B9B3FF]
                 "
               >
-                {integrante.cargo}
-              </p>
-
-              {/* DESCRIÇÃO */}
-              <p
-                className="
-                  mt-3 text-sm leading-6
-                  text-[#46536B]
-                  dark:text-[#C7C7D1]
-                "
-              >
                 {integrante.descricao}
               </p>
             </article>
@@ -196,7 +185,7 @@ function SobreCard({
                 text-center
                 dark:bg-[#11141D]
                 sm:col-span-2
-                xl:flex-row xl:items-center xl:p-8
+                md:flex-row md:items-center md:p-8
                 lg:col-span-3
               "
             >
@@ -207,8 +196,7 @@ function SobreCard({
                   overflow-hidden rounded-xl
                   bg-[#EAE6FF]
                   dark:bg-[#25243B]
-                  xl:max-w-[640px]
-                  xl:flex-[0_1_640px]
+                  md:max-w-[640px]
                 "
               >
                 {fotoEquipe.foto ? (
@@ -239,7 +227,7 @@ function SobreCard({
                 )}
               </div>
 
-              <div className="min-w-0 xl:min-w-[240px] xl:flex-1">
+              <div className="min-w-0 md:flex-1">
                 <h3
                   className="
                     text-xl font-bold
@@ -255,16 +243,6 @@ function SobreCard({
                     mt-1 text-sm font-semibold
                     text-[#5147B5]
                     dark:text-[#B9B3FF]
-                  "
-                >
-                  {fotoEquipe.cargo}
-                </p>
-
-                <p
-                  className="
-                    mt-3 text-sm leading-6
-                    text-[#46536B]
-                    dark:text-[#C7C7D1]
                   "
                 >
                   {fotoEquipe.descricao}
