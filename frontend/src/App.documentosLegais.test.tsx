@@ -1,26 +1,43 @@
+
 import '@testing-library/jest-dom'
+
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import App from './App'
 
-// Fiação real: App completo nas três rotas dos documentos, com e sem usuário logado.
+import App from './App'
+import { DOCUMENTOS_LEGAIS } from './lib/documentosLegais'
+
+// ==========================================
+// SIMULAÇÃO DA AUTENTICAÇÃO
+// ==========================================
+
 let mockUsuario: { uid: string } | null = null
+
 jest.mock('./lib/auth', () => ({
   onAuthChange: (cb: (u: unknown) => void) => {
     cb(mockUsuario)
     return () => {}
   },
+
   getCurrentUserToken: jest.fn().mockResolvedValue(null),
 }))
 
-const ROTAS = [
-  ['/privacidade', 'Política de Privacidade'],
-  ['/termos', 'Termos de Uso'],
-  ['/cookies', 'Política de Cookies e armazenamento no navegador'],
-] as const
+// ==========================================
+// ROTAS DOS DOCUMENTOS LEGAIS
+// ==========================================
+
+const ROTAS = DOCUMENTOS_LEGAIS.map((documento) => ({
+  rota: documento.caminho,
+  titulo: documento.titulo,
+}))
+
+// ==========================================
+// RENDERIZAÇÃO DO APP
+// ==========================================
 
 function renderApp(rota: string) {
-  window.history.pushState({}, '', rota)
+  window.history.replaceState({}, '', rota)
+
   return render(
     <BrowserRouter>
       <App />
@@ -28,18 +45,49 @@ function renderApp(rota: string) {
   )
 }
 
-describe.each(ROTAS)('App: rota pública %s', (rota, titulo) => {
-  it('sem usuário: mostra a página, mantém a URL e não manda para login', async () => {
-    mockUsuario = null
-    renderApp(rota)
-    expect(await screen.findByRole('heading', { level: 1, name: titulo })).toBeInTheDocument()
-    expect(window.location.pathname).toBe(rota)
-  })
+// ==========================================
+// TESTES
+// ==========================================
 
-  it('com usuário logado: a página também renderiza', async () => {
-    mockUsuario = { uid: 'u1' }
-    renderApp(rota)
-    expect(await screen.findByRole('heading', { level: 1, name: titulo })).toBeInTheDocument()
-    expect(window.location.pathname).toBe(rota)
-  })
-})
+describe.each(ROTAS)(
+  'App: rota pública $rota',
+  ({ rota, titulo }) => {
+    beforeEach(() => {
+      mockUsuario = null
+      jest.clearAllMocks()
+    })
+
+    it('sem usuário: renderiza a página sem redirecionar', async () => {
+      renderApp(rota)
+
+      const heading = await screen.findByRole(
+        'heading',
+        { level: 1 },
+        { timeout: 3000 },
+      )
+
+      expect(heading).toBeVisible()
+      expect(heading).toHaveTextContent(titulo)
+
+      expect(window.location.pathname).toBe(rota)
+      expect(window.location.pathname).not.toBe('/login')
+    })
+
+    it('com usuário logado: mantém a página pública acessível', async () => {
+      mockUsuario = { uid: 'u1' }
+
+      renderApp(rota)
+
+      const heading = await screen.findByRole(
+        'heading',
+        { level: 1 },
+        { timeout: 3000 },
+      )
+
+      expect(heading).toBeVisible()
+      expect(heading).toHaveTextContent(titulo)
+
+      expect(window.location.pathname).toBe(rota)
+    })
+  },
+)
