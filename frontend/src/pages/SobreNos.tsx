@@ -80,6 +80,27 @@ function SobreNos() {
           "
         />
 
+        {/* FOLHA INFERIOR DIREITA - REFLEXO DA ESQUERDA */}
+        <div
+          className="
+            absolute -right-24 bottom-16
+            w-52 -scale-x-100
+            opacity-15
+            sm:w-72
+            lg:-right-16 lg:w-80
+            dark:opacity-20
+          "
+        >
+          <img
+            src={folhaInicioD}
+            alt=""
+            className="
+              block w-full
+              rotate-[155deg]
+            "
+          />
+        </div>
+
         {/* ILUMINAÇÃO INFERIOR */}
         <div
           className="

@@ -1,21 +1,27 @@
 
 import '@testing-library/jest-dom'
+
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { axe, toHaveNoViolations } from 'jest-axe'
 
 import SobreNos from './SobreNos'
+import { equipe, equipeColetiva } from '../components/SobreNos/sobreNosData'
 
 expect.extend(toHaveNoViolations)
 
-// SobreHeader e SobreCTA leem a sessão; aqui a página é vista como visitante.
+// ==========================================
+// CONFIGURAÇÃO
+// ==========================================
+
+// SobreHeader e SobreCTA consultam a sessão.
+// Nos testes, a página é acessada como visitante.
 jest.mock('../lib/auth', () => ({
   onAuthChange: (cb: (u: unknown) => void) => {
     cb(null)
     return () => {}
   },
 }))
-
 
 // O jsdom não calcula o contraste real das cores.
 // O contraste deve ser validado separadamente.
@@ -33,13 +39,25 @@ function renderSobreNos() {
   )
 }
 
+const SECOES_ESPERADAS = [
+  'O que é o Elder Web',
+  'Para quem é',
+  'O que reúne',
+  'Nosso compromisso com a acessibilidade',
+  'Quem fez',
+]
+
+// ==========================================
+// TESTES
+// ==========================================
+
 describe('SobreNos (item 8.1, RF-029)', () => {
+  // ESTRUTURA DA PÁGINA
+
   it('renderiza a página Sobre nós', () => {
     renderSobreNos()
 
-    expect(
-      screen.getByRole('main'),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('main')).toBeInTheDocument()
 
     expect(
       screen.getByRole('heading', {
@@ -53,56 +71,40 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     renderSobreNos()
 
     expect(
-      screen.getAllByRole('heading', {
-        level: 1,
-      }),
+      screen.getAllByRole('heading', { level: 1 }),
     ).toHaveLength(1)
 
-    expect(
-      screen.getAllByRole('main'),
-    ).toHaveLength(1)
+    expect(screen.getAllByRole('main')).toHaveLength(1)
   })
+
+  // SEÇÕES INFORMATIVAS
 
   it('renderiza as cinco seções informativas', () => {
     renderSobreNos()
 
-    const titulos = [
-      'O que é o Elder Web',
-      'Para quem é',
-      'O que reúne',
-      'Nosso compromisso com a acessibilidade',
-      'Quem fez',
-    ]
-
-    titulos.forEach((titulo) => {
+    for (const titulo of SECOES_ESPERADAS) {
       expect(
         screen.getByRole('heading', {
           level: 2,
           name: titulo,
         }),
       ).toBeInTheDocument()
-    })
+    }
   })
 
   it('cada seção possui uma região acessível', () => {
     renderSobreNos()
 
-    const titulos = [
-      'O que é o Elder Web',
-      'Para quem é',
-      'O que reúne',
-      'Nosso compromisso com a acessibilidade',
-      'Quem fez',
-    ]
-
-    titulos.forEach((titulo) => {
+    for (const titulo of SECOES_ESPERADAS) {
       expect(
         screen.getByRole('region', {
           name: titulo,
         }),
       ).toBeInTheDocument()
-    })
+    }
   })
+
+  // APRESENTAÇÃO DO PROJETO
 
   it('exibe a apresentação do Elder Web', () => {
     renderSobreNos()
@@ -115,13 +117,13 @@ describe('SobreNos (item 8.1, RF-029)', () => {
 
     expect(
       screen.getByText(
-        /idosos, cuidadores e familiares/i,
+        /idosas, familiares e cuidadores/i,
       ),
     ).toBeInTheDocument()
 
     expect(
       screen.getByText(
-        /registros de saúde, controle de medicamentos/i,
+        /registros de saúde, organização de medicamentos/i,
       ),
     ).toBeInTheDocument()
   })
@@ -146,7 +148,9 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     ).toBeInTheDocument()
   })
 
-  it('exibe as informações de quem fez o projeto', () => {
+  // EQUIPE DE DESENVOLVIMENTO
+
+  it('informa quem desenvolveu o projeto', () => {
     renderSobreNos()
 
     const secao = screen.getByRole('region', {
@@ -155,14 +159,30 @@ describe('SobreNos (item 8.1, RF-029)', () => {
 
     expect(
       within(secao).getByText(
-        /Projeto de Conclusão de Curso/i,
+        /Trabalho de Conclusão de Curso/i,
       ),
     ).toBeInTheDocument()
 
     expect(
       within(secao).getByText(
         /Etec Fernando Prestes/i,
+        { selector: 'p' },
       ),
+    ).toBeInTheDocument()
+  })
+
+  it('exibe o título da equipe', () => {
+    renderSobreNos()
+
+    const secao = screen.getByRole('region', {
+      name: 'Quem fez',
+    })
+
+    expect(
+      within(secao).getByRole('heading', {
+        level: 3,
+        name: 'Quem está por trás do Elder Web?',
+      }),
     ).toBeInTheDocument()
   })
 
@@ -173,50 +193,95 @@ describe('SobreNos (item 8.1, RF-029)', () => {
       name: 'Quem fez',
     })
 
-    const integrantes = [
-      'Marcos',
-      'Laureane',
-      'Jennifer',
-    ]
-
-    integrantes.forEach((nome) => {
+    for (const integrante of equipe) {
       expect(
         within(secao).getByRole('heading', {
-          level: 3,
-          name: nome,
+          level: 4,
+          name: integrante.nome,
         }),
       ).toBeInTheDocument()
-    })
+    }
   })
+
+  it('exibe as funções dos integrantes', () => {
+    renderSobreNos()
+
+    const secao = screen.getByRole('region', {
+      name: 'Quem fez',
+    })
+
+    for (const integrante of equipe) {
+      const cartao = within(secao)
+        .getByRole('heading', {
+          level: 4,
+          name: integrante.nome,
+        })
+        .closest('article')
+
+      expect(cartao).not.toBeNull()
+
+      expect(
+        within(cartao!).getByText(integrante.cargo),
+      ).toBeInTheDocument()
+    }
+  })
+
+  it('exibe as fotografias individuais', () => {
+    renderSobreNos()
+
+    const secao = screen.getByRole('region', {
+      name: 'Quem fez',
+    })
+
+    for (const integrante of equipe) {
+      expect(
+        within(secao).getByRole('img', {
+          name: `Foto de ${integrante.nome}`,
+        }),
+      ).toHaveAttribute('src', integrante.foto)
+    }
+  })
+
+  it('exibe a fotografia coletiva da equipe', () => {
+    renderSobreNos()
+
+    const secao = screen.getByRole('region', {
+      name: 'Quem fez',
+    })
+
+    expect(
+      within(secao).getByRole('img', {
+        name: equipeColetiva.descricao,
+      }),
+    ).toHaveAttribute('src', equipeColetiva.foto)
+
+    expect(
+      within(secao).getByText(
+        /Equipe Elder Web — Etec Fernando Prestes, 2026/i,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  // NAVEGAÇÃO
 
   it('possui link para a página inicial', () => {
     renderSobreNos()
 
-    const linkInicial = screen.getByRole('link', {
-      name: /voltar ao início/i,
-    })
-
-    expect(linkInicial).toBeInTheDocument()
-
-    expect(linkInicial).toHaveAttribute(
-      'href',
-      '/',
-    )
+    expect(
+      screen.getByRole('link', {
+        name: /voltar ao início/i,
+      }),
+    ).toHaveAttribute('href', '/')
   })
 
   it('possui link para entrar ou criar conta', () => {
     renderSobreNos()
 
-    const linkWelcome = screen.getByRole('link', {
-      name: /entrar ou criar conta/i,
-    })
-
-    expect(linkWelcome).toBeInTheDocument()
-
-    expect(linkWelcome).toHaveAttribute(
-      'href',
-      '/welcome',
-    )
+    expect(
+      screen.getByRole('link', {
+        name: /entrar ou criar conta/i,
+      }),
+    ).toHaveAttribute('href', '/welcome')
   })
 
   it('possui convite para conhecer o Elder', () => {
@@ -229,31 +294,74 @@ describe('SobreNos (item 8.1, RF-029)', () => {
       }),
     ).toBeInTheDocument()
 
-    const link = screen.getByRole('link', {
-      name: /conhecer o elder$/i,
-    })
-
-    expect(link).toHaveAttribute(
-      'href',
-      '/welcome',
-    )
+    expect(
+      screen.getByRole('link', {
+        name: /conhecer o elder$/i,
+      }),
+    ).toHaveAttribute('href', '/welcome')
   })
 
-  it('mantém as folhas decorativas fora da árvore acessível', () => {
+  // ELEMENTOS DECORATIVOS
+
+  it('mantém as quatro folhas decorativas fora da árvore acessível', () => {
     const { container } = renderSobreNos()
 
-    const imagensDecorativas = container.querySelectorAll(
-      'img[alt=""]',
+    const fundo = container.querySelector(
+      'main > div[aria-hidden="true"]',
     )
 
-    expect(imagensDecorativas).toHaveLength(3)
+    expect(fundo).not.toBeNull()
 
-    imagensDecorativas.forEach((imagem) => {
-      expect(imagem).toHaveAttribute('alt', '')
-    })
+    const folhas = fundo!.querySelectorAll('img[alt=""]')
+
+    expect(folhas).toHaveLength(4)
+
+    for (const folha of folhas) {
+      expect(folha).toHaveAttribute('alt', '')
+    }
   })
 
-  it('não contém termos proibidos', () => {
+  it('mantém a logo decorativa no topo da página', () => {
+    renderSobreNos()
+
+    const titulo = screen.getByRole('heading', {
+      level: 1,
+      name: /sobre o elder web/i,
+    })
+
+    const hero = titulo.closest('section')
+
+    expect(hero).not.toBeNull()
+
+    const logo = hero!.querySelector('img[alt=""]')
+
+    expect(logo).toBeInTheDocument()
+  })
+
+  // RESPONSIVIDADE
+
+  it('o selo Conheça o Elder usa fonte de pelo menos 14 px', () => {
+    renderSobreNos()
+
+    const selo = screen.getByText('Conheça o Elder')
+
+    expect(selo).toHaveClass('text-sm')
+    expect(selo).not.toHaveClass('text-xs')
+  })
+
+  it('os títulos dos cards permitem quebra de palavras', () => {
+    const { container } = renderSobreNos()
+
+    const titulo = container.querySelector(
+      'h2#titulo-acessibilidade',
+    )
+
+    expect(titulo).toHaveClass('break-words')
+  })
+
+  // CONTEÚDO
+
+  it('não contém termos fora do projeto', () => {
     const { container } = renderSobreNos()
 
     const texto = container.textContent ?? ''
@@ -264,23 +372,7 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     expect(texto).not.toMatch(/São Vicente/i)
   })
 
-  // Medido pelo responsivo (320 px): fonte mínima de 14 px e título que parte palavra longa em vez de vazar.
-  it('o selo "Conheça o Elder" usa fonte de pelo menos 14 px (text-sm)', () => {
-    renderSobreNos()
-
-    const selo = screen.getByText('Conheça o Elder')
-
-    expect(selo).toHaveClass('text-sm')
-    expect(selo).not.toHaveClass('text-xs')
-  })
-
-  it('os títulos dos cards partem palavra longa (break-words)', () => {
-    const { container } = renderSobreNos()
-
-    const titulo = container.querySelector('h2#titulo-acessibilidade')
-
-    expect(titulo).toHaveClass('break-words')
-  })
+  // ACESSIBILIDADE AUTOMÁTICA
 
   it('não apresenta violações automáticas de acessibilidade', async () => {
     const { container } = renderSobreNos()

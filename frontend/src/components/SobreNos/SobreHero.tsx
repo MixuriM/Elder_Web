@@ -1,5 +1,5 @@
 
-import { HeartHandshake } from 'lucide-react'
+import logoElder from '../../img/Elder_logo.webp'
 
 function SobreHero() {
   return (
@@ -14,20 +14,25 @@ function SobreHero() {
         sm:pb-10 sm:pt-8
       "
     >
-      {/* ÍCONE DECORATIVO */}
+      {/* LOGO DO ELDER WEB */}
       <div
         aria-hidden="true"
         className="
-          mb-6 flex h-16 w-16
+          mb-6 flex
           items-center justify-center
-          rounded-2xl
-          bg-[#EAE6FF]
-          text-[#6258E8]
-          dark:bg-[#25243B]
-          dark:text-[#B9B3FF]
         "
       >
-        <HeartHandshake size={32} strokeWidth={1.8} />
+        <img
+          src={logoElder}
+          alt=""
+          width={112}
+          height={112}
+          className="
+            h-24 w-24
+            object-contain
+            sm:h-28 sm:w-28
+          "
+        />
       </div>
 
       {/* IDENTIFICAÇÃO DA PÁGINA */}
