@@ -16,11 +16,8 @@ expect.extend(toHaveNoViolations)
 // ==========================================
 
 // O jsdom não calcula o contraste real das cores.
-// Essa verificação deve ser feita no navegador,
-// por exemplo, utilizando Playwright.
-//
-// A existência de um único h1 é verificada
-// manualmente nos testes.
+// Essa verificação deve ser realizada no navegador,
+// utilizando ferramentas como Playwright.
 
 const AXE = {
   rules: {
@@ -45,18 +42,23 @@ const paginasLegais = [
   },
   {
     rota: '/cookies',
-    titulo: 'Política de Cookies',
+    titulo: 'Política de Cookies e armazenamento no navegador',
     Componente: Cookies,
   },
 ]
 
 // ==========================================
-// TESTES
+// TESTES DE ACESSIBILIDADE
 // ==========================================
 
 describe.each(paginasLegais)(
   '$titulo - acessibilidade',
   ({ rota, titulo, Componente }) => {
+
+    // ======================================
+    // RENDERIZAÇÃO
+    // ======================================
+
     function renderizarPagina() {
       return render(
         <MemoryRouter initialEntries={[rota]}>
@@ -64,6 +66,10 @@ describe.each(paginasLegais)(
         </MemoryRouter>,
       )
     }
+
+    // ======================================
+    // TÍTULO PRINCIPAL
+    // ======================================
 
     it('renderiza o título principal da página', () => {
       renderizarPagina()
@@ -76,30 +82,45 @@ describe.each(paginasLegais)(
       ).toBeInTheDocument()
     })
 
+    // ======================================
+    // H1 ÚNICO
+    // ======================================
+
     it('possui apenas um h1', () => {
       renderizarPagina()
 
-      expect(
-        screen.getAllByRole('heading', {
-          level: 1,
-        }),
-      ).toHaveLength(1)
+      const titulos = screen.getAllByRole('heading', {
+        level: 1,
+      })
+
+      expect(titulos).toHaveLength(1)
     })
+
+    // ======================================
+    // CONTEÚDO PRINCIPAL ÚNICO
+    // ======================================
 
     it('possui apenas um conteúdo principal', () => {
       renderizarPagina()
 
-      expect(
-        screen.getAllByRole('main'),
-      ).toHaveLength(1)
+      const conteudos = screen.getAllByRole('main')
+
+      expect(conteudos).toHaveLength(1)
     })
 
-    it('não apresenta violações automáticas de acessibilidade', async () => {
-      const { container } = renderizarPagina()
+    // ======================================
+    // VERIFICAÇÃO AUTOMÁTICA
+    // ======================================
 
-      const resultados = await axe(container, AXE)
+    it(
+      'não apresenta violações automáticas de acessibilidade',
+      async () => {
+        const { container } = renderizarPagina()
 
-      expect(resultados).toHaveNoViolations()
-    })
+        const resultados = await axe(container, AXE)
+
+        expect(resultados).toHaveNoViolations()
+      },
+    )
   },
 )
