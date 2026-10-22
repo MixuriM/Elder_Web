@@ -14,6 +14,7 @@ import {
 import fotoMarcos from '../../Img/Marc.jpeg'
 import fotoLaureane from '../../Img/Lau.jpeg'
 import fotoJennifer from '../../Img/Jen.jpeg'
+import fotoTodos from '../../Img/selfie.jpg'
 
 // ==========================================
 // IMAGEM DECORATIVA DO ELDER WEB
@@ -92,6 +93,14 @@ export const equipe = [
     nome: 'Jennifer Galan',
     cargo: 'Desenvolvedora',
     foto: fotoJennifer,
+    descricao:
+      'Integrante da equipe responsável pelo frontend e acessibilidade de telas.',
+  },
+  {
+    id: 'todos',
+    nome: 'Todos',
+    cargo: 'Equipe de Desenvolvimento',
+    foto: fotoTodos,
     descricao:
       'Integrante da equipe responsável pelo frontend e acessibilidade de telas.',
   },

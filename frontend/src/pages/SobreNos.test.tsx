@@ -189,6 +189,20 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     })
   })
 
+  it('exibe a selfie da equipe em um card próprio e ampliado', () => {
+    renderSobreNos()
+
+    const selfie = screen.getByRole('img', {
+      name: 'Selfie da equipe de desenvolvimento',
+    })
+    const card = selfie.closest('article')
+
+    expect(card).toHaveClass('lg:col-span-3')
+    expect(card).not.toHaveClass('md:flex-row')
+    expect(card).toHaveClass('xl:flex-row')
+    expect(selfie.parentElement).toHaveClass('xl:max-w-[640px]')
+  })
+
   it('possui link para a página inicial', () => {
     renderSobreNos()
 

@@ -19,6 +19,8 @@ function SobreCard({
   destaque = false,
 }: SobreCardProps) {
   const mostrarEquipe = id === 'quem-fez'
+  const integrantes = equipe.filter((integrante) => integrante.id !== 'todos')
+  const fotoEquipe = equipe.find((integrante) => integrante.id === 'todos')
 
   return (
     <section
@@ -97,7 +99,7 @@ function SobreCard({
             lg:grid-cols-3
           "
         >
-          {equipe.map((integrante) => (
+          {integrantes.map((integrante) => (
             <article
               key={integrante.id}
               className="
@@ -184,6 +186,92 @@ function SobreCard({
               </p>
             </article>
           ))}
+
+          {fotoEquipe && (
+            <article
+              className="
+                flex min-w-0 flex-col items-center
+                gap-6 rounded-2xl
+                bg-[#F8F7FF] p-5
+                text-center
+                dark:bg-[#11141D]
+                sm:col-span-2
+                xl:flex-row xl:items-center xl:p-8
+                lg:col-span-3
+              "
+            >
+              <div
+                className="
+                  flex aspect-[1138/752] w-full
+                  items-center justify-center
+                  overflow-hidden rounded-xl
+                  bg-[#EAE6FF]
+                  dark:bg-[#25243B]
+                  xl:max-w-[640px]
+                  xl:flex-[0_1_640px]
+                "
+              >
+                {fotoEquipe.foto ? (
+                  <img
+                    src={fotoEquipe.foto}
+                    alt="Selfie da equipe de desenvolvimento"
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover object-center"
+                  />
+                ) : (
+                  <div
+                    role="img"
+                    aria-label="Selfie da equipe de desenvolvimento indisponível"
+                    className="
+                      flex h-full w-full
+                      items-center justify-center
+                      text-[#6258E8]
+                      dark:text-[#B9B3FF]
+                    "
+                  >
+                    <UserRound
+                      size={64}
+                      strokeWidth={1.4}
+                      aria-hidden="true"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 xl:min-w-[240px] xl:flex-1">
+                <h3
+                  className="
+                    text-xl font-bold
+                    text-[#071A38]
+                    dark:text-[#F5F5FA]
+                  "
+                >
+                  {fotoEquipe.nome}
+                </h3>
+
+                <p
+                  className="
+                    mt-1 text-sm font-semibold
+                    text-[#5147B5]
+                    dark:text-[#B9B3FF]
+                  "
+                >
+                  {fotoEquipe.cargo}
+                </p>
+
+                <p
+                  className="
+                    mt-3 text-sm leading-6
+                    text-[#46536B]
+                    dark:text-[#C7C7D1]
+                  "
+                >
+                  {fotoEquipe.descricao}
+                </p>
+              </div>
+            </article>
+          )}
         </div>
       )}
     </section>
