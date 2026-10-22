@@ -75,7 +75,6 @@ export const equipe = [
   {
     id: 'marcos',
     nome: 'Marcos Castelli',
-    cargo: 'Desenvolvedor',
     foto: fotoMarcos,
     descricao:
       'Líder do projeto. Integrante da equipe responsável pelo backeand, banco de dados, infraestrutura e frontend',
@@ -83,7 +82,6 @@ export const equipe = [
   {
     id: 'laureane',
     nome: 'Laureane Almeida',
-    cargo: 'Desenvolvedora',
     foto: fotoLaureane,
     descricao:
       'Integrante da equipe responsável pelo frontend e acessibilidade de telas.',
@@ -91,17 +89,15 @@ export const equipe = [
   {
     id: 'jennifer',
     nome: 'Jennifer Galan',
-    cargo: 'Desenvolvedora',
     foto: fotoJennifer,
     descricao:
       'Integrante da equipe responsável pelo frontend e acessibilidade de telas.',
   },
   {
     id: 'todos',
-    nome: 'Todos',
-    cargo: 'Equipe de Desenvolvimento',
+    nome: 'Equipe de Desenvolvimento',
     foto: fotoTodos,
     descricao:
-      'Integrante da equipe responsável pelo frontend e acessibilidade de telas.',
+      'Todos os integrantes da equipe responsável pelo desenvolvimento do Elder Web.',
   },
 ]
