@@ -174,9 +174,9 @@ describe('SobreNos (item 8.1, RF-029)', () => {
     })
 
     const integrantes = [
-      'Marcos',
-      'Laureane',
-      'Jennifer',
+      'Marcos Castelli',
+      'Laureane Almeida',
+      'Jennifer Galan',
     ]
 
     integrantes.forEach((nome) => {
@@ -187,6 +187,19 @@ describe('SobreNos (item 8.1, RF-029)', () => {
         }),
       ).toBeInTheDocument()
     })
+  })
+
+  it('exibe a selfie da equipe em um card próprio e ampliado', () => {
+    renderSobreNos()
+
+    const selfie = screen.getByRole('img', {
+      name: 'Selfie da equipe de desenvolvimento',
+    })
+    const card = selfie.closest('article')
+
+    expect(card).toHaveClass('lg:col-span-3')
+    expect(card).toHaveClass('md:flex-row')
+    expect(selfie.parentElement).toHaveClass('md:max-w-[640px]')
   })
 
   it('possui link para a página inicial', () => {

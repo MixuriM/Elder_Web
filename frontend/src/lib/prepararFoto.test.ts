@@ -2,7 +2,11 @@ import { FOTO_ACCEPT, prepararFoto } from "./prepararFoto";
 
 // jsdom não tem canvas nem createImageBitmap: os dois são simulados aqui, e a biblioteca de HEIC também.
 const mockHeicTo = jest.fn();
-jest.mock("heic-to", () => ({ heicTo: (...args: unknown[]) => mockHeicTo(...args) }));
+jest.mock(
+  "heic-to",
+  () => ({ heicTo: (...args: unknown[]) => mockHeicTo(...args) }),
+  { virtual: true },
+);
 
 const MB = 1024 * 1024;
 const drawImage = jest.fn();

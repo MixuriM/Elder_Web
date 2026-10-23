@@ -19,6 +19,8 @@ function SobreCard({
   destaque = false,
 }: SobreCardProps) {
   const mostrarEquipe = id === 'quem-fez'
+  const integrantes = equipe.filter((integrante) => integrante.id !== 'todos')
+  const fotoEquipe = equipe.find((integrante) => integrante.id === 'todos')
 
   return (
     <section
@@ -97,7 +99,7 @@ function SobreCard({
             lg:grid-cols-3
           "
         >
-          {equipe.map((integrante) => (
+          {integrantes.map((integrante) => (
             <article
               key={integrante.id}
               className="
@@ -109,16 +111,16 @@ function SobreCard({
                 dark:bg-[#11141D]
               "
             >
-              {/* FOTOGRAFIA 4:5 */}
+              {/* FOTOGRAFIA */}
               <div
-                className="
-                  flex aspect-[4/5]
-                  w-full max-w-[240px]
+                className={`
+                  flex ${integrante.id === 'todos' ? 'aspect-[1138/752]' : 'aspect-[4/5]'}
+                  w-full ${integrante.id === 'todos' ? 'max-w-[360px]' : 'max-w-[240px]'}
                   items-center justify-center
                   overflow-hidden rounded-xl
                   bg-[#EAE6FF]
                   dark:bg-[#25243B]
-                "
+                `}
               >
                 {integrante.foto ? (
                   <img
@@ -126,10 +128,9 @@ function SobreCard({
                     alt={`Foto de ${integrante.nome}`}
                     loading="lazy"
                     decoding="async"
-                    className="
-                      h-full w-full
-                      object-cover object-center
-                    "
+                    className={`h-full w-full object-cover object-center ${
+                      integrante.id === 'todos' ? 'scale-110' : ''
+                    }`}
                   />
                 ) : (
                   <div
@@ -170,21 +171,85 @@ function SobreCard({
                   dark:text-[#B9B3FF]
                 "
               >
-                {integrante.cargo}
-              </p>
-
-              {/* DESCRIÇÃO */}
-              <p
-                className="
-                  mt-3 text-sm leading-6
-                  text-[#46536B]
-                  dark:text-[#C7C7D1]
-                "
-              >
                 {integrante.descricao}
               </p>
             </article>
           ))}
+
+          {fotoEquipe && (
+            <article
+              className="
+                flex min-w-0 flex-col items-center
+                gap-6 rounded-2xl
+                bg-[#F8F7FF] p-5
+                text-center
+                dark:bg-[#11141D]
+                sm:col-span-2
+                md:flex-row md:items-center md:p-8
+                lg:col-span-3
+              "
+            >
+              <div
+                className="
+                  flex aspect-[1138/752] w-full
+                  items-center justify-center
+                  overflow-hidden rounded-xl
+                  bg-[#EAE6FF]
+                  dark:bg-[#25243B]
+                  md:max-w-[640px]
+                "
+              >
+                {fotoEquipe.foto ? (
+                  <img
+                    src={fotoEquipe.foto}
+                    alt="Selfie da equipe de desenvolvimento"
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover object-center"
+                  />
+                ) : (
+                  <div
+                    role="img"
+                    aria-label="Selfie da equipe de desenvolvimento indisponível"
+                    className="
+                      flex h-full w-full
+                      items-center justify-center
+                      text-[#6258E8]
+                      dark:text-[#B9B3FF]
+                    "
+                  >
+                    <UserRound
+                      size={64}
+                      strokeWidth={1.4}
+                      aria-hidden="true"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 md:flex-1">
+                <h3
+                  className="
+                    text-xl font-bold
+                    text-[#071A38]
+                    dark:text-[#F5F5FA]
+                  "
+                >
+                  {fotoEquipe.nome}
+                </h3>
+
+                <p
+                  className="
+                    mt-1 text-sm font-semibold
+                    text-[#5147B5]
+                    dark:text-[#B9B3FF]
+                  "
+                >
+                  {fotoEquipe.descricao}
+                </p>
+              </div>
+            </article>
+          )}
         </div>
       )}
     </section>

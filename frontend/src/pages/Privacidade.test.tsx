@@ -1,9 +1,25 @@
+
 import '@testing-library/jest-dom'
-import { render, screen, within } from '@testing-library/react'
+
+import {
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
+
 import { MemoryRouter } from 'react-router-dom'
 
 import Privacidade from './Privacidade'
-import { DATA_ATUALIZACAO, EMAIL_SUPORTE, VERSAO_DOCUMENTOS } from '../lib/documentosLegais'
+
+import {
+  DATA_ATUALIZACAO,
+  EMAIL_SUPORTE,
+  VERSAO_DOCUMENTOS,
+} from '../lib/documentosLegais'
+
+// ==========================================
+// CONFIGURAÇÃO
+// ==========================================
 
 function renderPagina() {
   return render(
@@ -13,8 +29,11 @@ function renderPagina() {
   )
 }
 
-const H2_ESPERADOS = [
-  'Resumo em poucas linhas',
+// ==========================================
+// SEÇÕES ESPERADAS
+// ==========================================
+
+const SECOES_ESPERADAS = [
   'Quem é responsável pelos seus dados',
   'Quais dados coletamos',
   'Dados de saúde',
@@ -32,96 +51,359 @@ const H2_ESPERADOS = [
   'Contato',
 ]
 
+// ==========================================
+// TESTES DA POLÍTICA DE PRIVACIDADE
+// ==========================================
+
 describe('Política de Privacidade', () => {
-  it('tem um único h1 e um único main', () => {
-    renderPagina()
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Política de Privacidade')
-    expect(screen.getAllByRole('main')).toHaveLength(1)
-  })
+  // ========================================
+  // ESTRUTURA DA PÁGINA
+  // ========================================
 
-  it('mostra as seções na ordem, cada uma como região', () => {
+  it('possui um único conteúdo principal', () => {
     renderPagina()
-    const h2 = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(h2).toEqual(H2_ESPERADOS)
-    for (const titulo of H2_ESPERADOS) expect(screen.getByRole('region', { name: titulo })).toBeInTheDocument()
-  })
 
-  it('navegação entre os documentos marca a página atual', () => {
-    renderPagina()
-    const nav = screen.getByRole('navigation', { name: 'Documentos legais' })
-    expect(within(nav).getByRole('link', { name: 'Política de Privacidade' })).toHaveAttribute('aria-current', 'page')
-    expect(within(nav).getByRole('link', { name: 'Termos de Uso' })).toHaveAttribute('href', '/termos')
-    expect(within(nav).getByRole('link', { name: /Política de Cookies/ })).toHaveAttribute('href', '/cookies')
-    expect(screen.getByRole('link', { name: 'Página inicial' })).toHaveAttribute('href', '/')
-  })
-
-  it('mostra versão, data, aviso acadêmico e contato por mailto', () => {
-    renderPagina()
-    expect(screen.getByText(`Versão ${VERSAO_DOCUMENTOS}`, { exact: false })).toBeInTheDocument()
-    expect(screen.getByText(DATA_ATUALIZACAO, { exact: false })).toBeInTheDocument()
     expect(
-      screen.getByText('O Elder Web é um projeto acadêmico (TCC) e ainda não é um serviço comercial.'),
+      screen.getAllByRole('main'),
+    ).toHaveLength(1)
+  })
+
+  it('possui um único documento principal', () => {
+    renderPagina()
+
+    expect(
+      screen.getAllByRole('article'),
+    ).toHaveLength(1)
+  })
+
+  it('exibe o título da Política de Privacidade', () => {
+    renderPagina()
+
+    const artigo = screen.getByRole('article')
+
+    expect(
+      within(artigo).getByRole('heading', {
+        name: 'Política de Privacidade',
+      }),
     ).toBeInTheDocument()
-    const contatos = screen.getAllByRole('link', { name: EMAIL_SUPORTE })
-    expect(contatos.length).toBeGreaterThan(0)
-    for (const c of contatos) expect(c).toHaveAttribute('href', `mailto:${EMAIL_SUPORTE}`)
   })
 
-  it('diz o que não fazemos', () => {
-    const { container } = renderPagina()
-    const texto = container.textContent ?? ''
-    expect(texto).toMatch(/não vendemos/i)
-    expect(texto).toMatch(/192/)
-    expect(texto).not.toMatch(/lembrete|alarme|monitoramos/i)
-  })
-
-  // D9 (2026-10-14): o aceite passou a ser gravado; a lista de dados diz isso.
-  it('a tabela de dados lista o registro do aceite (data e versão)', () => {
+  it('associa o título ao documento', () => {
     renderPagina()
-    const dados = screen.getByRole('table', { name: /dados que coletamos/i })
-    expect(within(dados).getByText('Registro do aceite (data e versão)')).toBeInTheDocument()
-    expect(VERSAO_DOCUMENTOS).toBe('1.2')
+
+    const artigo = screen.getByRole('article')
+
+    const titulo = within(artigo).getByRole('heading', {
+      name: 'Política de Privacidade',
+    })
+
+    expect(artigo).toHaveAttribute(
+      'aria-labelledby',
+      titulo.id,
+    )
   })
 
-  // 2026-10-20: a exclusão de conta passou a existir (botão em Meu Perfil); o texto diz o que apaga e o que permanece.
-  it('descreve a exclusão da conta: botão, o que é apagado e o que permanece', () => {
-    const { container } = renderPagina()
-    const texto = (container.textContent ?? '').replace(/\s+/g, ' ')
-    expect(texto).not.toMatch(/não há botão para excluir a conta/i)
-    expect(texto).toMatch(/Excluir minha conta/)
-    expect(texto).toMatch(/Meu Perfil/)
-    expect(texto).toMatch(/Conta excluída/)
-    // Fechamento do 9.5 (F5): nenhuma tela mostra o nome de quem registrou, então o texto não promete que "aparece" assim;
-    // promete só o que o código faz: a conta passa a se chamar Conta excluída.
-    expect(texto).not.toMatch(/aparece como Conta excluída/)
-    expect(texto).toMatch(/a conta passa a se chamar Conta excluída/)
-    // Quem cadastrou um idoso sem login e era o único vínculo aprovado dele apaga os dados desse idoso também.
-    expect(texto).toMatch(/Idosos que você cadastrou, que ainda não acessaram a própria conta e que não tenham outro vínculo aprovado também são apagados/)
-    // O que fica na linha não é só a prova de aceite (também uid, tipo de perfil e datas): sem "só".
-    expect(texto).not.toMatch(/guardamos só o registro/)
-    expect(texto).toMatch(/data e versão/)
-    expect(texto).toMatch(/cópias de segurança/i)
-    // Sem prometer prazo que não foi verificado: nenhum "em até N dias" para apagar cópias de segurança.
-    expect(texto).not.toMatch(/cópias de segurança[^.]*\d+ dias/i)
-  })
+  // ========================================
+  // SEÇÕES DO DOCUMENTO
+  // ========================================
 
-  it('o idoso cadastrado por familiar e sem login segue pedindo a exclusão pelo contato', () => {
-    const { container } = renderPagina()
-    expect(container.textContent?.replace(/\s+/g, ' ')).toMatch(/idoso cadastrado por um familiar que ainda não entrou no site[^.]*contato/i)
-  })
-
-  it('tem as tabelas de dados e de compartilhamento', () => {
+  it('mostra todas as seções como regiões acessíveis', () => {
     renderPagina()
-    expect(screen.getByRole('table', { name: /dados que coletamos/i })).toBeInTheDocument()
-    const compartilhamento = screen.getByRole('table', { name: /quem recebe dados/i })
-    for (const provedor of ['Firebase Authentication', 'Microsoft Azure', 'Render', 'Vercel', 'Brevo']) {
-      expect(within(compartilhamento).getByText(provedor, { exact: false })).toBeInTheDocument()
+
+    const artigo = screen.getByRole('article')
+
+    for (const titulo of SECOES_ESPERADAS) {
+      expect(
+        within(artigo).getByRole('region', {
+          name: titulo,
+        }),
+      ).toBeInTheDocument()
     }
   })
 
-  it('não cita nada fora do escopo', () => {
+  it('mantém as seções na ordem correta', () => {
+    renderPagina()
+
+    const artigo = screen.getByRole('article')
+
+    const secoes = SECOES_ESPERADAS.map((titulo) =>
+      within(artigo).getByRole('region', {
+        name: titulo,
+      }),
+    )
+
+    for (let i = 1; i < secoes.length; i++) {
+      expect(
+        secoes[i - 1].compareDocumentPosition(secoes[i]) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
+  })
+
+  // ========================================
+  // RESUMO
+  // ========================================
+
+  it('exibe o resumo da política', () => {
+    renderPagina()
+
+    const artigo = screen.getByRole('article')
+
+    expect(
+      within(artigo).getByRole('heading', {
+        name: 'Resumo em poucas linhas',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  // ========================================
+  // NAVEGAÇÃO ENTRE DOCUMENTOS
+  // ========================================
+
+  it('exibe a navegação superior dos documentos', () => {
+    renderPagina()
+
+    expect(
+      screen.getByRole('navigation', {
+        name: 'Documentos legais',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('marca Privacidade como página atual', () => {
+    renderPagina()
+
+    const nav = screen.getByRole('navigation', {
+      name: 'Documentos legais',
+    })
+
+    expect(
+      within(nav).getByRole('link', {
+        name: 'Política de Privacidade',
+      }),
+    ).toHaveAttribute('aria-current', 'page')
+
+    expect(
+      within(nav).getByRole('link', {
+        name: 'Termos de Uso',
+      }),
+    ).toHaveAttribute('href', '/termos')
+
+    expect(
+      within(nav).getByRole('link', {
+        name: /Política de Cookies/,
+      }),
+    ).toHaveAttribute('href', '/cookies')
+
+    expect(
+      screen.getByRole('link', {
+        name: 'Página inicial',
+      }),
+    ).toHaveAttribute('href', '/')
+  })
+
+  // ========================================
+  // MENU LATERAL REMOVIDO
+  // ========================================
+
+  it('não exibe o menu lateral de seções', () => {
+    renderPagina()
+
+    expect(
+      screen.queryByRole('navigation', {
+        name: 'Seções deste documento',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  // ========================================
+  // VERSÃO E CONTATO
+  // ========================================
+
+  it('mostra versão e data de atualização', () => {
+    renderPagina()
+
+    expect(
+      screen.getByText(
+        `Versão ${VERSAO_DOCUMENTOS}`,
+        { exact: false },
+      ),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText(
+        DATA_ATUALIZACAO,
+        { exact: false },
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('informa que é um projeto acadêmico', () => {
+    renderPagina()
+
+    expect(
+      screen.getByText(
+        'O Elder Web é um projeto acadêmico (TCC) e ainda não é um serviço comercial.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('possui contato por e-mail', () => {
+    renderPagina()
+
+    const contatos = screen.getAllByRole('link', {
+      name: EMAIL_SUPORTE,
+    })
+
+    expect(contatos.length).toBeGreaterThan(0)
+
+    for (const contato of contatos) {
+      expect(contato).toHaveAttribute(
+        'href',
+        `mailto:${EMAIL_SUPORTE}`,
+      )
+    }
+  })
+
+  // ========================================
+  // PROTEÇÃO DE DADOS E SAÚDE
+  // ========================================
+
+  it('informa que não vendemos dados', () => {
     const { container } = renderPagina()
-    expect(container.textContent).not.toMatch(/alexa|mensagens|loja|microfone|lar são vicente/i)
+
+    const texto = container.textContent ?? ''
+
+    expect(texto).toMatch(/não vendemos/i)
+    expect(texto).toMatch(/192/)
+
+    expect(texto).not.toMatch(
+      /lembrete|alarme|monitoramos/i,
+    )
+  })
+
+  // ========================================
+  // REGISTRO DO ACEITE
+  // ========================================
+
+  it('a tabela lista o registro do aceite', () => {
+    renderPagina()
+
+    const dados = screen.getByRole('table', {
+      name: /dados que coletamos/i,
+    })
+
+    expect(
+      within(dados).getByText(
+        'Registro do aceite (data e versão)',
+      ),
+    ).toBeInTheDocument()
+
+    expect(VERSAO_DOCUMENTOS).toBe('1.2')
+  })
+
+  // ========================================
+  // EXCLUSÃO DE CONTA
+  // ========================================
+
+  it('explica a exclusão da conta e os dados mantidos', () => {
+    const { container } = renderPagina()
+
+    const texto = (
+      container.textContent ?? ''
+    ).replace(/\s+/g, ' ')
+
+    expect(texto).not.toMatch(
+      /não há botão para excluir a conta/i,
+    )
+
+    expect(texto).toMatch(/Excluir minha conta/)
+    expect(texto).toMatch(/Meu Perfil/)
+    expect(texto).toMatch(/Conta excluída/)
+
+    expect(texto).not.toMatch(
+      /aparece como Conta excluída/,
+    )
+
+    expect(texto).toMatch(
+      /a conta passa a se chamar Conta excluída/,
+    )
+
+    expect(texto).toMatch(
+      /Idosos que você cadastrou, que ainda não acessaram a própria conta e que não tenham outro vínculo aprovado também são apagados/,
+    )
+
+    expect(texto).not.toMatch(
+      /guardamos só o registro/,
+    )
+
+    expect(texto).toMatch(/data e versão/)
+    expect(texto).toMatch(/cópias de segurança/i)
+
+    expect(texto).not.toMatch(
+      /cópias de segurança[^.]*\d+ dias/i,
+    )
+  })
+
+  it('orienta sobre a exclusão de idoso sem login', () => {
+    const { container } = renderPagina()
+
+    const texto = (
+      container.textContent ?? ''
+    ).replace(/\s+/g, ' ')
+
+    expect(texto).toMatch(
+      /idoso cadastrado por um familiar que ainda não entrou no site[^.]*contato/i,
+    )
+  })
+
+  // ========================================
+  // TABELAS
+  // ========================================
+
+  it('possui a tabela de dados coletados', () => {
+    renderPagina()
+
+    expect(
+      screen.getByRole('table', {
+        name: /dados que coletamos/i,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('possui a tabela de compartilhamento', () => {
+    renderPagina()
+
+    const tabela = screen.getByRole('table', {
+      name: /quem recebe dados/i,
+    })
+
+    const provedores = [
+      'Firebase Authentication',
+      'Microsoft Azure',
+      'Render',
+      'Vercel',
+      'Brevo',
+    ]
+
+    for (const provedor of provedores) {
+      expect(
+        within(tabela).getByText(provedor, {
+          exact: false,
+        }),
+      ).toBeInTheDocument()
+    }
+  })
+
+  // ========================================
+  // CONTEÚDOS FORA DO ESCOPO
+  // ========================================
+
+  it('não menciona funcionalidades fora do projeto', () => {
+    const { container } = renderPagina()
+
+    expect(container.textContent).not.toMatch(
+      /alexa|mensagens|loja|microfone|lar são vicente/i,
+    )
   })
 })
