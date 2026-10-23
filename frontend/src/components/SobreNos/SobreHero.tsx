@@ -1,5 +1,5 @@
 
-import logoElder from '../../img/Elder_logo.webp'
+import logoElder from '../../Img/Elder_logo.webp'
 
 function SobreHero() {
   return (
