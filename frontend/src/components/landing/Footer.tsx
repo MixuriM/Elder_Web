@@ -2,7 +2,7 @@
 import { Link } from 'react-router-dom'
 
 import { DOCUMENTOS_LEGAIS } from '../../lib/documentosLegais'
-import logoElder from '../../img/Elder_logo.webp'
+import logoElder from '../../Img/Elder_logo.webp'
 
 const AJUDA = [
   { caminho: '/orientacoes', titulo: 'Orientações gerais' },

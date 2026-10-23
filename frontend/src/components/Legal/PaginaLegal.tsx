@@ -7,7 +7,7 @@ import HeroLegal from './HeroLegal'
 import NavegacaoLegal from './NavegacaoLegal'
 import ResumoLegal from './ResumoLegal'
 
-import folhaInicioD from '../../img/folha_inicioD.webp'
+import folhaInicioD from '../../Img/folha_inicioD.webp'
 
 import { useTitulo } from '../../hooks/useTitulo'
 
