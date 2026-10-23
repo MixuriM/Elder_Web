@@ -129,8 +129,7 @@ describe('SobreNos (acessibilidade)', () => {
       'img[alt=""]',
     )
 
-    // 4 folhas decorativas + logo decorativa do hero
-    expect(folhas).toHaveLength(5)
+    expect(folhas).toHaveLength(3)
 
     folhas.forEach((folha) => {
       expect(folha).toHaveAttribute('alt', '')

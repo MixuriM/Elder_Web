@@ -1,7 +1,7 @@
 
 import type { LucideIcon } from 'lucide-react'
-import { UserRound, UsersRound } from 'lucide-react'
-import { equipe, equipeColetiva } from './sobreNosData'
+import { UserRound } from 'lucide-react'
+import { equipe } from './sobreNosData'
 
 type SobreCardProps = {
   id: string
@@ -19,6 +19,8 @@ function SobreCard({
   destaque = false,
 }: SobreCardProps) {
   const mostrarEquipe = id === 'quem-fez'
+  const integrantes = equipe.filter((integrante) => integrante.id !== 'todos')
+  const fotoEquipe = equipe.find((integrante) => integrante.id === 'todos')
 
   return (
     <section
@@ -28,21 +30,23 @@ function SobreCard({
         rounded-2xl
         border border-[#E6E2F5]
         bg-white/90
-        p-5 sm:p-8
+        p-6
+        sm:p-8
         dark:border-[#303149]
         dark:bg-[#191B2A]/95
         ${destaque ? 'md:col-span-2' : ''}
       `}
     >
-      {/* CABEÇALHO */}
+      {/* CABEÇALHO DO CARD */}
       <div className="flex items-start gap-4">
         <div
           aria-hidden="true"
           className="
-            flex h-12 w-12 shrink-0
-            items-center justify-center
-            rounded-xl
-            bg-[#EAE6FF] text-[#6258E8]
+            flex h-12 w-12
+            shrink-0 items-center
+            justify-center rounded-xl
+            bg-[#EAE6FF]
+            text-[#6258E8]
             dark:bg-[#292641]
             dark:text-[#B9B3FF]
           "
@@ -55,7 +59,8 @@ function SobreCard({
             id={`titulo-${id}`}
             className="
               break-words text-xl font-bold
-              leading-snug text-[#071A38]
+              leading-snug
+              text-[#071A38]
               sm:text-2xl
               dark:text-[#F5F5FA]
             "
@@ -66,19 +71,19 @@ function SobreCard({
           <div
             aria-hidden="true"
             className="
-              mt-3 h-1 w-12 rounded-full
-              bg-[#6C63FF]
+              mt-3 h-1 w-12
+              rounded-full bg-[#6C63FF]
               dark:bg-[#A18BFF]
             "
           />
         </div>
       </div>
 
-      {/* DESCRIÇÃO DA SEÇÃO */}
+      {/* DESCRIÇÃO */}
       <p
         className="
-          mt-5 text-base leading-8
-          text-[#46536B]
+          mt-5 text-base
+          leading-8 text-[#46536B]
           dark:text-[#C7C7D1]
         "
       >
@@ -87,215 +92,164 @@ function SobreCard({
 
       {/* EQUIPE DE DESENVOLVIMENTO */}
       {mostrarEquipe && (
-        <div className="mt-10">
-
-          {/* TÍTULO DA EQUIPE */}
-          <div className="mb-7 text-center">
-            <p
+        <div
+          className="
+            mt-9 grid grid-cols-1
+            gap-6 sm:grid-cols-2
+            lg:grid-cols-3
+          "
+        >
+          {integrantes.map((integrante) => (
+            <article
+              key={integrante.id}
               className="
-                text-xs font-bold uppercase
-                tracking-[0.18em]
-                text-[#6258E8]
-                dark:text-[#B9B3FF]
+                flex min-w-0
+                flex-col items-center
+                rounded-2xl
+                bg-[#F8F7FF]
+                p-5 text-center
+                dark:bg-[#11141D]
               "
             >
-              Nossa equipe
-            </p>
-
-            <h3
-              className="
-                mt-2 text-2xl font-bold
-                tracking-tight text-[#071A38]
-                sm:text-3xl
-                dark:text-[#F5F5FA]
-              "
-            >
-              Quem está por trás do Elder Web?
-            </h3>
-          </div>
-
-          {/* CARTÕES INDIVIDUAIS */}
-          <div
-            className="
-              grid grid-cols-1 gap-5
-              sm:grid-cols-2
-              lg:grid-cols-3
-            "
-          >
-            {equipe.map((integrante) => (
-              <article
-                key={integrante.id}
-                className="
-                  flex min-w-0 flex-col
-                  overflow-hidden rounded-2xl
-                  border border-[#E9E5F5]
-                  bg-[#F8F7FF]
-                  p-4
-                  dark:border-[#303149]
-                  dark:bg-[#11141D]
-                "
+              {/* FOTOGRAFIA */}
+              <div
+                className={`
+                  flex ${integrante.id === 'todos' ? 'aspect-[1138/752]' : 'aspect-[4/5]'}
+                  w-full ${integrante.id === 'todos' ? 'max-w-[360px]' : 'max-w-[240px]'}
+                  items-center justify-center
+                  overflow-hidden rounded-xl
+                  bg-[#EAE6FF]
+                  dark:bg-[#25243B]
+                `}
               >
-                {/* FOTOGRAFIA */}
-                <div
-                  className="
-                    mx-auto aspect-[4/5]
-                    w-full max-w-[280px]
-                    overflow-hidden rounded-xl
-                    bg-[#EAE6FF]
-                    dark:bg-[#25243B]
-                  "
-                >
-                  {integrante.foto ? (
-                    <img
-                      src={integrante.foto}
-                      alt={`Foto de ${integrante.nome}`}
-                      loading="lazy"
-                      decoding="async"
-                      className="
-                        block h-full w-full
-                        object-cover object-center
-                      "
-                    />
-                  ) : (
-                    <div
-                      role="img"
-                      aria-label={`Fotografia de ${integrante.nome} indisponível`}
-                      className="
-                        flex h-full w-full
-                        items-center justify-center
-                        text-[#6258E8]
-                        dark:text-[#B9B3FF]
-                      "
-                    >
-                      <UserRound
-                        size={64}
-                        strokeWidth={1.4}
-                        aria-hidden="true"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* INFORMAÇÕES */}
-                <div
-                  className="
-                    flex flex-1 flex-col
-                    items-center pt-5
-                    text-center
-                  "
-                >
-                  <h4
+                {integrante.foto ? (
+                  <img
+                    src={integrante.foto}
+                    alt={`Foto de ${integrante.nome}`}
+                    loading="lazy"
+                    decoding="async"
+                    className={`h-full w-full object-cover object-center ${
+                      integrante.id === 'todos' ? 'scale-110' : ''
+                    }`}
+                  />
+                ) : (
+                  <div
+                    role="img"
+                    aria-label={`Fotografia de ${integrante.nome} indisponível`}
                     className="
-                      text-xl font-bold
-                      text-[#071A38]
-                      dark:text-[#F5F5FA]
-                    "
-                  >
-                    {integrante.nome}
-                  </h4>
-
-                  <p
-                    className="
-                      mt-1 text-sm font-semibold
-                      text-[#5147B5]
+                      flex h-full w-full
+                      items-center justify-center
+                      text-[#6258E8]
                       dark:text-[#B9B3FF]
                     "
                   >
-                    {integrante.cargo}
-                  </p>
+                    <UserRound
+                      size={64}
+                      strokeWidth={1.4}
+                      aria-hidden="true"
+                    />
+                  </div>
+                )}
+              </div>
 
-                  <div
-                    aria-hidden="true"
-                    className="
-                      my-4 h-px w-12
-                      bg-[#DCD6FF]
-                      dark:bg-[#49446F]
-                    "
-                  />
-
-                  <p
-                    className="
-                      max-w-[260px]
-                      text-sm leading-6
-                      text-[#46536B]
-                      dark:text-[#C7C7D1]
-                    "
-                  >
-                    {integrante.descricao}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          {/* FOTOGRAFIA COLETIVA */}
-          <div className="mt-12">
-            <div
-              className="
-                mb-5 flex items-center
-                justify-center gap-3
-              "
-            >
-              <UsersRound
-                size={22}
-                aria-hidden="true"
-                className="
-                  text-[#6258E8]
-                  dark:text-[#B9B3FF]
-                "
-              />
-
+              {/* NOME */}
               <h3
                 className="
-                  text-xl font-bold
+                  mt-5 text-xl font-bold
                   text-[#071A38]
                   dark:text-[#F5F5FA]
                 "
               >
-                Juntos pelo cuidado
+                {integrante.nome}
               </h3>
-            </div>
 
-            <figure
+              {/* FUNÇÃO */}
+              <p
+                className="
+                  mt-1 text-sm font-semibold
+                  text-[#5147B5]
+                  dark:text-[#B9B3FF]
+                "
+              >
+                {integrante.descricao}
+              </p>
+            </article>
+          ))}
+
+          {fotoEquipe && (
+            <article
               className="
-                mx-auto w-full
-                max-w-3xl
+                flex min-w-0 flex-col items-center
+                gap-6 rounded-2xl
+                bg-[#F8F7FF] p-5
+                text-center
+                dark:bg-[#11141D]
+                sm:col-span-2
+                md:flex-row md:items-center md:p-8
+                lg:col-span-3
               "
             >
               <div
                 className="
-                  overflow-hidden rounded-2xl
-                  border border-[#E6E2F5]
-                  bg-[#F8F7FF]
-                  p-2
-                  dark:border-[#303149]
-                  dark:bg-[#11141D]
+                  flex aspect-[1138/752] w-full
+                  items-center justify-center
+                  overflow-hidden rounded-xl
+                  bg-[#EAE6FF]
+                  dark:bg-[#25243B]
+                  md:max-w-[640px]
                 "
               >
-                <img
-                  src={equipeColetiva.foto}
-                  alt={equipeColetiva.descricao}
-                  loading="lazy"
-                  decoding="async"
-                  className="
-                    block h-auto w-full
-                    rounded-xl
-                  "
-                />
+                {fotoEquipe.foto ? (
+                  <img
+                    src={fotoEquipe.foto}
+                    alt="Selfie da equipe de desenvolvimento"
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover object-center"
+                  />
+                ) : (
+                  <div
+                    role="img"
+                    aria-label="Selfie da equipe de desenvolvimento indisponível"
+                    className="
+                      flex h-full w-full
+                      items-center justify-center
+                      text-[#6258E8]
+                      dark:text-[#B9B3FF]
+                    "
+                  >
+                    <UserRound
+                      size={64}
+                      strokeWidth={1.4}
+                      aria-hidden="true"
+                    />
+                  </div>
+                )}
               </div>
 
-              <figcaption
-                className="
-                  mt-4 text-center
-                  text-sm leading-6
-                  text-[#46536B]
-                  dark:text-[#C7C7D1]
-                "
-              >
-                Equipe Elder Web — Etec Fernando Prestes, 2026.
-              </figcaption>
-            </figure>
-          </div>
+              <div className="min-w-0 md:flex-1">
+                <h3
+                  className="
+                    text-xl font-bold
+                    text-[#071A38]
+                    dark:text-[#F5F5FA]
+                  "
+                >
+                  {fotoEquipe.nome}
+                </h3>
+
+                <p
+                  className="
+                    mt-1 text-sm font-semibold
+                    text-[#5147B5]
+                    dark:text-[#B9B3FF]
+                  "
+                >
+                  {fotoEquipe.descricao}
+                </p>
+              </div>
+            </article>
+          )}
         </div>
       )}
     </section>
