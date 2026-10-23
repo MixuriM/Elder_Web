@@ -28,7 +28,7 @@ describe('Footer da landing - Elder Web', () => {
     renderFooter()
 
     const nav = screen.getByRole('navigation', {
-      name: 'Informações legais',
+      name: 'Documentos legais',
     })
 
     expect(
@@ -60,7 +60,7 @@ describe('Footer da landing - Elder Web', () => {
     renderFooter()
 
     const nav = screen.getByRole('navigation', {
-      name: 'Explore',
+      name: 'Ajuda e informações',
     })
 
     expect(

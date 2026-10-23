@@ -129,7 +129,8 @@ describe('SobreNos (acessibilidade)', () => {
       'img[alt=""]',
     )
 
-    expect(folhas).toHaveLength(3)
+    // 4 folhas decorativas + logo decorativa do hero
+    expect(folhas).toHaveLength(5)
 
     folhas.forEach((folha) => {
       expect(folha).toHaveAttribute('alt', '')
@@ -153,7 +154,7 @@ describe('SobreNos (acessibilidade)', () => {
 
     expect(
       screen.getByRole('img', {
-        name: /fotografia de jennifer indisponível/i,
+        name: /foto de jennifer/i,
       }),
     ).toBeInTheDocument()
   })

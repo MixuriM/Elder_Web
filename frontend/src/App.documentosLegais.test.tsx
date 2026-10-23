@@ -62,7 +62,7 @@ describe.each(ROTAS)(
 
       const heading = await screen.findByRole(
         'heading',
-        { level: 1 },
+        { level: 2, name: new RegExp(titulo) },
         { timeout: 3000 },
       )
 
@@ -80,7 +80,7 @@ describe.each(ROTAS)(
 
       const heading = await screen.findByRole(
         'heading',
-        { level: 1 },
+        { level: 2, name: new RegExp(titulo) },
         { timeout: 3000 },
       )
 

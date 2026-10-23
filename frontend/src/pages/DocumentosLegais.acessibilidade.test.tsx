@@ -71,12 +71,12 @@ describe.each(paginasLegais)(
     // TÍTULO PRINCIPAL
     // ======================================
 
-    it('renderiza o título principal da página', () => {
+    it('renderiza o título do documento', () => {
       renderizarPagina()
 
       expect(
         screen.getByRole('heading', {
-          level: 1,
+          level: 2,
           name: titulo,
         }),
       ).toBeInTheDocument()
