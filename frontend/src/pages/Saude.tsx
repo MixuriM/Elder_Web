@@ -130,21 +130,21 @@ function Saude() {
           {/* COLUNA DIREITA */}
 
           <div className="space-y-6">
-            <HistoricoSaude />
+            <HistoricoSaude>
+              {!ehTerceiro && (
+                <EditarSaude
+                  titulo="Editar meu registro"
+                  comIdoso={false}
+                />
+              )}
 
-            {!ehTerceiro && (
-              <EditarSaude
-                titulo="Editar meu registro"
-                comIdoso={false}
-              />
-            )}
-
-            {mostrarEscritaDeTerceiros && (
-              <EditarSaude
-                titulo="Editar registro do idoso"
-                comIdoso
-              />
-            )}
+              {mostrarEscritaDeTerceiros && (
+                <EditarSaude
+                  titulo="Editar registro do idoso"
+                  comIdoso
+                />
+              )}
+            </HistoricoSaude>
           </div>
         </div>
       </div>
