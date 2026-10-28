@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { useIdososVinculados } from '../../hooks/useIdososVinculados'
 import { chamarApi } from '../../lib/chamarApi'
@@ -15,7 +15,7 @@ type RegistroLista = {
   data_hora: string
 }
 
-function HistoricoSaude() {
+function HistoricoSaude({ children }: { children?: ReactNode }) {
   const idosos = useIdososVinculados()
   const [idosoId, setIdosoId] = useState('')
   const [carregando, setCarregando] = useState(false)
@@ -179,6 +179,12 @@ function HistoricoSaude() {
               </p>
             </article>
           ))}
+        </div>
+      )}
+
+      {registros !== null && children && (
+        <div className="mt-7 space-y-4 border-t border-[#E5E2F5] pt-6 dark:border-[#393947]">
+          {children}
         </div>
       )}
     </section>

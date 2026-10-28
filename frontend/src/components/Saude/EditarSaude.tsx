@@ -159,37 +159,20 @@ function EditarSaude({
           md:p-7
         "
       >
-        <div className="flex items-center gap-4">
-          <div
-            className="
-              flex h-12 w-12
-              shrink-0
-              items-center justify-center
-              rounded-2xl
-              bg-[#F0EEFF]
-              text-xl
+        <div>
+          <span className="text-sm font-bold uppercase tracking-[0.08em] text-[#5F56EC] dark:text-[#9B96FF]">
+            Editar registro
+          </span>
 
-              dark:bg-[#262533]
-            "
-          >
-            ✏️
-          </div>
+          <h2 className="mt-1 text-xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
+            {titulo}
+          </h2>
 
-          <div>
-            <span className="text-sm font-bold uppercase tracking-[0.08em] text-[#5F56EC] dark:text-[#9B96FF]">
-              Editar registro
-            </span>
-
-            <h2 className="mt-1 text-xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
-              {titulo}
-            </h2>
-
-            {!aberto && (
-              <p className="mt-1 text-sm text-[#56657D] dark:text-[#C7C7D1]">
-                Clique para alterar uma medição existente.
-              </p>
-            )}
-          </div>
+          {!aberto && (
+            <p className="mt-1 text-sm text-[#56657D] dark:text-[#C7C7D1]">
+              Clique para alterar uma medição existente.
+            </p>
+          )}
         </div>
 
         <span

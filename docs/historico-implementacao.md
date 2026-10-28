@@ -2995,3 +2995,13 @@ violação, em login com Google, login com e-mail e senha, troca de foto, PDF do
 Família (relato dele, sem comando registrado além do `curl -I`). Não testados em produção: recusar vínculo, contestar, cadastro novo,
 Saúde, Agenda e Alimentação. Se houver violação, reverter a chave para `Content-Security-Policy-Report-Only`. Sem dependência nova e sem
 mudança no backend.
+
+## Edição de saúde dentro do histórico (2026-10-28)
+
+As seções recolhíveis de edição própria e de terceiros passaram a aparecer somente depois que o usuário carrega o histórico, dentro do
+card de histórico e separadas por uma borda, em vez de aparecerem como cards independentes. O formulário e os contratos HTTP de edição
+não mudaram. O ícone de edição foi removido por completo. `Saude.test.tsx` verifica que as opções só aparecem após "Ver histórico" e
+que o botão de edição não contém ícone.
+
+Validação: teste direcionado primeiro falhou antes da alteração; depois `npm test -- --runInBand src/pages/Saude.test.tsx` passou (24/24),
+`npm run build` passou e `npm run lint` passou. O build ainda exibe o aviso existente sobre chunks acima de 500 kB.

@@ -144,16 +144,56 @@ describe('Saude — estrutura da página', () => {
     ).toBeInTheDocument()
 
     expect(
-      screen.getByRole('heading', {
+      screen.queryByRole('heading', {
         name: /editar meu registro/i,
       }),
-    ).toBeInTheDocument()
+    ).not.toBeInTheDocument()
 
     expect(
-      screen.getByRole('heading', {
+      screen.queryByRole('heading', {
         name: /editar registro do idoso/i,
       }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('mostra as opções de edição somente após abrir o histórico e sem ícone', async () => {
+    const fetchMock = global.fetch as jest.Mock
+    fetchMock.mockResolvedValue(
+      respostaJson(200, { registros: [] }),
+    )
+
+    const user = userEvent.setup()
+    render(<Saude />)
+
+    const tituloHistorico = screen.getByRole('heading', {
+      name: /histórico de saúde/i,
+    })
+    const secaoHistorico = tituloHistorico.closest('section')
+
+    if (!secaoHistorico) {
+      throw new Error('Histórico não encontrado.')
+    }
+
+    const secao = within(secaoHistorico)
+    expect(
+      secao.queryByRole('button', { name: /editar meu registro/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      secao.queryByRole('button', { name: /editar registro do idoso/i }),
+    ).not.toBeInTheDocument()
+
+    await user.selectOptions(
+      secao.getByLabelText('Idoso'),
+      '5',
+    )
+    await user.click(secao.getByRole('button', { name: /ver histórico/i }))
+
+    expect(
+      await secao.findByRole('button', { name: /editar meu registro/i }),
     ).toBeInTheDocument()
+    const edicaoPropria = secao.getByRole('button', { name: /editar meu registro/i })
+    expect(edicaoPropria.querySelector('svg')).not.toBeInTheDocument()
+    expect(secao.getByRole('button', { name: /editar registro do idoso/i })).toBeInTheDocument()
   })
 })
 
@@ -309,9 +349,7 @@ describe(
         const [
           url,
           opcoes,
-        ] = (
-          global.fetch as jest.Mock
-        ).mock.calls[0]
+        ] = (global.fetch as jest.Mock).mock.calls[0]
 
         expect(url).toMatch(
           /\/saude$/,
@@ -875,7 +913,27 @@ describe(
       const user =
         userEvent.setup()
 
+      mockUseIdosos.mockReturnValue(listaPerfilIdoso)
+      const fetchMock = global.fetch as jest.Mock
+      fetchMock.mockResolvedValueOnce(
+        respostaJson(200, { registros: [] }),
+      )
       render(<Saude />)
+
+      const tituloHistorico = screen.getByRole('heading', {
+        name: /histórico de saúde/i,
+      })
+      const secaoHistorico = tituloHistorico.closest('section')
+
+      if (!secaoHistorico) {
+        throw new Error('Histórico não encontrado.')
+      }
+
+      await user.click(
+        within(secaoHistorico).getByRole('button', {
+          name: /ver histórico/i,
+        }),
+      )
 
       const titulo =
         screen.getByRole(
@@ -986,9 +1044,7 @@ describe(
         const [
           url,
           opcoes,
-        ] = (
-          global.fetch as jest.Mock
-        ).mock.calls[0]
+        ] = (global.fetch as jest.Mock).mock.calls[1]
 
         expect(url).toMatch(
           /\/saude\/9$/,
@@ -1031,7 +1087,22 @@ describe(
         const user =
           userEvent.setup()
 
+        const fetchMock = global.fetch as jest.Mock
+        fetchMock.mockResolvedValueOnce(
+          respostaJson(200, { registros: [] }),
+        )
         render(<Saude />)
+
+        const tituloHistorico = screen.getByRole('heading', {
+          name: /histórico de saúde/i,
+        })
+        const secaoHistorico = tituloHistorico.closest('section')
+        if (!secaoHistorico) {
+          throw new Error('Histórico não encontrado.')
+        }
+        const historico = within(secaoHistorico)
+        await user.selectOptions(historico.getByLabelText('Idoso'), '5')
+        await user.click(historico.getByRole('button', { name: /ver histórico/i }))
 
         const titulo =
           screen.getByRole(
@@ -1104,9 +1175,7 @@ describe(
         const [
           url,
           opcoes,
-        ] = (
-          global.fetch as jest.Mock
-        ).mock.calls[0]
+        ] = (global.fetch as jest.Mock).mock.calls[1]
 
         expect(url).toMatch(
           /\/saude\/idoso\/5\/9$/,
@@ -1200,14 +1269,14 @@ describe(
         ).toBeInTheDocument()
 
         expect(
-          screen.getByRole(
+          screen.queryByRole(
             'heading',
             {
               name:
                 /editar registro do idoso/i,
             },
           ),
-        ).toBeInTheDocument()
+        ).not.toBeInTheDocument()
       },
     )
 
@@ -1435,7 +1504,7 @@ describe(
     )
 
     it(
-      'perfil idoso: seções de terceiros não renderizam, histórico e edição própria sim',
+      'perfil idoso: edição própria só aparece depois de abrir o histórico',
       () => {
         mockUseIdosos.mockReturnValue(
           listaPerfilIdoso,
@@ -1474,14 +1543,8 @@ describe(
         ).toBeInTheDocument()
 
         expect(
-          screen.getByRole(
-            'heading',
-            {
-              name:
-                /editar meu registro/i,
-            },
-          ),
-        ).toBeInTheDocument()
+          screen.queryByRole('heading', { name: /editar meu registro/i }),
+        ).not.toBeInTheDocument()
       },
     )
   },
