@@ -136,18 +136,18 @@ describe(
         ).toBeInTheDocument()
 
         expect(
-          screen.getByRole('heading', {
+          screen.queryByRole('heading', {
             name:
               /editar meu registro/i,
           }),
-        ).toBeInTheDocument()
+        ).not.toBeInTheDocument()
 
         expect(
-          screen.getByRole('heading', {
+          screen.queryByRole('heading', {
             name:
               /editar registro do idoso/i,
           }),
-        ).toBeInTheDocument()
+        ).not.toBeInTheDocument()
       },
     )
   },
@@ -729,6 +729,35 @@ describe(
 describe(
   'Saude — acessibilidade da edição própria',
   () => {
+    beforeEach(async () => {
+      mockUseIdosos.mockReturnValue({
+        estado: 'ok',
+        ehIdoso: true,
+        idosos: [],
+        bloqueado: false,
+      })
+      fetchMock().mockResolvedValue(
+        respostaJson(200, { registros: [] }),
+      )
+
+      const user = userEvent.setup()
+      render(<Saude />)
+
+      const tituloHistorico = screen.getByRole('heading', {
+        name: /histórico de saúde/i,
+      })
+      const sectionHistorico = tituloHistorico.closest('section')
+      if (!sectionHistorico) {
+        throw new Error('Seção de histórico não encontrada.')
+      }
+
+      await user.click(
+        within(sectionHistorico).getByRole('button', {
+          name: /^ver histórico$/i,
+        }),
+      )
+    })
+
     function pegarSecao() {
       const titulo =
         screen.getByRole(
@@ -754,8 +783,6 @@ describe(
     it(
       'controle começa recolhido',
       () => {
-        render(<Saude />)
-
         const secao =
           pegarSecao()
 
@@ -788,8 +815,6 @@ describe(
       async () => {
         const user =
           userEvent.setup()
-
-        render(<Saude />)
 
         const secao =
           pegarSecao()
@@ -825,8 +850,6 @@ describe(
       async () => {
         const user =
           userEvent.setup()
-
-        render(<Saude />)
 
         const secao =
           pegarSecao()
@@ -891,8 +914,6 @@ describe(
         const user =
           userEvent.setup()
 
-        render(<Saude />)
-
         const secao =
           pegarSecao()
 
@@ -926,6 +947,29 @@ describe(
 describe(
   'Saude — acessibilidade da edição do idoso',
   () => {
+    beforeEach(async () => {
+      fetchMock().mockResolvedValue(
+        respostaJson(200, { registros: [] }),
+      )
+
+      const user = userEvent.setup()
+      render(<Saude />)
+
+      const tituloHistorico = screen.getByRole('heading', {
+        name: /histórico de saúde/i,
+      })
+      const sectionHistorico = tituloHistorico.closest('section')
+      if (!sectionHistorico) {
+        throw new Error('Seção de histórico não encontrada.')
+      }
+
+      await user.click(
+        within(sectionHistorico).getByRole('button', {
+          name: /^ver histórico$/i,
+        }),
+      )
+    })
+
     function pegarSecao() {
       const titulo =
         screen.getByRole(
@@ -951,8 +995,6 @@ describe(
     it(
       'controle possui aria-expanded',
       () => {
-        render(<Saude />)
-
         const secao =
           pegarSecao()
 
@@ -976,8 +1018,6 @@ describe(
       async () => {
         const user =
           userEvent.setup()
-
-        render(<Saude />)
 
         const secao =
           pegarSecao()
@@ -1019,8 +1059,6 @@ describe(
       async () => {
         const user =
           userEvent.setup()
-
-        render(<Saude />)
 
         const secao =
           pegarSecao()
