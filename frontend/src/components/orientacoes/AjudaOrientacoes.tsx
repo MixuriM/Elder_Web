@@ -1,4 +1,11 @@
 
+import {
+  ShieldAlert,
+  HeartPulse,
+  PhoneCall,
+  Mail,
+} from 'lucide-react'
+
 import { EMAIL_SUPORTE } from '../../lib/documentosLegais'
 import SecaoOrientacao from './SecaoOrientacao'
 
@@ -8,6 +15,16 @@ import {
   avisoAtencao,
   avisoInformativo,
 } from './estilosOrientacoes'
+
+const estiloIcone = `
+  flex h-14 w-14 shrink-0
+  items-center justify-center
+  rounded-2xl
+  bg-[#EEEAFE]
+  text-[#6C63FF]
+  dark:bg-[#29243E]
+  dark:text-[#A995FF]
+`
 
 export default function AjudaOrientacoes() {
   return (
@@ -29,25 +46,12 @@ export default function AjudaOrientacoes() {
             href={`mailto:${EMAIL_SUPORTE}`}
             className={link}
           >
-            <svg
+            <Mail
+              size={24}
+              strokeWidth={2}
               aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-6 w-6 shrink-0"
-            >
-              <rect
-                x="3"
-                y="5"
-                width="18"
-                height="14"
-                rx="2"
-              />
-              <path d="m3 7 9 6 9-6" />
-            </svg>
+              className="shrink-0"
+            />
 
             <span className="break-all">
               {EMAIL_SUPORTE}
@@ -59,15 +63,18 @@ export default function AjudaOrientacoes() {
         <div className="grid grid-cols-1 gap-4 border-t border-[#DDD9EB] pt-6 dark:border-[#39394A] lg:grid-cols-3">
           {/* Proteção de dados */}
           <div className={avisoAtencao}>
-            <div className="flex items-start gap-3">
-              <span
+            <div className="flex items-start gap-4">
+              <div
+                className={estiloIcone}
                 aria-hidden="true"
-                className="text-2xl"
               >
-                ⛔
-              </span>
+                <ShieldAlert
+                  size={28}
+                  strokeWidth={1.8}
+                />
+              </div>
 
-              <p className="text-base leading-relaxed">
+              <p className="min-w-0 flex-1 text-base leading-relaxed">
                 Não envie valores nem informações de
                 saúde por e-mail.
               </p>
@@ -76,15 +83,18 @@ export default function AjudaOrientacoes() {
 
           {/* Orientação médica */}
           <div className={avisoInformativo}>
-            <div className="flex items-start gap-3">
-              <span
+            <div className="flex items-start gap-4">
+              <div
+                className={estiloIcone}
                 aria-hidden="true"
-                className="text-2xl"
               >
-                🛡️
-              </span>
+                <HeartPulse
+                  size={28}
+                  strokeWidth={1.8}
+                />
+              </div>
 
-              <p className="text-base leading-relaxed">
+              <p className="min-w-0 flex-1 text-base leading-relaxed">
                 O Elder Web não substitui consulta nem
                 orientação de profissionais de saúde.
               </p>
@@ -93,15 +103,18 @@ export default function AjudaOrientacoes() {
 
           {/* Emergência */}
           <div className={avisoAtencao}>
-            <div className="flex items-start gap-3">
-              <span
+            <div className="flex items-start gap-4">
+              <div
+                className={estiloIcone}
                 aria-hidden="true"
-                className="text-2xl"
               >
-                📞
-              </span>
+                <PhoneCall
+                  size={28}
+                  strokeWidth={1.8}
+                />
+              </div>
 
-              <p className="text-base leading-relaxed">
+              <p className="min-w-0 flex-1 text-base leading-relaxed">
                 Em emergência, ligue para o SAMU,
                 telefone{' '}
                 <a
