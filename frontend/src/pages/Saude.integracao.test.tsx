@@ -51,9 +51,13 @@ const VINCULOS = {
   ],
 }
 
+function fetchMock(): jest.Mock {
+  return global.fetch as jest.Mock
+}
+
 function urlsChamadas(): string[] {
-  return (global.fetch as jest.Mock).mock.calls.map(
-    ([url, opcoes]: [string, RequestInit]) =>
+  return fetchMock().mock.calls.map(
+    ([url, opcoes]: [string, RequestInit | undefined]) =>
       `${opcoes?.method ?? 'GET'} ${url}`,
   )
 }
@@ -67,11 +71,15 @@ beforeEach(() => {
     }
 
     if (/\/saude\/idoso\/\d+$/.test(url)) {
-      return Promise.resolve(resposta({ registros: [] }))
+      return Promise.resolve(
+        resposta({ registros: [] }),
+      )
     }
 
     if (url.endsWith('/saude')) {
-      return Promise.resolve(resposta({ registros: [] }))
+      return Promise.resolve(
+        resposta({ registros: [] }),
+      )
     }
 
     return Promise.resolve(
@@ -98,7 +106,9 @@ describe('Saude — integração com o hook real', () => {
         expect(seletor).toHaveValue('11')
       })
 
-      expect(screen.getAllByRole('option')).toHaveLength(2)
+      expect(
+        screen.getAllByRole('option'),
+      ).toHaveLength(2)
 
       expect(
         screen.getByRole('option', {
@@ -121,7 +131,9 @@ describe('Saude — integração com o hook real', () => {
       )
 
       expect(
-        await screen.findByText(/nenhum registro encontrado/i),
+        await screen.findByText(
+          /nenhum registro encontrado/i,
+        ),
       ).toBeInTheDocument()
 
       const urls = urlsChamadas()
@@ -162,7 +174,9 @@ describe('Saude — integração com o hook real', () => {
       )
 
       expect(
-        await screen.findByText(/nenhum registro encontrado/i),
+        await screen.findByText(
+          /nenhum registro encontrado/i,
+        ),
       ).toBeInTheDocument()
 
       expect(
@@ -176,7 +190,9 @@ describe('Saude — integração com o hook real', () => {
       ).toBe(false)
 
       expect(
-        urls.some((url) => /^GET .*\/saude$/.test(url)),
+        urls.some((url) =>
+          /^GET .*\/saude$/.test(url),
+        ),
       ).toBe(true)
     },
   )
@@ -188,10 +204,14 @@ describe('Saude — integração com o hook real', () => {
         tipo_perfil: 'cuidador',
       })
 
-      ;(global.fetch as jest.Mock).mockImplementation(
-        (url: string, opcoes: RequestInit) => {
-          if (url.endsWith('/vinculo?status=aprovado')) {
-            return Promise.resolve(resposta(VINCULOS))
+      fetchMock().mockImplementation(
+        (url: string, opcoes?: RequestInit) => {
+          if (
+            url.endsWith('/vinculo?status=aprovado')
+          ) {
+            return Promise.resolve(
+              resposta(VINCULOS),
+            )
           }
 
           if (
@@ -204,7 +224,10 @@ describe('Saude — integração com o hook real', () => {
           }
 
           return Promise.resolve(
-            resposta({ error: 'rota inesperada' }, 404),
+            resposta(
+              { error: 'rota inesperada' },
+              404,
+            ),
           )
         },
       )
@@ -256,6 +279,12 @@ describe('Saude — integração com o hook real', () => {
           /^POST .*\/saude\/idoso\/22$/.test(url),
         ),
       ).toBe(true)
+
+      expect(
+        urls.some((url) =>
+          /^PATCH /.test(url),
+        ),
+      ).toBe(false)
     },
   )
 
@@ -277,7 +306,9 @@ describe('Saude — integração com o hook real', () => {
       )
 
       expect(
-        await screen.findByText(/nenhum registro encontrado/i),
+        await screen.findByText(
+          /nenhum registro encontrado/i,
+        ),
       ).toBeInTheDocument()
 
       expect(
@@ -287,7 +318,15 @@ describe('Saude — integração com o hook real', () => {
       ).not.toBeInTheDocument()
 
       expect(
-        screen.queryByText(/editar meu registro/i),
+        screen.queryByText(
+          /editar meu registro/i,
+        ),
+      ).not.toBeInTheDocument()
+
+      expect(
+        screen.queryByLabelText(
+          'ID do registro',
+        ),
       ).not.toBeInTheDocument()
 
       expect(
