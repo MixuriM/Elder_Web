@@ -1,8 +1,8 @@
+
 import Spinner from '../components/common/Spinner'
 
 import RegistrarMinhaSaude from '../components/Saude/RegistrarMinhaSaude'
 import RegistrarSaudeIdoso from '../components/Saude/RegistrarSaudeIdoso'
-import EditarSaude from '../components/Saude/EditarSaude'
 import HistoricoSaude from '../components/Saude/HistoricoSaude'
 import AvisoPermissaoSaude from '../components/Saude/AvisoPermissaoSaude'
 
@@ -12,10 +12,14 @@ import { useAcesso } from '../contexts/useAcesso'
 
 function Saude() {
   useTitulo('Saúde')
+
   const permissoes = usePermissoesSaude()
-  // Registro próprio de saúde só existe para o idoso (o backend recusa os outros perfis). Perfil desconhecido: mostra.
+
+  // Registro próprio de saúde só existe para o idoso.
   const { tipoPerfil } = useAcesso()
-  const ehTerceiro = tipoPerfil === 'cuidador' || tipoPerfil === 'familiar'
+
+  const ehTerceiro =
+    tipoPerfil === 'cuidador' || tipoPerfil === 'familiar'
 
   const mostrarEscritaDeTerceiros =
     permissoes.estado === 'erro' ||
@@ -34,7 +38,6 @@ function Saude() {
           dark:bg-[#0F0F17]
         "
       >
-
         <div
           className="
             flex flex-col
@@ -130,21 +133,7 @@ function Saude() {
           {/* COLUNA DIREITA */}
 
           <div className="space-y-6">
-            <HistoricoSaude>
-              {!ehTerceiro && (
-                <EditarSaude
-                  titulo="Editar meu registro"
-                  comIdoso={false}
-                />
-              )}
-
-              {mostrarEscritaDeTerceiros && (
-                <EditarSaude
-                  titulo="Editar registro do idoso"
-                  comIdoso
-                />
-              )}
-            </HistoricoSaude>
+            <HistoricoSaude />
           </div>
         </div>
       </div>
