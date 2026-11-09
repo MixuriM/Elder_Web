@@ -58,8 +58,11 @@ Legenda: ✅ concluído, 🟡 parcial, ⏳ pendente.
 | Alimentação | Registro de refeições e histórico | Todos | ✅ |
 | Aviso de emergência | Botão no cabeçalho do idoso que envia e-mail aos vínculos aprovados com e-mail confirmado, e atalho para ligar 192 | Idoso | ✅ |
 | Perfil e foto | Dados da conta, situação do e-mail e foto de perfil (inclusive HEIC de iPhone, convertida no navegador) | Todos | ✅ |
+| Exclusão de conta | O próprio usuário apaga a conta no Perfil: digita `EXCLUIR`, reautentica (login de até 5 minutos) e a conta é anonimizada; os dados de saúde do idoso são apagados | Todos | ✅ |
 | Avisos | Pedidos de vínculo a responder e compromissos de hoje e de amanhã, exibidos só dentro do site | Todos | ✅ |
 | Configurações | Tema claro, escuro ou do sistema; tamanho do texto; menos movimento; modo de decisão; conta | Todos | ✅ |
+| Documentos legais | Termos de Uso, Política de Privacidade e Cookies, públicos; o aceite é gravado com versão dos documentos | Visitante e logados | ✅ |
+| Modo demonstração | Contas fictícias já vinculadas, para apresentar o produto sem dados reais (veja [docs/modo-demonstracao.md](docs/modo-demonstracao.md)) | Administrador da demonstração | ✅ |
 | Orientações | Página de orientações gerais, pública (logado a vê dentro do menu) | Visitante e logados | 🟡 |
 | Sobre Nós | Página pública sobre o projeto, aberta pela landing (Navbar e rodapé) e pelo menu lateral | Visitante e logados | 🟡 |
 
@@ -184,8 +187,9 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 - **Entradas:** valores de requisição só entram em consultas do Prisma depois de checagem de tipo, e um teste barra SQL cru no código.
 - **Foto de perfil:** validada pelos bytes (não pelo tipo declarado), reencodada em WebP de até 1024 px sem metadados EXIF, com limite de tamanho e de envios por hora.
 - **Aviso de emergência:** só o idoso dispara, com limite de tentativas por hora.
+- **Exclusão de conta:** `DELETE /usuario/me`, só a própria conta, com confirmação escrita, login recente (senão pede reautenticação) e limite de 3 por hora. Numa transação apaga os dados do idoso, remove os vínculos e anonimiza o `Usuario`; a conta no Firebase é removida por último, e se isso falhar nada é apagado.
 - **Limite de taxa:** limite geral por usuário em toda rota autenticada, limites menores nas ações que buscam conta por e-mail e no cadastro, e limite por IP no `/auth/sync`, sem dependência externa (`backend/src/lib/limiteTaxa.ts`). Excedido, responde 429 com mensagem fixa.
-- **Cabeçalhos:** a API manda `nosniff`, `X-Frame-Options`, `Referrer-Policy`, CSP e `Permissions-Policy`, sem `X-Powered-By`. O frontend manda os seus pelo `frontend/vercel.json`, com a CSP completa em modo relatório até ser validada em produção.
+- **Cabeçalhos:** a API manda `nosniff`, `X-Frame-Options`, `Referrer-Policy`, CSP e `Permissions-Policy`, sem `X-Powered-By`. O frontend manda os seus pelo `frontend/vercel.json`, com a CSP completa em vigor (`Content-Security-Policy`) e sem script inline no `index.html`.
 - **Consentimento:** o aceite dos Termos, da Política de Privacidade e do consentimento de saúde é gravado com data, hora do servidor e versão dos documentos (LGPD art. 8).
 - **Infraestrutura:** o container do backend roda sem root; o CI só lê o repositório, roda `npm audit` nas dependências de produção e o Dependabot propõe atualizações semanais.
 - **Autorização no CI:** a suíte `backend/src/routes/autorizacaoRotas.test.ts` compara as rotas reais do app com uma lista classificada. Rota nova sem classificação derruba o CI.
@@ -258,6 +262,7 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 | `backend/.env` | `EMAIL_API_KEY`, `EMAIL_REMETENTE_NOME`, `EMAIL_REMETENTE_ENDERECO` | E-mail do aviso de emergência (sem elas, só esse aviso responde 503) |
 | `backend/.env` | `NODE_ENV` | `production` ativa o HSTS, o `trust proxy` e o limite de taxa sempre ligado (só no deploy) |
 | `backend/.env` | `TRUST_PROXY_SALTOS` | Opcional, só em produção: quantos proxies há antes da API (0 a 3, padrão 1; no Render vale 3, declarado no `render.yaml`) |
+| `backend/.env` | `DEMO_MODO_ATIVO`, `DEMO_ADMIN_UIDS` | Opcionais, só nos dias de apresentação: ligam o modo demonstração (`1`) e listam os uids de administrador (veja [docs/modo-demonstracao.md](docs/modo-demonstracao.md)) |
 | `backend/.env` | `LIMITE_TAXA_DESLIGADO` | Opcional, só fora de produção: `1` desliga o limite de taxa no desenvolvimento local |
 | `frontend/.env` | `VITE_API_URL` | Endereço da API |
 | `frontend/.env` | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID` | Configuração do Firebase Web SDK |
@@ -268,9 +273,9 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 
 | Comando | O que cobre | Onde roda | Pré-requisitos |
 |---|---|---|---|
-| `npm test` em `backend/` | 63 suítes e 3212 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
+| `npm test` em `backend/` | 74 suítes e 3553 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
 | `npm run test:coverage` em `backend/` | Os mesmos testes, com limiares de cobertura | CI | Nenhum |
-| `npm test` em `frontend/` | 107 suítes e 1202 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
+| `npm test` em `frontend/` | 114 suítes e 1374 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
 | `npm audit --omit=dev` | Avisos de segurança nas dependências de produção (backend a partir de `low`, frontend a partir de `critical`) | CI | Nenhum |
 | `npm run lint` | ESLint | CI | Nenhum |
 | `npm run build` | `tsc` no backend; `tsc -b` e Vite no frontend | CI | Nenhum |
@@ -304,7 +309,7 @@ As migrations não rodam no deploy. Elas são aplicadas à mão, de uma máquina
 ## API
 
 <details>
-<summary>45 rotas classificadas (lista oficial em <code>ROTAS_ESPERADAS</code>)</summary>
+<summary>49 rotas classificadas (lista oficial em <code>ROTAS_ESPERADAS</code>)</summary>
 
 A lista completa, com o perfil e a regra de ator de cada rota, está em `ROTAS_ESPERADAS`, em `backend/src/routes/autorizacaoRotas.test.ts`. Rotas com `:idosoId` exigem vínculo aprovado do usuário com aquele idoso.
 
@@ -312,7 +317,7 @@ A lista completa, com o perfil e a regra de ator de cada rota, está em `ROTAS_E
 |---|---|---|
 | Saúde do serviço | `GET /health` | Pública |
 | Sincronização | `POST /auth/sync` | Token do Firebase |
-| Usuário | `GET` e `PATCH /usuario/me`, `GET`, `POST` e `DELETE /usuario/me/foto`, `PATCH /usuario/me/modo-decisao`, `POST /usuario/cadastrar-idoso` | Autenticada |
+| Usuário | `GET`, `PATCH` e `DELETE /usuario/me`, `GET`, `POST` e `DELETE /usuario/me/foto`, `PATCH /usuario/me/modo-decisao`, `POST /usuario/cadastrar-idoso` | Autenticada |
 | Vínculo | `GET /vinculo`; `POST /vinculo/solicitar-cuidador`, `solicitar-familiar`, `convidar-familiar`, `convidar-cuidador`; `POST /vinculo/:id/aprovar`, `recusar`, `aceitar-convite`, `recusar-convite`, `contestar`, `solicitar-transferencia-decisao`, `confirmar-transferencia-decisao`; `PATCH /vinculo/:id/definir-permissoes` | Autenticada, com a regra de ator no servidor |
 | Saúde | `POST` e `GET /saude`, `PATCH /saude/:id` | Só o idoso (próprios dados) |
 | Saúde de um idoso | `GET` e `POST /saude/idoso/:idosoId`, `PATCH /saude/idoso/:idosoId/:id` | Vínculo aprovado; escrita conforme permissões |
@@ -322,6 +327,7 @@ A lista completa, com o perfil e a regra de ator de cada rota, está em `ROTAS_E
 | Agenda | `POST` e `GET /agenda`, `POST` e `GET /agenda/idoso/:idosoId` | Idoso; vínculo aprovado |
 | Alimentação | `POST` e `GET /alimentacao`, `POST` e `GET /alimentacao/idoso/:idosoId` | Idoso; vínculo aprovado |
 | Emergência | `POST /emergencia/avisar` | Só o idoso |
+| Demonstração | `GET /demo/estado`, `POST /demo/entrar-como`, `POST /demo/restaurar` | Token do Firebase de administrador; 404 com o modo desligado |
 
 </details>
 
@@ -351,7 +357,7 @@ Elder_Web/
 | `frontend/public/inicio-preferencias.js` | Aplica tema e tamanho do texto antes do React montar (fora do `index.html` por causa da CSP) |
 | `backend/src/routes` | Um roteador por recurso, com testes ao lado |
 | `backend/src/middleware` | Autenticação (com e sem checagem de revogação), vínculo aprovado, HSTS e cabeçalhos de segurança |
-| `backend/src/lib` | Firebase Admin, Prisma, PDF, foto, e-mail, modo de decisão e limite de taxa |
+| `backend/src/lib` | Firebase Admin, Prisma, PDF, foto, e-mail, modo de decisão, limite de taxa, conta excluída e modo demonstração (`demo/`) |
 | `backend/src/infra` | Testes de infraestrutura (CI, Docker, migrations, SQL cru) |
 | `backend/prisma` | `schema.prisma` e migrations |
 | `backend/scripts` | Scripts `verify-*` (contra o banco local) e `smoke-*` (só leitura) |
@@ -365,6 +371,7 @@ Elder_Web/
 | [CLAUDE.md](CLAUDE.md) | Guia do projeto: escopo, stack, convenções e decisões fechadas |
 | [Modelagem ER](docs/Elder%20Web%20-%20Modelagem%20ER.md) | Entidades, atributos, relacionamentos e mecanismos de permissão |
 | [Histórico de implementação](docs/historico-implementacao.md) | Diário por tarefa (consulta sob demanda, é extenso) |
+| [Modo demonstração](docs/modo-demonstracao.md) | Como ligar, usar e desligar as contas fictícias da banca e da feira |
 | [Checklist de segurança de produção](docs/checklist-seguranca-producao.md) | O que conferir nos painéis do Azure, Render, Firebase, Google Cloud, GitHub e Brevo |
 | [Azure SQL: usuário mínimo](docs/azure-usuario-minimo.md) | Roteiro do usuário de runtime sem permissão de DDL e o que o código prova sobre SQL cru |
 | [Modelo de pull request](.github/pull_request_template.md) | Checklist de migrations, rotas, contrato HTTP e verificação |
