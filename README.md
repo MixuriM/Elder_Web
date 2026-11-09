@@ -44,8 +44,6 @@ Demonstração do frontend: <https://elder-web.vercel.app>
 
 ## Funcionalidades
 
-Legenda: ✅ concluído, 🟡 parcial, ⏳ pendente.
-
 | Módulo | O que oferece | Perfis | Status |
 |---|---|---|---|
 | Autenticação e cadastro | Cadastro e login por e-mail e senha ou Google, recuperação de senha, confirmação de e-mail, perfil escolhido no cadastro, senha validada no cadastro pela política do Firebase (mínimo de 8 caracteres, maiúscula, minúscula, número e caractere especial), aceite dos Termos e do consentimento de saúde registrado | Todos | ✅ |
