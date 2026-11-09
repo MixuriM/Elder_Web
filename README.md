@@ -63,10 +63,8 @@ Legenda: ✅ concluído, 🟡 parcial, ⏳ pendente.
 | Configurações | Tema claro, escuro ou do sistema; tamanho do texto; menos movimento; modo de decisão; conta | Todos | ✅ |
 | Documentos legais | Termos de Uso, Política de Privacidade e Cookies, públicos; o aceite é gravado com versão dos documentos | Visitante e logados | ✅ |
 | Modo demonstração | Contas fictícias já vinculadas, para apresentar o produto sem dados reais (veja [docs/modo-demonstracao.md](docs/modo-demonstracao.md)) | Administrador da demonstração | ✅ |
-| Orientações | Página de orientações gerais, pública (logado a vê dentro do menu) | Visitante e logados | 🟡 |
-| Sobre Nós | Página pública sobre o projeto, aberta pela landing (Navbar e rodapé) e pelo menu lateral | Visitante e logados | 🟡 |
-
-As duas páginas marcadas com 🟡 funcionam, mas o texto final ainda está em revisão pela equipe.
+| Orientações | Página de orientações gerais, pública (logado a vê dentro do menu) | Visitante e logados | ✅ |
+| Sobre Nós | Página pública sobre o projeto, aberta pela landing (Navbar e rodapé) e pelo menu lateral | Visitante e logados | ✅ |
 
 ## Telas
 
