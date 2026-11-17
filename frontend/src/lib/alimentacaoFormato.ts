@@ -33,6 +33,9 @@ const ROTULOS_REFEICAO: Record<string, string> = {
   ceia: 'Ceia',
 }
 
+// Pares [valor, rótulo] na ordem do dia, para os campos de refeição.
+export const OPCOES_REFEICAO = Object.entries(ROTULOS_REFEICAO)
+
 export function rotuloRefeicao(valor: string): string {
   if (!Object.hasOwn(ROTULOS_REFEICAO, valor)) throw new RangeError(MSG_REFEICAO_DESCONHECIDA)
   return ROTULOS_REFEICAO[valor]
