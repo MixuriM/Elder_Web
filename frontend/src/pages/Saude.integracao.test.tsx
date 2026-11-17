@@ -5,7 +5,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import HistoricoSaude from '../components/Saude/HistoricoSaude'
-import RegistrarSaudeIdoso from '../components/Saude/RegistrarSaudeIdoso'
+import ModalRegistrarSaude from '../components/Saude/ModalRegistrarSaude'
 
 // Integração com useIdososVinculados e chamarApi reais.
 // Apenas autenticação, perfil e fetch são simulados.
@@ -126,7 +126,7 @@ describe('Saude — integração com o hook real', () => {
 
       expect(
         await screen.findByText(
-          /nenhum registro encontrado/i,
+          /nenhum registro de saúde/i,
         ),
       ).toBeInTheDocument()
 
@@ -164,7 +164,7 @@ describe('Saude — integração com o hook real', () => {
 
       expect(
         await screen.findByText(
-          /nenhum registro encontrado/i,
+          /nenhum registro de saúde/i,
         ),
       ).toBeInTheDocument()
 
@@ -229,12 +229,14 @@ describe('Saude — integração com o hook real', () => {
 
       const user = userEvent.setup()
 
-      render(<RegistrarSaudeIdoso />)
+      const onRegistrado = jest.fn()
+
+      render(<ModalRegistrarSaude aberto terceiro onFechar={jest.fn()} onRegistrado={onRegistrado} />)
 
       const seletor = await screen.findByLabelText('Idoso')
 
       const botao = screen.getByRole('button', {
-        name: /registrar leitura do idoso/i,
+        name: 'Salvar leitura',
       })
 
       expect(seletor).toHaveValue('')
@@ -261,11 +263,7 @@ describe('Saude — integração com o hook real', () => {
 
       await user.click(botao)
 
-      expect(
-        await screen.findByText(
-          /leitura registrada com sucesso/i,
-        ),
-      ).toBeInTheDocument()
+      await waitFor(() => expect(onRegistrado).toHaveBeenCalledTimes(1))
 
       const urls = urlsChamadas()
 

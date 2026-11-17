@@ -1,10 +1,10 @@
 
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
 
 import Spinner from '../components/common/Spinner'
 
-import RegistrarMinhaSaude from '../components/Saude/RegistrarMinhaSaude'
-import RegistrarSaudeIdoso from '../components/Saude/RegistrarSaudeIdoso'
+import ModalRegistrarSaude from '../components/Saude/ModalRegistrarSaude'
 import HistoricoSaude from '../components/Saude/HistoricoSaude'
 import AvisoPermissaoSaude from '../components/Saude/AvisoPermissaoSaude'
 
@@ -19,7 +19,8 @@ function Saude() {
 
   // Sobe a cada registro novo: o histórico recarrega sozinho.
   const [versao, setVersao] = useState(0)
-  const atualizarHistorico = () => setVersao((v) => v + 1)
+  const [modalAberto, setModalAberto] = useState(false)
+  const [registrou, setRegistrou] = useState(false)
 
   // Registro próprio de saúde só existe para o idoso.
   const { tipoPerfil } = useAcesso()
@@ -30,6 +31,14 @@ function Saude() {
   const mostrarEscritaDeTerceiros =
     permissoes.estado === 'erro' ||
     permissoes.escrita
+
+  // Idoso registra a própria leitura; familiar e cuidador registram para um idoso vinculado (cuidador só com a permissão).
+  const podeRegistrar = !ehTerceiro || mostrarEscritaDeTerceiros
+
+  function abrirRegistro() {
+    setRegistrou(false)
+    setModalAberto(true)
+  }
 
   if (permissoes.estado === 'carregando') {
     return (
@@ -88,6 +97,7 @@ function Saude() {
         <header
           className="
             mb-8
+            flex flex-col gap-5
             rounded-3xl
             border border-[#E5E2F5]
             bg-white
@@ -98,21 +108,36 @@ function Saude() {
             dark:bg-[#171721]
 
             md:px-8 md:py-8
+
+            sm:flex-row sm:items-end sm:justify-between
           "
         >
-          <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#5F56EC] dark:text-[#9B96FF]">
-            Cuidados e bem-estar
-          </span>
+          <div className="min-w-0">
+            <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#5F56EC] dark:text-[#9B96FF]">
+              Cuidados e bem-estar
+            </span>
 
-          <h1 className="mt-2 text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA] md:text-4xl">
-            {ehTerceiro ? 'Saúde do idoso' : 'Minha Saúde'}
-          </h1>
+            <h1 className="mt-2 text-3xl font-bold text-[#071A38] dark:text-[#F5F5FA] md:text-4xl">
+              {ehTerceiro ? 'Saúde do idoso' : 'Minha Saúde'}
+            </h1>
 
-          <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1] md:text-lg">
-            {ehTerceiro
-              ? 'Acompanhe as informações de saúde do idoso em um só lugar.'
-              : 'Registre, acompanhe e mantenha suas informações de saúde organizadas em um só lugar.'}
-          </p>
+            <p className="mt-3 max-w-3xl text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1] md:text-lg">
+              {ehTerceiro
+                ? 'Acompanhe as informações de saúde do idoso em um só lugar.'
+                : 'Registre, acompanhe e mantenha suas informações de saúde organizadas em um só lugar.'}
+            </p>
+          </div>
+
+          {podeRegistrar && (
+            <button
+              type="button"
+              onClick={abrirRegistro}
+              className="flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC]/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#171721]"
+            >
+              <Plus size={20} aria-hidden="true" />
+              Registrar leitura
+            </button>
+          )}
         </header>
 
         {/* PERMISSÕES */}
@@ -123,25 +148,35 @@ function Saude() {
           />
         </div>
 
-        {/* CONTEÚDO */}
+        {/* AVISO DE SUCESSO */}
 
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-          {/* COLUNA ESQUERDA */}
-
-          <div className="space-y-6">
-            {!ehTerceiro && <RegistrarMinhaSaude aoRegistrar={atualizarHistorico} />}
-
-            {mostrarEscritaDeTerceiros && (
-              <RegistrarSaudeIdoso aoRegistrar={atualizarHistorico} />
-            )}
+        {registrou && (
+          <div
+            role="status"
+            className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 font-medium text-green-800 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
+          >
+            Leitura registrada com sucesso.
           </div>
+        )}
 
-          {/* COLUNA DIREITA */}
+        {/* HISTÓRICO */}
 
-          <div className="space-y-6">
-            <HistoricoSaude versao={versao} escritaTerceiros={mostrarEscritaDeTerceiros} />
-          </div>
-        </div>
+        <HistoricoSaude
+          versao={versao}
+          escritaTerceiros={mostrarEscritaDeTerceiros}
+          onAdicionar={podeRegistrar ? abrirRegistro : undefined}
+        />
+
+        <ModalRegistrarSaude
+          aberto={modalAberto}
+          onFechar={() => setModalAberto(false)}
+          terceiro={ehTerceiro}
+          onRegistrado={() => {
+            setModalAberto(false)
+            setRegistrou(true)
+            setVersao((v) => v + 1)
+          }}
+        />
       </div>
     </div>
   )

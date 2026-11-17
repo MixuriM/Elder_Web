@@ -131,7 +131,7 @@ describe('HistoricoSaude — carrega sozinho', () => {
     render(<HistoricoSaude />)
 
     expect(screen.getByRole('status')).toHaveTextContent(/carregando o histórico/i)
-    expect(await screen.findByText('Nenhum registro encontrado.')).toBeInTheDocument()
+    expect(await screen.findByText('Nenhum registro de saúde')).toBeInTheDocument()
   })
 
   it('erro de carga: alerta fixo, sem ecoar o corpo do servidor', async () => {
@@ -435,7 +435,7 @@ describe('HistoricoSaude — remover', () => {
 
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(chamadas('DELETE').map((c) => c.url)).toEqual(['/saude/7'])
-    expect(await screen.findByText('Nenhum registro encontrado.')).toBeInTheDocument()
+    expect(await screen.findByText('Nenhum registro de saúde')).toBeInTheDocument()
     expect(screen.getAllByRole('status').some((s) => /registro removido/i.test(s.textContent ?? ''))).toBe(true)
   })
 
@@ -463,5 +463,40 @@ describe('HistoricoSaude — remover', () => {
     expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent(
       'Este registro já foi removido. Feche e atualize a lista.',
     )
+  })
+})
+
+describe('HistoricoSaude — cartão do registro e lista vazia', () => {
+  it('não mostra o número de identificação (#id) do registro', async () => {
+    render(<HistoricoSaude />)
+
+    await screen.findByText('pressao')
+    expect(screen.queryByText('#7')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^#\d+$/)).not.toBeInTheDocument()
+  })
+
+  it('lista vazia com onAdicionar: cartão com título, texto e botão Registrar leitura que chama onAdicionar', async () => {
+    const user = userEvent.setup()
+    const onAdicionar = jest.fn()
+    registros = []
+    render(<HistoricoSaude onAdicionar={onAdicionar} />)
+
+    const titulo = await screen.findByText('Nenhum registro de saúde')
+    const cartao = titulo.closest('section') as HTMLElement
+    expect(cartao).toHaveAttribute('role', 'status')
+    expect(within(cartao).getByText(/registre a primeira medição/i)).toBeInTheDocument()
+
+    await user.click(within(cartao).getByRole('button', { name: 'Registrar leitura' }))
+
+    expect(onAdicionar).toHaveBeenCalledTimes(1)
+  })
+
+  it('lista vazia sem onAdicionar (quem não registra): sem botão e com texto de leitura', async () => {
+    registros = []
+    render(<HistoricoSaude />)
+
+    await screen.findByText('Nenhum registro de saúde')
+    expect(screen.queryByRole('button', { name: 'Registrar leitura' })).not.toBeInTheDocument()
+    expect(screen.getByText(/quando uma medição for registrada/i)).toBeInTheDocument()
   })
 })

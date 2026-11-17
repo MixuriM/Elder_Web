@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { HeartPulse } from 'lucide-react'
 
 import { useAcesso } from '../../contexts/useAcesso'
 import { useIdososVinculados } from '../../hooks/useIdososVinculados'
@@ -7,6 +8,7 @@ import { podeAlterarRegistroSaude } from '../../lib/permissoesEdicao'
 import { caminhoRegistro, useRegistrosDoIdoso } from '../../lib/registrosDoIdoso'
 import { mensagemPorStatus } from '../Vinculos/mensagensVinculo'
 import ModalConfirmar from '../common/ModalConfirmar'
+import EstadoVazio from '../common/EstadoVazio'
 import SeletorIdoso from '../common/SeletorIdoso'
 import Spinner from '../common/Spinner'
 import ModalEditarSaude, { type RegistroSaudeLista } from './ModalEditarSaude'
@@ -25,16 +27,18 @@ const mensagemErroHistorico = (erro: unknown) =>
   )
 
 const BOTAO =
-  'min-h-[44px] rounded-xl border px-5 py-2.5 font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60'
+  'min-h-[44px] w-full rounded-xl border px-3 py-2.5 font-semibold transition sm:w-auto sm:px-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60'
 
 type Props = {
+  // Botão do cartão de lista vazia; ausente quando a pessoa não registra (cuidador sem permissão, por exemplo).
+  onAdicionar?: () => void
   // Contador da tela pai: muda quando um registro novo é criado, e a lista recarrega.
   versao?: number
   // Cuidador só altera com a permissão de registrar saúde. Padrão aberto: o 403 do servidor é a barreira real.
   escritaTerceiros?: boolean
 }
 
-function HistoricoSaude({ versao = 0, escritaTerceiros = true }: Props) {
+function HistoricoSaude({ versao = 0, escritaTerceiros = true, onAdicionar }: Props) {
   const idosos = useIdososVinculados()
   const { vinculos } = useAcesso()
 
@@ -133,12 +137,17 @@ function HistoricoSaude({ versao = 0, escritaTerceiros = true }: Props) {
       )}
 
       {lista.registros && lista.registros.length === 0 && (
-        <div
-          role="status"
-          className="mt-6 rounded-2xl border border-[#E5E2F5] bg-[#F8F7FC] p-6 text-center dark:border-[#393947] dark:bg-[#1C1C27]"
-        >
-          <p className="font-semibold text-[#56657D] dark:text-[#C7C7D1]">Nenhum registro encontrado.</p>
-        </div>
+        <EstadoVazio
+          icone={<HeartPulse size={30} aria-hidden="true" />}
+          titulo="Nenhum registro de saúde"
+          texto={
+            onAdicionar
+              ? 'Registre a primeira medição para começar a acompanhar o histórico.'
+              : 'Quando uma medição for registrada, ela aparece aqui.'
+          }
+          rotuloBotao={onAdicionar ? 'Registrar leitura' : undefined}
+          onClick={onAdicionar}
+        />
       )}
 
       {lista.registros && lista.registros.length > 0 && (
@@ -154,15 +163,11 @@ function HistoricoSaude({ versao = 0, escritaTerceiros = true }: Props) {
                 dark:bg-[#1C1C27]
               "
             >
-              <div className="flex items-start justify-between gap-4">
-                <h3 className="min-w-0 break-words font-bold text-[#071A38] dark:text-[#F5F5FA]">
-                  {registro.tipo_medicao}
-                </h3>
+              <h3 className="min-w-0 break-words font-bold [overflow-wrap:anywhere] text-[#071A38] dark:text-[#F5F5FA]">
+                {registro.tipo_medicao}
+              </h3>
 
-                <span className="text-sm font-semibold text-[#5F56EC] dark:text-[#9B96FF]">#{registro.id}</span>
-              </div>
-
-              <p className="mt-3 text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
+              <p className="mt-3 text-2xl font-bold [overflow-wrap:anywhere] text-[#071A38] dark:text-[#F5F5FA]">
                 {registro.valor_1}
 
                 {registro.valor_2 !== null ? ` / ${registro.valor_2}` : ''}
@@ -177,13 +182,13 @@ function HistoricoSaude({ versao = 0, escritaTerceiros = true }: Props) {
               </p>
 
               {registro.observacoes && (
-                <p className="mt-3 whitespace-pre-wrap break-words text-sm text-[#56657D] dark:text-[#C7C7D1]">
+                <p className="mt-3 whitespace-pre-line break-words text-sm [overflow-wrap:anywhere] text-[#56657D] dark:text-[#C7C7D1]">
                   <span className="font-semibold">Observações:</span> {registro.observacoes}
                 </p>
               )}
 
               {podeAlterar(registro) && (
-                <div className="mt-4 flex flex-wrap justify-end gap-3">
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:justify-end">
                   <button
                     type="button"
                     aria-label={`Editar registro de ${registro.tipo_medicao}`}
