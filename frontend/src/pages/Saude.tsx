@@ -1,4 +1,6 @@
 
+import { useState } from 'react'
+
 import Spinner from '../components/common/Spinner'
 
 import RegistrarMinhaSaude from '../components/Saude/RegistrarMinhaSaude'
@@ -14,6 +16,10 @@ function Saude() {
   useTitulo('Saúde')
 
   const permissoes = usePermissoesSaude()
+
+  // Sobe a cada registro novo: o histórico recarrega sozinho.
+  const [versao, setVersao] = useState(0)
+  const atualizarHistorico = () => setVersao((v) => v + 1)
 
   // Registro próprio de saúde só existe para o idoso.
   const { tipoPerfil } = useAcesso()
@@ -123,17 +129,17 @@ function Saude() {
           {/* COLUNA ESQUERDA */}
 
           <div className="space-y-6">
-            {!ehTerceiro && <RegistrarMinhaSaude />}
+            {!ehTerceiro && <RegistrarMinhaSaude aoRegistrar={atualizarHistorico} />}
 
             {mostrarEscritaDeTerceiros && (
-              <RegistrarSaudeIdoso />
+              <RegistrarSaudeIdoso aoRegistrar={atualizarHistorico} />
             )}
           </div>
 
           {/* COLUNA DIREITA */}
 
           <div className="space-y-6">
-            <HistoricoSaude />
+            <HistoricoSaude versao={versao} escritaTerceiros={mostrarEscritaDeTerceiros} />
           </div>
         </div>
       </div>

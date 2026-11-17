@@ -1,253 +1,73 @@
+import { useState } from 'react'
 
-import { useState, type FormEvent, type ReactNode } from 'react'
-
+import { useAcesso } from '../../contexts/useAcesso'
 import { useIdososVinculados } from '../../hooks/useIdososVinculados'
 import { chamarApi } from '../../lib/chamarApi'
+import { podeAlterarRegistroSaude } from '../../lib/permissoesEdicao'
+import { caminhoRegistro, useRegistrosDoIdoso } from '../../lib/registrosDoIdoso'
+import { mensagemPorStatus } from '../Vinculos/mensagensVinculo'
+import ModalConfirmar from '../common/ModalConfirmar'
 import SeletorIdoso from '../common/SeletorIdoso'
-import { envioBloqueado } from '../../lib/regrasIdosoVinculado'
 import Spinner from '../common/Spinner'
+import ModalEditarSaude, { type RegistroSaudeLista } from './ModalEditarSaude'
 
-type RegistroLista = {
-  id: number
-  tipo_medicao: string
-  valor_1: number
-  valor_2: number | null
-  unidade: string
-  data_hora: string
-  observacoes?: string | null
-}
+const BASE = '/saude'
 
-type FormularioEdicao = {
-  tipo_medicao: string
-  valor_1: string
-  valor_2: string
-  unidade: string
-  data_hora: string
-  observacoes: string
-}
-
-function formatarDataInput(data: string) {
-  const d = new Date(data)
-
-  if (Number.isNaN(d.getTime())) return ''
-
-  const local = new Date(
-    d.getTime() - d.getTimezoneOffset() * 60000,
+// Mensagem fixa por status: o corpo do erro nunca é exibido (RNF-001).
+const mensagemErroHistorico = (erro: unknown) =>
+  mensagemPorStatus(
+    erro,
+    {
+      401: 'Sessão expirada. Entre novamente.',
+      403: 'Você não tem permissão para ver este histórico de saúde.',
+    },
+    'Não foi possível carregar o histórico de saúde.',
   )
 
-  return local.toISOString().slice(0, 16)
+const BOTAO =
+  'min-h-[44px] rounded-xl border px-5 py-2.5 font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60'
+
+type Props = {
+  // Contador da tela pai: muda quando um registro novo é criado, e a lista recarrega.
+  versao?: number
+  // Cuidador só altera com a permissão de registrar saúde. Padrão aberto: o 403 do servidor é a barreira real.
+  escritaTerceiros?: boolean
 }
 
-function HistoricoSaude({ children }: { children?: ReactNode }) {
+function HistoricoSaude({ versao = 0, escritaTerceiros = true }: Props) {
   const idosos = useIdososVinculados()
+  const { vinculos } = useAcesso()
 
   const [idosoId, setIdosoId] = useState('')
-  const [carregando, setCarregando] = useState(false)
-  const [salvando, setSalvando] = useState(false)
-
-  const [registros, setRegistros] =
-    useState<RegistroLista[] | null>(null)
-
-  const [erro, setErro] = useState<string | null>(null)
+  const [versaoLocal, setVersaoLocal] = useState(0)
   const [sucesso, setSucesso] = useState<string | null>(null)
+  const [editando, setEditando] = useState<RegistroSaudeLista | null>(null)
+  const [removendo, setRemovendo] = useState<RegistroSaudeLista | null>(null)
 
-  const [registroEditando, setRegistroEditando] =
-    useState<number | null>(null)
+  const lista = useRegistrosDoIdoso<RegistroSaudeLista>({
+    base: BASE,
+    idosos,
+    idosoId,
+    versao: versao + versaoLocal,
+    mensagemErro: mensagemErroHistorico,
+  })
 
-  const [formulario, setFormulario] =
-    useState<FormularioEdicao>({
-      tipo_medicao: '',
-      valor_1: '',
-      valor_2: '',
-      unidade: '',
-      data_hora: '',
-      observacoes: '',
+  const podeAlterar = (registro: RegistroSaudeLista) =>
+    podeAlterarRegistroSaude({
+      ehIdoso: idosos.ehIdoso,
+      tipoPerfil: idosos.tipoPerfil,
+      idosoId,
+      vinculos,
+      escritaTerceiros,
+      registradoPorId: registro.registrado_por_id,
     })
 
-  async function carregarHistorico() {
-    const caminho = idosos.ehIdoso
-      ? '/saude'
-      : `/saude/idoso/${idosoId}`
+  const caminhoDe = (registro: RegistroSaudeLista) => caminhoRegistro(BASE, idosos.ehIdoso, idosoId, registro.id)
 
-    const corpo = await chamarApi(caminho, {
-      method: 'GET',
-    })
+  const recarregar = () => setVersaoLocal((v) => v + 1)
 
-    setRegistros(corpo.registros)
-  }
-
-  async function handleVer(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-
-    setErro(null)
-    setSucesso(null)
-    setRegistros(null)
-    setRegistroEditando(null)
-    setCarregando(true)
-
-    try {
-      await carregarHistorico()
-    } catch (err) {
-      setErro(
-        err instanceof Error
-          ? err.message
-          : 'Falha ao carregar histórico de saúde.',
-      )
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  function iniciarEdicao(registro: RegistroLista) {
-    if (!idosos.ehIdoso || salvando) return
-
-    setErro(null)
-    setSucesso(null)
-    setRegistroEditando(registro.id)
-
-    setFormulario({
-      tipo_medicao: registro.tipo_medicao,
-      valor_1: String(registro.valor_1),
-      valor_2:
-        registro.valor_2 === null
-          ? ''
-          : String(registro.valor_2),
-      unidade: registro.unidade,
-      data_hora: formatarDataInput(registro.data_hora),
-      observacoes: registro.observacoes ?? '',
-    })
-  }
-
-  function cancelarEdicao() {
-    if (salvando) return
-
-    setRegistroEditando(null)
-    setErro(null)
-  }
-
-  function alterarCampo(
-    campo: keyof FormularioEdicao,
-    valor: string,
-  ) {
-    setFormulario((anterior) => ({
-      ...anterior,
-      [campo]: valor,
-    }))
-  }
-
-  function converterValor(valor: string) {
-    return Number(valor.replace(',', '.'))
-  }
-
-  function valorNumericoValido(valor: number) {
-    return (
-      Number.isFinite(valor) &&
-      valor >= 0 &&
-      valor <= 9999.99 &&
-      /^\d+(\.\d{1,2})?$/.test(String(valor))
-    )
-  }
-
-  async function salvarEdicao(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-
-    if (registroEditando === null || !idosos.ehIdoso || salvando) {
-      return
-    }
-
-    setErro(null)
-    setSucesso(null)
-
-    const valor1 = converterValor(formulario.valor_1)
-    const valor2 =
-      formulario.valor_2.trim() === ''
-        ? null
-        : converterValor(formulario.valor_2)
-
-    if (
-      !valorNumericoValido(valor1) ||
-      (valor2 !== null && !valorNumericoValido(valor2))
-    ) {
-      setErro('Informe valores entre 0 e 9999,99, com até duas casas decimais.')
-      return
-    }
-
-    if (
-      !formulario.tipo_medicao.trim() ||
-      formulario.tipo_medicao.trim().length > 50 ||
-      !formulario.unidade.trim() ||
-      formulario.unidade.trim().length > 20 ||
-      formulario.observacoes.trim().length > 300
-    ) {
-      setErro('Confira os campos de medição, unidade e observações.')
-      return
-    }
-
-    const data = new Date(formulario.data_hora)
-
-    if (
-      !formulario.data_hora ||
-      Number.isNaN(data.getTime()) ||
-      data.getTime() > Date.now() + 5 * 60 * 1000
-    ) {
-      setErro('Informe uma data e hora válidas.')
-      return
-    }
-
-    setSalvando(true)
-
-    try {
-      await chamarApi(`/saude/${registroEditando}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          tipo_medicao: formulario.tipo_medicao.trim(),
-          valor_1: valor1,
-          valor_2: valor2,
-          unidade: formulario.unidade.trim(),
-          data_hora: data.toISOString(),
-          observacoes: formulario.observacoes.trim() || null,
-        }),
-      })
-
-      setRegistroEditando(null)
-      setSucesso('Registro de saúde atualizado com sucesso!')
-
-      try {
-        await carregarHistorico()
-      } catch {
-        setErro(
-          'O registro foi salvo, mas não foi possível atualizar o histórico. Consulte novamente.',
-        )
-      }
-    } catch (err) {
-      setErro(
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível atualizar o registro de saúde.',
-      )
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  const campoClassName = `
-    w-full min-h-[48px] rounded-xl
-    border border-[#E5E2F5]
-    bg-white px-4 py-3
-    text-[#071A38]
-    outline-none
-    focus:border-[#5F56EC]
-    focus:ring-2 focus:ring-[#5F56EC]/20
-    dark:border-[#393947]
-    dark:bg-[#171721]
-    dark:text-[#F5F5FA]
-  `
-
-  const labelClassName = `
-    mb-2 block text-sm font-semibold
-    text-[#071A38]
-    dark:text-[#F5F5FA]
-  `
+  const escolhaPendente =
+    lista.fase === 'aguardando' && idosos.estado === 'ok' && !idosos.ehIdoso && idosos.idosos.length > 0
 
   return (
     <section
@@ -265,361 +85,160 @@ function HistoricoSaude({ children }: { children?: ReactNode }) {
           Histórico
         </span>
 
-        <h2 className="mt-2 text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
-          Histórico de saúde
-        </h2>
+        <h2 className="mt-2 text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">Histórico de saúde</h2>
 
-        <p className="mt-2 text-[#56657D] dark:text-[#C7C7D1]">
-          Consulte as medições registradas.
-        </p>
+        <p className="mt-2 text-[#56657D] dark:text-[#C7C7D1]">Consulte as medições registradas.</p>
       </div>
 
-      <form onSubmit={handleVer} className="space-y-5">
-        <SeletorIdoso
-          id="idoso_id_historico"
-          valor={idosoId}
-          aoMudar={(valor) => {
-            setIdosoId(valor)
-            setRegistros(null)
-            setRegistroEditando(null)
-            setErro(null)
-            setSucesso(null)
-          }}
-          lista={idosos}
-        />
+      <SeletorIdoso
+        id="idoso_id_historico"
+        valor={idosoId}
+        aoMudar={(valor) => {
+          setIdosoId(valor)
+          setSucesso(null)
+        }}
+        lista={idosos}
+      />
 
-        <button
-          type="submit"
-          disabled={
-            carregando ||
-            salvando ||
-            envioBloqueado(idosos, idosoId)
-          }
-          className="
-            flex min-h-[54px] w-full
-            items-center justify-center gap-2
-            rounded-xl bg-[#5F56EC]
-            px-5 py-3.5 text-lg
-            font-semibold text-white
-            hover:bg-[#5C54E8]
-            disabled:cursor-not-allowed
-            disabled:opacity-60
-          "
+      {escolhaPendente && (
+        <p className="mt-5 text-base text-[#56657D] dark:text-[#C7C7D1]">Escolha um idoso para ver o histórico.</p>
+      )}
+
+      {lista.fase === 'carregando' && (
+        <p
+          role="status"
+          className="mt-5 flex items-center gap-3 rounded-xl border border-[#E5E2F5] bg-[#F8F7FC] p-4 text-[#071A38] dark:border-[#393947] dark:bg-[#1C1C27] dark:text-[#F5F5FA]"
         >
-          {carregando && <Spinner />}
+          <Spinner />
+          Carregando o histórico de saúde...
+        </p>
+      )}
 
-          {carregando ? 'Carregando...' : 'Ver histórico'}
-        </button>
-      </form>
-
-      {erro && (
+      {lista.fase === 'erro' && (
         <div
           role="alert"
-          className="
-            mt-5 rounded-xl border border-red-200
-            bg-red-50 p-4 text-red-700
-            dark:border-red-900/50
-            dark:bg-red-950/20
-            dark:text-red-300
-          "
+          className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300"
         >
-          {erro}
+          {lista.erro}
         </div>
       )}
 
       {sucesso && (
         <div
           role="status"
-          className="
-            mt-5 rounded-xl border border-green-200
-            bg-green-50 p-4 text-green-800
-            dark:border-green-900/50
-            dark:bg-green-950/20
-            dark:text-green-300
-          "
+          className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
         >
           {sucesso}
         </div>
       )}
 
-      {registros && registros.length === 0 && (
-        <div className="mt-6 rounded-2xl border border-[#E5E2F5] bg-[#F8F7FC] p-6 text-center dark:border-[#393947] dark:bg-[#1C1C27]">
-          <p className="font-semibold text-[#56657D] dark:text-[#C7C7D1]">
-            Nenhum registro encontrado.
-          </p>
+      {lista.registros && lista.registros.length === 0 && (
+        <div
+          role="status"
+          className="mt-6 rounded-2xl border border-[#E5E2F5] bg-[#F8F7FC] p-6 text-center dark:border-[#393947] dark:bg-[#1C1C27]"
+        >
+          <p className="font-semibold text-[#56657D] dark:text-[#C7C7D1]">Nenhum registro encontrado.</p>
         </div>
       )}
 
-      {registros && registros.length > 0 && (
+      {lista.registros && lista.registros.length > 0 && (
         <div className="mt-7 space-y-3">
-          {registros.map((registro) => {
-            const editando = registroEditando === registro.id
+          {lista.registros.map((registro) => (
+            <article
+              key={registro.id}
+              className="
+                rounded-2xl
+                border border-[#E5E2F5]
+                bg-[#FAF9FD] p-5
+                dark:border-[#393947]
+                dark:bg-[#1C1C27]
+              "
+            >
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="min-w-0 break-words font-bold text-[#071A38] dark:text-[#F5F5FA]">
+                  {registro.tipo_medicao}
+                </h3>
 
-            return (
-              <article
-                key={registro.id}
-                className="
-                  rounded-2xl
-                  border border-[#E5E2F5]
-                  bg-[#FAF9FD] p-5
-                  dark:border-[#393947]
-                  dark:bg-[#1C1C27]
-                "
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <h3 className="font-bold text-[#071A38] dark:text-[#F5F5FA]">
-                    {registro.tipo_medicao}
-                  </h3>
+                <span className="text-sm font-semibold text-[#5F56EC] dark:text-[#9B96FF]">#{registro.id}</span>
+              </div>
 
-                  <span className="text-sm font-semibold text-[#5F56EC] dark:text-[#9B96FF]">
-                    #{registro.id}
-                  </span>
-                </div>
+              <p className="mt-3 text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
+                {registro.valor_1}
 
-                {editando ? (
-                  <form
-                    onSubmit={salvarEdicao}
-                    className="mt-5 space-y-4"
+                {registro.valor_2 !== null ? ` / ${registro.valor_2}` : ''}
+
+                <span className="ml-2 text-base font-medium text-[#56657D] dark:text-[#C7C7D1]">
+                  {registro.unidade}
+                </span>
+              </p>
+
+              <p className="mt-3 border-t border-[#ECEAF4] pt-3 text-sm text-[#56657D] dark:border-[#34343F] dark:text-[#AFAFBD]">
+                {new Date(registro.data_hora).toLocaleString('pt-BR')}
+              </p>
+
+              {registro.observacoes && (
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm text-[#56657D] dark:text-[#C7C7D1]">
+                  <span className="font-semibold">Observações:</span> {registro.observacoes}
+                </p>
+              )}
+
+              {podeAlterar(registro) && (
+                <div className="mt-4 flex flex-wrap justify-end gap-3">
+                  <button
+                    type="button"
+                    aria-label={`Editar registro de ${registro.tipo_medicao}`}
+                    onClick={() => {
+                      setSucesso(null)
+                      setEditando(registro)
+                    }}
+                    className={`${BOTAO} border-[#5F56EC] text-[#5F56EC] hover:bg-[#5F56EC]/10 focus-visible:outline-[#5F56EC] dark:border-[#9B96FF] dark:text-[#9B96FF]`}
                   >
-                    <div>
-                      <label
-                        htmlFor={`tipo-${registro.id}`}
-                        className={labelClassName}
-                      >
-                        Tipo de medição
-                      </label>
+                    Editar
+                  </button>
 
-                      <input
-                        id={`tipo-${registro.id}`}
-                        type="text"
-                        maxLength={50}
-                        required
-                        disabled={salvando}
-                        className={campoClassName}
-                        value={formulario.tipo_medicao}
-                        onChange={(e) =>
-                          alterarCampo('tipo_medicao', e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label
-                          htmlFor={`valor1-${registro.id}`}
-                          className={labelClassName}
-                        >
-                          Valor 1
-                        </label>
-
-                        <input
-                          id={`valor1-${registro.id}`}
-                          type="text"
-                          inputMode="decimal"
-                          required
-                          disabled={salvando}
-                          className={campoClassName}
-                          value={formulario.valor_1}
-                          onChange={(e) =>
-                            alterarCampo('valor_1', e.target.value)
-                          }
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor={`valor2-${registro.id}`}
-                          className={labelClassName}
-                        >
-                          Valor 2 (opcional)
-                        </label>
-
-                        <input
-                          id={`valor2-${registro.id}`}
-                          type="text"
-                          inputMode="decimal"
-                          disabled={salvando}
-                          className={campoClassName}
-                          value={formulario.valor_2}
-                          onChange={(e) =>
-                            alterarCampo('valor_2', e.target.value)
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`unidade-${registro.id}`}
-                        className={labelClassName}
-                      >
-                        Unidade
-                      </label>
-
-                      <input
-                        id={`unidade-${registro.id}`}
-                        type="text"
-                        maxLength={20}
-                        required
-                        disabled={salvando}
-                        className={campoClassName}
-                        value={formulario.unidade}
-                        onChange={(e) =>
-                          alterarCampo('unidade', e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`data-${registro.id}`}
-                        className={labelClassName}
-                      >
-                        Data e hora
-                      </label>
-
-                      <input
-                        id={`data-${registro.id}`}
-                        type="datetime-local"
-                        required
-                        disabled={salvando}
-                        className={campoClassName}
-                        value={formulario.data_hora}
-                        onChange={(e) =>
-                          alterarCampo('data_hora', e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`obs-${registro.id}`}
-                        className={labelClassName}
-                      >
-                        Observações (opcional)
-                      </label>
-
-                      <textarea
-                        id={`obs-${registro.id}`}
-                        rows={3}
-                        maxLength={300}
-                        disabled={salvando}
-                        className={campoClassName}
-                        value={formulario.observacoes}
-                        onChange={(e) =>
-                          alterarCampo('observacoes', e.target.value)
-                        }
-                      />
-
-                      <p className="mt-1 text-right text-xs text-[#56657D] dark:text-[#AFAFBD]">
-                        {formulario.observacoes.length}/300
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 pt-2">
-                      <button
-                        type="submit"
-                        disabled={salvando}
-                        className="
-                          flex min-h-[48px] items-center
-                          justify-center gap-2
-                          rounded-xl bg-[#5F56EC]
-                          px-5 py-3 font-semibold
-                          text-white hover:bg-[#5C54E8]
-                          disabled:opacity-60
-                        "
-                      >
-                        {salvando && <Spinner />}
-                        {salvando
-                          ? 'Salvando...'
-                          : 'Salvar alterações'}
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={salvando}
-                        onClick={cancelarEdicao}
-                        className="
-                          min-h-[48px] rounded-xl
-                          border border-[#E5E2F5]
-                          px-5 py-3 font-semibold
-                          text-[#56657D]
-                          hover:bg-[#ECEAF4]
-                          dark:border-[#393947]
-                          dark:text-[#C7C7D1]
-                          dark:hover:bg-[#34343F]
-                          disabled:opacity-60
-                        "
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <>
-                    <p className="mt-3 text-2xl font-bold text-[#071A38] dark:text-[#F5F5FA]">
-                      {registro.valor_1}
-
-                      {registro.valor_2 !== null
-                        ? ` / ${registro.valor_2}`
-                        : ''}
-
-                      <span className="ml-2 text-base font-medium text-[#56657D] dark:text-[#C7C7D1]">
-                        {registro.unidade}
-                      </span>
-                    </p>
-
-                    <p className="mt-3 border-t border-[#ECEAF4] pt-3 text-sm text-[#56657D] dark:border-[#34343F] dark:text-[#AFAFBD]">
-                      {new Date(registro.data_hora).toLocaleString('pt-BR')}
-                    </p>
-
-                    {registro.observacoes && (
-                      <p className="mt-3 whitespace-pre-wrap text-sm text-[#56657D] dark:text-[#C7C7D1]">
-                        <span className="font-semibold">
-                          Observações:
-                        </span>{' '}
-                        {registro.observacoes}
-                      </p>
-                    )}
-
-                    {idosos.ehIdoso && (
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          type="button"
-                          disabled={salvando}
-                          onClick={() => iniciarEdicao(registro)}
-                          className="
-                            min-h-[44px] rounded-xl
-                            border border-[#5F56EC]
-                            px-5 py-2.5 font-semibold
-                            text-[#5F56EC]
-                            hover:bg-[#5F56EC]/10
-                            focus-visible:outline
-                            focus-visible:outline-2
-                            focus-visible:outline-offset-2
-                            focus-visible:outline-[#5F56EC]
-                            dark:border-[#9B96FF]
-                            dark:text-[#9B96FF]
-                            disabled:opacity-60
-                          "
-                        >
-                          Editar
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </article>
-            )
-          })}
+                  <button
+                    type="button"
+                    aria-label={`Remover registro de ${registro.tipo_medicao}`}
+                    onClick={() => {
+                      setSucesso(null)
+                      setRemovendo(registro)
+                    }}
+                    className={`${BOTAO} border-red-700 text-red-700 hover:bg-red-700/10 focus-visible:outline-red-700 dark:border-red-400 dark:text-red-300`}
+                  >
+                    Remover
+                  </button>
+                </div>
+              )}
+            </article>
+          ))}
         </div>
       )}
 
-      {registros !== null && children && (
-        <div className="mt-7 space-y-4 border-t border-[#E5E2F5] pt-6 dark:border-[#393947]">
-          {children}
-        </div>
-      )}
+      <ModalEditarSaude
+        registro={editando}
+        caminho={editando ? caminhoDe(editando) : ''}
+        onFechar={() => setEditando(null)}
+        onSalvo={() => {
+          setEditando(null)
+          setSucesso('Registro de saúde atualizado com sucesso!')
+          recarregar()
+        }}
+      />
+
+      <ModalConfirmar
+        aberto={removendo !== null}
+        onFechar={() => setRemovendo(null)}
+        texto="Remover este registro? Esta ação não pode ser desfeita."
+        onConfirmar={async () => {
+          if (!removendo) return
+
+          await chamarApi(caminhoDe(removendo), { method: 'DELETE' })
+
+          setRemovendo(null)
+          setSucesso('Registro removido.')
+          recarregar()
+        }}
+      />
     </section>
   )
 }

@@ -20,7 +20,7 @@ const LEITURA_VAZIA = {
   observacoes: '',
 }
 
-function RegistrarSaudeIdoso() {
+function RegistrarSaudeIdoso({ aoRegistrar }: { aoRegistrar?: () => void }) {
   const idosos = useIdososVinculados()
   const [campos, setCampos] = useState(LEITURA_VAZIA)
 
@@ -79,6 +79,7 @@ function RegistrarSaudeIdoso() {
       )
 
       setResultado(corpo)
+      aoRegistrar?.()
     } catch (err) {
       setErro(
         err instanceof Error
