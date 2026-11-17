@@ -53,6 +53,25 @@ test("acessibilidade autenticada (idoso, cuidador e familiar vinculados)", async
         },
       });
     });
+
+    // Fase 11: modais de registrar, que o axe da página fechada não enxerga (contraste claro e escuro, com o dialog aberto).
+    const modais = [
+      { rota: "/saude", botao: "Registrar leitura", dialogo: /registrar leitura de saúde/i },
+      { rota: "/alimentacao", botao: "Registrar refeição", dialogo: /registrar refeição/i },
+      { rota: "/agenda", botao: "Criar compromisso", dialogo: /criar compromisso/i },
+      { rota: "/remedios", botao: "Adicionar medicamento", dialogo: /adicionar medicamento/i },
+    ];
+    for (const m of modais) {
+      await test.step(`idoso ${m.rota} com o modal aberto`, async () => {
+        await auditarRota(contas.idoso.context, m.rota, {
+          rotulo: `idoso ${m.rota} modal`,
+          estado: async (page) => {
+            await page.getByRole("button", { name: m.botao }).first().click();
+            await expect(page.getByRole("dialog", { name: m.dialogo })).toBeVisible();
+          },
+        });
+      });
+    }
   } finally {
     for (const conta of Object.values(contas)) await conta.context.close();
   }
