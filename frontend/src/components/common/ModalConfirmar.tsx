@@ -71,7 +71,7 @@ function Conteudo({ onFechar, texto, onConfirmar, titulo }: Omit<ModalConfirmarP
           aria-busy={removendo}
           className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-red-700 px-5 py-3 font-semibold text-white transition hover:bg-red-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-[#171721]"
         >
-          {removendo && <Spinner />}
+          {removendo && <Spinner pequeno />}
           {removendo ? 'Removendo...' : 'Remover'}
         </button>
       </div>

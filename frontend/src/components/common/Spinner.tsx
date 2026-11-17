@@ -2,14 +2,15 @@
 // fica sólido no fim) mascarado em forma de anel oco. O degradê deixa a
 // rotação bem visível — ao contrário de um anel de cor única, que parece
 // parado mesmo girando.
-function Spinner() {
+// shrink-0: dentro de um botão flex o anel não pode encolher na largura (ficava oval). `pequeno` é o tamanho de dentro de botão.
+function Spinner({ pequeno = false }: { pequeno?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="
+      className={`
         inline-block
-        h-8
-        w-8
+        shrink-0
+        ${pequeno ? 'h-5 w-5' : 'h-8 w-8'}
 
         animate-spin
         motion-reduce:animate-none
@@ -19,7 +20,7 @@ function Spinner() {
 
         [mask-image:radial-gradient(farthest-side,transparent_calc(100%-3px),#000_calc(100%-3px))]
         [-webkit-mask-image:radial-gradient(farthest-side,transparent_calc(100%-3px),#000_calc(100%-3px))]
-      "
+      `}
     />
   );
 }

@@ -87,6 +87,18 @@ describe('ModalConfirmar', () => {
     expect(screen.getByRole('button', { name: 'Remover' })).toBeEnabled()
   })
 
+  it('a rodinha de remover não deforma: tamanho fixo, sem encolher no botão flex', async () => {
+    const user = userEvent.setup()
+    montar(() => new Promise<void>(() => {}))
+
+    await user.click(screen.getByRole('button', { name: 'Remover' }))
+
+    const rodinha = screen.getByRole('button', { name: 'Removendo...' }).querySelector('span[aria-hidden="true"]')
+    expect(rodinha).not.toBeNull()
+    expect(rodinha).toHaveClass('shrink-0')
+    expect(rodinha).toHaveClass('h-5', 'w-5')
+  })
+
   it('aceita rótulo e título próprios (medicamento)', () => {
     render(
       <ModalConfirmar

@@ -213,7 +213,7 @@ function Conteudo({ registro, caminho, onFechar, onSalvo }: Omit<ModalEditarSaud
             aria-busy={salvando}
             className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-[#171721]"
           >
-            {salvando && <Spinner />}
+            {salvando && <Spinner pequeno />}
             {salvando ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </div>
