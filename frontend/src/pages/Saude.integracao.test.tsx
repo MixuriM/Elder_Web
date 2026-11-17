@@ -124,12 +124,6 @@ describe('Saude — integração com o hook real', () => {
 
       await user.selectOptions(seletor, '22')
 
-      await user.click(
-        screen.getByRole('button', {
-          name: /ver histórico/i,
-        }),
-      )
-
       expect(
         await screen.findByText(
           /nenhum registro encontrado/i,
@@ -148,30 +142,25 @@ describe('Saude — integração com o hook real', () => {
         ),
       ).toBe(true)
 
-      expect(
-        urls.some((url) =>
-          /\/saude\/idoso\/11$/.test(url),
-        ),
-      ).toBe(false)
+      // Carrega sozinho o primeiro idoso (11) e, ao trocar, o escolhido (22), nessa ordem.
+      const saude = urls.filter((url) =>
+        /^GET .*\/saude\/idoso\/\d+$/.test(url),
+      )
+
+      expect(saude).toHaveLength(2)
+      expect(saude[0]).toMatch(/\/saude\/idoso\/11$/)
+      expect(saude[1]).toMatch(/\/saude\/idoso\/22$/)
     },
   )
 
   it(
-    'idoso: consulta o próprio histórico sem seletor',
+    'idoso: carrega o próprio histórico sozinho, sem seletor nem botão',
     async () => {
       mockBuscarPerfil.mockResolvedValue({
         tipo_perfil: 'idoso',
       })
 
-      const user = userEvent.setup()
-
       render(<HistoricoSaude />)
-
-      await user.click(
-        await screen.findByRole('button', {
-          name: /ver histórico/i,
-        }),
-      )
 
       expect(
         await screen.findByText(
@@ -181,6 +170,12 @@ describe('Saude — integração com o hook real', () => {
 
       expect(
         screen.queryByRole('combobox'),
+      ).not.toBeInTheDocument()
+
+      expect(
+        screen.queryByRole('button', {
+          name: /ver histórico/i,
+        }),
       ).not.toBeInTheDocument()
 
       const urls = urlsChamadas()
@@ -289,49 +284,51 @@ describe('Saude — integração com o hook real', () => {
   )
 
   it(
-    'histórico não apresenta opções de edição',
+    'idoso: vê Editar e Remover e nenhuma escrita sai sem ação dele',
     async () => {
       mockBuscarPerfil.mockResolvedValue({
         tipo_perfil: 'idoso',
       })
 
-      const user = userEvent.setup()
+      const padrao = fetchMock().getMockImplementation()!
+
+      fetchMock().mockImplementation(
+        (url: string, opcoes?: RequestInit) =>
+          url.endsWith('/saude')
+            ? Promise.resolve(
+                resposta({
+                  registros: [
+                    {
+                      id: 7,
+                      tipo_medicao: 'pressao',
+                      valor_1: 120,
+                      valor_2: 80,
+                      unidade: 'mmHg',
+                      data_hora: '2026-09-24T12:00:00.000Z',
+                    },
+                  ],
+                }),
+              )
+            : padrao(url, opcoes),
+      )
 
       render(<HistoricoSaude />)
 
-      await user.click(
-        await screen.findByRole('button', {
-          name: /ver histórico/i,
-        }),
-      )
-
       expect(
-        await screen.findByText(
-          /nenhum registro encontrado/i,
-        ),
+        await screen.findByRole('button', {
+          name: 'Editar registro de pressao',
+        }),
       ).toBeInTheDocument()
 
       expect(
-        screen.queryByRole('button', {
-          name: /editar/i,
+        screen.getByRole('button', {
+          name: 'Remover registro de pressao',
         }),
-      ).not.toBeInTheDocument()
-
-      expect(
-        screen.queryByText(
-          /editar meu registro/i,
-        ),
-      ).not.toBeInTheDocument()
-
-      expect(
-        screen.queryByLabelText(
-          'ID do registro',
-        ),
-      ).not.toBeInTheDocument()
+      ).toBeInTheDocument()
 
       expect(
         urlsChamadas().some((url) =>
-          /^PATCH /.test(url),
+          /^(PATCH|DELETE|POST) /.test(url),
         ),
       ).toBe(false)
     },

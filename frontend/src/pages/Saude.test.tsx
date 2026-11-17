@@ -46,6 +46,19 @@ function renderizarSaude() {
   )
 }
 
+// A lista carrega sozinha ao abrir a tela: GET devolve os registros dados; escrita devolve a resposta dada.
+function simularApi(escrita: Response = respostaJson(200, {}), registros: unknown[] = []) {
+  fetchMock.mockImplementation((_url: string, opcoes: RequestInit = {}) =>
+    Promise.resolve((opcoes.method ?? 'GET') === 'GET' ? respostaJson(200, { registros }) : escrita),
+  )
+}
+
+function chamada(metodo: string) {
+  const achada = fetchMock.mock.calls.find(([, o]) => (o?.method ?? 'GET') === metodo)
+  if (!achada) throw new Error(`Nenhuma chamada ${metodo}`)
+  return achada as [string, RequestInit & { headers: Record<string, string>; body: string }]
+}
+
 function secaoPeloTitulo(nome: RegExp) {
   const titulo = screen.getByRole('heading', { name: nome })
   const elemento = titulo.closest('section')
@@ -64,6 +77,7 @@ beforeEach(() => {
   })
   mockGetCurrentUserToken.mockResolvedValue('token-fake')
   fetchMock.mockReset()
+  simularApi()
   global.fetch = fetchMock
 })
 
@@ -87,22 +101,35 @@ describe('Saude — estrutura da página', () => {
     expect(screen.queryByRole('heading', { name: /registrar leitura de saúde/i })).not.toBeInTheDocument()
   })
 
-  it('não mostra opções de edição nem antes nem depois de consultar o histórico', async () => {
-    mockUseIdosos.mockReturnValue(listaPerfilIdoso)
-    fetchMock.mockResolvedValue(respostaJson(200, { registros: [] }))
-    const user = userEvent.setup()
+  it('o histórico carrega sozinho, sem botão "Ver histórico", e o idoso vê Editar e Remover', async () => {
+    simularApi(respostaJson(200, {}), [
+      { id: 7, tipo_medicao: 'pressao', valor_1: 120, valor_2: 80, unidade: 'mmHg', data_hora: '2026-09-24T12:00:00.000Z' },
+    ])
     renderizarSaude()
 
-    const verificarSemEdicao = () => {
-      expect(screen.queryByText(/editar meu registro/i)).not.toBeInTheDocument()
-      expect(screen.queryByText(/editar registro do idoso/i)).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /salvar alterações/i })).not.toBeInTheDocument()
-    }
+    expect(await screen.findByText('pressao')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ver histórico/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editar registro de pressao' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remover registro de pressao' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /salvar alterações/i })).not.toBeInTheDocument()
+  })
 
-    verificarSemEdicao()
-    await user.click(secaoPeloTitulo(/histórico de saúde/i).getByRole('button', { name: /ver histórico/i }))
-    expect(await screen.findByText(/nenhum registro encontrado/i)).toBeInTheDocument()
-    verificarSemEdicao()
+  it('depois de registrar a leitura própria, a lista recarrega sozinha', async () => {
+    simularApi(respostaJson(201, { id: 55 }))
+    const user = userEvent.setup()
+    renderizarSaude()
+    await screen.findByText(/nenhum registro encontrado/i)
+    const s = secaoPeloTitulo(/registrar leitura de saúde/i)
+
+    await user.type(s.getByLabelText('Tipo de medição'), 'peso')
+    await user.type(s.getByLabelText('Valor 1', { exact: true }), '70')
+    await user.type(s.getByLabelText('Unidade'), 'kg')
+    await user.click(s.getByRole('button', { name: /^registrar leitura$/i }))
+    await screen.findByText(/leitura registrada com sucesso/i)
+
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([, o]) => (o?.method ?? 'GET') === 'GET')).toHaveLength(2),
+    )
   })
 })
 
@@ -116,7 +143,7 @@ describe('Saude — registrar minha saúde', () => {
   })
 
   it('envia POST /saude com números, data e autenticação', async () => {
-    fetchMock.mockResolvedValue(respostaJson(201, { id: 55 }))
+    simularApi(respostaJson(201, { id: 55 }))
     const user = userEvent.setup()
     renderizarSaude()
     const s = secaoPeloTitulo(/registrar leitura de saúde/i)
@@ -130,8 +157,8 @@ describe('Saude — registrar minha saúde', () => {
     })
     await user.click(s.getByRole('button', { name: /^registrar leitura$/i }))
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
-    const [url, opcoes] = (global.fetch as jest.Mock).mock.calls[0]
+    await screen.findByText(/leitura registrada com sucesso/i)
+    const [url, opcoes] = chamada('POST')
     const corpo = JSON.parse(opcoes.body)
     expect(url).toMatch(/\/saude$/)
     expect(opcoes.method).toBe('POST')
@@ -150,7 +177,7 @@ describe('Saude — registrar minha saúde', () => {
   })
 
   it('mostra mensagem de erro retornada pela API', async () => {
-    fetchMock.mockResolvedValue(respostaJson(400, { error: 'valor_1 inválido.' }))
+    simularApi(respostaJson(400, { error: 'valor_1 inválido.' }))
     const user = userEvent.setup()
     renderizarSaude()
     const s = secaoPeloTitulo(/registrar leitura de saúde/i)
@@ -178,7 +205,7 @@ describe('Saude — registrar saúde do idoso', () => {
   })
 
   it('envia POST /saude/idoso/:id', async () => {
-    fetchMock.mockResolvedValue(respostaJson(201, { id: 77 }))
+    simularApi(respostaJson(201, { id: 77 }))
     const user = userEvent.setup()
     renderizarSaude()
     const s = secaoPeloTitulo(/registrar saúde do idoso/i)
@@ -187,62 +214,63 @@ describe('Saude — registrar saúde do idoso', () => {
     await user.type(s.getByLabelText('Valor 1', { exact: true }), '95')
     await user.type(s.getByLabelText('Unidade'), 'mg/dL')
     await user.click(s.getByRole('button', { name: /registrar leitura do idoso/i }))
-    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
-    const [url, opcoes] = (global.fetch as jest.Mock).mock.calls[0]
+    await screen.findByText(/leitura registrada com sucesso/i)
+    const [url, opcoes] = chamada('POST')
     expect(url).toMatch(/\/saude\/idoso\/5$/)
-    expect(opcoes.method).toBe('POST')
     expect(JSON.parse(opcoes.body)).toMatchObject({ valor_1: 95 })
     expect(JSON.parse(opcoes.body)).not.toHaveProperty('idoso_id')
   })
 })
 
 describe('Saude — histórico', () => {
-  it('idoso consulta GET /saude sem seletor', async () => {
-    fetchMock.mockResolvedValue(respostaJson(200, {
-      registros: [{ id: 7, tipo_medicao: 'pressao', valor_1: 120, valor_2: 80, unidade: 'mmHg', data_hora: '2026-09-24T12:00:00.000Z' }],
-    }))
-    const user = userEvent.setup()
+  const REGISTRO = { id: 7, tipo_medicao: 'pressao', valor_1: 120, valor_2: 80, unidade: 'mmHg', data_hora: '2026-09-24T12:00:00.000Z' }
+
+  it('idoso: GET /saude ao abrir, sem seletor e sem botão', async () => {
+    simularApi(respostaJson(200, {}), [REGISTRO])
     renderizarSaude()
     const s = secaoPeloTitulo(/histórico de saúde/i)
+
     expect(s.queryByRole('combobox')).not.toBeInTheDocument()
-    await user.click(s.getByRole('button', { name: /ver histórico/i }))
     expect(await s.findByText('pressao')).toBeInTheDocument()
-    const [url, opcoes] = (global.fetch as jest.Mock).mock.calls[0]
+    const [url, opcoes] = chamada('GET')
     expect(url).toMatch(/\/saude$/)
     expect(opcoes.method).toBe('GET')
   })
 
-  it('familiar consulta GET /saude/idoso/:id', async () => {
+  it('familiar: pré-seleciona o primeiro idoso e já carrega GET /saude/idoso/:id', async () => {
     mockUseAcesso.mockReturnValue({ tipoPerfil: 'familiar' })
     mockUseIdosos.mockReturnValue(listaFamiliar)
-    fetchMock.mockResolvedValue(respostaJson(200, { registros: [] }))
-    const user = userEvent.setup()
+    simularApi(respostaJson(200, {}), [REGISTRO])
     renderizarSaude()
     const s = secaoPeloTitulo(/histórico de saúde/i)
-    await user.selectOptions(s.getByLabelText('Idoso'), '8')
-    await user.click(s.getByRole('button', { name: /ver histórico/i }))
-    expect(await s.findByText(/nenhum registro encontrado/i)).toBeInTheDocument()
-    expect((global.fetch as jest.Mock).mock.calls[0][0]).toMatch(/\/saude\/idoso\/8$/)
-  })
 
-  it('pré-seleciona o primeiro idoso no histórico, sem campo de ID', () => {
-    mockUseAcesso.mockReturnValue({ tipoPerfil: 'familiar' })
-    mockUseIdosos.mockReturnValue(listaFamiliar)
-    renderizarSaude()
-    const s = secaoPeloTitulo(/histórico de saúde/i)
     expect(s.getByLabelText('Idoso')).toHaveValue('5')
     expect(s.queryByLabelText(/ID do idoso/i)).not.toBeInTheDocument()
+    expect(await s.findByText('pressao')).toBeInTheDocument()
+    expect(chamada('GET')[0]).toMatch(/\/saude\/idoso\/5$/)
   })
 
-  it('sem idosos vinculados desabilita consulta', async () => {
+  it('familiar: trocar o idoso recarrega pelo caminho do novo idoso', async () => {
     mockUseAcesso.mockReturnValue({ tipoPerfil: 'familiar' })
-    mockUseIdosos.mockReturnValue(listaSemIdosos)
+    mockUseIdosos.mockReturnValue(listaFamiliar)
     const user = userEvent.setup()
     renderizarSaude()
-    const botao = secaoPeloTitulo(/histórico de saúde/i).getByRole('button', { name: /ver histórico/i })
-    expect(botao).toBeDisabled()
-    await user.click(botao)
-    expect(global.fetch).not.toHaveBeenCalled()
+    const s = secaoPeloTitulo(/histórico de saúde/i)
+    await s.findByText(/nenhum registro encontrado/i)
+
+    await user.selectOptions(s.getByLabelText('Idoso'), '8')
+
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.map(([url]) => String(url)).some((u) => /\/saude\/idoso\/8$/.test(u))).toBe(true),
+    )
+  })
+
+  it('sem idosos vinculados não consulta a API', () => {
+    mockUseAcesso.mockReturnValue({ tipoPerfil: 'familiar' })
+    mockUseIdosos.mockReturnValue(listaSemIdosos)
+    renderizarSaude()
+
+    expect(fetchMock.mock.calls.filter(([url]) => /\/saude/.test(String(url)))).toHaveLength(0)
   })
 })
 
@@ -256,7 +284,7 @@ describe('Saude — permissões', () => {
     mockUsePermissoes.mockReturnValue({ estado: 'ok', escrita: false, avisoSemFlag: true })
     renderizarSaude()
     expect(screen.queryByRole('heading', { name: /registrar saúde do idoso/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(/não possui permissão/i)
+    expect(screen.getByText(/não possui permissão/i).closest('[role="status"]')).not.toBeNull()
   })
 
   it('com permissão mostra cadastro do idoso', () => {
@@ -281,7 +309,7 @@ describe('Saude — permissões', () => {
 
 describe('Saude — privacidade', () => {
   it('não imprime valores clínicos no console quando o cadastro falha', async () => {
-    fetchMock.mockResolvedValue(respostaJson(400, { error: 'valor inválido' }))
+    simularApi(respostaJson(400, { error: 'valor inválido' }))
     const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
       const user = userEvent.setup()

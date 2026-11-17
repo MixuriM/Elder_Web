@@ -4,7 +4,7 @@ import { chamarApi } from '../../lib/chamarApi'
 import Spinner from '../common/Spinner'
 import CampoSaude from './CampoSaude'
 
-function RegistrarMinhaSaude() {
+function RegistrarMinhaSaude({ aoRegistrar }: { aoRegistrar?: () => void }) {
   const [tipoMedicao, setTipoMedicao] = useState('')
   const [valorSaude1, setValorSaude1] = useState('')
   const [valorSaude2, setValorSaude2] = useState('')
@@ -54,6 +54,7 @@ function RegistrarMinhaSaude() {
       })
 
       setResultado(corpo)
+      aoRegistrar?.()
     } catch (err) {
       console.error(
         'Falha ao registrar leitura de saúde:',
