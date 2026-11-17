@@ -49,11 +49,11 @@ Demonstração do frontend: <https://elder-web.vercel.app>
 | Autenticação e cadastro | Cadastro e login por e-mail e senha ou Google, recuperação de senha, confirmação de e-mail, perfil escolhido no cadastro, senha validada no cadastro pela política do Firebase (mínimo de 8 caracteres, maiúscula, minúscula, número e caractere especial), aceite dos Termos e do consentimento de saúde registrado | Todos | ✅ |
 | Vínculos e permissões | Solicitação, convite, aprovação, recusa e contestação de vínculo; 3 permissões do cuidador; modo de decisão | Todos | ✅ |
 | Cadastro de idoso pelo familiar | O familiar cria a conta do idoso, com termo de responsabilidade | Familiar | ✅ |
-| Saúde | Registro e edição de medições (pressão, por exemplo), com autoria de quem registrou e de quem editou | Todos | ✅ |
-| Remédios e doses | Cadastro de medicamentos, marcação de doses (administrada, pulada, atrasada) e histórico | Todos | ✅ |
+| Saúde | Registro, edição e exclusão de medições (pressão, por exemplo), com autoria de quem registrou e de quem editou | Todos | ✅ |
+| Remédios e doses | Cadastro, edição e exclusão de medicamentos (excluir apaga as doses dele), marcação de doses (administrada, pulada, atrasada) e histórico | Todos | ✅ |
 | Histórico em PDF | Download do histórico de saúde e de remédios | Todos | ✅ |
 | Agenda | Compromissos pessoais, médicos e de cuidado, em calendário (mês e dia) e em lista, no fuso de Brasília | Todos | ✅ |
-| Alimentação | Registro de refeições e histórico | Todos | ✅ |
+| Alimentação | Registro, edição e exclusão de refeições e histórico | Todos | ✅ |
 | Aviso de emergência | Botão no cabeçalho do idoso que envia e-mail aos vínculos aprovados com e-mail confirmado, e atalho para ligar 192 | Idoso | ✅ |
 | Perfil e foto | Dados da conta, situação do e-mail e foto de perfil (inclusive HEIC de iPhone, convertida no navegador) | Todos | ✅ |
 | Exclusão de conta | O próprio usuário apaga a conta no Perfil: digita `EXCLUIR`, reautentica (login de até 5 minutos) e a conta é anonimizada; os dados de saúde do idoso são apagados | Todos | ✅ |
@@ -99,12 +99,12 @@ Um cuidador só acessa as ferramentas do idoso depois de vinculado formalmente a
 
 | Módulo | Idoso | Cuidador vinculado | Familiar vinculado |
 |---|---|---|---|
-| Saúde | Lê, registra e edita | Lê; registra e edita só com `permite_registrar_saude` | Lê; registra e edita só com modo de decisão `familiar` |
-| Remédios | Lê e cadastra | Lê; nunca cadastra | Lê; cadastra só com modo de decisão `familiar` |
+| Saúde | Lê, registra, edita e exclui | Lê; registra com `permite_registrar_saude`; edita e exclui só o que ele mesmo registrou, com a mesma permissão | Lê; registra, edita e exclui só com modo de decisão `familiar` |
+| Remédios | Lê, cadastra, edita e exclui | Lê; nunca cadastra, edita nem exclui | Lê; cadastra, edita e exclui só com modo de decisão `familiar` |
 | Doses | Marca | Marca só com `permite_marcar_dose` | Marca só com modo de decisão `familiar` |
 | Histórico em PDF | Baixa o próprio | Baixa, com vínculo aprovado | Baixa, com vínculo aprovado |
 | Agenda | Lê e cria compromissos pessoais e médicos | Lê; cria só compromissos de cuidado, com `permite_criar_evento_cuidado` | Lê; cria só compromissos pessoais e médicos, com modo de decisão `familiar` |
-| Alimentação | Lê e registra | Lê; nunca registra | Lê; registra só com modo de decisão `familiar` |
+| Alimentação | Lê, registra, edita e exclui | Lê; nunca registra, edita nem exclui | Lê; registra, edita e exclui só com modo de decisão `familiar` |
 | Aviso de emergência | Dispara | Não | Não |
 
 ## Arquitetura
@@ -269,7 +269,7 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 
 | Comando | O que cobre | Onde roda | Pré-requisitos |
 |---|---|---|---|
-| `npm test` em `backend/` | 74 suítes e 3553 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
+| `npm test` em `backend/` | 77 suítes e 4045 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
 | `npm run test:coverage` em `backend/` | Os mesmos testes, com limiares de cobertura | CI | Nenhum |
 | `npm test` em `frontend/` | 114 suítes e 1374 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
 | `npm audit --omit=dev` | Avisos de segurança nas dependências de produção (backend a partir de `low`, frontend a partir de `critical`) | CI | Nenhum |
@@ -305,7 +305,7 @@ As migrations não rodam no deploy. Elas são aplicadas à mão, de uma máquina
 ## API
 
 <details>
-<summary>49 rotas classificadas (lista oficial em <code>ROTAS_ESPERADAS</code>)</summary>
+<summary>59 rotas classificadas (lista oficial em <code>ROTAS_ESPERADAS</code>)</summary>
 
 A lista completa, com o perfil e a regra de ator de cada rota, está em `ROTAS_ESPERADAS`, em `backend/src/routes/autorizacaoRotas.test.ts`. Rotas com `:idosoId` exigem vínculo aprovado do usuário com aquele idoso.
 
@@ -315,13 +315,13 @@ A lista completa, com o perfil e a regra de ator de cada rota, está em `ROTAS_E
 | Sincronização | `POST /auth/sync` | Token do Firebase |
 | Usuário | `GET`, `PATCH` e `DELETE /usuario/me`, `GET`, `POST` e `DELETE /usuario/me/foto`, `PATCH /usuario/me/modo-decisao`, `POST /usuario/cadastrar-idoso` | Autenticada |
 | Vínculo | `GET /vinculo`; `POST /vinculo/solicitar-cuidador`, `solicitar-familiar`, `convidar-familiar`, `convidar-cuidador`; `POST /vinculo/:id/aprovar`, `recusar`, `aceitar-convite`, `recusar-convite`, `contestar`, `solicitar-transferencia-decisao`, `confirmar-transferencia-decisao`; `PATCH /vinculo/:id/definir-permissoes` | Autenticada, com a regra de ator no servidor |
-| Saúde | `POST` e `GET /saude`, `PATCH /saude/:id` | Só o idoso (próprios dados) |
-| Saúde de um idoso | `GET` e `POST /saude/idoso/:idosoId`, `PATCH /saude/idoso/:idosoId/:id` | Vínculo aprovado; escrita conforme permissões |
-| Remédios | `POST` e `GET /remedios`, `POST /remedios/:medicamentoId/doses` | Só o idoso |
-| Remédios de um idoso | `GET` e `POST /remedios/idoso/:idosoId`, `POST /remedios/idoso/:idosoId/:medicamentoId/doses` | Vínculo aprovado; escrita conforme permissões |
+| Saúde | `POST` e `GET /saude`, `PATCH` e `DELETE /saude/:id` | Só o idoso (próprios dados) |
+| Saúde de um idoso | `GET` e `POST /saude/idoso/:idosoId`, `PATCH` e `DELETE /saude/idoso/:idosoId/:id` | Vínculo aprovado; escrita conforme permissões |
+| Remédios | `POST` e `GET /remedios`, `PATCH` e `DELETE /remedios/:medicamentoId`, `POST /remedios/:medicamentoId/doses` | Só o idoso |
+| Remédios de um idoso | `GET` e `POST /remedios/idoso/:idosoId`, `PATCH` e `DELETE /remedios/idoso/:idosoId/:medicamentoId`, `POST /remedios/idoso/:idosoId/:medicamentoId/doses` | Vínculo aprovado; escrita conforme permissões |
 | Histórico em PDF | `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf` | Idoso; vínculo aprovado |
 | Agenda | `POST` e `GET /agenda`, `POST` e `GET /agenda/idoso/:idosoId` | Idoso; vínculo aprovado |
-| Alimentação | `POST` e `GET /alimentacao`, `POST` e `GET /alimentacao/idoso/:idosoId` | Idoso; vínculo aprovado |
+| Alimentação | `POST` e `GET /alimentacao`, `PATCH` e `DELETE /alimentacao/:id`, `POST` e `GET /alimentacao/idoso/:idosoId`, `PATCH` e `DELETE /alimentacao/idoso/:idosoId/:id` | Idoso; vínculo aprovado |
 | Emergência | `POST /emergencia/avisar` | Só o idoso |
 | Demonstração | `GET /demo/estado`, `POST /demo/entrar-como`, `POST /demo/restaurar` | Token do Firebase de administrador; 404 com o modo desligado |
 
