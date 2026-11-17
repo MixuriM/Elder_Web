@@ -10,7 +10,7 @@ const AJUDA = [
 ]
 
 const ESTILO_LINK = `
-  inline-flex min-h-10 items-center
+  inline-flex min-h-11 items-center
   rounded-md text-sm
   text-slate-600
   transition-colors duration-200
@@ -112,7 +112,7 @@ function Footer() {
               Explore
             </h2>
 
-            <ul className="flex flex-col items-center sm:items-start">
+            <ul className="flex flex-col items-center gap-2 sm:items-start">
               {AJUDA.map((item) => (
                 <li key={item.caminho}>
                   <Link
@@ -146,7 +146,7 @@ function Footer() {
               Informações legais
             </h2>
 
-            <ul className="flex flex-col items-center sm:items-start">
+            <ul className="flex flex-col items-center gap-2 sm:items-start">
               {DOCUMENTOS_LEGAIS.map((documento) => (
                 <li key={documento.caminho}>
                   <Link
@@ -176,7 +176,7 @@ function Footer() {
           className="
             flex flex-col items-center
             justify-between gap-2
-            text-center text-xs
+            text-center text-sm
             text-slate-500
             sm:flex-row sm:text-left
             dark:text-[#A9A6BC]

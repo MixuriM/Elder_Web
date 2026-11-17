@@ -196,7 +196,7 @@ function SobreCard({
                   overflow-hidden rounded-xl
                   bg-[#EAE6FF]
                   dark:bg-[#25243B]
-                  md:max-w-[640px]
+                  md:w-1/2 md:max-w-[640px] md:shrink-0
                 "
               >
                 {fotoEquipe.foto ? (
