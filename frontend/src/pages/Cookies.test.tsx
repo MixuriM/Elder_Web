@@ -58,6 +58,7 @@ const CHAVES = [
   'reduzirMovimento',
   'agendaVisao',
   'agendaModo',
+  'avisoCookies',
   'elderweb:fotoPerfil',
   'elder-preload-recarregado',
   'firebaseLocalStorageDb',
@@ -331,14 +332,16 @@ describe('Política de Cookies', () => {
     )
   })
 
-  it('não apresenta banner de consentimento', () => {
-    renderPagina()
+  it('não oferece aceitar nem recusar: o aviso do site é só informativo, com o botão Entendi', () => {
+    const { container } = renderPagina()
 
     expect(
       screen.queryByRole('button', {
         name: /aceitar|recusar/i,
       }),
     ).not.toBeInTheDocument()
+    expect(container.textContent).toMatch(/botão "Entendi"/i)
+    expect(container.textContent).toMatch(/não há cookie opcional/i)
   })
 
   // ========================================

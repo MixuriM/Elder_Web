@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
+import AvisoCookies from './components/AvisoCookies'
 import LimiteErro from './components/LimiteErro'
 import RotaComVinculo from './components/RotaComVinculo'
 import { FotoPerfilProvider } from './contexts/FotoPerfilContext'
@@ -109,6 +110,8 @@ function App() {
     </Routes>
     </Suspense>
     </LimiteErro>
+    {/* Fora do LimiteErro: um erro de tela não esconde o aviso, e ele vale em todas as páginas. */}
+    <AvisoCookies />
     </FotoPerfilProvider>
   )
 }
