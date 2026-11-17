@@ -374,7 +374,6 @@ test("responsivo: telas autenticadas (idoso, cuidador e familiar com dados de pi
       });
       for (const visao of ["Lista", "Calendário Mês", "Calendário Dia"]) {
         await emTela(ctx, "/agenda", `${tipoPerfil} /agenda ${visao}`, async (p) => {
-          await p.getByRole("button", { name: "Ver agenda" }).click();
           const [ver, modo] = visao.split(" ");
           await p.getByRole("radio", { name: ver }).check();
           if (modo) await p.getByRole("radio", { name: modo }).check();
@@ -441,7 +440,6 @@ test("responsivo: telas autenticadas (idoso, cuidador e familiar com dados de pi
     await fotosDesktop(contas.idoso.context, "/Home", "desktop idoso /Home");
     await fotosDesktop(contas.idoso.context, "/agenda", "desktop idoso /agenda");
     await fotosDesktop(contas.idoso.context, "/agenda", "desktop idoso /agenda Lista", async (p) => {
-      await p.getByRole("button", { name: "Ver agenda" }).click();
       await p.getByRole("radio", { name: "Lista" }).check();
     });
     await fotosDesktop(contas.idoso.context, "/alimentacao", "desktop idoso /alimentacao");
@@ -449,6 +447,8 @@ test("responsivo: telas autenticadas (idoso, cuidador e familiar com dados de pi
 
     await emTela(idoso, "/Home", "idoso BotaoAjuda", (p) => abrirDialogo(p, /preciso de ajuda/i));
     await emTela(idoso, "/remedios", "idoso ModalMedicamento", (p) => abrirDialogo(p, "Adicionar medicamento"));
+    await emTela(idoso, "/remedios", "idoso ModalEditarMedicamento", (p) => abrirDialogo(p, /^editar medicamento/i));
+    await emTela(idoso, "/agenda", "idoso ModalCriarCompromisso", (p) => abrirDialogo(p, "Criar compromisso"));
     await emTela(idoso, "/remedios", "idoso ModalMarcarDose", (p) => abrirDialogo(p, /marcar dose/i));
     await emTela(cuidador, "/remedios", "cuidador ModalMarcarDose", (p) => abrirDialogo(p, /marcar dose/i));
     await emTela(idoso, "/familia", "idoso ConvidarFamiliar", (p) => abrirDialogo(p, "Adicionar pessoa"));

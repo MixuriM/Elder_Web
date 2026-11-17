@@ -113,21 +113,6 @@ async function cronometrar(p: Page, acao: () => Promise<void>, pronto: () => Pro
 
 const ESPERA = 120_000;
 
-// Históricos só carregam no clique (Saúde, Alimentação, Agenda): do clique até o botão deixar de dizer "Carregando", ou
-// seja, download do JSON inteiro (rede 3G) mais a renderização da lista (CPU 4x).
-async function carregarHistorico(p: Page, rotulo: string) {
-  const botao = p.getByRole("button", { name: rotulo, exact: true });
-  return cronometrar(
-    p,
-    () => botao.click({ timeout: ESPERA }),
-    async () => {
-      const ocupado = p.getByRole("button", { name: /carregando/i });
-      await expect(ocupado).toHaveCount(1, { timeout: ESPERA });
-      await expect(ocupado).toHaveCount(0, { timeout: ESPERA });
-    },
-  );
-}
-
 const backend = (args: string[]) =>
   execFileSync("npx", ["tsx", "scripts/medir-desempenho.ts", ...args], {
     cwd: "../backend",
@@ -176,7 +161,6 @@ test("desempenho das telas (Fast 3G, CPU 4x, 5 rodadas)", async ({ browser }) =>
         "/agenda",
         tipoPerfil === "idoso"
           ? {
-              ver_agenda_ms: (p) => carregarHistorico(p, "Ver agenda"),
               proximo_mes_ms: async (p) => {
                 const titulo = p.locator("#titulo_mes_calendario");
                 const antes = await titulo.textContent({ timeout: ESPERA });
@@ -192,9 +176,9 @@ test("desempenho das telas (Fast 3G, CPU 4x, 5 rodadas)", async ({ browser }) =>
             }
           : undefined,
       );
-      await medirTela(`${tipoPerfil} Saúde`, ctx, "/saude", tipoPerfil === "idoso" ? { ver_historico_ms: (p) => carregarHistorico(p, "Ver histórico") } : undefined);
+      await medirTela(`${tipoPerfil} Saúde`, ctx, "/saude");
       await medirTela(`${tipoPerfil} Remédios`, ctx, "/remedios");
-      await medirTela(`${tipoPerfil} Alimentação`, ctx, "/alimentacao", tipoPerfil === "idoso" ? { ver_historico_ms: (p) => carregarHistorico(p, "Ver histórico alimentar") } : undefined);
+      await medirTela(`${tipoPerfil} Alimentação`, ctx, "/alimentacao");
       await medirTela(`${tipoPerfil} Vínculos`, ctx, tipoPerfil === "cuidador" ? "/cuidadores" : "/familia");
       await medirTela(`${tipoPerfil} Perfil`, ctx, "/perfil");
     }
