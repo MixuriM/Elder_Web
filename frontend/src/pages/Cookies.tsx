@@ -1,5 +1,6 @@
-// Política de Cookies e armazenamento no navegador. Sem banner: o Elder Web não cria cookies nem usa rastreador
-// (conferido em 14/10/2026). Chave nova de storage: entra na tabela e em lib/armazenamentoDocumentado.test.ts.
+// Política de Cookies e armazenamento no navegador. O Elder Web não cria cookies nem usa rastreador (conferido em 14/10/2026) e
+// mostra só um aviso informativo (components/AvisoCookies.tsx, desde 17/11/2026), sem aceitar nem recusar: não há cookie opcional.
+// Chave nova de storage: entra na tabela e em lib/armazenamentoDocumentado.test.ts.
 import type { ReactNode } from 'react'
 
 import PaginaLegal, { LinkContato, LinkExterno, LinkInterno, Lista, Secao, Tabela } from '../components/Legal/PaginaLegal'
@@ -8,7 +9,7 @@ import { URL_PRIVACIDADE_FIREBASE, URL_PRIVACIDADE_GOOGLE } from '../lib/documen
 const RESUMO = [
   'O Elder Web não cria cookies próprios e não usa cookies de publicidade nem de estatística.',
   'O site guarda no seu navegador só o necessário: suas preferências de tela, a sessão de login e uma cópia da sua foto.',
-  'Por isso não mostramos aviso para aceitar cookies: não há nada opcional para aceitar.',
+  'Mostramos só um aviso, com o botão "Entendi", e guardamos que você já o viu. Não há cookie opcional para aceitar ou recusar.',
   'Você pode apagar tudo isso nas configurações do navegador.',
 ]
 
@@ -24,6 +25,7 @@ const ITENS: ReactNode[][] = [
   [c('reduzirMovimento'), LOCAL, 'Lembrar se você quer menos animações.', ATE_APAGAR, ELDER],
   [c('agendaVisao'), LOCAL, 'Lembrar se a Agenda aparece como calendário ou como lista.', ATE_APAGAR, ELDER],
   [c('agendaModo'), LOCAL, 'Lembrar se o calendário da Agenda mostra o mês ou o dia.', ATE_APAGAR, ELDER],
+  [c('avisoCookies'), LOCAL, 'Lembrar que você já viu o aviso de cookies, para ele não aparecer de novo.', ATE_APAGAR, ELDER],
   [
     c('elderweb:fotoPerfil'),
     LOCAL,

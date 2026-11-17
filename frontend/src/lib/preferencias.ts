@@ -76,3 +76,14 @@ export function lerVisaoAgenda(): { visao: VisaoAgenda; modo: ModoCalendario } {
 export function salvarVisaoAgenda(chave: 'agendaVisao' | 'agendaModo', valor: VisaoAgenda | ModoCalendario) {
   gravar(chave, valor)
 }
+
+// Aviso de cookies: o Elder Web só guarda o necessário e não há cookie opcional, então é um aviso com "Entendi", sem aceitar nem
+// recusar. Só lembra, neste navegador, que a pessoa já viu (chave documentada em pages/Cookies.tsx).
+export function avisoCookiesVisto(): boolean {
+  return ler('avisoCookies') === 'sim'
+}
+
+// Devolve se conseguiu guardar no navegador; sem storage, o aviso só some até fechar a página.
+export function marcarAvisoCookiesVisto(): boolean {
+  return gravar('avisoCookies', 'sim')
+}

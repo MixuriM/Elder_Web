@@ -299,7 +299,7 @@ describe('Política de Privacidade', () => {
       ),
     ).toBeInTheDocument()
 
-    expect(VERSAO_DOCUMENTOS).toBe('1.2')
+    expect(VERSAO_DOCUMENTOS).toBe('1.3')
   })
 
   // ========================================

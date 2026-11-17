@@ -1,4 +1,12 @@
-import { aplicarPreferencias, lerPreferencias, lerVisaoAgenda, salvarPreferencia, salvarVisaoAgenda } from './preferencias'
+import {
+  aplicarPreferencias,
+  avisoCookiesVisto,
+  lerPreferencias,
+  lerVisaoAgenda,
+  marcarAvisoCookiesVisto,
+  salvarPreferencia,
+  salvarVisaoAgenda,
+} from './preferencias'
 
 function midia(reduzir: boolean, escuro = false) {
   window.matchMedia = ((query: string) => ({
@@ -113,5 +121,33 @@ describe('visão da Agenda', () => {
     })
     expect(() => salvarVisaoAgenda('agendaVisao', 'lista')).not.toThrow()
     expect(lerVisaoAgenda().visao).toBe('lista')
+  })
+})
+
+describe('aviso de cookies', () => {
+  it('sem nada salvo, ainda não foi visto', () => {
+    expect(avisoCookiesVisto()).toBe(false)
+  })
+
+  it('marcar guarda "sim" na chave avisoCookies e passa a valer como visto', () => {
+    expect(marcarAvisoCookiesVisto()).toBe(true)
+    expect(localStorage.getItem('avisoCookies')).toBe('sim')
+    expect(avisoCookiesVisto()).toBe(true)
+  })
+
+  it('valor desconhecido não conta como visto', () => {
+    localStorage.setItem('avisoCookies', 'talvez')
+    expect(avisoCookiesVisto()).toBe(false)
+  })
+
+  it('storage bloqueado: marcar devolve false, vale até fechar a página e nada lança', () => {
+    jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('bloqueado')
+    })
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('bloqueado')
+    })
+    expect(marcarAvisoCookiesVisto()).toBe(false)
+    expect(avisoCookiesVisto()).toBe(true)
   })
 })

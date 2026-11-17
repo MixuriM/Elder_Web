@@ -13,9 +13,9 @@
 // VERSÃO DOS DOCUMENTOS
 // ==========================================
 
-export const VERSAO_DOCUMENTOS = '1.2'
+export const VERSAO_DOCUMENTOS = '1.3'
 
-export const DATA_ATUALIZACAO = '20 de outubro de 2026'
+export const DATA_ATUALIZACAO = '17 de novembro de 2026'
 
 // ==========================================
 // CONTATO DE SUPORTE
