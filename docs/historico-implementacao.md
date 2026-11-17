@@ -3212,11 +3212,15 @@ abertos (contraste claro e escuro) e o `responsivo.spec.ts` captura os modais no
 
 **Verificação do Lote G (feita nesta tarefa, SQL Server local em `localhost:14330`, sem tocar o Azure).** `npm run test:a11y`: 17
 testes passando (inclui o autenticado dos 3 perfis); o spec com os 4 modais abertos também passou, só com `incomplete` do axe em
-gradiente. `npm run test:responsivo`: o autenticado passou depois dos ajustes acima; os testes de telas públicas (`/`, `/sobre-nos`,
-`/orientacoes`, `/privacidade`, `/termos`, `/cookies`) seguem falhando em texto pequeno, alvo pequeno e estouro, em páginas que este
-trabalho não tocou (não foi comparado com a `main` antes). Capturas conferidas a olho: Saúde em 360 escuro, Alimentação em 768 claro
-e 1440 escuro, Agenda lista em 1440 escuro e o modal de registrar saúde em 360 escuro. Contas criadas no Firebase: cerca de 22
-(`e2e-*@e2e.elderweb.test`), a limpar com `scripts/limpar-contas-e2e.ts`.
+gradiente. `npm run test:responsivo`: o autenticado passou depois dos ajustes acima. Os testes de telas públicas falhavam em páginas que este
+trabalho não tocava (`/` e `/orientacoes`: links do rodapé com 40 px e sem folga e texto de 12 px; `/sobre-nos` a 768 px: o card da
+equipe empurrava o texto para fora; `/privacidade`, `/termos` e `/cookies` a 320 px com texto muito grande: `HeroLegal` sem
+`grid-cols-1`). Corrigidos num commit à parte (rodapé `min-h-11`, `gap-2` e `text-sm`; foto da equipe com `md:w-1/2`; `grid-cols-1`
+e `min-w-0` no `HeroLegal`) e o teste de telas públicas passou. Capturas conferidas a olho: Saúde em 360 escuro, Alimentação em 768 claro
+e 1440 escuro, Agenda lista em 1440 escuro e o modal de registrar saúde em 360 escuro. Contas criadas no Firebase: 22
+(`e2e-*@e2e.elderweb.test`), todas apagadas com `scripts/limpar-contas-e2e.ts --confirmo-firebase` (22 apagadas, 0 falhas; uma nova
+simulação deu 0). O check CodeQL do PR #238 falhou com 4 alertas `js/missing-rate-limiting` nas rotas novas de agenda; foram dispensados
+como falso positivo (o `requireAuth` aplica o limite geral por usuário, que o CodeQL não reconhece), como na regra vigente.
 
 **Trechos movidos do CLAUDE.md (2026-11-17)**, para o arquivo ficar com folga abaixo de 30.000 bytes. Textos originais:
 
