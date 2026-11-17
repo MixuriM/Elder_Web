@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireVinculoAprovado } from "../middleware/requireVinculoAprovado";
 import { resolverModoDecisao } from "./vinculo";
+import type { Vinculo } from "@prisma/client";
 
 const router = Router();
 
@@ -121,22 +122,25 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-// Item 5.1 (RF-011): familiar cadastra medicamento do idoso vinculado. Regra fixa de ator: cuidador
-// nunca cria, com qualquer vínculo e qualquer flag permite_*. Exige tipo_vinculo E tipo_perfil do
-// chamador 'familiar' (o segundo vale mesmo se a convenção de tipo_vinculo do middleware quebrar) e
-// modo_decisao efetivo 'familiar' (via resolver, nunca a coluna). Ordem: 401, 400 (idosoId), 403
+// Autoridade de escrita sobre medicamento do idoso do vínculo (criar, editar e excluir: a mesma regra). Regra fixa de
+// ator: cuidador nunca, com qualquer vínculo e qualquer flag permite_*, e o resolver nunca é chamado para ele. Exige
+// tipo_vinculo E tipo_perfil do chamador 'familiar' (o segundo vale mesmo se a convenção de tipo_vinculo do middleware
+// quebrar) e modo_decisao efetivo 'familiar' (via resolver, nunca a coluna).
+async function familiarPodeGerirMedicamento(vinculo: Vinculo, usuarioId: number): Promise<boolean> {
+  if (vinculo.tipo_vinculo !== "familiar") return false;
+  const chamador = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { tipo_perfil: true },
+  });
+  return chamador?.tipo_perfil === "familiar" && (await resolverModoDecisao(vinculo.idoso_id)) === "familiar";
+}
+
+// Item 5.1 (RF-011): familiar cadastra medicamento do idoso vinculado. Ordem: 401, 400 (idosoId), 403
 // (vínculo), 403 (ator ou modo_decisao), 400 (corpo). 403 genérico, sem citar o motivo.
 router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
   try {
     const vinculo = req.vinculoAprovado;
-    if (!vinculo || vinculo.tipo_vinculo !== "familiar") {
-      return res.status(403).json({ error: MSG_403 });
-    }
-    const chamador = await prisma.usuario.findUnique({
-      where: { id: req.usuarioId },
-      select: { tipo_perfil: true },
-    });
-    if (chamador?.tipo_perfil !== "familiar" || (await resolverModoDecisao(vinculo.idoso_id)) !== "familiar") {
+    if (!vinculo || !(await familiarPodeGerirMedicamento(vinculo, req.usuarioId))) {
       return res.status(403).json({ error: MSG_403 });
     }
 
@@ -154,6 +158,122 @@ router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), a
     });
 
     res.status(201).json(serializarMedicamento(m));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Fase 11 (11.1): editar e excluir medicamento. Autoridade = a de criar (idoso só o próprio; familiar por
+// familiarPodeGerirMedicamento; cuidador nunca). O medicamento é buscado com o idoso alvo no próprio where: inexistente e
+// de outro idoso colapsam no mesmo 404 (um 403 separado vazaria que o id existe). Nome e observações são dado sensível:
+// mensagens fixas, nunca com o valor enviado, e nenhum console.*. Exclusão física, sem idempotência (repetida dá 404).
+// ---------------------------------------------------------------------------------------------
+const MSG_403_EDICAO = "Sem permissão para editar medicamento.";
+const MSG_403_EXCLUSAO = "Sem permissão para excluir medicamento.";
+const MSG_404_MEDICAMENTO = "Medicamento não encontrado.";
+const MSG_ID_MEDICAMENTO = "Id de medicamento inválido.";
+const CAMPOS_MEDICAMENTO = ["nome", "dosagem", "frequencia", "data_inicio", "data_fim", "observacoes"] as const;
+
+const dia = (d: Date) => d.toISOString().slice(0, 10);
+
+// Edição parcial: campo ausente (undefined) mantém o valor atual; null explícito limpa só data_fim e observacoes (nos
+// obrigatórios o validador devolve 400). Monta o corpo completo a partir do registro e revalida com
+// validarCorpoMedicamento, então regras e mensagens são as do POST (inclusive data_fim antes de data_inicio).
+function validarCorpoEdicaoMedicamento(body: unknown, atual: MedicamentoCriado): { erro: string } | { dados: DadosMedicamento } {
+  const enviado = (body ?? {}) as Record<string, unknown>;
+  if (CAMPOS_MEDICAMENTO.every((c) => enviado[c] === undefined)) return { erro: "Nenhum campo de medicamento informado." };
+  const mesclado: Record<string, unknown> = {
+    nome: atual.nome,
+    dosagem: atual.dosagem,
+    frequencia: atual.frequencia,
+    data_inicio: dia(atual.data_inicio),
+    data_fim: atual.data_fim === null ? null : dia(atual.data_fim),
+    observacoes: atual.observacoes,
+  };
+  for (const c of CAMPOS_MEDICAMENTO) if (enviado[c] !== undefined) mesclado[c] = enviado[c];
+  return validarCorpoMedicamento(mesclado);
+}
+
+// Parte comum depois da autorização. idoso_id, criado_por_id e ativo nunca entram no update; editado_por_id é
+// sempre req.usuarioId.
+async function editarMedicamento(req: Request, res: Response, atual: MedicamentoCriado) {
+  const validado = validarCorpoEdicaoMedicamento(req.body, atual);
+  if ("erro" in validado) return res.status(400).json({ error: validado.erro });
+
+  const m = await prisma.medicamento.update({
+    where: { id: atual.id },
+    data: { ...validado.dados, editado_por_id: req.usuarioId },
+  });
+  return res.json(serializarMedicamento(m));
+}
+
+// As doses do medicamento saem junto (decisão do grupo): doses primeiro, depois o medicamento, numa única transação.
+// Se a segunda operação falha, nada é apagado. count 0 no medicamento = apagado por outra chamada entre a leitura e a
+// transação: 404, não 500.
+async function excluirMedicamento(res: Response, id: number, idosoId: number) {
+  const apagou = await prisma.$transaction(async (tx) => {
+    await tx.registroDoseMedicamento.deleteMany({ where: { medicamento_id: id } });
+    const { count } = await tx.medicamento.deleteMany({ where: { id, idoso_id: idosoId } });
+    return count > 0;
+  });
+  if (!apagou) return res.status(404).json({ error: MSG_404_MEDICAMENTO });
+  return res.status(204).end();
+}
+
+// Idoso edita ou exclui o próprio medicamento, sem consultar vínculo nem tipo_perfil (dono = idoso_id igual ao token).
+// Ordem: 401, 400 (id), 404, 400 (corpo, só PATCH), 200 ou 204.
+router.patch("/:medicamentoId", requireAuth, async (req, res, next) => {
+  try {
+    const id = idPositivo(req.params.medicamentoId);
+    if (id === null) return res.status(400).json({ error: MSG_ID_MEDICAMENTO });
+    const medicamento = await prisma.medicamento.findFirst({ where: { id, idoso_id: req.usuarioId } });
+    if (!medicamento) return res.status(404).json({ error: MSG_404_MEDICAMENTO });
+    await editarMedicamento(req, res, medicamento);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/:medicamentoId", requireAuth, async (req, res, next) => {
+  try {
+    const id = idPositivo(req.params.medicamentoId);
+    if (id === null) return res.status(400).json({ error: MSG_ID_MEDICAMENTO });
+    const medicamento = await prisma.medicamento.findFirst({ where: { id, idoso_id: req.usuarioId } });
+    if (!medicamento) return res.status(404).json({ error: MSG_404_MEDICAMENTO });
+    await excluirMedicamento(res, id, req.usuarioId);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Familiar edita ou exclui medicamento do idoso vinculado. Ordem: 401, 400 (idosoId), 403 (vínculo), 400 (id), 404,
+// 403 (ator ou modo_decisao), 400 (corpo, só PATCH), 200 ou 204. 403 genérico, sem citar flag nem modo_decisao.
+router.patch("/idoso/:idosoId/:medicamentoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EDICAO });
+    const id = idPositivo(req.params.medicamentoId);
+    if (id === null) return res.status(400).json({ error: MSG_ID_MEDICAMENTO });
+    const medicamento = await prisma.medicamento.findFirst({ where: { id, idoso_id: vinculo.idoso_id } });
+    if (!medicamento) return res.status(404).json({ error: MSG_404_MEDICAMENTO });
+    if (!(await familiarPodeGerirMedicamento(vinculo, req.usuarioId))) return res.status(403).json({ error: MSG_403_EDICAO });
+    await editarMedicamento(req, res, medicamento);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/idoso/:idosoId/:medicamentoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    const id = idPositivo(req.params.medicamentoId);
+    if (id === null) return res.status(400).json({ error: MSG_ID_MEDICAMENTO });
+    const medicamento = await prisma.medicamento.findFirst({ where: { id, idoso_id: vinculo.idoso_id } });
+    if (!medicamento) return res.status(404).json({ error: MSG_404_MEDICAMENTO });
+    if (!(await familiarPodeGerirMedicamento(vinculo, req.usuarioId))) return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    await excluirMedicamento(res, id, vinculo.idoso_id);
   } catch (e) {
     next(e);
   }
