@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireVinculoAprovado } from "../middleware/requireVinculoAprovado";
@@ -184,7 +184,7 @@ const MSG_403_EDICAO = "Sem permissão para editar registro de saúde.";
 const ID_MAX = 2147483647; // int do SQL Server: acima disso o Prisma erraria com 500
 
 // Só inteiro decimal positivo: "abc", "1.5", "-3", "0" e "1e3" viram null (400, sem consultar o banco).
-function parseIdRegistro(v: string): number | null {
+export function parseIdRegistro(v: string): number | null {
   if (!/^\d+$/.test(v)) return null;
   const n = Number(v);
   return n >= 1 && n <= ID_MAX ? n : null;
@@ -269,6 +269,56 @@ router.patch("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId
       data: { ...validado.dados, editado_por_id: req.usuarioId },
     });
     res.json(serializarRegistro(r));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Fase 11 (11.1): exclusão física de registro de saúde. Mesma autoridade da edição (podeEditarSaude), sem regra
+// copiada. O delete leva idoso_id no where (o dono do dado é sempre o idoso do vínculo) e count 0 vira 404 (registro
+// apagado entre a leitura e o delete). Sem idempotência: DELETE repetido dá 404.
+const MSG_403_EXCLUSAO = "Sem permissão para excluir registro de saúde.";
+
+async function excluirRegistroSaude(id: number, idosoId: number, res: Response) {
+  const { count } = await prisma.registroSaude.deleteMany({ where: { id, idoso_id: idosoId } });
+  if (count === 0) return res.status(404).json({ error: "Registro não encontrado." });
+  return res.status(204).end();
+}
+
+// Idoso exclui o próprio registro. Ordem: 401, 400 (id), 404 (inexistente OU de outro idoso), 204.
+router.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+
+    const registro = await prisma.registroSaude.findUnique({ where: { id } });
+    if (!registro || registro.idoso_id !== req.usuarioId) {
+      return res.status(404).json({ error: "Registro não encontrado." });
+    }
+    await excluirRegistroSaude(id, req.usuarioId, res);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Cuidador ou familiar exclui registro de um idoso vinculado. Ordem: 401, 400 (idosoId), 403 (vínculo), 400 (id),
+// 404 (inexistente OU de outro idoso), 403 (autoridade), 204. 403 genérico, sem citar flag nem modo_decisao.
+router.delete("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EXCLUSAO });
+
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+
+    const registro = await prisma.registroSaude.findUnique({ where: { id } });
+    if (!registro || registro.idoso_id !== vinculo.idoso_id) {
+      return res.status(404).json({ error: "Registro não encontrado." });
+    }
+    if (!(await podeEditarSaude(vinculo, registro))) {
+      return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    }
+    await excluirRegistroSaude(id, vinculo.idoso_id, res);
   } catch (e) {
     next(e);
   }
