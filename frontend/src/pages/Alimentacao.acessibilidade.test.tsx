@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe, toHaveNoViolations } from "jest-axe";
 import { MemoryRouter } from "react-router-dom";
@@ -8,10 +8,9 @@ import { listaUmIdoso } from "../hooks/idososFixtures";
 
 expect.extend(toHaveNoViolations);
 
-// Item 7.1: auditoria automática de acessibilidade (jest-axe) sobre o esqueleto de /alimentacao.
-// LIMITE: jsdom não calcula layout nem cor, então contraste de cor NÃO é verificado aqui
-// (regra color-contrast desligada de propósito, ver AXE). Contraste segue pendente para o item 9.1.
-// Dados abaixo são valores obviamente falsos de teste.
+// Item 7.1 e Fase 11: auditoria automática de acessibilidade (jest-axe) sobre /alimentacao e o modal de registrar.
+// LIMITE: jsdom não calcula layout nem cor, então contraste de cor NÃO é verificado aqui (regra color-contrast desligada de
+// propósito, ver AXE); o contraste é auditado por npm run test:a11y (Playwright). Dados abaixo são obviamente falsos.
 const AXE = {
   rules: {
     // jsdom não renderiza estilos computados de cor: a regra não tem como dar resultado confiável.
@@ -26,9 +25,7 @@ jest.mock("../components/Alimentacao/HistoricoAlimentar", () => ({
 }));
 
 const mockUseIdosos = jest.fn();
-jest.mock("../hooks/useIdososVinculados", () => ({
-  useIdososVinculados: () => mockUseIdosos(),
-}));
+jest.mock("../hooks/useIdososVinculados", () => ({ useIdososVinculados: () => mockUseIdosos() }));
 
 const mockGetCurrentUserToken = jest.fn();
 jest.mock("../lib/auth", () => ({
@@ -71,38 +68,76 @@ describe("jest-axe: controle positivo", () => {
 });
 
 describe("Alimentacao: acessibilidade", () => {
-  async function preencherEEnviar() {
-    const user = userEvent.setup();
-    const utils = render(<MemoryRouter><Alimentacao /></MemoryRouter>);
-    await user.type(screen.getByLabelText("Descrição", { exact: true }), "Descricao Ficticia");
-    fireEvent.change(screen.getByLabelText("Data e hora", { exact: true }), { target: { value: "2026-10-10T12:30" } });
-    await user.click(screen.getByRole("button", { name: /^registrar refeição$/i }));
-    return utils;
+  function renderPagina() {
+    return render(
+      <MemoryRouter>
+        <Alimentacao />
+      </MemoryRouter>,
+    );
   }
 
-  it("estado inicial", async () => {
-    const { container } = render(<MemoryRouter><Alimentacao /></MemoryRouter>);
+  async function abrirModal() {
+    const user = userEvent.setup();
+    const utils = renderPagina();
+    await user.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    return { user, ...utils, dialogo: screen.getByRole("dialog", { name: "Registrar refeição" }) };
+  }
+
+  async function preencherEEnviar(user: ReturnType<typeof userEvent.setup>, dialogo: HTMLElement) {
+    await user.type(within(dialogo).getByLabelText("Descrição", { exact: true }), "Almoço Ficticio");
+    fireEvent.change(within(dialogo).getByLabelText("Data e hora", { exact: true }), { target: { value: "2026-10-10T12:30" } });
+    await user.click(within(dialogo).getByRole("button", { name: /^salvar refeição$/i }));
+  }
+
+  it("estado inicial: título, botão de registrar e histórico, sem violações", async () => {
+    const { container } = renderPagina();
+
+    expect(screen.getByRole("heading", { level: 1, name: "Alimentação" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled();
     expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("modal aberto: dialog modal, foco dentro e campos rotulados, sem violações", async () => {
+    const { dialogo } = await abrirModal();
+
+    expect(dialogo).toHaveAttribute("aria-modal", "true");
+    expect(dialogo).toHaveFocus();
+    for (const rotulo of ["Refeição", "Descrição", "Data e hora"]) {
+      expect(within(dialogo).getByLabelText(rotulo, { exact: true })).toBeInTheDocument();
+    }
+    expect(await axe(dialogo, AXE)).toHaveNoViolations();
   });
 
   it("carregando (botão ocupado)", async () => {
     (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
-    const { container } = await preencherEEnviar();
-    expect(await screen.findByRole("button", { name: /registrando/i })).toHaveAttribute("aria-busy", "true");
-    expect(await axe(container, AXE)).toHaveNoViolations();
+    const { user, dialogo } = await abrirModal();
+
+    await preencherEEnviar(user, dialogo);
+
+    expect(await screen.findByRole("button", { name: /salvando/i })).toBeDisabled();
+    expect(await axe(dialogo, AXE)).toHaveNoViolations();
   });
 
-  it("sucesso em role=status visível", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 41 }));
-    const { container } = await preencherEEnviar();
-    expect(await screen.findByRole("status")).toBeVisible();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
-
-  it.each([400, 403])("erro %i em role=alert visível", async (status) => {
+  it.each([400, 403])("erro %i em role=alert visível, dentro do modal", async (status) => {
     (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
-    const { container } = await preencherEEnviar();
-    expect(await screen.findByRole("alert")).toBeVisible();
+    const { user, dialogo } = await abrirModal();
+
+    await preencherEEnviar(user, dialogo);
+
+    expect(await within(dialogo).findByRole("alert")).toBeInTheDocument();
+    expect(await axe(dialogo, AXE)).toHaveNoViolations();
+  });
+
+  it("sucesso: o modal fecha, o foco volta ao botão e o aviso é role=status", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 41 }));
+    const { user, dialogo, container } = await abrirModal();
+
+    await preencherEEnviar(user, dialogo);
+
+    expect(await screen.findByText("Refeição registrada.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Refeição registrada.").closest('[role="status"]')).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Registrar refeição" })).toHaveFocus();
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
 });

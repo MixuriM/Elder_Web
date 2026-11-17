@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, Utensils } from 'lucide-react'
 
 import { useAcesso } from '../../contexts/useAcesso'
 import { useIdososVinculados } from '../../hooks/useIdososVinculados'
@@ -9,6 +9,7 @@ import { podeAlterarOutroRegistro } from '../../lib/permissoesEdicao'
 import { caminhoRegistro, useRegistrosDoIdoso } from '../../lib/registrosDoIdoso'
 import { mensagemPorStatus } from '../Vinculos/mensagensVinculo'
 import ModalConfirmar from '../common/ModalConfirmar'
+import EstadoVazio from '../common/EstadoVazio'
 import SeletorIdoso from '../common/SeletorIdoso'
 import Spinner from '../common/Spinner'
 import ModalEditarRefeicao, { type RefeicaoParaEditar } from './ModalEditarRefeicao'
@@ -44,18 +45,20 @@ const mensagemErroHistorico = (erro: unknown) =>
       )
 
 const BOTAO =
-  'min-h-11 rounded-xl border px-5 py-2.5 font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60 dark:focus-visible:ring-offset-[#171721]'
+  'min-h-11 w-full rounded-xl border px-3 py-2.5 font-semibold transition sm:w-auto sm:px-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60 dark:focus-visible:ring-offset-[#171721]'
 
 const CAIXA_INFO =
   'mt-4 rounded-xl border border-[#E5E2F5] bg-[#F8F7FF] p-4 text-base font-medium text-[#071A38] dark:border-[#393947] dark:bg-[#20202D] dark:text-[#F5F5FA]'
 
 type Props = {
+  // Botão do cartão de lista vazia; ausente quando a pessoa não registra (cuidador).
+  onAdicionar?: () => void
   // Contador da tela pai: muda quando uma refeição nova é registrada, e a lista recarrega.
   versao?: number
 }
 
 // Item 7.2 (RF-019) e Fase 11: histórico alimentar que carrega sozinho, com Editar e Remover.
-export default function HistoricoAlimentar({ versao = 0 }: Props) {
+export default function HistoricoAlimentar({ versao = 0, onAdicionar }: Props) {
   const idosos = useIdososVinculados()
   const { vinculos } = useAcesso()
 
@@ -143,11 +146,23 @@ export default function HistoricoAlimentar({ versao = 0 }: Props) {
         </p>
       )}
 
-      {lista.registros && (
+      {lista.registros && lista.registros.length === 0 && (
+        <EstadoVazio
+          icone={<Utensils size={30} aria-hidden="true" />}
+          titulo="Nenhuma refeição registrada"
+          texto={
+            onAdicionar
+              ? 'Registre a primeira refeição para começar a acompanhar o histórico alimentar.'
+              : 'Quando uma refeição for registrada, ela aparece aqui.'
+          }
+          rotuloBotao={onAdicionar ? 'Registrar refeição' : undefined}
+          onClick={onAdicionar}
+        />
+      )}
+
+      {lista.registros && lista.registros.length > 0 && (
         <p role="status" className={CAIXA_INFO}>
-          {lista.registros.length === 0
-            ? 'Nenhuma refeição registrada.'
-            : `${lista.registros.length} registro(s) encontrado(s).`}
+          {`${lista.registros.length} registro(s) encontrado(s).`}
         </p>
       )}
 
@@ -169,7 +184,7 @@ export default function HistoricoAlimentar({ versao = 0 }: Props) {
               </p>
 
               {podeAlterar && (
-                <div className="mt-4 flex flex-wrap justify-end gap-3">
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:justify-end">
                   <button
                     type="button"
                     aria-label={`Editar refeição ${r.rotulo}`}

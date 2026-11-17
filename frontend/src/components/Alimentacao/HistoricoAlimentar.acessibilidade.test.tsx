@@ -45,8 +45,8 @@ describe('HistoricoAlimentar — acessibilidade', () => {
     render(<HistoricoAlimentar />)
 
     expect(screen.getByRole('status')).toHaveTextContent(/carregando o histórico alimentar/i)
-    expect(await screen.findByText('Nenhuma refeição registrada.')).toBeInTheDocument()
-    expect(screen.getByText('Nenhuma refeição registrada.').closest('[role="status"]')).not.toBeNull()
+    expect(await screen.findByText('Nenhuma refeição registrada')).toBeInTheDocument()
+    expect(screen.getByText('Nenhuma refeição registrada').closest('[role="status"]')).not.toBeNull()
   })
 
   it('erro de carga é anunciado com role alert', async () => {
