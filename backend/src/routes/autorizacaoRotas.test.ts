@@ -46,6 +46,9 @@ const MEDICAMENTO_A = 1; // do idoso A, ativo
 const MEDICAMENTO_B = 2; // do idoso B, ativo
 const REFEICAO_A = 1; // refeição do idoso A
 const REFEICAO_B = 2; // refeição do idoso B
+const EVENTO_A = 1; // compromisso 'pessoal' do idoso A
+const EVENTO_B = 2; // compromisso do idoso B
+const EVENTO_CUIDADO_A = 3; // compromisso 'cuidado' do idoso A, criado pelo CUIDADOR
 const MSG_VINCULO = "Vínculo aprovado não encontrado para este idoso.";
 
 type Categoria = "publica" | "token_proprio" | "autenticada" | "vinculo" | "vinculo_flag" | "registro_por_id";
@@ -65,6 +68,8 @@ type Regra = {
   // Corpo mínimo válido (cuidador pode ter corpo próprio: a agenda do cuidador só cria 'cuidado').
   corpo?: object;
   corpoCuidador?: object;
+  // Rotas de compromisso: id do compromisso que o cuidador pode mexer (o 'cuidado' criado por ele); os outros atores usam o id 1.
+  idCuidador?: number;
   // Status de sucesso quando não segue a regra POST 201 / demais 200 (ação sem recurso criado).
   statusOk?: number;
   // D5 (2026-10-14): ação sensível, autenticada por requireAuthRevogacao (checa token revogado no Firebase).
@@ -83,6 +88,8 @@ const REFEICAO = { refeicao: "almoco", descricao: "Refeicao Ficticia", data_hora
 // Fase 11 (11.1): edição parcial de refeição e de medicamento.
 const EDICAO_REFEICAO = { descricao: "Refeicao Ficticia Editada" };
 const EDICAO_MEDICAMENTO = { dosagem: "20 mg" };
+// Fase 11 (11.3): edição parcial de compromisso.
+const EDICAO_EVENTO = { titulo: "Compromisso Ficticio Editado" };
 
 const ROTAS_ESPERADAS: Regra[] = [
   { rota: "GET /health", categoria: "publica" },
@@ -187,6 +194,25 @@ const ROTAS_ESPERADAS: Regra[] = [
     corpoCuidador: EVENTO_CUIDADO,
   },
   { rota: "GET /agenda/idoso/:idosoId", categoria: "vinculo", cuidador: "leitura", familiar: "leitura" },
+  // Fase 11 (11.3): editar e excluir compromisso usam a autoridade de CRIAR (cuidador só 'cuidado' que ele criou, com a flag;
+  // familiar só com modo_decisao).
+  { rota: "PATCH /agenda/:id", categoria: "registro_por_id", corpo: EDICAO_EVENTO },
+  { rota: "DELETE /agenda/:id", categoria: "registro_por_id" },
+  {
+    rota: "PATCH /agenda/idoso/:idosoId/:id",
+    categoria: "registro_por_id",
+    cuidador: "permite_criar_evento_cuidado",
+    familiar: "modo_decisao",
+    corpo: EDICAO_EVENTO,
+    idCuidador: EVENTO_CUIDADO_A,
+  },
+  {
+    rota: "DELETE /agenda/idoso/:idosoId/:id",
+    categoria: "registro_por_id",
+    cuidador: "permite_criar_evento_cuidado",
+    familiar: "modo_decisao",
+    idCuidador: EVENTO_CUIDADO_A,
+  },
 
   { rota: "POST /alimentacao", categoria: "autenticada", soIdoso: true, corpo: REFEICAO },
   { rota: "GET /alimentacao", categoria: "autenticada", soIdoso: true },
@@ -317,7 +343,29 @@ beforeEach(() => {
     { id: MEDICAMENTO_B, idoso_id: IDOSO_B, ativo: true, ...linhaMedicamento() },
   ];
   dados.registroAlimentar = [linhaRefeicao(REFEICAO_A, IDOSO_A), linhaRefeicao(REFEICAO_B, IDOSO_B)];
+  dados.evento = [
+    linhaEvento(EVENTO_A, IDOSO_A, IDOSO_A, "pessoal"),
+    linhaEvento(EVENTO_B, IDOSO_B, IDOSO_B, "pessoal"),
+    linhaEvento(EVENTO_CUIDADO_A, IDOSO_A, CUIDADOR, "cuidado"),
+  ];
 });
+
+function linhaEvento(id: number, idoso_id: number, criado_por_id: number, tipo_evento: string): Linha {
+  const t = new Date("2026-10-01T12:00:00Z");
+  return {
+    id,
+    idoso_id,
+    criado_por_id,
+    tipo_evento,
+    titulo: "Compromisso Ficticio",
+    descricao: null,
+    data_hora_inicio: t,
+    data_hora_fim: null,
+    editado_por_id: null,
+    created_at: t,
+    updated_at: t,
+  };
+}
 
 function linhaRefeicao(id: number, idoso_id: number): Linha {
   const t = new Date("2026-10-01T12:00:00Z");
@@ -356,7 +404,7 @@ function chamar(r: Regra, o: Opcoes = {}) {
   const url = caminhoDe(r)
     .replace(":idosoId", String(o.idoso ?? IDOSO_A))
     .replace(":medicamentoId", String(o.id ?? MEDICAMENTO_A))
-    .replace(":id", String(o.id ?? 1));
+    .replace(":id", String(o.id ?? (o.authorization === bearer(CUIDADOR) ? r.idCuidador : undefined) ?? 1));
   const metodo = metodoDe(r).toLowerCase() as "get" | "post" | "patch" | "delete";
   let req = request(app)[metodo](url);
   if (o.authorization !== undefined) req = req.set("Authorization", o.authorization);
@@ -761,7 +809,7 @@ describe("F. 404 uniforme em rotas por id de registro", () => {
   const VINCULADAS_FASE_11 = ROTAS_ESPERADAS.filter(
     (r) => r.categoria === "registro_por_id" && temIdoso(r) && r.rota !== "PATCH /saude/idoso/:idosoId/:id",
   );
-  const outroDoIdoso = (r: Regra) => (r.rota.includes("/remedios/") ? MEDICAMENTO_B : r.rota.includes("/alimentacao/") ? REFEICAO_B : REGISTRO_B);
+  const outroDoIdoso = (r: Regra) => (r.rota.includes("/remedios/") ? MEDICAMENTO_B : r.rota.includes("/alimentacao/") ? REFEICAO_B : r.rota.includes("/agenda/") ? EVENTO_B : REGISTRO_B);
 
   describe.each(PROPRIAS_FASE_11.map((r) => [r.rota, r] as const))("rota própria %s", (_nome, r) => {
     it("idoso: inexistente e de outro idoso dão o mesmo 404 e o mesmo corpo, sem escrita", async () => {
