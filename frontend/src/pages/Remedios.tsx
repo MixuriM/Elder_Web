@@ -25,6 +25,10 @@ import HistoricoDoses, {
 
 import ModalMarcarDose from "../components/Remedios/ModalMarcarDose";
 import ModalMedicamento from "../components/Remedios/ModalMedicamento";
+import ModalEditarMedicamento from "../components/Remedios/ModalEditarMedicamento";
+import ModalConfirmar from "../components/common/ModalConfirmar";
+import { podeAlterarOutroRegistro } from "../lib/permissoesEdicao";
+import { caminhoRegistro } from "../lib/registrosDoIdoso";
 import { useTitulo } from "../hooks/useTitulo";
 import { useAcesso } from "../contexts/useAcesso";
 
@@ -54,8 +58,16 @@ export default function Remedios() {
   const [medicamentoSelecionado, setMedicamentoSelecionado] =
     useState<Medicamento | null>(null);
 
-  const [medicamentoDetalhes, setMedicamentoDetalhes] =
-    useState<Medicamento | null>(null);
+  // Só o id: o medicamento sai sempre da lista atual. Editar atualiza o cabeçalho; remover fecha o histórico.
+  const [detalhesId, setDetalhesId] = useState<number | null>(null);
+
+  const [medicamentoEditando, setMedicamentoEditando] =
+    useState<MedicamentoCard | null>(null);
+
+  const [medicamentoRemovendo, setMedicamentoRemovendo] =
+    useState<MedicamentoCard | null>(null);
+
+  const [aviso, setAviso] = useState<string | null>(null);
 
   const idosos = useIdososVinculados();
 
@@ -70,7 +82,7 @@ export default function Remedios() {
 
   // Regras fixas de ator (o backend recusa o resto): cuidador nunca cadastra medicamento; terceiro só marca
   // dose com a permissão do vínculo. Perfil ou permissão desconhecidos: mostra (o 403 vira mensagem).
-  const { tipoPerfil } = useAcesso();
+  const { tipoPerfil, vinculos } = useAcesso();
   const podeCadastrar = tipoPerfil !== "cuidador";
   const podeMarcarDose = ehIdoso || permissoes.estado !== "ok" || permissoes.escrita;
 
@@ -109,6 +121,18 @@ export default function Remedios() {
     void carregarMedicamentos();
   }, [carregarMedicamentos]);
 
+  const medicamentoDetalhes = medicamentos.find((item) => item.id === detalhesId) ?? null;
+
+  // Idoso sempre; familiar só com modo familiar; cuidador nunca. O 403 do servidor é a barreira real.
+  const podeAlterar = podeAlterarOutroRegistro({
+    ehIdoso,
+    tipoPerfil: tipoPerfil ?? idosos.tipoPerfil,
+    idosoId,
+    vinculos,
+  });
+
+  const caminhoDe = (medicamento: MedicamentoCard) => caminhoRegistro("/remedios", ehIdoso, idosoId, medicamento.id);
+
   function abrirDose(medicamento: MedicamentoCard) {
     const encontrado =
       medicamentos.find((item) => item.id === medicamento.id) ?? null;
@@ -123,14 +147,11 @@ export default function Remedios() {
   }
 
   function abrirDetalhes(medicamento: MedicamentoCard) {
-    const encontrado =
-      medicamentos.find((item) => item.id === medicamento.id) ?? null;
-
-    setMedicamentoDetalhes(encontrado);
+    setDetalhesId(medicamento.id);
   }
 
   function fecharDetalhes() {
-    setMedicamentoDetalhes(null);
+    setDetalhesId(null);
   }
 
   async function atualizarDepoisDaDose() {
@@ -227,9 +248,23 @@ export default function Remedios() {
             <SeletorIdoso
               id="idoso_remedios"
               valor={idosoEscolhido}
-              aoMudar={setIdosoEscolhido}
+              aoMudar={(valor) => {
+                setIdosoEscolhido(valor);
+                setAviso(null);
+              }}
               lista={idosos}
             />
+          </div>
+        )}
+
+        {/* AVISO DE SUCESSO (editar e remover) */}
+
+        {aviso && (
+          <div
+            role="status"
+            className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 font-medium text-green-800 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300"
+          >
+            {aviso}
           </div>
         )}
 
@@ -409,6 +444,8 @@ export default function Remedios() {
                   medicamento={medicamento}
                   onMarcarDose={podeMarcarDose ? abrirDose : undefined}
                   onVerDetalhes={abrirDetalhes}
+                  onEditar={podeAlterar ? setMedicamentoEditando : undefined}
+                  onRemover={podeAlterar ? setMedicamentoRemovendo : undefined}
                 />
               ))}
             </div>
@@ -509,6 +546,37 @@ export default function Remedios() {
         }}
         idosoId={idosoId || undefined}
         idosoNome={idosoNome}
+      />
+
+      {/* MODAL DE EDIÇÃO */}
+
+      <ModalEditarMedicamento
+        medicamento={medicamentoEditando}
+        caminho={medicamentoEditando ? caminhoDe(medicamentoEditando) : ""}
+        onFechar={() => setMedicamentoEditando(null)}
+        onSalvo={() => {
+          setMedicamentoEditando(null);
+          setAviso("Medicamento atualizado.");
+          void carregarMedicamentos();
+        }}
+      />
+
+      {/* CONFIRMAÇÃO DE REMOÇÃO */}
+
+      <ModalConfirmar
+        aberto={medicamentoRemovendo !== null}
+        onFechar={() => setMedicamentoRemovendo(null)}
+        titulo="Remover medicamento"
+        texto={`Remover ${medicamentoRemovendo?.nome ?? ""}? O histórico de doses dele também será apagado. Esta ação não pode ser desfeita.`}
+        onConfirmar={async () => {
+          if (!medicamentoRemovendo) return;
+
+          await chamarApi(caminhoDe(medicamentoRemovendo), { method: "DELETE" });
+
+          setMedicamentoRemovendo(null);
+          setAviso("Medicamento removido.");
+          void carregarMedicamentos();
+        }}
       />
 
       {/* MODAL DE DOSE */}
