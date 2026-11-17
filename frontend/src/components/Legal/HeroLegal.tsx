@@ -6,12 +6,12 @@ export default function HeroLegal() {
     <section
       aria-labelledby="legal-titulo"
       className="
-        grid items-center gap-8
+        grid grid-cols-1 items-center gap-8
         py-10 lg:grid-cols-[1.5fr_1fr]
         lg:gap-12 lg:py-14
       "
     >
-      <div className="space-y-5">
+      <div className="min-w-0 space-y-5">
         <span
           className="
             inline-flex items-center gap-2 rounded-full
