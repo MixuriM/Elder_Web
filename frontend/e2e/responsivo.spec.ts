@@ -429,8 +429,9 @@ test("responsivo: telas autenticadas (idoso, cuidador e familiar com dados de pi
       expect(await atributos(perfil, "#telefone")).toMatchObject({ type: "tel", autoComplete: "tel" });
       await perfil.close();
       const saude = await abrir(idoso, "/saude");
-      expect(await atributos(saude, "#unidade_saude")).toMatchObject({ autoCapitalize: "none" });
-      expect(await atributos(saude, "#valor_1_saude")).toMatchObject({ type: "number" });
+      await abrirDialogo(saude, "Registrar leitura");
+      expect(await atributos(saude, "#registrar-saude-unidade")).toMatchObject({ autoCapitalize: "none" });
+      expect(await atributos(saude, "#registrar-saude-valor1")).toMatchObject({ type: "number" });
       await saude.close();
       const remedios = await abrir(idoso, "/remedios");
       await abrirDialogo(remedios, "Adicionar medicamento");
@@ -447,6 +448,8 @@ test("responsivo: telas autenticadas (idoso, cuidador e familiar com dados de pi
 
     await emTela(idoso, "/Home", "idoso BotaoAjuda", (p) => abrirDialogo(p, /preciso de ajuda/i));
     await emTela(idoso, "/remedios", "idoso ModalMedicamento", (p) => abrirDialogo(p, "Adicionar medicamento"));
+    await emTela(idoso, "/saude", "idoso ModalRegistrarSaude", (p) => abrirDialogo(p, "Registrar leitura"));
+    await emTela(idoso, "/alimentacao", "idoso ModalRegistrarRefeicao", (p) => abrirDialogo(p, "Registrar refeição"));
     await emTela(idoso, "/remedios", "idoso ModalEditarMedicamento", (p) => abrirDialogo(p, /^editar medicamento/i));
     await emTela(idoso, "/agenda", "idoso ModalCriarCompromisso", (p) => abrirDialogo(p, "Criar compromisso"));
     await emTela(idoso, "/remedios", "idoso ModalMarcarDose", (p) => abrirDialogo(p, /marcar dose/i));
