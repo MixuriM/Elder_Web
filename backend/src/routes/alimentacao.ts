@@ -3,6 +3,8 @@ import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireVinculoAprovado } from "../middleware/requireVinculoAprovado";
 import { resolverModoDecisao } from "./vinculo";
+import { parseIdRegistro } from "./saude";
+import type { Vinculo } from "@prisma/client";
 
 const router = Router();
 
@@ -88,24 +90,130 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-// Familiar registra para o idoso vinculado. O middleware não filtra tipo_vinculo: o ator exige tipo_vinculo E
-// tipo_perfil 'familiar' E modo_decisao efetivo 'familiar' (sempre via resolver, nunca a coluna). Cuidador não
-// tem ramo de sucesso: a checagem de ator vem antes do resolver (curto-circuito), então o resolver NUNCA é
-// consultado para ele. Ordem: 401, 400 (idosoId), 403 (vínculo), 403 (ator ou modo_decisao), 400 (corpo), 201.
+// Autoridade de escrita do familiar sobre a alimentação do idoso do vínculo (criar, editar e excluir: a mesma regra). O
+// middleware não filtra tipo_vinculo: exige tipo_vinculo E tipo_perfil 'familiar' E modo_decisao efetivo 'familiar'
+// (sempre via resolver, nunca a coluna). Cuidador não tem ramo de sucesso: a checagem de ator vem antes do resolver
+// (curto-circuito), então o resolver NUNCA é consultado para ele.
+async function familiarPodeEscrever(vinculo: Vinculo, usuarioId: number): Promise<boolean> {
+  const chamador = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { tipo_perfil: true },
+  });
+  return (
+    vinculo.tipo_vinculo === "familiar" &&
+    chamador?.tipo_perfil === "familiar" &&
+    (await resolverModoDecisao(vinculo.idoso_id)) === "familiar"
+  );
+}
+
+// Familiar registra para o idoso vinculado. Ordem: 401, 400 (idosoId), 403 (vínculo), 403 (ator ou modo_decisao),
+// 400 (corpo), 201.
 router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
   try {
     const vinculo = req.vinculoAprovado;
-    if (!vinculo) return res.status(403).json({ error: MSG_403 });
-    const chamador = await prisma.usuario.findUnique({
-      where: { id: req.usuarioId },
-      select: { tipo_perfil: true },
-    });
-    const familiarAutorizado =
-      vinculo.tipo_vinculo === "familiar" &&
-      chamador?.tipo_perfil === "familiar" &&
-      (await resolverModoDecisao(vinculo.idoso_id)) === "familiar";
-    if (!familiarAutorizado) return res.status(403).json({ error: MSG_403 });
+    if (!vinculo || !(await familiarPodeEscrever(vinculo, req.usuarioId))) return res.status(403).json({ error: MSG_403 });
     await criarRegistroAlimentar(req, res, vinculo.idoso_id);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Fase 11 (11.1): editar e excluir refeição. Autoridade = a de criar (idoso só o próprio; familiar por
+// familiarPodeEscrever; cuidador nunca). O registro é buscado com o idoso alvo no próprio where: inexistente e de outro
+// idoso colapsam no mesmo 404 (um 403 separado vazaria que o id existe). Exclusão física, sem idempotência (repetida
+// dá 404). Mensagens fixas, nunca com o valor enviado, e nenhum log (a descrição é dado sensível).
+const MSG_403_EDICAO = "Sem permissão para editar refeição.";
+const MSG_403_EXCLUSAO = "Sem permissão para excluir refeição.";
+const MSG_404 = "Registro não encontrado.";
+const CAMPOS_REFEICAO = ["refeicao", "descricao", "data_hora"] as const;
+
+// Edição parcial: campo ausente (undefined) mantém o valor atual; monta o corpo completo a partir do registro e
+// revalida com validarCorpoRefeicao, então regras e mensagens são as do POST (null em campo obrigatório dá 400).
+function validarCorpoEdicaoRefeicao(body: unknown, atual: RegistroCriado): { erro: string } | { dados: DadosRefeicao } {
+  const enviado = (body ?? {}) as Record<string, unknown>;
+  if (CAMPOS_REFEICAO.every((c) => enviado[c] === undefined)) return { erro: "Nenhum campo de refeição informado." };
+  const mesclado: Record<string, unknown> = {
+    refeicao: atual.refeicao,
+    descricao: atual.descricao,
+    data_hora: atual.data_hora.toISOString(),
+  };
+  for (const c of CAMPOS_REFEICAO) if (enviado[c] !== undefined) mesclado[c] = enviado[c];
+  return validarCorpoRefeicao(mesclado);
+}
+
+// Parte comum depois da autorização. idoso_id, registrado_por_id e created_at nunca entram no update;
+// editado_por_id é sempre req.usuarioId.
+async function editarRegistroAlimentar(req: Request, res: Response, atual: RegistroCriado) {
+  const validado = validarCorpoEdicaoRefeicao(req.body, atual);
+  if ("erro" in validado) return res.status(400).json({ error: validado.erro });
+
+  const r = await prisma.registroAlimentar.update({
+    where: { id: atual.id },
+    data: { ...validado.dados, editado_por_id: req.usuarioId },
+  });
+  return res.json(serializarRegistroAlimentar(r));
+}
+
+// count 0 = apagado por outra chamada entre a leitura e o delete: 404, não 500.
+async function excluirRegistroAlimentar(res: Response, id: number, idosoId: number) {
+  const { count } = await prisma.registroAlimentar.deleteMany({ where: { id, idoso_id: idosoId } });
+  if (count === 0) return res.status(404).json({ error: MSG_404 });
+  return res.status(204).end();
+}
+
+// Idoso edita ou exclui o próprio registro, sem consultar vínculo nem tipo_perfil (dono = idoso_id igual ao token).
+// Ordem: 401, 400 (id), 404, 400 (corpo, só PATCH), 200 ou 204.
+router.patch("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+    const registro = await prisma.registroAlimentar.findFirst({ where: { id, idoso_id: req.usuarioId } });
+    if (!registro) return res.status(404).json({ error: MSG_404 });
+    await editarRegistroAlimentar(req, res, registro);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+    const registro = await prisma.registroAlimentar.findFirst({ where: { id, idoso_id: req.usuarioId } });
+    if (!registro) return res.status(404).json({ error: MSG_404 });
+    await excluirRegistroAlimentar(res, id, req.usuarioId);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Familiar edita ou exclui registro do idoso vinculado. Ordem: 401, 400 (idosoId), 403 (vínculo), 400 (id), 404,
+// 403 (ator ou modo_decisao), 400 (corpo, só PATCH), 200 ou 204. 403 genérico, sem citar flag nem modo_decisao.
+router.patch("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EDICAO });
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+    const registro = await prisma.registroAlimentar.findFirst({ where: { id, idoso_id: vinculo.idoso_id } });
+    if (!registro) return res.status(404).json({ error: MSG_404 });
+    if (!(await familiarPodeEscrever(vinculo, req.usuarioId))) return res.status(403).json({ error: MSG_403_EDICAO });
+    await editarRegistroAlimentar(req, res, registro);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de registro inválido." });
+    const registro = await prisma.registroAlimentar.findFirst({ where: { id, idoso_id: vinculo.idoso_id } });
+    if (!registro) return res.status(404).json({ error: MSG_404 });
+    if (!(await familiarPodeEscrever(vinculo, req.usuarioId))) return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    await excluirRegistroAlimentar(res, id, vinculo.idoso_id);
   } catch (e) {
     next(e);
   }
