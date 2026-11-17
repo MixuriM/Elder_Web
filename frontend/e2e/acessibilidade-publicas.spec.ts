@@ -1,3 +1,4 @@
+import { marcarAvisoCookiesVisto } from "./helpers/aviso";
 import { test, expect } from "@playwright/test";
 import { auditarRota } from "./helpers/axe";
 
@@ -20,6 +21,7 @@ const ROTAS_PUBLICAS = [
   "/cookies",
 ];
 
+// Sem o aviso visto (contexto novo): as rotas públicas são auditadas com o aviso de cookies na tela, contraste claro e escuro.
 for (const rota of ROTAS_PUBLICAS) {
   test(`acessibilidade pública ${rota}`, async ({ context }) => {
     await auditarRota(context, rota);
@@ -27,6 +29,7 @@ for (const rota of ROTAS_PUBLICAS) {
 }
 
 test("acessibilidade /cadastro com erro de perfil", async ({ context }) => {
+  await marcarAvisoCookiesVisto(context);
   await auditarRota(context, "/cadastro", {
     rotulo: "/cadastro com erro",
     escuro: false,
@@ -42,6 +45,7 @@ test("acessibilidade /cadastro com erro de perfil", async ({ context }) => {
 // Perfil selecionado muda o estilo do card (TipoPerfil): audita cada um dos 3 radios, nas 3 variantes.
 for (const radio of ["Idoso", "Cuidador", "Familiar"]) {
   test(`acessibilidade /cadastro com perfil ${radio} selecionado`, async ({ context }) => {
+  await marcarAvisoCookiesVisto(context);
     await auditarRota(context, "/cadastro", {
       rotulo: `/cadastro perfil ${radio}`,
       estado: async (page) => {
@@ -53,6 +57,7 @@ for (const radio of ["Idoso", "Cuidador", "Familiar"]) {
 }
 
 test("acessibilidade /login com credencial inválida", async ({ context }) => {
+  await marcarAvisoCookiesVisto(context);
   await auditarRota(context, "/login", {
     rotulo: "/login com erro",
     escuro: false,

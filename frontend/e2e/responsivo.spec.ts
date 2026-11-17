@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { marcarAvisoCookiesVisto } from "./helpers/aviso";
 import { aguardarTelaPronta } from "./helpers/axe";
 import { PERFIS, criarContaELogar, exigirBancoLocal, vincular, type Conta } from "./helpers/conta";
 import { MATRIZ, aplicarVariante, congelarAnimacoes, contextoCelular, falhasMetaViewport, medirMatriz } from "./helpers/mobile";
@@ -195,7 +196,7 @@ test("meta viewport não bloqueia o zoom (D5)", async ({ page }) => {
 const FOLGA_NAVBAR_MIN = 16;
 const LARGURAS_NAVBAR = [1024, 1100, 1280, 1440];
 test("landing: folga da Navbar entre o grupo central e o bloco da direita", async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await marcarAvisoCookiesVisto(await browser.newContext({ viewport: { width: 1440, height: 900 } }));
   const page = await context.newPage();
   await page.goto("/");
   await aguardarTelaPronta(page);
@@ -236,7 +237,7 @@ test("hover só com mouse (D10)", async ({ browser }) => {
     await page.close();
     return { antes, depois };
   };
-  const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const desktop = await marcarAvisoCookiesVisto(await browser.newContext({ viewport: { width: 1440, height: 900 } }));
   const celular = await contextoCelular(browser);
   try {
     const mouse = await fundoDoEntrar(desktop);
@@ -286,6 +287,24 @@ test("teclado certo nos campos públicos (D11)", async ({ page }) => {
   expect(await atributos(page, "#nome")).toMatchObject({ autoComplete: "name", autoCapitalize: "words" });
 });
 
+// O aviso de cookies na tela (só nele o contexto chega sem o aviso visto): em todas as variantes, sem estouro, com alvo de 44 px e
+// sem cobrir o conteúdo.
+test("responsivo: aviso de cookies", async ({ browser }) => {
+  test.setTimeout(600_000);
+  const ctx = await contextoCelular(browser, undefined, { comAvisoCookies: true });
+  try {
+    for (const rota of ["/", "/login", "/cadastro"]) {
+      // Mede só o aviso (como o modal e a gaveta): o conteúdo que ele cobre é esperado, até alguém tocar em "Entendi".
+      await emTela(ctx, rota, `publica ${rota} com aviso de cookies`, async (p) => {
+        await expect(p.getByRole("region", { name: "Aviso de cookies" })).toBeVisible();
+        return 'section[aria-label="Aviso de cookies"]';
+      });
+    }
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("responsivo: telas públicas", async ({ browser }) => {
   test.setTimeout(1_800_000);
   const ctx = await contextoCelular(browser);
@@ -325,7 +344,7 @@ test("responsivo: telas públicas", async ({ browser }) => {
       await p.getByRole("button", { name: /criar minha conta/i }).click();
       await expect(p.getByRole("alert").first()).toBeVisible();
     });
-    const desktop = await browser.newContext();
+    const desktop = await marcarAvisoCookiesVisto(await browser.newContext());
     await fotosDesktop(desktop, "/", "desktop /");
     await fotosDesktop(desktop, "/login", "desktop /login");
     await fotosDesktop(desktop, "/cadastro", "desktop /cadastro");

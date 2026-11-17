@@ -1,4 +1,5 @@
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { marcarAvisoCookiesVisto } from "./aviso";
 
 export const PERFIS = [
   { tipoPerfil: "idoso", radio: "Idoso" },
@@ -33,7 +34,7 @@ export type Conta = { context: BrowserContext; email: string };
 
 // `apelido` deixa o e-mail mais longo (pior caso de layout), sempre com o prefixo e2e-.
 export async function criarContaELogar(browser: Browser, { tipoPerfil, radio }: Perfil, apelido?: string): Promise<Conta> {
-  const context = await browser.newContext();
+  const context = await marcarAvisoCookiesVisto(await browser.newContext());
   const page = await context.newPage();
   const email = `e2e-${tipoPerfil}${apelido ? `-${apelido}` : ""}-${Date.now()}@e2e.elderweb.test`;
 

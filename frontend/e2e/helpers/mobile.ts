@@ -1,4 +1,5 @@
 import type { Browser, BrowserContext, Page } from "@playwright/test";
+import { marcarAvisoCookiesVisto } from "./aviso";
 
 // Medição de layout no celular (estouro, alvo de toque, fonte, corte, alvo coberto). O jest-axe e o axe do
 // test:a11y não veem nada disso. Privacidade (RNF-001): o relatório só leva regra, seletor (tag, id e classes)
@@ -36,9 +37,15 @@ export const MATRIZ: Variante[] = [
 ];
 
 // Contexto de celular com a mesma sessão do Firebase (IndexedDB) do contexto de origem, só em memória.
-export async function contextoCelular(browser: Browser, origem?: BrowserContext): Promise<BrowserContext> {
+// O aviso de cookies já vem visto (ver helpers/aviso.ts), salvo com `comAvisoCookies`: só o teste do próprio aviso o quer na tela.
+export async function contextoCelular(
+  browser: Browser,
+  origem?: BrowserContext,
+  { comAvisoCookies = false }: { comAvisoCookies?: boolean } = {},
+): Promise<BrowserContext> {
   const storageState = origem ? await origem.storageState({ indexedDB: true }) : undefined;
-  return browser.newContext({ storageState, isMobile: true, hasTouch: true, deviceScaleFactor: 2, viewport: EM_PE[0] });
+  const context = await browser.newContext({ storageState, isMobile: true, hasTouch: true, deviceScaleFactor: 2, viewport: EM_PE[0] });
+  return comAvisoCookies ? context : marcarAvisoCookiesVisto(context);
 }
 
 // Sem transição nem animação: a medida é do estado final (gaveta, modal), não de um quadro intermediário.
