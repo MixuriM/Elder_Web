@@ -1,186 +1,40 @@
-import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
-import { CalendarDays, HeartPulse, UsersRound } from 'lucide-react'
+import { useState } from 'react'
+import { CalendarDays, Plus } from 'lucide-react'
 import { useIdososVinculados } from '../hooks/useIdososVinculados'
-import { chamarApi } from '../lib/chamarApi'
 import SeletorIdoso from '../components/common/SeletorIdoso'
-import { envioBloqueado, ocultarSecaoDeTerceiros } from '../lib/regrasIdosoVinculado'
+import { envioBloqueado } from '../lib/regrasIdosoVinculado'
 import Spinner from '../components/common/Spinner'
-import { getCurrentUserToken } from '../lib/auth'
 import { agruparEventosPorDia, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
 import { lerVisaoAgenda, salvarVisaoAgenda, type VisaoAgenda } from '../lib/preferencias'
+import { useRegistrosDoIdoso } from '../lib/registrosDoIdoso'
+import { modoDeCriacao } from '../lib/regrasAgenda'
+import { mensagemPorStatus } from '../components/Vinculos/mensagensVinculo'
 import Alternador from '../components/Agenda/Alternador'
 import Calendario from '../components/Agenda/Calendario'
 import CartaoCompromisso from '../components/Agenda/CartaoCompromisso'
+import ModalCriarCompromisso from '../components/Agenda/ModalCriarCompromisso'
 import { useTitulo } from '../hooks/useTitulo'
 import { useAcesso } from '../contexts/useAcesso'
 
-const VAZIO = { idosoId: '', tipo: 'pessoal', titulo: '', descricao: '', inicio: '', fim: '' }
+// Item 6.3 (RF-017) e Fase 11: a agenda carrega sozinha. Idoso lê a própria (GET /agenda); cuidador e familiar leem a do
+// idoso escolhido (GET /agenda/idoso/:id). Leitura não depende de flag nem de modo_decisao (a autoridade é o 403 do
+// backend). As mensagens de erro são fixas por status e nunca ecoam o corpo (título 'medico' pode ter dado de saúde,
+// RNF-001). Sem console.*. Agenda segue sem editar nem remover (sem rota no backend).
+const mensagemErroAgenda = (erro: unknown) =>
+  erro instanceof RangeError
+    ? 'Não foi possível exibir a agenda.'
+    : mensagemPorStatus(
+        erro,
+        {
+          400: 'Id de idoso inválido.',
+          401: 'Sessão expirada. Entre novamente.',
+          403: 'Você não tem permissão para ver esta agenda.',
+        },
+        'Não foi possível carregar a agenda.',
+      )
 
-type Modo = 'idoso' | 'familiar' | 'cuidador'
-
-function CriarCompromisso({ titulo, modo }: { titulo: string; modo: Modo }) {
-  // Cada formulário é de um ator (o backend recusa os outros com 403): com o perfil conhecido só a seção dele
-  // aparece. Rótulos sem o papel; cada formulário fica numa seção com título próprio.
-  const { tipoPerfil } = useAcesso()
-  const comIdoso = modo !== 'idoso'
-  const idosos = useIdososVinculados()
-  const [campos, setCampos] = useState(VAZIO)
-  const [carregando, setCarregando] = useState(false)
-  const [resultado, setResultado] = useState<{ id: number } | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const setCampo = (campo: keyof typeof VAZIO) => (e: { target: { value: string } }) =>
-    setCampos((atual) => ({ ...atual, [campo]: e.target.value }))
-
-  async function handleCriar(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setResultado(null)
-    setCarregando(true)
-    try {
-      const caminho = comIdoso ? `/agenda/idoso/${campos.idosoId}` : '/agenda'
-      const corpo = await chamarApi(caminho, {
-        method: 'POST',
-        body: JSON.stringify({
-          tipo_evento: modo === 'cuidador' ? 'cuidado' : campos.tipo,
-          titulo: campos.titulo,
-          descricao: campos.descricao === '' ? undefined : campos.descricao,
-          // datetime-local não traz fuso: toISOString() converte para UTC com Z, que o backend exige.
-          data_hora_inicio: campos.inicio === '' ? undefined : new Date(campos.inicio).toISOString(),
-          // Opcional em branco não é enviado.
-          data_hora_fim: campos.fim === '' ? undefined : new Date(campos.fim).toISOString(),
-        }),
-      })
-      setResultado(corpo)
-      // Próximo compromisso começa do zero (com 1 idoso só, o SeletorIdoso escolhe ele de novo).
-      setCampos(VAZIO)
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Falha ao criar compromisso.')
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  const slug = modo
-  const classe =
-    'mt-1 min-h-12 w-full rounded-xl border border-[#DDD9F2] bg-white px-4 py-3 text-lg text-[#071A38] outline-none transition placeholder:text-[#78849A] hover:border-[#A18BFF] focus:border-[#5F56EC] focus:ring-2 focus:ring-[#5F56EC]/20 dark:border-[#454558] dark:bg-[#181824] dark:text-[#F5F5FA] dark:placeholder:text-[#858594] dark:hover:border-[#66667A] dark:focus:border-[#A89FFF] dark:focus:ring-[#A89FFF]/20'
-  const classeLabel = 'block text-base font-semibold text-[#071A38] dark:text-[#F5F5FA]'
-  const campo = (
-    rotulo: string,
-    nome: keyof typeof VAZIO,
-    atributos: InputHTMLAttributes<HTMLInputElement>,
-    classeContainer = '',
-  ) => (
-    <div className={classeContainer}>
-      <label htmlFor={`${nome}_${slug}`} className={classeLabel}>
-        {rotulo}
-      </label>
-      <input id={`${nome}_${slug}`} {...atributos} value={campos[nome]} onChange={setCampo(nome)} className={classe} />
-    </div>
-  )
-  if (tipoPerfil && tipoPerfil !== modo) return null
-  // Criar em nome de terceiros não existe para o perfil idoso.
-  if (comIdoso && ocultarSecaoDeTerceiros(idosos)) return null
-
-  const IconeModo = modo === 'idoso' ? CalendarDays : modo === 'familiar' ? UsersRound : HeartPulse
-
-  return (
-    <section
-      aria-labelledby={`titulo_criar_${slug}`}
-      className="rounded-3xl border border-[#E5E2F5] bg-white p-4 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
-    >
-      <div className="mb-6 flex flex-wrap items-start gap-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#5F56EC] dark:bg-[#29263D] dark:text-[#A89FFF]">
-          <IconeModo size={24} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1 basis-48">
-          <h2 id={`titulo_criar_${slug}`} className="text-xl font-bold leading-snug text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
-            {titulo}
-          </h2>
-          <p className="mt-1 text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1]">
-            {modo === 'idoso'
-              ? 'Adicione um compromisso à sua rotina.'
-              : modo === 'familiar'
-                ? 'Organize um compromisso para a pessoa vinculada.'
-                : 'Registre um compromisso de cuidado para a pessoa vinculada.'}
-          </p>
-        </div>
-      </div>
-      <form onSubmit={handleCriar} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {comIdoso && (
-          <div className="sm:col-span-2">
-            <SeletorIdoso
-              id={`idosoId_${slug}`}
-              escrita
-              valor={campos.idosoId}
-              aoMudar={(v) => setCampos((atual) => ({ ...atual, idosoId: v }))}
-              lista={idosos}
-            />
-          </div>
-        )}
-        {modo !== 'cuidador' && (
-          <div>
-            <label htmlFor={`tipo_${slug}`} className={classeLabel}>
-              Tipo
-            </label>
-            <select id={`tipo_${slug}`} value={campos.tipo} onChange={setCampo('tipo')} className={classe}>
-              <option value="pessoal">Pessoal</option>
-              <option value="medico">Médico</option>
-            </select>
-          </div>
-        )}
-        {campo('Título', 'titulo', { type: 'text', required: true, maxLength: 150 }, 'sm:col-span-2')}
-        {campo('Descrição (opcional)', 'descricao', { type: 'text', maxLength: 500 }, 'sm:col-span-2')}
-        {campo('Início', 'inicio', { type: 'datetime-local', required: true })}
-        {campo('Fim (opcional)', 'fim', { type: 'datetime-local' })}
-        <button
-          type="submit"
-          disabled={carregando || (comIdoso && envioBloqueado(idosos, campos.idosoId))}
-          aria-busy={carregando}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus:ring-2 focus:ring-[#5F56EC]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-[#171721] sm:col-span-2"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Criando...' : 'Criar compromisso'}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-base font-medium text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {erro}
-        </p>
-      )}
-      {resultado && (
-        <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-base font-medium text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-          Compromisso criado.
-        </p>
-      )}
-    </section>
-  )
-}
-
-// Item 6.3 (RF-017): ver a agenda. Id do idoso em branco = idoso lê a própria (GET /agenda); preenchido = cuidador ou
-// familiar (GET /agenda/idoso/:id). Sempre visível: leitura não depende de flag nem de modo_decisao (a autoridade é
-// o 403 do backend). Não usa chamarApi (força Content-Type JSON e repassa o corpo do erro): as mensagens de erro são
-// fixas por status e nunca ecoam o corpo (título 'medico' pode ter dado de saúde, RNF-001). Sem console.*.
-const MENSAGEM_ERRO_AGENDA: Record<number, string> = {
-  400: 'Id de idoso inválido.',
-  401: 'Sessão expirada. Entre novamente.',
-  403: 'Você não tem permissão para ver esta agenda.',
-}
-const ERRO_GENERICO_AGENDA = 'Não foi possível carregar a agenda.'
-
-// Só este erro tem mensagem exibível: qualquer outro (rede, token) cai na genérica, sem ecoar texto de fora.
-class ErroAgenda extends Error {}
-
-async function buscarAgenda(path: string): Promise<EventoAgenda[]> {
-  const token = await getCurrentUserToken()
-  const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new ErroAgenda(MENSAGEM_ERRO_AGENDA[res.status] ?? ERRO_GENERICO_AGENDA)
-  const corpo = await res.json().catch(() => null)
-  if (!Array.isArray(corpo?.eventos)) throw new ErroAgenda(ERRO_GENERICO_AGENDA)
-  return corpo.eventos
-}
+// Agrupa tudo antes de exibir: um evento com data inválida lança RangeError e vira erro, nunca lista pela metade.
+const agrupar = (eventos: unknown[]) => agruparEventosPorDia(eventos as EventoAgenda[])
 
 function DiaDaAgenda({ grupo }: { grupo: GrupoDia }) {
   return (
@@ -209,41 +63,47 @@ const VISOES = [
   { valor: 'lista', rotulo: 'Lista' },
 ] as const
 
-function VerAgenda() {
+const CAIXA_INFO =
+  'mt-5 rounded-xl border border-[#E5E2F5] bg-[#F8F7FF] p-4 text-base font-semibold text-[#071A38] dark:border-[#393947] dark:bg-[#1D1D29] dark:text-[#F5F5FA]'
+
+function AreaAgenda() {
   const idosos = useIdososVinculados()
+  const { tipoPerfil, vinculos } = useAcesso()
   const [idosoId, setIdosoId] = useState('')
-  const [carregando, setCarregando] = useState(false)
-  const [grupos, setGrupos] = useState<GrupoDia[] | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
+  const [versao, setVersao] = useState(0)
+  const [modalAberto, setModalAberto] = useState(false)
+  const [criado, setCriado] = useState(false)
   const [visao, setVisao] = useState<VisaoAgenda>(() => lerVisaoAgenda().visao)
+
+  // Cada ator cria o que o backend aceita (o resto dá 403): o botão só aparece para quem cria.
+  const modo = modoDeCriacao({ tipoPerfil, idosos, vinculos })
+  // Cuidador e familiar criam para o idoso já escolhido aqui; assim o compromisso novo aparece no calendário aberto.
+  const idosoNome = idosos.idosos.find((i) => String(i.id) === idosoId)?.nome
+
+  const agenda = useRegistrosDoIdoso<GrupoDia>({
+    base: '/agenda',
+    campo: 'eventos',
+    idosos,
+    idosoId,
+    versao,
+    mensagemErro: mensagemErroAgenda,
+    transformar: agrupar,
+  })
+  const grupos = agenda.registros
+  const passados = grupos?.filter((g) => g.passado) ?? []
+  const proximos = grupos?.filter((g) => !g.passado) ?? []
+
+  const escolhaPendente =
+    agenda.fase === 'aguardando' && idosos.estado === 'ok' && !idosos.ehIdoso && idosos.idosos.length > 0
 
   function mudarVisao(v: VisaoAgenda) {
     setVisao(v)
     salvarVisaoAgenda('agendaVisao', v)
   }
 
-  async function handleVer(e: FormEvent) {
-    e.preventDefault()
-    setErro(null)
-    setGrupos(null)
-    setCarregando(true)
-    try {
-      const eventos = await buscarAgenda(idosos.ehIdoso ? '/agenda' : `/agenda/idoso/${idosoId}`)
-      setGrupos(agruparEventosPorDia(eventos))
-    } catch (err) {
-      if (err instanceof RangeError) setErro('Não foi possível exibir a agenda.')
-      else setErro(err instanceof ErroAgenda ? err.message : ERRO_GENERICO_AGENDA)
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  const passados = grupos?.filter((g) => g.passado) ?? []
-  const proximos = grupos?.filter((g) => !g.passado) ?? []
-
   return (
     <section
-      aria-labelledby="titulo_ver_agenda"
+      aria-labelledby="titulo_agenda"
       className="rounded-3xl border border-[#E5E2F5] bg-white p-4 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
     >
       <div className="mb-6 flex flex-wrap items-start gap-4">
@@ -251,38 +111,75 @@ function VerAgenda() {
           <CalendarDays size={24} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1 basis-48">
-          <h2 id="titulo_ver_agenda" className="text-xl font-bold text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
-            Ver agenda
+          <h2 id="titulo_agenda" className="text-xl font-bold text-[#071A38] dark:text-[#F5F5FA] sm:text-2xl">
+            Compromissos
           </h2>
           <p className="mt-1 text-base leading-relaxed text-[#56657D] dark:text-[#C7C7D1]">
             Consulte os próximos compromissos e os anteriores.
           </p>
         </div>
-      </div>
-      <form onSubmit={handleVer} className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        {/* Perfil idoso não tem seletor: sem a caixa vazia, que empurrava o botão para o meio. */}
-        {!idosos.ehIdoso && (
-          <div className="sm:min-w-80">
-            <SeletorIdoso id="idoso_id_ver_agenda" valor={idosoId} aoMudar={setIdosoId} lista={idosos} />
-          </div>
+        {modo && (
+          <button
+            type="button"
+            onClick={() => {
+              setCriado(false)
+              setModalAberto(true)
+            }}
+            disabled={envioBloqueado(idosos, idosoId)}
+            className="flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus-visible:ring-offset-[#171721] sm:w-auto"
+          >
+            <Plus size={20} aria-hidden="true" />
+            Criar compromisso
+          </button>
         )}
-        <button
-          type="submit"
-          disabled={carregando || envioBloqueado(idosos, idosoId)}
-          aria-busy={carregando}
-          className="flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 text-lg font-bold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus:ring-2 focus:ring-[#5F56EC]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-[#171721] sm:w-auto"
-        >
-          {carregando && <Spinner />}
-          {carregando ? 'Carregando...' : 'Ver agenda'}
-        </button>
-      </form>
-      {erro && (
-        <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-base font-medium text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {erro}
+      </div>
+
+      {/* Perfil idoso não tem seletor. */}
+      {!idosos.ehIdoso && (
+        <div className="sm:max-w-xl">
+          <SeletorIdoso
+            id="idoso_id_agenda"
+            valor={idosoId}
+            aoMudar={(v) => {
+              setIdosoId(v)
+              setCriado(false)
+            }}
+            lista={idosos}
+          />
+        </div>
+      )}
+
+      {escolhaPendente && (
+        <p className="mt-5 text-base text-[#56657D] dark:text-[#C7C7D1]">Escolha um idoso para ver a agenda.</p>
+      )}
+
+      {agenda.fase === 'carregando' && (
+        <p role="status" className={`${CAIXA_INFO} flex items-center gap-3`}>
+          <Spinner />
+          Carregando a agenda...
         </p>
       )}
+
+      {agenda.fase === 'erro' && (
+        <p
+          role="alert"
+          className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-base font-medium text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+        >
+          {agenda.erro}
+        </p>
+      )}
+
+      {criado && (
+        <p
+          role="status"
+          className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-base font-medium text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+        >
+          Compromisso criado.
+        </p>
+      )}
+
       {grupos && (
-        <p role="status" className="mt-5 rounded-xl border border-[#E5E2F5] bg-[#F8F7FF] p-4 text-base font-semibold text-[#071A38] dark:border-[#393947] dark:bg-[#1D1D29] dark:text-[#F5F5FA]">
+        <p role="status" className={CAIXA_INFO}>
           {grupos.length === 0
             ? 'Nenhum compromisso na agenda.'
             : `${grupos.reduce((n, g) => n + g.eventos.length, 0)} compromisso(s) encontrado(s).`}
@@ -317,6 +214,21 @@ function VerAgenda() {
           ))}
         </div>
       )}
+
+      {modo && (
+        <ModalCriarCompromisso
+          aberto={modalAberto}
+          onFechar={() => setModalAberto(false)}
+          modo={modo}
+          idosoId={idosos.ehIdoso ? '' : idosoId}
+          idosoNome={idosoNome}
+          onCriado={() => {
+            setModalAberto(false)
+            setCriado(true)
+            setVersao((v) => v + 1)
+          }}
+        />
+      )}
     </section>
   )
 }
@@ -335,14 +247,9 @@ export default function Agenda() {
             Acompanhe consultas, compromissos pessoais e momentos de cuidado em um só lugar.
           </p>
         </header>
-        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-          {/* Ver a agenda vem primeiro e ocupa a largura toda: o calendário precisa de espaço. */}
-          <div className="min-w-0 xl:col-span-2">
-            <VerAgenda />
-          </div>
-          <CriarCompromisso titulo="Criar compromisso" modo="idoso" />
-          <CriarCompromisso titulo="Criar compromisso para um idoso vinculado" modo="familiar" />
-          <CriarCompromisso titulo="Criar compromisso de cuidado" modo="cuidador" />
+        {/* A agenda ocupa a largura toda: o calendário precisa de espaço. */}
+        <div className="min-w-0">
+          <AreaAgenda />
         </div>
       </div>
     </div>

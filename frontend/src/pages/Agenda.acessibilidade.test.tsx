@@ -4,25 +4,17 @@ import userEvent from "@testing-library/user-event";
 import { axe, toHaveNoViolations } from "jest-axe";
 import { MemoryRouter } from "react-router-dom";
 import Agenda from "./Agenda";
-import { listaUmIdoso } from "../hooks/idososFixtures";
-
-function renderAgenda() {
-  return render(
-    <MemoryRouter>
-      <Agenda />
-    </MemoryRouter>,
-  );
-}
+import { AcessoContext } from "../contexts/useAcesso";
+import { listaPerfilIdoso, listaUmIdoso } from "../hooks/idososFixtures";
 
 expect.extend(toHaveNoViolations);
 
-// Itens 6.1 e 6.2: auditoria automática de acessibilidade (jest-axe) sobre o esqueleto de /agenda.
-// LIMITE: jsdom não calcula layout nem cor, então contraste de cor NÃO é verificado aqui
-// (regra color-contrast desligada de propósito, ver AXE). Contraste segue pendente para o item 9.1.
-// Dados abaixo são valores obviamente falsos de teste.
+// Itens 6.1 a 6.3 e Fase 11: auditoria automática de acessibilidade (jest-axe) sobre /agenda e o modal de criar.
+// LIMITE: jsdom não calcula layout nem cor, então contraste de cor NÃO é verificado aqui (regra color-contrast
+// desligada de propósito, ver AXE); o contraste é auditado por npm run test:a11y (Playwright). Dados obviamente falsos.
 const AXE = {
   rules: {
-    // jsdom não renderiza estilos computados de cor: a regra não tem como dar resultado confiável.
+    // jsdom não renderiza estilos computados de cor: regra não tem como dar resultado confiável.
     "color-contrast": { enabled: false },
   },
 };
@@ -41,13 +33,50 @@ function respostaJson(status: number, corpo: unknown) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response;
 }
 
+function renderAgenda(perfil: "idoso" | "familiar" | "cuidador" = "idoso") {
+  return render(
+    <AcessoContext.Provider
+      value={{ tipoPerfil: perfil, temVinculoAprovado: true, temVinculoPendente: false, estado: "ok", vinculos: null }}
+    >
+      <MemoryRouter>
+        <Agenda />
+      </MemoryRouter>
+    </AcessoContext.Provider>,
+  );
+}
+
+const EV = (id: number, tipo: string, inicio: string, fim: string | null = null) => ({
+  id,
+  idoso_id: 7,
+  criado_por_id: 7,
+  tipo_evento: tipo,
+  titulo: `titulo-falso-${id}`,
+  descricao: null,
+  data_hora_inicio: inicio,
+  data_hora_fim: fim,
+  editado_por_id: null,
+  created_at: "2026-09-01T10:00:00.000Z",
+  updated_at: "2026-09-01T10:00:00.000Z",
+});
+
+const fetchMock = jest.fn();
+let eventos: unknown[];
+
 beforeEach(() => {
-  mockUseIdosos.mockReturnValue(listaUmIdoso);
+  jest.clearAllMocks();
+  eventos = [];
+  mockUseIdosos.mockReturnValue(listaPerfilIdoso);
   mockGetCurrentUserToken.mockReset();
   mockGetCurrentUserToken.mockResolvedValue("token-fake");
-  global.fetch = jest.fn();
+  fetchMock.mockImplementation((_url: string, init: RequestInit = {}) =>
+    Promise.resolve((init.method ?? "GET") === "GET" ? respostaJson(200, { eventos }) : respostaJson(201, { id: 41 })),
+  );
+  global.fetch = fetchMock;
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  window.localStorage.clear();
+  jest.restoreAllMocks();
+});
 
 describe("jest-axe: controle positivo", () => {
   it("detecta violação real (input sem label), então o teste não está vazio", async () => {
@@ -67,128 +96,108 @@ describe("jest-axe: controle positivo", () => {
   });
 });
 
-describe("Agenda: acessibilidade", () => {
-  it("estado inicial dos três formulários", async () => {
+describe("Agenda: acessibilidade da área de compromissos", () => {
+  it("vazia, em lista: sem violações", async () => {
+    window.localStorage.setItem("agendaVisao", "lista");
     const { container } = renderAgenda();
+    await screen.findByText("Nenhum compromisso na agenda.");
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
 
-  describe.each(["idoso", "familiar", "cuidador"] as const)("formulário %s", (sufixo) => {
-    async function preencherEEnviar() {
-      const user = userEvent.setup();
-      const utils = renderAgenda();
-      // Rótulos sem o papel: os campos são buscados dentro da seção do formulário.
-      const regiao = within(
-        screen.getByRole("region", {
-          name:
-            sufixo === "idoso"
-              ? "Criar compromisso"
-              : sufixo === "familiar"
-                ? "Criar compromisso para um idoso vinculado"
-                : "Criar compromisso de cuidado",
-        }),
-      );
-      if (sufixo !== "idoso") await user.selectOptions(regiao.getByLabelText("Idoso", { exact: true }), "7");
-      await user.type(regiao.getByLabelText("Título", { exact: true }), "Consulta Ficticia");
-      fireEvent.change(regiao.getByLabelText("Início", { exact: true }), { target: { value: "2026-10-10T09:00" } });
-      await user.click(regiao.getByRole("button", { name: /^criar compromisso$/i }));
-      return utils;
-    }
+  it("carregando é anunciado em role=status e o botão de criar tem nome", async () => {
+    const { container } = renderAgenda();
+    expect(within(screen.getByRole("region", { name: "Compromissos" })).getByRole("status")).toHaveTextContent(
+      "Carregando a agenda...",
+    );
+    expect(screen.getByRole("button", { name: "Criar compromisso" })).toBeEnabled();
+    await screen.findByText("Nenhum compromisso na agenda.");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
 
-    it("carregando (botão ocupado)", async () => {
-      (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
-      const { container } = await preencherEEnviar();
-      expect(await screen.findByRole("button", { name: /criando/i })).toBeDisabled();
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
+  it("erro de carga é anunciado em role=alert", async () => {
+    fetchMock.mockResolvedValue(respostaJson(403, {}));
+    const { container } = renderAgenda();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Você não tem permissão para ver esta agenda.");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
 
-    it("sucesso em role=status visível", async () => {
-      (global.fetch as jest.Mock).mockResolvedValue(respostaJson(201, { id: 41 }));
-      const { container } = await preencherEEnviar();
-      expect(await screen.findByRole("status")).toHaveTextContent(/^Compromisso criado.$/);
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
+  it("com compromissos, em lista (passados em details fechado e aberto): sem violações", async () => {
+    eventos = [
+      EV(1, "pessoal", "2026-01-03T12:00:00.000Z"),
+      EV(2, "medico", "2099-10-05T12:00:00.000Z", "2099-10-05T13:30:00.000Z"),
+      EV(3, "cuidado", "2099-10-08T15:00:00.000Z"),
+    ];
+    window.localStorage.setItem("agendaVisao", "lista");
+    const { container } = renderAgenda();
+    await screen.findByText(/3 compromisso\(s\)/);
+    expect(await axe(container, AXE)).toHaveNoViolations();
 
-    it.each([400, 403])("erro %i em role=alert visível", async (status) => {
-      (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
-      const { container } = await preencherEEnviar();
-      expect(await screen.findByRole("alert")).toHaveTextContent("Mensagem de erro de teste.");
-      expect(await axe(container, AXE)).toHaveNoViolations();
-    });
+    const detalhes = container.querySelector("details") as HTMLDetailsElement;
+    detalhes.open = true;
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("com compromissos, em calendário: sem violações", async () => {
+    eventos = [EV(2, "medico", "2099-10-05T12:00:00.000Z"), EV(3, "cuidado", "2099-10-08T15:00:00.000Z")];
+    window.localStorage.setItem("agendaVisao", "calendario");
+    const { container } = renderAgenda();
+    await screen.findByText(/2 compromisso\(s\)/);
+    expect(await axe(container, AXE)).toHaveNoViolations();
   });
 });
 
-// Item 6.3: seção "Ver agenda". Mesmo limite: contraste de cor segue no item 9.1. Dados obviamente falsos.
-describe("Agenda: acessibilidade da seção Ver agenda", () => {
-  const EV = (id: number, tipo: string, inicio: string, fim: string | null = null) => ({
-    id,
-    idoso_id: 7,
-    criado_por_id: 7,
-    tipo_evento: tipo,
-    titulo: `titulo-falso-${id}`,
-    descricao: id === 2 ? "descricao-falsa-2" : null,
-    data_hora_inicio: inicio,
-    data_hora_fim: fim,
-    editado_por_id: null,
-    created_at: "2026-09-01T10:00:00.000Z",
-    updated_at: "2026-09-01T10:00:00.000Z",
+describe.each(["idoso", "familiar", "cuidador"] as const)("Agenda: acessibilidade do modal (%s)", (perfil) => {
+  beforeEach(() => {
+    if (perfil !== "idoso") mockUseIdosos.mockReturnValue({ ...listaUmIdoso, tipoPerfil: perfil });
   });
-  const EVENTOS = [
-    EV(1, "pessoal", "2026-10-03T12:00:00.000Z"),
-    EV(2, "medico", "2026-10-05T12:00:00.000Z", "2026-10-05T13:30:00.000Z"),
-    EV(3, "pessoal", "2026-10-06T02:00:00.000Z", "2026-10-06T05:00:00.000Z"),
-    EV(4, "cuidado", "2026-10-08T15:00:00.000Z"),
-  ];
 
-  async function ver() {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    const utils = renderAgenda();
-    await user.click(screen.getByRole("button", { name: /^ver agenda$/i }));
-    return { ...utils, user };
+  async function abrir() {
+    const user = userEvent.setup();
+    const utils = renderAgenda(perfil);
+    await screen.findByText("Nenhum compromisso na agenda.");
+    await user.click(screen.getByRole("button", { name: "Criar compromisso" }));
+    return { user, ...utils, dialogo: screen.getByRole("dialog", { name: "Criar compromisso" }) };
   }
 
-  beforeEach(() => {
-    jest.useFakeTimers({
-      now: new Date("2026-10-05T15:00:00.000Z"),
-      doNotFake: [
-        "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame", "cancelAnimationFrame",
-        "requestIdleCallback", "cancelIdleCallback", "setImmediate", "clearImmediate", "setInterval", "clearInterval",
-        "setTimeout", "clearTimeout",
-      ],
-    });
-  });
-  afterEach(() => jest.useRealTimers());
+  it("dialog modal nomeado, foco dentro, campos rotulados e sem violações", async () => {
+    const { dialogo } = await abrir();
 
-  it("carregando (botão ocupado)", async () => {
-    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => undefined));
-    const { container } = await ver();
-    expect(await screen.findByRole("button", { name: /carregando/i })).toHaveAttribute("aria-busy", "true");
-    expect(await axe(container, AXE)).toHaveNoViolations();
+    expect(dialogo).toHaveAttribute("aria-modal", "true");
+    expect(dialogo).toHaveFocus();
+    for (const rotulo of ["Título", "Descrição (opcional)", "Início", "Fim (opcional)"]) {
+      expect(within(dialogo).getByLabelText(rotulo)).toBeInTheDocument();
+    }
+    expect(within(dialogo).queryByLabelText("Tipo") !== null).toBe(perfil !== "cuidador");
+    expect(await axe(dialogo, AXE)).toHaveNoViolations();
   });
 
-  it("sucesso com hoje e passado, details fechado e aberto", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: EVENTOS }));
-    const { container, user } = await ver();
-    expect(await screen.findByText(/\(hoje\)/)).toBeInTheDocument();
-    const detalhes = container.querySelector("details") as HTMLDetailsElement;
-    expect(detalhes.open).toBe(false);
-    expect(await axe(container, AXE)).toHaveNoViolations();
-    await user.click(screen.getByText("Compromissos anteriores"));
-    expect(detalhes.open).toBe(true);
-    expect(await axe(container, AXE)).toHaveNoViolations();
+  it("erro do servidor em role=alert dentro do modal, sem violações", async () => {
+    fetchMock.mockImplementation((_url: string, init: RequestInit = {}) =>
+      Promise.resolve(
+        (init.method ?? "GET") === "GET" ? respostaJson(200, { eventos: [] }) : respostaJson(400, { error: "x" }),
+      ),
+    );
+    const { user, dialogo } = await abrir();
+
+    await user.type(within(dialogo).getByLabelText("Título"), "compromisso-falso");
+    fireEvent.change(within(dialogo).getByLabelText("Início"), { target: { value: "2026-10-10T09:00" } });
+    await user.click(within(dialogo).getByRole("button", { name: "Criar compromisso" }));
+
+    expect(await within(dialogo).findByRole("alert")).toHaveTextContent("Dados inválidos.");
+    expect(await axe(dialogo, AXE)).toHaveNoViolations();
   });
 
-  it("vazio", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(200, { eventos: [] }));
-    const { container } = await ver();
-    expect(await screen.findByText("Nenhum compromisso na agenda.")).toBeInTheDocument();
-    expect(await axe(container, AXE)).toHaveNoViolations();
-  });
+  it("sucesso: o modal fecha, o foco volta ao botão e o aviso é role=status", async () => {
+    const { user, dialogo, container } = await abrir();
 
-  it.each([403, 500])("erro %i em role=alert visível", async (status) => {
-    (global.fetch as jest.Mock).mockResolvedValue(respostaJson(status, { error: "Mensagem de erro de teste." }));
-    const { container } = await ver();
-    expect(await screen.findByRole("alert")).toBeVisible();
+    await user.type(within(dialogo).getByLabelText("Título"), "compromisso-falso");
+    fireEvent.change(within(dialogo).getByLabelText("Início"), { target: { value: "2026-10-10T09:00" } });
+    await user.click(within(dialogo).getByRole("button", { name: "Criar compromisso" }));
+
+    expect(await screen.findByText("Compromisso criado.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Compromisso criado.").closest('[role="status"]')).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Criar compromisso" })).toHaveFocus();
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
 });

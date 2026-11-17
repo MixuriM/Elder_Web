@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom'
 
 import type { ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
 import Saude from './Saude'
@@ -99,26 +100,35 @@ describe('Medicamentos por perfil', () => {
 })
 
 describe('Agenda por perfil', () => {
-  it('cuidador vê só a seção de cuidado, sem sufixo nos rótulos', () => {
-    comPerfil('cuidador', <Agenda />)
-    expect(screen.queryByRole('heading', { name: 'Criar compromisso' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Criar compromisso para um idoso vinculado' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /criar compromisso de cuidado/i })).toBeInTheDocument()
-    expect(screen.getByLabelText('Título')).toBeInTheDocument()
+  // Um botão só ("Criar compromisso"); o formulário do modal muda conforme quem abre.
+  async function abrirModal(perfil: string) {
+    const user = userEvent.setup()
+    comPerfil(perfil, <Agenda />)
+    await user.click(await screen.findByRole('button', { name: 'Criar compromisso' }))
+    return screen.getByRole('dialog', { name: 'Criar compromisso' })
+  }
+
+  it('cuidador abre o formulário de cuidado, sem o campo Tipo', async () => {
+    const dialogo = await abrirModal('cuidador')
+
+    expect(within(dialogo).getByLabelText('Título')).toBeInTheDocument()
+    expect(within(dialogo).queryByLabelText('Tipo')).not.toBeInTheDocument()
   })
 
-  it('familiar vê só a seção de familiar', () => {
-    comPerfil('familiar', <Agenda />)
-    expect(screen.getByRole('heading', { name: 'Criar compromisso para um idoso vinculado' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: /criar compromisso de cuidado/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Criar compromisso' })).not.toBeInTheDocument()
+  it('familiar abre o formulário com o campo Tipo e o nome do idoso', async () => {
+    const dialogo = await abrirModal('familiar')
+
+    expect(within(dialogo).getByLabelText('Tipo')).toBeInTheDocument()
+    expect(within(dialogo).getByText(/compromisso para:/i)).toBeInTheDocument()
   })
 
-  it('idoso vê o rótulo sem o papel entre parênteses', () => {
+  it('idoso abre o formulário próprio, com o campo Tipo e sem nome de outra pessoa', async () => {
     mockUseIdosos.mockReturnValue(listaPerfilIdoso)
-    comPerfil('idoso', <Agenda />)
-    expect(screen.getByLabelText('Título')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Criar compromisso' })).toBeInTheDocument()
+    const dialogo = await abrirModal('idoso')
+
+    expect(within(dialogo).getByLabelText('Título')).toBeInTheDocument()
+    expect(within(dialogo).getByLabelText('Tipo')).toBeInTheDocument()
+    expect(within(dialogo).queryByText(/compromisso para:/i)).not.toBeInTheDocument()
   })
 })
 
@@ -126,7 +136,7 @@ describe('Alimentação por perfil', () => {
   it('cuidador não vê "Registrar refeição", só o histórico', () => {
     comPerfil('cuidador', <Alimentacao />)
     expect(screen.queryByRole('heading', { name: 'Registrar refeição' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Ver histórico alimentar' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Histórico alimentar' })).toBeInTheDocument()
   })
 
   it('familiar vê "Registrar refeição"', () => {
