@@ -325,6 +325,110 @@ async function main() {
     // 18: leitura não escreve: contagem igual antes e depois das leituras.
     const depoisLeitura = await contarRegistros();
     ok("7.2 leituras não criam nem apagam registro", depoisLeitura === nLeitura, `antes ${nLeitura}, depois ${depoisLeitura}`);
+
+    // ---- Fase 11 (11.1): editar (PATCH) e excluir (DELETE). Autoridade = a de criar: idoso o próprio, familiar só com
+    // modo_decisao 'familiar', cuidador nunca (nenhuma das duas rotas, com as 3 flags true). ----
+    const patch = (token: string, caminho: string, corpo: object) =>
+      request(app).patch(caminho).set("Authorization", `Bearer ${token}`).send(corpo);
+    const del = (token: string, caminho: string) => request(app).delete(caminho).set("Authorization", `Bearer ${token}`);
+    const semearOriginal = async (idosoId: number) =>
+      (
+        await prisma.registroAlimentar.create({
+          data: {
+            idoso_id: idosoId,
+            registrado_por_id: idosoId,
+            refeicao: "almoco",
+            descricao: `${sentinela}-original`,
+            data_hora: new Date("2026-10-10T12:00:00.000Z"),
+          },
+          select: { id: true },
+        })
+      ).id;
+    const lerRegistro = (id: number) => prisma.registroAlimentar.findUnique({ where: { id } });
+    const inalterado = async (id: number) => {
+      const l = await lerRegistro(id);
+      return l !== null && l.descricao === `${sentinela}-original` && l.refeicao === "almoco" && l.editado_por_id === null;
+    };
+    const nFase11 = await contarRegistros();
+
+    // 19: idoso edita o próprio (parcial): linha muda só no campo enviado, editado_por_id do idoso; forjados ignorados.
+    const e1 = await semearOriginal(idoso.id);
+    const pe1 = await patch(idoso.token, `/alimentacao/${e1}`, { descricao: `${sentinela}-editada`, idoso_id: idosoB.id, registrado_por_id: idosoB.id });
+    const le1 = await lerRegistro(e1);
+    ok(
+      "11.1 idoso edita: 200, só a descricao muda, editado_por_id do idoso, idoso_id e registrado_por_id do corpo ignorados",
+      pe1.status === 200 &&
+        le1?.descricao === `${sentinela}-editada` &&
+        le1.refeicao === "almoco" &&
+        le1.data_hora.toISOString() === "2026-10-10T12:00:00.000Z" &&
+        le1.editado_por_id === idoso.id &&
+        le1.idoso_id === idoso.id &&
+        le1.registrado_por_id === idoso.id,
+      `status ${pe1.status}`,
+    );
+
+    // 20: edição inválida não muda a linha; registro de outro idoso = 404 igual ao inexistente.
+    const e2 = await semearOriginal(idoso.id);
+    const pe2 = await patch(idoso.token, `/alimentacao/${e2}`, { refeicao: "Almoco" });
+    const pe3 = await patch(idosoB.token, `/alimentacao/${e2}`, { descricao: "x" });
+    const pe4 = await patch(idosoB.token, `/alimentacao/2147483647`, { descricao: "x" });
+    ok(
+      "11.1 refeicao inválida: 400 e a linha não muda; de outro idoso = 404 igual ao inexistente",
+      pe2.status === 400 && pe3.status === 404 && pe4.status === 404 && JSON.stringify(pe3.body) === JSON.stringify(pe4.body) && (await inalterado(e2)),
+      `status ${pe2.status}/${pe3.status}/${pe4.status}`,
+    );
+
+    // 21: familiar conforme modo_decisao (coluna 'idoso' no momento): 403 nas duas rotas, linha intacta.
+    const pe5 = await patch(familiar.token, `/alimentacao/idoso/${idoso.id}/${e2}`, { descricao: "x" });
+    const de5 = await del(familiar.token, `/alimentacao/idoso/${idoso.id}/${e2}`);
+    ok("11.1 familiar com modo_decisao 'idoso': PATCH e DELETE 403 e a linha permanece intacta", pe5.status === 403 && de5.status === 403 && (await inalterado(e2)), `status ${pe5.status}/${de5.status}`);
+
+    // 22: cuidador com as 3 flags true: 403 nas duas rotas por vínculo e 404 nas rotas próprias; linha intacta.
+    const pe6 = await patch(cuidadorSemFlags.token, `/alimentacao/idoso/${idoso.id}/${e2}`, { descricao: "x" });
+    await prisma.vinculo.updateMany({
+      where: { idoso_id: idoso.id, vinculado_id: cuidadorSemFlags.id },
+      data: { permite_marcar_dose: true, permite_registrar_saude: true, permite_criar_evento_cuidado: true },
+    });
+    const pe7 = await patch(cuidadorSemFlags.token, `/alimentacao/idoso/${idoso.id}/${e2}`, { descricao: "x" });
+    const de7 = await del(cuidadorSemFlags.token, `/alimentacao/idoso/${idoso.id}/${e2}`);
+    const pe8 = await patch(cuidador.token, `/alimentacao/${e2}`, { descricao: "x" });
+    const de8 = await del(cuidador.token, `/alimentacao/${e2}`);
+    ok(
+      "11.1 cuidador (flags false e as 3 true): 403 por vínculo, 404 pela rota própria, linha intacta",
+      pe6.status === 403 && pe7.status === 403 && de7.status === 403 && pe8.status === 404 && de8.status === 404 && (await inalterado(e2)),
+      `status ${pe6.status}/${pe7.status}/${de7.status}/${pe8.status}/${de8.status}`,
+    );
+
+    // 23: vínculo pendente: 403.
+    const pe9 = await patch(familiarPend.token, `/alimentacao/idoso/${idoso.id}/${e2}`, { descricao: "x" });
+    const de9 = await del(familiarPend.token, `/alimentacao/idoso/${idoso.id}/${e2}`);
+    ok("11.1 familiar com vínculo pendente: 403 nas duas rotas e linha intacta", pe9.status === 403 && de9.status === 403 && (await inalterado(e2)), `status ${pe9.status}/${de9.status}`);
+
+    // 24: familiar com modo_decisao 'familiar': edita (editado_por_id do familiar) e exclui; 404 de outro idoso via vínculo.
+    await prisma.usuario.update({ where: { id: idoso.id }, data: { modo_decisao: "familiar" } });
+    const pe10 = await patch(familiar.token, `/alimentacao/idoso/${idoso.id}/${e2}`, { descricao: `${sentinela}-pelo-familiar` });
+    const le10 = await lerRegistro(e2);
+    ok(
+      "11.1 familiar com modo_decisao 'familiar' edita: 200 e editado_por_id do familiar",
+      pe10.status === 200 && le10?.descricao === `${sentinela}-pelo-familiar` && le10.editado_por_id === familiar.id && le10.registrado_por_id === idoso.id,
+      `status ${pe10.status}`,
+    );
+    const eB = await semearOriginal(idosoB.id);
+    const pe11 = await patch(familiar.token, `/alimentacao/idoso/${idoso.id}/${eB}`, { descricao: "x" });
+    ok("11.1 registro do idoso B pedido pelo vínculo do idoso A: 404 e a linha de B intacta", pe11.status === 404 && (await inalterado(eB)), `status ${pe11.status}`);
+    const de10 = await del(familiar.token, `/alimentacao/idoso/${idoso.id}/${e2}`);
+    ok("11.1 familiar com modo_decisao 'familiar' exclui: 204 e a linha some", de10.status === 204 && (await lerRegistro(e2)) === null, `status ${de10.status}`);
+
+    // 25: idoso exclui o próprio; de outro idoso = 404 e a linha permanece; segundo DELETE = 404.
+    const de11 = await del(idosoB.token, `/alimentacao/${e1}`);
+    ok("11.1 DELETE de registro de outro idoso: 404 e a linha permanece", de11.status === 404 && (await lerRegistro(e1)) !== null, `status ${de11.status}`);
+    const de12 = await del(idoso.token, `/alimentacao/${e1}`);
+    const de13 = await del(idoso.token, `/alimentacao/${e1}`);
+    ok("11.1 idoso exclui o próprio: 204 e a linha some; segundo DELETE: 404", de12.status === 204 && (await lerRegistro(e1)) === null && de13.status === 404, `status ${de12.status}/${de13.status}`);
+
+    // 26: contagem: só sobraram os registros semeados que não foram excluídos (e2 e e1 saíram; eB fica).
+    const nDepois = await contarRegistros();
+    ok("11.1 COUNT(*) de RegistroAlimentar = antes da fase + 1 (só o registro do idoso B sobrou)", nDepois === nFase11 + 1, `antes ${nFase11}, depois ${nDepois}`);
   } finally {
     // Ordem de FK: registros, vínculos, contas.
     await prisma.registroAlimentar.deleteMany({
