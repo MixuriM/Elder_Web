@@ -11,6 +11,9 @@ import { listaFamiliar, listaPerfilIdoso } from '../hooks/idososFixtures'
 
 expect.extend(toHaveNoViolations)
 
+// O jsdom não calcula contraste: o contraste é auditado por npm run test:a11y (Playwright). Dados obviamente falsos.
+const AXE = { rules: { 'color-contrast': { enabled: false } } }
+
 const mockGetCurrentUserToken = jest.fn()
 const mockUseIdosos = jest.fn()
 const mockUseAcesso = jest.fn()
@@ -46,6 +49,15 @@ function fetchMock(): jest.Mock {
   return global.fetch as jest.Mock
 }
 
+const REGISTRO = { id: 7, tipo_medicao: 'pressao', valor_1: 120, valor_2: 80, unidade: 'mmHg', data_hora: '2026-09-24T12:00:00.000Z' }
+
+// GET devolve os registros dados; escrita devolve a resposta dada.
+function simularApi(registros: unknown[] = [], escrita: Response = respostaJson(201, { id: 55 })) {
+  fetchMock().mockImplementation((_url: string, opcoes?: RequestInit) =>
+    Promise.resolve((opcoes?.method ?? 'GET') === 'GET' ? respostaJson(200, { registros }) : escrita),
+  )
+}
+
 function renderizarSaude() {
   return render(
     <MemoryRouter>
@@ -60,6 +72,8 @@ function pegarSecao(nome: RegExp) {
   if (!section) throw new Error(`Seção não encontrada: ${nome}`)
   return within(section)
 }
+
+const botaoDoCabecalho = () => within(screen.getByRole('banner')).getByRole('button', { name: 'Registrar leitura' })
 
 function configurarFamiliar(escrita = true) {
   mockUseAcesso.mockReturnValue({ tipoPerfil: 'familiar' })
@@ -81,35 +95,40 @@ beforeEach(() => {
     escrita: false,
     avisoSemFlag: false,
   })
-  global.fetch = jest.fn(() => Promise.resolve(respostaJson(200, { registros: [] })))
+  global.fetch = jest.fn()
+  simularApi()
 })
 
 describe('Saude — estrutura acessível', () => {
-  it('mostra o título e as seções próprias para o perfil idoso', () => {
+  it('idoso: título, botão de registrar com nome acessível e histórico', async () => {
     renderizarSaude()
 
     expect(screen.getByRole('heading', { level: 1, name: /minha saúde/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /registrar leitura de saúde/i })).toBeInTheDocument()
+    expect(botaoDoCabecalho()).toBeEnabled()
     expect(screen.getByRole('heading', { name: /histórico de saúde/i })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /registrar saúde do idoso/i })).not.toBeInTheDocument()
+    await screen.findByText('Nenhum registro de saúde')
   })
 
-  it('mostra as seções adequadas para familiar autorizado', () => {
+  it('familiar autorizado: título do idoso e botão de registrar', async () => {
     configurarFamiliar()
     renderizarSaude()
 
     expect(screen.getByRole('heading', { level: 1, name: /saúde do idoso/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /registrar saúde do idoso/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /histórico de saúde/i })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: /registrar leitura de saúde/i })).not.toBeInTheDocument()
+    expect(botaoDoCabecalho()).toBeInTheDocument()
+    await screen.findByText('Nenhum registro de saúde')
   })
 
-  it('mostra Editar e Remover do idoso depois que a lista carrega, sem botão "Ver histórico"', async () => {
-    fetchMock().mockResolvedValue(
-      respostaJson(200, {
-        registros: [{ id: 7, tipo_medicao: 'pressao', valor_1: 120, valor_2: 80, unidade: 'mmHg', data_hora: '2026-09-24T12:00:00.000Z' }],
-      }),
-    )
+  it('a página inteira, com a lista carregada, não tem violações', async () => {
+    simularApi([REGISTRO])
+    const { container } = renderizarSaude()
+    await screen.findByText('pressao')
+
+    expect(await axe(container, AXE)).toHaveNoViolations()
+  })
+
+  it('Editar e Remover do idoso aparecem depois que a lista carrega, sem botão "Ver histórico"', async () => {
+    simularApi([REGISTRO])
     renderizarSaude()
 
     expect(await screen.findByRole('button', { name: 'Editar registro de pressao' })).toBeInTheDocument()
@@ -118,118 +137,98 @@ describe('Saude — estrutura acessível', () => {
   })
 })
 
-describe('Saude — acessibilidade do registro próprio', () => {
-  it('associa todos os campos aos seus rótulos', () => {
-    renderizarSaude()
-    const secao = pegarSecao(/registrar leitura de saúde/i)
+describe('Saude — acessibilidade do modal de registrar (idoso)', () => {
+  async function abrir() {
+    const user = userEvent.setup()
+    const utils = renderizarSaude()
+    await screen.findByText('Nenhum registro de saúde')
+    await user.click(botaoDoCabecalho())
+    return { user, ...utils, dialogo: screen.getByRole('dialog', { name: 'Registrar leitura de saúde' }) }
+  }
 
-    for (const rotulo of [
-      'Tipo de medição',
-      'Valor 1',
-      'Valor 2 (opcional)',
-      'Unidade',
-      'Data e hora (opcional)',
-      'Observações (opcional)',
-    ]) {
-      expect(secao.getByLabelText(rotulo, { exact: true })).toBeInTheDocument()
+  it('dialog modal, foco dentro, campos associados aos rótulos e sem violações', async () => {
+    const { dialogo } = await abrir()
+
+    expect(dialogo).toHaveAttribute('aria-modal', 'true')
+    expect(dialogo).toHaveFocus()
+    for (const rotulo of ['Tipo de medição', 'Valor 1', 'Valor 2 (opcional)', 'Unidade', 'Data e hora (opcional)', 'Observações (opcional)']) {
+      expect(within(dialogo).getByLabelText(rotulo, { exact: true })).toBeInTheDocument()
     }
+    expect(within(dialogo).getByRole('button', { name: 'Salvar leitura' })).toBeInTheDocument()
+    expect(await axe(dialogo, AXE)).toHaveNoViolations()
   })
 
-  it('possui botão de envio com nome acessível', () => {
-    renderizarSaude()
-    expect(
-      pegarSecao(/registrar leitura de saúde/i).getByRole('button', {
-        name: /^registrar leitura$/i,
-      }),
-    ).toBeInTheDocument()
+  it('exibe erros com role alert dentro do modal', async () => {
+    simularApi([], respostaJson(400, { error: 'valor_1 inválido.' }))
+    const { user, dialogo } = await abrir()
+
+    await user.type(within(dialogo).getByLabelText('Tipo de medição'), 'peso')
+    await user.type(within(dialogo).getByLabelText('Valor 1', { exact: true }), '70')
+    await user.type(within(dialogo).getByLabelText('Unidade'), 'kg')
+    await user.click(within(dialogo).getByRole('button', { name: 'Salvar leitura' }))
+
+    expect(await within(dialogo).findByRole('alert')).toHaveTextContent('valor_1 inválido.')
+    expect(await axe(dialogo, AXE)).toHaveNoViolations()
   })
 
-  it('exibe erros com role alert', async () => {
-    fetchMock().mockResolvedValue(respostaJson(400, { error: 'Mensagem de erro de teste.' }))
-    const user = userEvent.setup()
-    renderizarSaude()
-    const secao = pegarSecao(/registrar leitura de saúde/i)
+  it('exibe confirmação em role status depois de registrar, e o foco volta ao botão', async () => {
+    const { user, dialogo } = await abrir()
 
-    await user.type(secao.getByLabelText('Tipo de medição'), 'peso')
-    await user.type(secao.getByLabelText('Valor 1', { exact: true }), '70')
-    await user.type(secao.getByLabelText('Unidade'), 'kg')
-    await user.click(secao.getByRole('button', { name: /^registrar leitura$/i }))
+    await user.type(within(dialogo).getByLabelText('Tipo de medição'), 'peso')
+    await user.type(within(dialogo).getByLabelText('Valor 1', { exact: true }), '70')
+    await user.type(within(dialogo).getByLabelText('Unidade'), 'kg')
+    await user.click(within(dialogo).getByRole('button', { name: 'Salvar leitura' }))
 
-    expect(await secao.findByRole('alert')).toHaveTextContent('Mensagem de erro de teste.')
+    expect((await screen.findByText('Leitura registrada com sucesso.')).closest('[role="status"]')).not.toBeNull()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(botaoDoCabecalho()).toHaveFocus()
   })
 
-  it('exibe confirmação após cadastro', async () => {
-    fetchMock().mockResolvedValue(respostaJson(201, { id: 11 }))
-    const user = userEvent.setup()
-    renderizarSaude()
-    const secao = pegarSecao(/registrar leitura de saúde/i)
+  it('desabilita o botão durante o envio', async () => {
+    fetchMock().mockImplementation((_url: string, opcoes?: RequestInit) =>
+      (opcoes?.method ?? 'GET') === 'GET' ? Promise.resolve(respostaJson(200, { registros: [] })) : new Promise(() => undefined),
+    )
+    const { user, dialogo } = await abrir()
 
-    await user.type(secao.getByLabelText('Tipo de medição'), 'peso')
-    await user.type(secao.getByLabelText('Valor 1', { exact: true }), '70')
-    await user.type(secao.getByLabelText('Unidade'), 'kg')
-    await user.click(secao.getByRole('button', { name: /^registrar leitura$/i }))
+    await user.type(within(dialogo).getByLabelText('Tipo de medição'), 'peso')
+    await user.type(within(dialogo).getByLabelText('Valor 1', { exact: true }), '70')
+    await user.type(within(dialogo).getByLabelText('Unidade'), 'kg')
+    await user.click(within(dialogo).getByRole('button', { name: 'Salvar leitura' }))
 
-    expect(await secao.findByText(/leitura registrada com sucesso/i)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Salvando...' })).toBeDisabled()
   })
 })
 
-describe('Saude — acessibilidade do registro de idoso vinculado', () => {
+describe('Saude — acessibilidade do modal de registrar (terceiro)', () => {
   beforeEach(() => configurarFamiliar())
 
-  it('associa todos os campos aos seus rótulos', () => {
-    renderizarSaude()
-    const secao = pegarSecao(/registrar saúde do idoso/i)
-
-    for (const rotulo of [
-      'Idoso',
-      'Tipo de medição',
-      'Valor 1',
-      'Valor 2 (opcional)',
-      'Unidade',
-      'Data e hora (opcional)',
-      'Observações (opcional)',
-    ]) {
-      expect(secao.getByLabelText(rotulo, { exact: true })).toBeInTheDocument()
-    }
-  })
-
-  it('possui botão com nome acessível', () => {
-    renderizarSaude()
-    expect(
-      pegarSecao(/registrar saúde do idoso/i).getByRole('button', {
-        name: /registrar leitura do idoso/i,
-      }),
-    ).toBeInTheDocument()
-  })
-
-  it('exibe erros com role alert', async () => {
-    fetchMock().mockResolvedValue(respostaJson(400, { error: 'Mensagem de erro de teste.' }))
+  it('seletor de idoso rotulado dentro do modal, campos associados e sem violações', async () => {
     const user = userEvent.setup()
     renderizarSaude()
-    const secao = pegarSecao(/registrar saúde do idoso/i)
+    await screen.findByText('Nenhum registro de saúde')
+    await user.click(botaoDoCabecalho())
+    const dialogo = screen.getByRole('dialog', { name: 'Registrar leitura de saúde' })
 
-    await user.selectOptions(secao.getByLabelText('Idoso'), '5')
-    await user.type(secao.getByLabelText('Tipo de medição'), 'glicemia')
-    await user.type(secao.getByLabelText('Valor 1', { exact: true }), '95')
-    await user.type(secao.getByLabelText('Unidade'), 'mg/dL')
-    await user.click(secao.getByRole('button', { name: /registrar leitura do idoso/i }))
-
-    expect(await secao.findByRole('alert')).toHaveTextContent('Mensagem de erro de teste.')
+    const seletor = within(dialogo).getByLabelText('Idoso')
+    expect(seletor.tagName).toBe('SELECT')
+    for (const rotulo of ['Tipo de medição', 'Valor 1', 'Unidade']) {
+      expect(within(dialogo).getByLabelText(rotulo, { exact: true })).toBeInTheDocument()
+    }
+    expect(await axe(dialogo, AXE)).toHaveNoViolations()
   })
 })
 
 describe('Saude — acessibilidade do histórico', () => {
   beforeEach(() => configurarFamiliar())
 
-  it('possui seletor com rótulo e nome do idoso', () => {
+  it('possui seletor com rótulo e nome do idoso', async () => {
     renderizarSaude()
     const secao = pegarSecao(/histórico de saúde/i)
     const seletor = secao.getByLabelText('Idoso')
 
     expect(seletor.tagName).toBe('SELECT')
-    expect(within(seletor).getAllByRole('option')[0]).toHaveTextContent(
-      'Idoso Teste Cinco (c***@teste.com)',
-    )
+    expect(within(seletor).getAllByRole('option')[0]).toHaveTextContent('Idoso Teste Cinco (c***@teste.com)')
+    await screen.findByText('Nenhum registro de saúde')
   })
 
   it('informa o carregamento com role status, sem botão de consulta', async () => {
@@ -238,15 +237,16 @@ describe('Saude — acessibilidade do histórico', () => {
 
     expect(secao.queryByRole('button', { name: /ver histórico/i })).not.toBeInTheDocument()
     expect(secao.getByRole('status')).toHaveTextContent(/carregando o histórico de saúde/i)
-    await screen.findByText(/nenhum registro encontrado/i)
+    await screen.findByText('Nenhum registro de saúde')
   })
 
-  it('informa quando o histórico está vazio, com role status', async () => {
-    renderizarSaude()
-    const secao = pegarSecao(/histórico de saúde/i)
+  it('lista vazia: cartão com ícone, título e texto, anunciado em role status', async () => {
+    const { container } = renderizarSaude()
 
-    expect(await secao.findByText(/nenhum registro encontrado/i)).toBeInTheDocument()
-    expect(secao.getByText(/nenhum registro encontrado/i).closest('[role="status"]')).not.toBeNull()
+    const titulo = await screen.findByText('Nenhum registro de saúde')
+    expect(titulo.closest('[role="status"]')).not.toBeNull()
+    expect(screen.getByText(/registre a primeira medição/i)).toBeInTheDocument()
+    expect(await axe(container, AXE)).toHaveNoViolations()
   })
 
   it('exibe erro de carga com role alert e mensagem fixa, sem ecoar o servidor', async () => {
@@ -263,15 +263,16 @@ describe('Saude — acessibilidade do histórico', () => {
 describe('Saude — acessibilidade das permissões', () => {
   beforeEach(() => configurarFamiliar())
 
-  it('mostra aviso de falta de permissão com role status', () => {
+  it('mostra aviso de falta de permissão com role status', async () => {
     configurarFamiliar(false)
     renderizarSaude()
 
     expect(screen.getByText(/não possui permissão/i).closest('[role="status"]')).not.toBeNull()
-    expect(screen.queryByRole('heading', { name: /registrar saúde do idoso/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar leitura' })).not.toBeInTheDocument()
+    await screen.findByText('Nenhum registro de saúde')
   })
 
-  it('exibe erro de permissões com role alert', () => {
+  it('exibe erro de permissões com role alert', async () => {
     mockUsePermissoes.mockReturnValue({
       estado: 'erro',
       escrita: false,
@@ -279,9 +280,8 @@ describe('Saude — acessibilidade das permissões', () => {
     })
     renderizarSaude()
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      /não foi possível verificar suas permissões/i,
-    )
+    expect(screen.getByRole('alert')).toHaveTextContent(/não foi possível verificar suas permissões/i)
+    await screen.findByText('Nenhum registro de saúde')
   })
 })
 
@@ -296,34 +296,11 @@ describe('Saude — acessibilidade do carregamento', () => {
 
     expect(screen.getByText(/carregando informações de saúde/i)).toBeInTheDocument()
   })
-
-  it('desabilita o botão durante o envio', async () => {
-    fetchMock().mockReturnValue(new Promise<Response>(() => undefined))
-    const user = userEvent.setup()
-    renderizarSaude()
-    const secao = pegarSecao(/registrar leitura de saúde/i)
-
-    await user.type(secao.getByLabelText('Tipo de medição'), 'peso')
-    await user.type(secao.getByLabelText('Valor 1', { exact: true }), '70')
-    await user.type(secao.getByLabelText('Unidade'), 'kg')
-    await user.click(secao.getByRole('button', { name: /^registrar leitura$/i }))
-
-    expect(
-      await secao.findByRole('button', { name: /registrando/i }),
-    ).toBeDisabled()
-  })
 })
-
-// O jsdom não calcula contraste: o contraste é auditado por npm run test:a11y (Playwright).
-const AXE = { rules: { 'color-contrast': { enabled: false } } }
 
 describe('Saude — acessibilidade dos modais de editar e remover', () => {
   async function comRegistro() {
-    fetchMock().mockResolvedValue(
-      respostaJson(200, {
-        registros: [{ id: 7, tipo_medicao: 'pressao', valor_1: 120, valor_2: 80, unidade: 'mmHg', data_hora: '2026-09-24T12:00:00.000Z' }],
-      }),
-    )
+    simularApi([REGISTRO])
     renderizarSaude()
     await screen.findByText('pressao')
   }
