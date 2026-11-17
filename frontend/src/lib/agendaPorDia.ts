@@ -9,6 +9,8 @@ export type EventoAgenda = {
   descricao: string | null
   data_hora_inicio: string
   data_hora_fim: string | null
+  // Quem criou: decide se o cuidador pode editar ou remover (só o que ele mesmo criou).
+  criado_por_id?: number
 }
 
 export type GrupoDia = {

@@ -7,12 +7,16 @@ import Spinner from '../components/common/Spinner'
 import { agruparEventosPorDia, type EventoAgenda, type GrupoDia } from '../lib/agendaPorDia'
 import { lerVisaoAgenda, salvarVisaoAgenda, type VisaoAgenda } from '../lib/preferencias'
 import { useRegistrosDoIdoso } from '../lib/registrosDoIdoso'
-import { modoDeCriacao } from '../lib/regrasAgenda'
+import { modoDeCriacao, podeAlterarCompromisso } from '../lib/regrasAgenda'
+import { caminhoRegistro } from '../lib/registrosDoIdoso'
+import { chamarApi } from '../lib/chamarApi'
 import { mensagemPorStatus } from '../components/Vinculos/mensagensVinculo'
 import Alternador from '../components/Agenda/Alternador'
 import Calendario from '../components/Agenda/Calendario'
 import CartaoCompromisso from '../components/Agenda/CartaoCompromisso'
 import ModalCriarCompromisso from '../components/Agenda/ModalCriarCompromisso'
+import ModalConfirmar from '../components/common/ModalConfirmar'
+import { AcoesCompromissoContext, type AcoesCompromisso } from '../components/Agenda/acoesCompromisso'
 import { useTitulo } from '../hooks/useTitulo'
 import { useAcesso } from '../contexts/useAcesso'
 
@@ -72,7 +76,9 @@ function AreaAgenda() {
   const [idosoId, setIdosoId] = useState('')
   const [versao, setVersao] = useState(0)
   const [modalAberto, setModalAberto] = useState(false)
-  const [criado, setCriado] = useState(false)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [editando, setEditando] = useState<EventoAgenda | null>(null)
+  const [removendo, setRemovendo] = useState<EventoAgenda | null>(null)
   const [visao, setVisao] = useState<VisaoAgenda>(() => lerVisaoAgenda().visao)
 
   // Cada ator cria o que o backend aceita (o resto dá 403): o botão só aparece para quem cria.
@@ -96,12 +102,27 @@ function AreaAgenda() {
   const escolhaPendente =
     agenda.fase === 'aguardando' && idosos.estado === 'ok' && !idosos.ehIdoso && idosos.idosos.length > 0
 
+  // Editar e Remover nos cartões: idoso e familiar (modo familiar) em pessoal e médico; cuidador só no cuidado que ele criou.
+  const acoes: AcoesCompromisso = {
+    podeAlterar: (evento) =>
+      podeAlterarCompromisso({ evento, ehIdoso: idosos.ehIdoso, tipoPerfil: tipoPerfil ?? idosos.tipoPerfil, idosoId, vinculos }),
+    editar: (evento) => {
+      setAviso(null)
+      setEditando(evento)
+    },
+    remover: (evento) => {
+      setAviso(null)
+      setRemovendo(evento)
+    },
+  }
+
   function mudarVisao(v: VisaoAgenda) {
     setVisao(v)
     salvarVisaoAgenda('agendaVisao', v)
   }
 
   return (
+    <AcoesCompromissoContext.Provider value={acoes}>
     <section
       aria-labelledby="titulo_agenda"
       className="rounded-3xl border border-[#E5E2F5] bg-white p-4 shadow-sm dark:border-[#393947] dark:bg-[#171721] sm:p-7"
@@ -122,7 +143,7 @@ function AreaAgenda() {
           <button
             type="button"
             onClick={() => {
-              setCriado(false)
+              setAviso(null)
               setModalAberto(true)
             }}
             disabled={envioBloqueado(idosos, idosoId)}
@@ -142,7 +163,7 @@ function AreaAgenda() {
             valor={idosoId}
             aoMudar={(v) => {
               setIdosoId(v)
-              setCriado(false)
+              setAviso(null)
             }}
             lista={idosos}
           />
@@ -169,12 +190,12 @@ function AreaAgenda() {
         </p>
       )}
 
-      {criado && (
+      {aviso && (
         <p
           role="status"
           className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-base font-medium text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
         >
-          Compromisso criado.
+          {aviso}
         </p>
       )}
 
@@ -224,12 +245,45 @@ function AreaAgenda() {
           idosoNome={idosoNome}
           onCriado={() => {
             setModalAberto(false)
-            setCriado(true)
+            setAviso('Compromisso criado.')
             setVersao((v) => v + 1)
           }}
         />
       )}
+
+      {modo && (
+        <ModalCriarCompromisso
+          aberto={editando !== null}
+          onFechar={() => setEditando(null)}
+          modo={modo}
+          idosoId={idosos.ehIdoso ? '' : idosoId}
+          idosoNome={idosoNome}
+          compromisso={editando}
+          onCriado={() => {
+            setEditando(null)
+            setAviso('Compromisso atualizado.')
+            setVersao((v) => v + 1)
+          }}
+        />
+      )}
+
+      <ModalConfirmar
+        aberto={removendo !== null}
+        onFechar={() => setRemovendo(null)}
+        titulo="Remover compromisso"
+        texto="Remover este compromisso? Esta ação não pode ser desfeita."
+        onConfirmar={async () => {
+          if (!removendo) return
+
+          await chamarApi(caminhoRegistro('/agenda', idosos.ehIdoso, idosoId, removendo.id), { method: 'DELETE' })
+
+          setRemovendo(null)
+          setAviso('Compromisso removido.')
+          setVersao((v) => v + 1)
+        }}
+      />
     </section>
+    </AcoesCompromissoContext.Provider>
   )
 }
 

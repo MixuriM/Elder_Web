@@ -201,3 +201,49 @@ describe.each(["idoso", "familiar", "cuidador"] as const)("Agenda: acessibilidad
     expect(await axe(container, AXE)).toHaveNoViolations();
   });
 });
+
+describe("Agenda: acessibilidade de Editar e Remover compromisso (Fase 11)", () => {
+  async function comCompromisso() {
+    eventos = [{ ...EV(1, "pessoal", "2099-10-01T12:00:00.000Z"), criado_por_id: 7 }];
+    window.localStorage.setItem("agendaVisao", "lista");
+    const user = userEvent.setup();
+    const utils = renderAgenda();
+    await screen.findByText(/1 compromisso\(s\)/);
+    return { user, ...utils };
+  }
+
+  it("cartão com os botões Editar e Remover: nome pelo texto da tela, alvo grande e sem violações", async () => {
+    const { container } = await comCompromisso();
+
+    const editar = screen.getByRole("button", { name: "Editar titulo-falso-1" });
+    expect(editar).toHaveClass("min-h-11");
+    expect(screen.getByRole("button", { name: "Remover titulo-falso-1" })).toHaveClass("min-h-11");
+    expect(await axe(container, AXE)).toHaveNoViolations();
+  });
+
+  it("modal de edição: dialog modal nomeado, foco dentro, campos rotulados e sem violações", async () => {
+    const { user } = await comCompromisso();
+
+    await user.click(screen.getByRole("button", { name: "Editar titulo-falso-1" }));
+
+    const dialogo = screen.getByRole("dialog", { name: "Editar compromisso" });
+    expect(dialogo).toHaveAttribute("aria-modal", "true");
+    expect(dialogo).toHaveFocus();
+    for (const rotulo of ["Tipo", "Título", "Descrição (opcional)", "Início", "Fim (opcional)"]) {
+      expect(within(dialogo).getByLabelText(rotulo)).toBeInTheDocument();
+    }
+    expect(await axe(dialogo, AXE)).toHaveNoViolations();
+  });
+
+  it("confirmação de remoção: alertdialog, foco dentro, botões com texto e sem violações", async () => {
+    const { user } = await comCompromisso();
+
+    await user.click(screen.getByRole("button", { name: "Remover titulo-falso-1" }));
+
+    const dialogo = screen.getByRole("alertdialog", { name: "Remover compromisso" });
+    expect(dialogo).toHaveFocus();
+    expect(within(dialogo).getByRole("button", { name: "Remover" })).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    expect(await axe(dialogo, AXE)).toHaveNoViolations();
+  });
+});

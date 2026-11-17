@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { CalendarPlus } from 'lucide-react'
 
+import type { EventoAgenda } from '../../lib/agendaPorDia'
 import { chamarApi } from '../../lib/chamarApi'
+import { paraInputDataHora } from '../../lib/dataHoraLocal'
+import { mensagemEdicao } from '../../lib/mensagensAcaoRegistro'
+import { caminhoRegistro } from '../../lib/registrosDoIdoso'
 import { mensagemPorStatus } from '../Vinculos/mensagensVinculo'
 import type { ModoCriacao } from '../../lib/regrasAgenda'
 import ModalBase from '../common/ModalBase'
@@ -14,6 +18,9 @@ interface ModalCriarCompromissoProps {
   // Idoso da agenda (cuidador e familiar): o formulário usa o que já está escolhido na página e mostra o nome.
   idosoId: string
   idosoNome?: string
+  // Com um compromisso, o modal EDITA (PATCH) em vez de criar: mesmos campos, já preenchidos.
+  compromisso?: EventoAgenda | null
+  // Chamado depois de criar ou de salvar a edição.
   onCriado: () => void
 }
 
@@ -35,8 +42,19 @@ const CLASSE_LABEL = 'block text-base font-semibold text-[#071A38] dark:text-[#F
 
 const VAZIO = { tipo: 'pessoal', titulo: '', descricao: '', inicio: '', fim: '' }
 
-function Conteudo({ onFechar, modo, idosoId, idosoNome, onCriado }: Omit<ModalCriarCompromissoProps, 'aberto'>) {
-  const [campos, setCampos] = useState(VAZIO)
+function Conteudo({ onFechar, modo, idosoId, idosoNome, compromisso, onCriado }: Omit<ModalCriarCompromissoProps, 'aberto'>) {
+  const editando = Boolean(compromisso)
+  const [campos, setCampos] = useState(() =>
+    compromisso
+      ? {
+          tipo: compromisso.tipo_evento,
+          titulo: compromisso.titulo,
+          descricao: compromisso.descricao ?? '',
+          inicio: paraInputDataHora(compromisso.data_hora_inicio),
+          fim: compromisso.data_hora_fim ? paraInputDataHora(compromisso.data_hora_fim) : '',
+        }
+      : VAZIO,
+  )
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -72,21 +90,34 @@ function Conteudo({ onFechar, modo, idosoId, idosoNome, onCriado }: Omit<ModalCr
 
     try {
       // datetime-local não traz fuso: toISOString() converte para UTC com Z, que o backend exige.
-      await chamarApi(modo === 'idoso' ? '/agenda' : `/agenda/idoso/${idosoId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          tipo_evento: modo === 'cuidador' ? 'cuidado' : campos.tipo,
-          titulo: campos.titulo.trim(),
-          descricao: campos.descricao.trim() === '' ? undefined : campos.descricao.trim(),
-          data_hora_inicio: inicio.toISOString(),
-          // Opcional em branco não é enviado.
-          data_hora_fim: fim ? fim.toISOString() : undefined,
-        }),
-      })
+      const tipo_evento = modo === 'cuidador' ? 'cuidado' : campos.tipo
+      const comum = { tipo_evento, titulo: campos.titulo.trim(), data_hora_inicio: inicio.toISOString() }
+
+      if (compromisso) {
+        // Na edição, opcional em branco vai como null: limpa no servidor (campo ausente manteria o valor antigo).
+        await chamarApi(caminhoRegistro('/agenda', modo === 'idoso', idosoId, compromisso.id), {
+          method: 'PATCH',
+          body: JSON.stringify({
+            ...comum,
+            descricao: campos.descricao.trim() === '' ? null : campos.descricao.trim(),
+            data_hora_fim: fim ? fim.toISOString() : null,
+          }),
+        })
+      } else {
+        await chamarApi(modo === 'idoso' ? '/agenda' : `/agenda/idoso/${idosoId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            ...comum,
+            descricao: campos.descricao.trim() === '' ? undefined : campos.descricao.trim(),
+            // Opcional em branco não é enviado.
+            data_hora_fim: fim ? fim.toISOString() : undefined,
+          }),
+        })
+      }
 
       onCriado()
     } catch (err) {
-      setErro(mensagemErroCriar(err))
+      setErro(editando ? mensagemEdicao(err) : mensagemErroCriar(err))
     } finally {
       setEnviando(false)
     }
@@ -100,9 +131,11 @@ function Conteudo({ onFechar, modo, idosoId, idosoNome, onCriado }: Omit<ModalCr
       }}
       icone={<CalendarPlus size={22} aria-hidden="true" />}
       sobretitulo="Agenda"
-      titulo="Criar compromisso"
+      titulo={editando ? 'Editar compromisso' : 'Criar compromisso'}
       descricao={
-        modo === 'idoso'
+        editando
+          ? 'Altere os dados do compromisso.'
+          : modo === 'idoso'
           ? 'Adicione um compromisso à sua rotina.'
           : modo === 'familiar'
             ? 'Organize um compromisso para a pessoa vinculada.'
@@ -110,7 +143,7 @@ function Conteudo({ onFechar, modo, idosoId, idosoNome, onCriado }: Omit<ModalCr
       }
     >
       <form onSubmit={criar} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {modo !== 'idoso' && idosoNome && (
+        {modo !== 'idoso' && idosoNome && !editando && (
           <p className="rounded-xl border border-[#E5E2F5] bg-[#F8F7FC] px-4 py-3 text-base text-[#071A38] dark:border-[#393947] dark:bg-[#1C1C27] dark:text-[#F5F5FA] sm:col-span-2">
             Compromisso para: <strong>{idosoNome}</strong>
           </p>
@@ -219,8 +252,8 @@ function Conteudo({ onFechar, modo, idosoId, idosoNome, onCriado }: Omit<ModalCr
             aria-busy={enviando}
             className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#5F56EC] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#554CD8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5F56EC]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-[#171721]"
           >
-            {enviando && <Spinner />}
-            {enviando ? 'Criando...' : 'Criar compromisso'}
+            {enviando && <Spinner pequeno />}
+            {enviando ? (editando ? 'Salvando...' : 'Criando...') : editando ? 'Salvar alterações' : 'Criar compromisso'}
           </button>
         </div>
       </form>

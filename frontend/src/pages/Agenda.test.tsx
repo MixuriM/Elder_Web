@@ -377,3 +377,224 @@ describe("Agenda: botão Criar compromisso (itens 6.1 e 6.2 e Fase 11)", () => {
     await screen.findByText("Nenhum compromisso na agenda.");
   });
 });
+
+describe("Agenda: Editar e Remover compromisso (Fase 11)", () => {
+  // Datas futuras: os cartões ficam na lista, fora do <details> dos compromissos anteriores.
+  const futuro = (id: number, tipo: string, criadoPor = 7) => ({
+    ...evApi(id, tipo, `2099-10-0${id}T12:00:00.000Z`),
+    criado_por_id: criadoPor,
+  });
+
+  function vinculoFamiliar(modo: "idoso" | "familiar"): Vinculo {
+    return {
+      id: 2,
+      tipo_vinculo: "familiar",
+      origem: "solicitacao_familiar",
+      status: "aprovado",
+      papel_do_chamador: "vinculado",
+      decisao: { modo, transferencia: null },
+      idoso: { id: 7, nome: "Idoso Teste Sete", email_mascarado: null },
+      vinculado: { id: 60, nome: "Eu", email_mascarado: null },
+    } as Vinculo;
+  }
+
+  beforeEach(() => window.localStorage.setItem("agendaVisao", "lista"));
+  afterEach(() => window.localStorage.clear());
+
+  const cartao = (id: number) => screen.getByText(`titulo-falso-${id}`).closest("div.rounded-2xl") as HTMLElement;
+  const editar = (id: number) => within(cartao(id)).queryByRole("button", { name: new RegExp(`^Editar titulo-falso-${id}$`) });
+  const remover = (id: number) => within(cartao(id)).queryByRole("button", { name: new RegExp(`^Remover titulo-falso-${id}$`) });
+
+  it("idoso vê Editar e Remover nos seus compromissos, com o título no nome do botão, e não no de cuidado", async () => {
+    eventos = [futuro(1, "pessoal"), futuro(2, "medico"), futuro(3, "cuidado", 50)];
+    renderAgenda();
+    await screen.findByText(/3 compromisso\(s\)/);
+
+    expect(editar(1)).toHaveTextContent("Editar");
+    expect(remover(1)).toHaveTextContent("Remover");
+    expect(editar(2)).toBeInTheDocument();
+    expect(editar(3)).not.toBeInTheDocument();
+    expect(remover(3)).not.toBeInTheDocument();
+  });
+
+  it("o título não vai para nenhum atributo do botão (RNF-001): o nome vem do texto da tela", async () => {
+    eventos = [futuro(1, "pessoal")];
+    renderAgenda();
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    const botao = editar(1) as HTMLElement;
+    expect(botao).not.toHaveAttribute("aria-label");
+    expect(botao).not.toHaveAttribute("title");
+  });
+
+  it("familiar só vê com o modo de decisão familiar, e nunca no compromisso de cuidado", async () => {
+    usarIdosos(listaUmIdoso, "familiar");
+    eventos = [futuro(1, "pessoal"), futuro(3, "cuidado", 50)];
+    const { unmount } = renderAgenda("familiar", [vinculoFamiliar("familiar")]);
+    await screen.findByText(/2 compromisso\(s\)/);
+    expect(editar(1)).toBeInTheDocument();
+    expect(editar(3)).not.toBeInTheDocument();
+    unmount();
+
+    renderAgenda("familiar", [vinculoFamiliar("idoso")]);
+    await screen.findByText(/2 compromisso\(s\)/);
+    expect(editar(1)).not.toBeInTheDocument();
+    expect(remover(1)).not.toBeInTheDocument();
+  });
+
+  it("cuidador com a permissão vê só no compromisso de cuidado que ele criou", async () => {
+    usarIdosos(listaUmIdoso, "cuidador");
+    eventos = [futuro(1, "pessoal"), futuro(3, "cuidado", 50), futuro(4, "cuidado", 99)];
+    renderAgenda("cuidador", [vinculoCuidador(true)]);
+    await screen.findByText(/3 compromisso\(s\)/);
+
+    expect(editar(3)).toBeInTheDocument();
+    expect(remover(3)).toBeInTheDocument();
+    expect(editar(4)).not.toBeInTheDocument();
+    expect(editar(1)).not.toBeInTheDocument();
+  });
+
+  it("cuidador sem a permissão não vê Editar nem Remover", async () => {
+    usarIdosos(listaUmIdoso, "cuidador");
+    eventos = [futuro(3, "cuidado", 50)];
+    renderAgenda("cuidador", [vinculoCuidador(false)]);
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    expect(editar(3)).not.toBeInTheDocument();
+  });
+
+  it("Editar abre o modal com os dados; salvar faz PATCH /agenda/:id, avisa e recarrega a agenda", async () => {
+    eventos = [{ ...futuro(1, "pessoal"), descricao: "descricao-falsa", data_hora_fim: "2099-10-01T13:00:00.000Z" }];
+    const user = userEvent.setup();
+    renderAgenda();
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(editar(1) as HTMLElement);
+    const dialogo = screen.getByRole("dialog", { name: "Editar compromisso" });
+    expect(within(dialogo).getByLabelText("Título")).toHaveValue("titulo-falso-1");
+    expect(within(dialogo).getByLabelText("Descrição (opcional)")).toHaveValue("descricao-falsa");
+    expect(within(dialogo).getByLabelText("Tipo")).toHaveValue("pessoal");
+
+    await user.clear(within(dialogo).getByLabelText("Título"));
+    await user.type(within(dialogo).getByLabelText("Título"), "titulo-novo");
+    await user.clear(within(dialogo).getByLabelText("Descrição (opcional)"));
+    fireEvent.change(within(dialogo).getByLabelText("Fim (opcional)"), { target: { value: "" } });
+    await user.click(within(dialogo).getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const [url, init] = chamadas("PATCH")[0];
+    expect(String(url)).toMatch(/\/agenda\/1$/);
+    expect(JSON.parse(init.body)).toMatchObject({ tipo_evento: "pessoal", titulo: "titulo-novo", descricao: null, data_hora_fim: null });
+    expect(screen.getByText("Compromisso atualizado.").closest('[role="status"]')).not.toBeNull();
+    await waitFor(() => expect(chamadas("GET")).toHaveLength(2));
+  });
+
+  it("familiar edita pelo caminho do idoso: PATCH /agenda/idoso/:idosoId/:id", async () => {
+    usarIdosos(listaUmIdoso, "familiar");
+    eventos = [futuro(1, "pessoal")];
+    const user = userEvent.setup();
+    renderAgenda("familiar", [vinculoFamiliar("familiar")]);
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(editar(1) as HTMLElement);
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => expect(chamadas("PATCH")).toHaveLength(1));
+    expect(String(chamadas("PATCH")[0][0])).toMatch(/\/agenda\/idoso\/7\/1$/);
+  });
+
+  it("cuidador edita o compromisso de cuidado sem o campo Tipo, mantendo o tipo cuidado", async () => {
+    usarIdosos(listaUmIdoso, "cuidador");
+    eventos = [futuro(3, "cuidado", 50)];
+    const user = userEvent.setup();
+    renderAgenda("cuidador", [vinculoCuidador(true)]);
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(editar(3) as HTMLElement);
+    const dialogo = screen.getByRole("dialog", { name: "Editar compromisso" });
+    expect(within(dialogo).queryByLabelText("Tipo")).not.toBeInTheDocument();
+    await user.click(within(dialogo).getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => expect(chamadas("PATCH")).toHaveLength(1));
+    expect(JSON.parse(chamadas("PATCH")[0][1].body).tipo_evento).toBe("cuidado");
+  });
+
+  it("erro 403 ao salvar: mensagem fixa dentro do modal, que segue aberto", async () => {
+    eventos = [futuro(1, "pessoal")];
+    fetchMock.mockImplementation((_url: string, init: RequestInit = {}) =>
+      Promise.resolve((init.method ?? "GET") === "GET" ? respostaJson(200, { eventos }) : respostaJson(403, { error: "TEXTO SENSIVEL" })),
+    );
+    const user = userEvent.setup();
+    renderAgenda();
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(editar(1) as HTMLElement);
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Salvar alterações" }));
+
+    const alerta = await within(screen.getByRole("dialog")).findByRole("alert");
+    expect(alerta).toHaveTextContent("Você não tem permissão para alterar este registro.");
+    expect(alerta).not.toHaveTextContent("TEXTO SENSIVEL");
+  });
+
+  it("Remover pede confirmação; Cancelar não chama a API", async () => {
+    eventos = [futuro(1, "pessoal")];
+    const user = userEvent.setup();
+    renderAgenda();
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(remover(1) as HTMLElement);
+    const dialogo = screen.getByRole("alertdialog", { name: "Remover compromisso" });
+    expect(dialogo).toHaveTextContent("Remover este compromisso? Esta ação não pode ser desfeita.");
+    await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(chamadas("DELETE")).toHaveLength(0);
+  });
+
+  it("confirmar remove com DELETE /agenda/:id, fecha, avisa e recarrega a agenda", async () => {
+    eventos = [futuro(1, "pessoal")];
+    const user = userEvent.setup();
+    renderAgenda();
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(remover(1) as HTMLElement);
+    eventos = [];
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remover" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(String(chamadas("DELETE")[0][0])).toMatch(/\/agenda\/1$/);
+    expect(screen.getByText("Compromisso removido.").closest('[role="status"]')).not.toBeNull();
+    expect(await screen.findByText("Nenhum compromisso na agenda.")).toBeInTheDocument();
+  });
+
+  it("familiar remove pelo caminho do idoso: DELETE /agenda/idoso/:idosoId/:id", async () => {
+    usarIdosos(listaUmIdoso, "familiar");
+    eventos = [futuro(1, "pessoal")];
+    const user = userEvent.setup();
+    renderAgenda("familiar", [vinculoFamiliar("familiar")]);
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(remover(1) as HTMLElement);
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remover" }));
+
+    await waitFor(() => expect(chamadas("DELETE")).toHaveLength(1));
+    expect(String(chamadas("DELETE")[0][0])).toMatch(/\/agenda\/idoso\/7\/1$/);
+  });
+
+  it("404 ao remover: mensagem fixa na confirmação, que segue aberta", async () => {
+    eventos = [futuro(1, "pessoal")];
+    fetchMock.mockImplementation((_url: string, init: RequestInit = {}) =>
+      Promise.resolve((init.method ?? "GET") === "GET" ? respostaJson(200, { eventos }) : respostaJson(404, { error: "TEXTO SENSIVEL" })),
+    );
+    const user = userEvent.setup();
+    renderAgenda();
+    await screen.findByText(/1 compromisso\(s\)/);
+
+    await user.click(remover(1) as HTMLElement);
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remover" }));
+
+    const alerta = await within(screen.getByRole("alertdialog")).findByRole("alert");
+    expect(alerta).toHaveTextContent("Este registro já foi removido. Feche e atualize a lista.");
+    expect(alerta).not.toHaveTextContent("TEXTO SENSIVEL");
+  });
+});
