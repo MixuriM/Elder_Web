@@ -76,7 +76,7 @@ describe("criação de conta exige o aceite", () => {
 
   // 2026-10-15: só versões conhecidas dos documentos (lista fechada no backend, hoje "1.1"). Uma versão inventada não
   // vira prova de aceite de um texto que nunca existiu.
-  it.each(["1.0", "9.9", "1.3", "v1.2", "1.10", "1.2-rc"])("versão %p fora da lista: 400 fixo, não cria", async (versao) => {
+  it.each(["1.0", "9.9", "1.4", "v1.3", "1.10", "1.3-rc"])("versão %p fora da lista: 400 fixo, não cria", async (versao) => {
     const res = await cadastro({ aceite_documentos: { ...ACEITE, versao } });
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: MSG });
@@ -87,11 +87,18 @@ describe("criação de conta exige o aceite", () => {
     expect((await cadastro({ aceite_documentos: ACEITE })).status).toBe(201);
   });
 
-  // Exclusão de conta (2026-10-20): documentos 1.2. O backend é publicado antes do frontend, que passa a mandar "1.2".
-  it('versão "1.2" (a atual) é aceita e gravada', async () => {
+  // Exclusão de conta (2026-10-20): documentos 1.2, mantida na lista para o frontend antigo ainda em cache.
+  it('versão "1.2" (a anterior, mantida na lista) é aceita e gravada', async () => {
     const res = await cadastro({ aceite_documentos: { ...ACEITE, versao: "1.2" } });
     expect(res.status).toBe(201);
     expect(create.mock.calls[0][0].data.aceite_documentos_versao).toBe("1.2");
+  });
+
+  // Aviso de cookies (2026-11-17): documentos 1.3. O backend é publicado antes do frontend, que passa a mandar "1.3".
+  it('versão "1.3" (a atual) é aceita e gravada', async () => {
+    const res = await cadastro({ aceite_documentos: { ...ACEITE, versao: "1.3" } });
+    expect(res.status).toBe(201);
+    expect(create.mock.calls[0][0].data.aceite_documentos_versao).toBe("1.3");
   });
 
   it("grava versão e horário do SERVIDOR (o mesmo nos dois campos), ignorando horário mandado pelo cliente", async () => {
