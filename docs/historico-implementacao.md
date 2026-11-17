@@ -3230,3 +3230,29 @@ como falso positivo (o `requireAuth` aplica o limite geral por usuário, que o C
 - `modo_decisao` NULL de idosos autocadastrados antes da mudança: sem backfill (o resolver trata `NULL` como `'idoso'`;
   o backfill tocaria o Azure sem ganho).
 - Foto do Google não é semeada no anexo do item 3.3; a foto vem só do upload no perfil.
+
+## Aviso de cookies (frontend e backend, 2026-11-17)
+
+Pedido do Marcos: adicionar o pop-up de cookies no Elder Web. Reverte a decisão de 2026-10-14 ("sem banner"), que valia porque não
+havia o que aceitar. Isso continua verdadeiro (o site só guarda o necessário, sem cookie de publicidade nem de estatística), então o
+aviso é **informativo**: um único botão "Entendi", sem "aceitar" e "recusar", para não fingir uma escolha que não existe.
+
+**Como é.** `components/AvisoCookies.tsx`, montado no `App` (fora do `LimiteErro`, em todas as páginas): cartão fixo no pé da tela,
+`<section aria-label="Aviso de cookies">`, **sem** `role=dialog`, `aria-modal` nem foco forçado (não bloqueia o site), com texto curto,
+link "Ler a política de cookies" e botão "Entendi" (alvo de 44 px). Lembra que já foi visto em `localStorage` (`avisoCookies`, valor
+`sim`) por `avisoCookiesVisto` e `marcarAvisoCookiesVisto` em `lib/preferencias.ts`; storage bloqueado: o aviso some até fechar a página.
+`max-h-[70dvh]` com rolagem própria, para texto muito grande em 320 px não cobrir a tela inteira.
+
+**Documentos.** Chave nova de storage, então: linha nova em `pages/Cookies.tsx` (e o texto "não mostramos aviso" virou "mostramos só um
+aviso"), `VERSAO_DOCUMENTOS` de 1.2 para 1.3 e `DATA_ATUALIZACAO` de 17 de novembro de 2026, e `VERSOES_DOCUMENTOS` do backend com
+`"1.3"` (a 1.2 fica, para o frontend antigo em cache). **Ordem de publicação: backend (Render) antes do frontend (Vercel)**, senão o
+cadastro novo manda "1.3" e o backend antigo responde 400.
+
+**Testes (TDD, RED visto).** `AvisoCookies.test.tsx` 7 e `AvisoCookies.storageBloqueado.test.tsx` 1 (arquivo à parte: a memória de
+apoio da lib vive no módulo), `App.avisoCookies.test.tsx` 7 (aparece em `/`, `/login`, `/privacidade` e `/orientacoes`, fecha e não volta
+ao trocar de página), `preferencias.test.ts` +4, `Cookies.test.tsx` e `Privacidade.test.tsx` ajustados, `authAceiteDocumentos.test.ts`
+com a 1.3. E2E: `helpers/aviso.ts` (`marcarAvisoCookiesVisto`) deixa o aviso já visto em todo contexto de teste que não é sobre ele
+(`criarContaELogar`, `contextoCelular`, desktops do `responsivo`, `desempenho` e os testes de interação de `acessibilidade-publicas`);
+`responsivo.spec.ts` ganhou o teste "aviso de cookies", que mede só o aviso em `/`, `/login` e `/cadastro` em todas as variantes. As
+rotas públicas do `test:a11y` são auditadas **com o aviso na tela**, contraste claro e escuro: passou (16 testes). Capturas conferidas:
+360 escuro e 320 com texto muito grande.

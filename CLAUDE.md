@@ -254,7 +254,7 @@ Detalhes e justificativas: `docs/historico-implementacao.md`.
 - Vínculo: terceiro recebe o mesmo 404 antes de qualquer 400 ou 409 (idoso dono sem autoridade: 403); convite pendente
   não mostra a conta convidada; `solicitar-cuidador` sem lista de idosos. Cabeçalhos: `middleware/cabecalhosSeguranca.ts`
   e `vercel.json`, CSP completa obrigatória em `Content-Security-Policy` desde 20/10/2026; nada de script inline no `index.html`.
-- `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`, hoje `["1.1","1.2"]`). Publicar: migration no Azure, depois
+- `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`, hoje `["1.1","1.2","1.3"]`). Publicar: migration no Azure, depois
   Vercel, depois Render; versão nova de documentos: Render antes da Vercel. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
 - Exclusão de conta (2026-10-20): `DELETE /usuario/me`, só a própria; corpo `{ confirmacao: "EXCLUIR" }`, `auth_time` de até 300 s (senão 401
   `reautenticar`), 3/h. Transação: apaga os dados do idoso, tira os vínculos, anonimiza `Usuario` (uid, aceite e autoria ficam) e
@@ -314,8 +314,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
   com `NODE_ENV=production`. `backend/.dockerignore` tira `node_modules`, `dist` e `.env*` (menos `.env.example`).
 - Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem tabela de auditoria.
-- Docs legais: `lib/documentosLegais.ts`. Aceite gravado desde 2026-10-14 (ver Segurança); sem cookie
-  nem banner (2026-10-14). Dado ou storage novo: `VERSAO_DOCUMENTOS`.
+- Docs legais: `lib/documentosLegais.ts`; aceite em Segurança. Cookies (2026-11-17): só o aviso "Entendi" (`AvisoCookies`), sem
+  aceitar nem recusar (não há cookie opcional). Dado ou storage novo: `VERSAO_DOCUMENTOS`.
 - Paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC não justifica; editar e excluir
   registro de saúde, refeição e medicamento: ver histórico (2026-11-16). O PDF é montado em memória, sem limite (aceito); fora de
   Latin-1 vira `?` (aceito).
