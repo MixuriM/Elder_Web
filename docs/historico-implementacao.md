@@ -3110,3 +3110,57 @@ criar um terceiro helper idêntico). As telas ainda não chamam as rotas novas (
 - Item 9.4, trechos condensados: "o item só vai a ✅ com o CI remoto verde num push em `development`" e "mutação local vale como RED em
   teste de caracterização" (a regra de mutação local para regras de segurança segue na seção Testes).
 - Deploy: `dockerCommand: npm start` e `healthCheckPath: /health` (agora só em `render.yaml`).
+
+## Fase 11, item 11.2: editar, remover e criar nas telas (frontend, 2026-11-17)
+
+Parte 2 da Fase 11 (a Parte 1, de 2026-11-16, entregou as 10 rotas). Só `frontend/`, `CLAUDE.md` e docs; backend intocado (D1).
+Sem dependência nova. Decisões D1 a D10 do pedido, mais o que a leitura do código mudou (abaixo).
+
+**Telas.** Saúde e Alimentação: o formulário e o botão "Ver histórico" saíram; a lista carrega sozinha (idoso ao montar; cuidador e
+familiar assim que há idoso escolhido; trocar de idoso descarta a resposta atrasada), com carregando (`role=status`), vazio e erro
+(`role=alert`, mensagem fixa). Depois de registrar, editar ou remover, a lista recarrega (contador de versão na tela pai).
+Agenda: o botão "Ver agenda" e as três seções de criar saíram; o calendário (com a escolha de visão salva) carrega sozinho e um botão
+"Criar compromisso" abre `ModalCriarCompromisso`. Medicamentos: `CardMedicamento` ganhou Editar e Remover no rodapé, sem tirar
+"Marcar dose" nem "Ver histórico". Títulos novos: "Histórico alimentar" (era "Ver histórico alimentar") e "Compromissos" (era "Ver agenda").
+
+**Componentes novos.** `components/common/ModalBase.tsx` (Escape, clique no fundo, `useFocoModal`, rolagem travada, `role`,
+`aria-modal`, `aria-labelledby`) e `ModalConfirmar.tsx` (`alertdialog`, "Cancelar" e "Remover" vermelho com texto, erro dentro do modal
+por status: 401, 403, 404, demais; fecha só no sucesso). `ModalMedicamento` passou a usar o `ModalBase` sem mudar comportamento (os 65
+testes anteriores de Remédios e do foco seguiram verdes). `ModalEditarSaude` (validação movida da edição inline, que sumiu),
+`ModalEditarRefeicao`, `ModalEditarMedicamento` (reaproveita `FormMedicamento`), `ModalCriarCompromisso`, `HistoricoAlimentar`.
+Lógica compartilhada em `lib/`: `registrosDoIdoso.ts` (hook que carrega sozinho, campo `registros` ou `eventos`, `caminhoRegistro`),
+`permissoesEdicao.ts` (quem vê Editar e Remover), `regrasAgenda.ts` (quem vê "Criar compromisso" e com qual formulário),
+`mensagensAcaoRegistro.ts` (mensagens fixas por status, nunca o corpo do servidor) e `dataHoraLocal.ts`.
+
+**Quem vê Editar e Remover (D7).** Idoso sempre. Familiar só com `decisao.modo === 'familiar'` no vínculo aprovado dele com o idoso
+escolhido. Cuidador: saúde só com `permissoes.escrita` e no registro que ele criou (`registrado_por_id` igual ao `vinculado.id` do
+próprio vínculo); alimentação e medicamento nunca. Tudo falha aberto quando o dado não carregou (o 403 do servidor é a barreira real).
+Caminho: idoso `/<rota>/:id`, terceiro `/<rota>/idoso/:idosoId/:id`.
+
+**Desvios do pedido, por leitura do código.** (1) D7 pedia `modoDecisao`, mas o `modoDecisao` do `AcessoContext` é o do próprio usuário
+(só o idoso tem); para o familiar a decisão está em `vinculo.decisao.modo`, por idoso, e é ela que vale. (2) D4 dizia "reaproveite a
+regra existente, inclusive cuidador só com `permite_criar_evento_cuidado`", mas a tela antiga não checava a flag (só o backend, 403);
+agora o botão do cuidador exige `permite_criar_evento_cuidado === true` (falha aberto se os vínculos não carregaram) e `modoDeCriacao`
+devolve `null` enquanto o perfil é desconhecido. (3) O modal de criar compromisso usa o idoso já escolhido na agenda (menor mudança, e o
+compromisso novo aparece no calendário aberto) e mostra o nome; a regra antiga de não pré-selecionar com 2 ou mais idosos nas telas de
+escrita deixa de valer na Agenda. (4) A leitura da agenda e da alimentação passou de `fetch` direto para `chamarApi`, com mensagens fixas
+por status (o `Content-Type` JSON no GET é inócuo). O erro de criar compromisso também ficou fixo por status (antes repassava
+`err.message`). (5) O cabeçalho do `ModalBase` é `div`, não `header`: o `header` dentro de um dialog contava como segundo banner da
+página (`landmark-no-duplicate-banner` do axe, achado ao testar o modal de medicamento). (6) Data e hora na edição de refeição: o campo
+usa a hora do navegador (mesma conversão do formulário de registrar); a exibição segue em `America/Sao_Paulo`.
+
+**Testes (TDD).** RED visto em cada peça nova (módulo ausente ou asserção falhando). Novos: `ModalBase` 9, `ModalConfirmar` 10,
+`permissoesEdicao` 13, `registrosDoIdoso` 12, `regrasAgenda` 8, `HistoricoSaude` 24, `HistoricoAlimentar` 28 (mais 5 de acessibilidade),
+`ModalCriarCompromisso` 17, `Remedios.edicao` 20. Reescritos: `Saude` 19, `Saude.integracao` 4, `Saude.acessibilidade` 20, `Alimentacao` 29,
+`Alimentacao.acessibilidade` 7, `Agenda` 25, `Agenda.acessibilidade` 16, `secoesPorPerfil` 10. Specs e2e: `desempenho.spec.ts` perdeu
+`carregarHistorico` e as medições de clique (a carga agora é medida na própria tela); `responsivo.spec.ts` perdeu os cliques em "Ver
+agenda" e ganhou capturas de `ModalEditarMedicamento` e `ModalCriarCompromisso`. Mutação local: cuidador em alimentação e medicamento,
+familiar ignorando o modo, cuidador editando registro alheio, flag do cuidador na agenda e o aumento de versão depois de registrar; as 5
+derrubaram testes e foram revertidas. Frontend inteiro: 124 suítes, 1465 testes passando; `lint`, `tsc` (app e testes) e `build` sem erro.
+
+**Não verificado (SQL Server local desligado).** `npm run test:a11y`, `npm run test:responsivo` e as capturas Playwright (360, 768 e 1440 px,
+claro e escuro, idoso e familiar, com modais abertos) não rodaram: exigem o SQL Server de `docker-compose.yml` em `localhost:14330`. Contraste e
+layout dos modais novos seguem sem auditoria visual. Nenhuma conta foi criada no Firebase nesta tarefa.
+
+**Limitações aceitas.** Agenda continua sem editar nem remover evento (sem rota no backend). Cuidador não edita nem remove o registro de
+saúde de outra pessoa. Sem paginação e sem idempotência (aceitos na 11.1).

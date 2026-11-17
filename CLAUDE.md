@@ -27,7 +27,7 @@ cofre Obsidian:**
   `C:\Users\Marcos Castelli\Documents\Notas\TCC - Elder Web`
 
 Protótipo antigo (mobile, GitHub Pages): https://github.com/MixuriM/Prototipo-Elder-App. É **só referência
-visual**; este repositório é novo, sem código dele.
+visual**.
 
 ## Perfis de usuário
 Três perfis com login/cadastro próprios: **idoso**, **cuidador**, **familiar**.
@@ -196,19 +196,14 @@ definitivamente do produto. `tipo_perfil` é fixo e único por conta, sem
 hibridismo de papéis. A cardinalidade idoso↔cuidador/familiar é N:N. Permissão
 granular do cuidador por vínculo (RF-032, os 3 flags `permite_*` de `Vinculo`),
 em vez de uma variante global de acesso, e `RegistroSaude.editado_por_id`
-obrigatório (RNF-006) — confirmados pelo grupo (Laureane e Jennifer). O modelo
-de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
-Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
-descrito em `Elder Web - Modelagem ER.md` (ver nota no início). `attribution.sessionUrl`
-(seção Workflow) também é decisão fechada. `backend/prisma/migrations/migration_lock.toml`
+obrigatório (RNF-006) — confirmados pelo grupo (Laureane e Jennifer). `backend/prisma/migrations/migration_lock.toml`
 deve permanecer com `provider = "mssql"` (o datasource em `schema.prisma` usa `"sqlserver"`; não é erro): o Prisma 5.22.0
 espera "mssql" e trocar quebra `prisma migrate status` (P3019, testado e revertido; prisma/prisma#12087). Upgrade de
 dependência se discute com o grupo.
 
 
 ## Convenções e regras técnicas estabelecidas
-Resumo do que o histórico de implementação consolidou. Detalhes e justificativas em
-`docs/historico-implementacao.md`.
+Detalhes e justificativas: `docs/historico-implementacao.md`.
 
 **Banco e migrations**
 - Usar `npx prisma migrate deploy`, nunca `migrate dev` contra o Azure (o Azure SQL
@@ -302,7 +297,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 **Pendências manuais (Marcos)**
 - Avisar Laureane e Jennifer: PDF do histórico (5.4); cores (PR #143); layout e
   revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing); calendário
-  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20); rotas de editar e excluir (Fase 11, 2026-11-16).
+  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20); rotas de editar e excluir (Fase 11, 2026-11-16); telas de editar e remover (Fase 11.2).
 - Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo;
@@ -334,14 +329,13 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   3.2) quando o e-mail já está em uso. Registrar isso no `Elder Web - Modelagem ER.md` fica com o Marcos.
 - JSON malformado e corpo acima do limite: 400 e 413 fixos no `errorHandler` (sem eco nem log). `nome` em branco em
   `/auth/sync` não vence o `name` do token do Google (em branco nos dois dá 400).
-- Agenda (6.1): sem biblioteca de calendário (lista por dia). Familiar só cria evento com `modo_decisao` efetivo
-  `'familiar'` (via resolver). Sem idempotência nem checagem de sobreposição (aceito).
-- Agenda (6.3): todos veem os 3 tipos, sem filtro (aceito). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone`
-  explícito, nunca o do navegador. Evento aparece uma vez, no dia do início; passados em `<details>` fechado.
-- Agenda (6.2, delegação de 2026-10-04): cuidador cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda` segue 403),
-  com `tipo_vinculo` e `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito), sem `resolverModoDecisao`.
-  `pessoal`/`medico` pelo cuidador: 403; idoso e familiar não criam `cuidado` (403). Sem a flag, corpo inválido dá 403. Campos do 6.1.
-- Frontend (2026-10-09): Home, `/avisos` e `/configuracoes` (detalhes no histórico). Nunca "faltam doses" nem atraso (sem
+- Agenda (6.1 a 6.3): sem biblioteca de calendário; sem idempotência nem checagem de sobreposição, todos veem os 3 tipos, sem filtro
+  (aceitos). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone` explícito, nunca o do navegador; evento aparece uma vez, no dia
+  do início; passados em `<details>` fechado. Familiar só cria evento com `modo_decisao` efetivo `'familiar'` (via resolver). Cuidador
+  (delegação de 2026-10-04) cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda` segue 403), com `tipo_vinculo` e
+  `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito), sem `resolverModoDecisao`; `pessoal`/`medico` pelo
+  cuidador e `cuidado` por idoso ou familiar: 403; sem a flag, corpo inválido também dá 403.
+- Frontend (2026-10-09): Home, `/avisos` e `/configuracoes`. Nunca "faltam doses" nem atraso (sem
   horário estruturado); `AcessoProvider` expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso);
   `lib/preferencias.ts` usa as mesmas chaves do script de `index.html`, com storage em try/catch.
 - Item 9.3 (2026-10-14): CI roda `npm audit --omit=dev` (backend `low`, frontend `critical`, sem `|| true`); dev só aceito.
@@ -356,6 +350,9 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   Rotas protegidas em `LayoutAutenticado` (sem `<main>` próprio). Resto: histórico ("Trechos movidos").
 - Frontend (2026-10-19, decisões do grupo): `/orientacoes` pública (logado na moldura autenticada, visitante com `SobreHeader` e
   `Footer`); "Sobre nós" na sidebar de todos os perfis. Resto: histórico ("Trechos movidos").
+- Frontend (2026-11-17, Fase 11.2): `ModalBase` e `ModalConfirmar` servem a editar, remover e "Criar compromisso". Editar e Remover (`lib/permissoesEdicao.ts`; falha abre, 403 vira mensagem fixa): idoso sempre;
+  familiar só com `decisao.modo === 'familiar'` do vínculo daquele idoso (`modoDecisao` do contexto é o do próprio usuário); cuidador
+  só em saúde, com a flag e no registro que criou; o botão "Criar compromisso" do cuidador exige `permite_criar_evento_cuidado`.
 
 **Itens implementados (resumo; detalhes, PRs e hashes no histórico)**
 - 5.2 a 5.4 (dose, histórico de remédios, PDF): leituras com vínculo aprovado basta. PDF montado inteiro em memória
