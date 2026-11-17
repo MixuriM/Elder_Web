@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { marcarAvisoCookiesVisto } from "./helpers/aviso";
 import { PERFIS, criarContaELogar, exigirBancoLocal, vincular, type Conta } from "./helpers/conta";
 
 // Medição de desempenho (tarefa de 2026-10-13), local e fora do CI: npm run test:desempenho.
@@ -129,7 +130,7 @@ test("desempenho das telas (Fast 3G, CPU 4x, 5 rodadas)", async ({ browser }) =>
   exigirBancoLocal();
   const contas: Record<string, Conta> = {};
   try {
-    const publico = await browser.newContext();
+    const publico = await marcarAvisoCookiesVisto(await browser.newContext());
     await medirTela("Landing", publico, "/");
     await medirTela("Login", publico, "/login");
     await publico.close();
