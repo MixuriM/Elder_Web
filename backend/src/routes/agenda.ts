@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireVinculoAprovado } from "../middleware/requireVinculoAprovado";
 import { resolverModoDecisao } from "./vinculo";
+import { parseIdRegistro } from "./saude";
 
 const router = Router();
 
@@ -150,6 +151,136 @@ router.post("/idoso/:idosoId", requireAuth, requireVinculoAprovado("idosoId"), a
       (await resolverModoDecisao(vinculo.idoso_id)) === "familiar";
     if (!cuidadorAutorizado && !familiarAutorizado) return res.status(403).json({ error: MSG_403 });
     await criarEvento(req, res, vinculo.idoso_id, cuidadorAutorizado ? "cuidador" : "comum");
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Fase 11 (11.3): editar e excluir compromisso. Autoridade = a de CRIAR: idoso e familiar (tipo_vinculo E tipo_perfil
+// 'familiar' E modo_decisao efetivo 'familiar', via resolver) só mexem em 'pessoal' e 'medico'; cuidador só em 'cuidado', com
+// permite_criar_evento_cuidado === true e só no que ele mesmo criou (como na edição de saúde), e o resolver nunca é chamado
+// para ele. O compromisso é buscado com o idoso alvo no próprio where: inexistente e de outro idoso colapsam no mesmo 404 (um
+// 403 separado vazaria que o id existe), e o 404 vem antes do 403 de ator. Título 'medico' pode ter dado de saúde (RNF-001):
+// mensagens fixas, nunca com o valor enviado, e nenhum console.*. Exclusão física, sem idempotência (repetida dá 404).
+// Limitação aceita: idoso e familiar não mexem em compromisso de cuidado criado pelo cuidador (a regra de criar já é essa).
+const MSG_403_EDICAO = "Sem permissão para editar compromisso.";
+const MSG_403_EXCLUSAO = "Sem permissão para excluir compromisso.";
+const MSG_404 = "Compromisso não encontrado.";
+const CAMPOS_EVENTO = ["tipo_evento", "titulo", "descricao", "data_hora_inicio", "data_hora_fim"] as const;
+
+// Edição parcial: campo ausente (undefined) mantém o valor atual; null explícito limpa só descricao e data_hora_fim (nos
+// obrigatórios o validador devolve 400). Monta o corpo completo a partir do registro e revalida com validarCorpoEvento,
+// então regras e mensagens são as do POST. O 403 de tipo (idoso ou familiar pedindo 'cuidado' e o inverso) usa a mensagem de editar.
+function validarCorpoEdicaoEvento(body: unknown, atual: EventoCriado, ator: Ator): { status: number; erro: string } | { dados: DadosEvento } {
+  const enviado = (body ?? {}) as Record<string, unknown>;
+  if (CAMPOS_EVENTO.every((c) => enviado[c] === undefined)) return { status: 400, erro: "Nenhum campo de compromisso informado." };
+  const mesclado: Record<string, unknown> = {
+    tipo_evento: atual.tipo_evento,
+    titulo: atual.titulo,
+    descricao: atual.descricao,
+    data_hora_inicio: atual.data_hora_inicio.toISOString(),
+    data_hora_fim: atual.data_hora_fim === null ? null : atual.data_hora_fim.toISOString(),
+  };
+  for (const c of CAMPOS_EVENTO) if (enviado[c] !== undefined) mesclado[c] = enviado[c];
+  const validado = validarCorpoEvento(mesclado, ator);
+  return "erro" in validado && validado.status === 403 ? { status: 403, erro: MSG_403_EDICAO } : validado;
+}
+
+// Parte comum depois da autorização. idoso_id, criado_por_id e created_at nunca entram no update; editado_por_id é sempre
+// req.usuarioId.
+async function editarEvento(req: Request, res: Response, atual: EventoCriado, ator: Ator) {
+  const validado = validarCorpoEdicaoEvento(req.body, atual, ator);
+  if ("erro" in validado) return res.status(validado.status).json({ error: validado.erro });
+
+  const e = await prisma.evento.update({
+    where: { id: atual.id },
+    data: { ...validado.dados, editado_por_id: req.usuarioId },
+  });
+  return res.json(serializarEvento(e));
+}
+
+// count 0 = apagado por outra chamada entre a leitura e o delete: 404, não 500.
+async function excluirEvento(res: Response, id: number, idosoId: number) {
+  const { count } = await prisma.evento.deleteMany({ where: { id, idoso_id: idosoId } });
+  if (count === 0) return res.status(404).json({ error: MSG_404 });
+  return res.status(204).end();
+}
+
+// Quem gere o compromisso na agenda do idoso do vínculo, ou null. As checagens baratas vêm antes do resolver.
+async function atorDoEvento(req: Request, vinculo: NonNullable<Request["vinculoAprovado"]>, evento: EventoCriado): Promise<Ator | null> {
+  const chamador = await prisma.usuario.findUnique({ where: { id: req.usuarioId }, select: { tipo_perfil: true } });
+  if (vinculo.tipo_vinculo === "cuidador") {
+    const autorizado =
+      chamador?.tipo_perfil === "cuidador" &&
+      vinculo.permite_criar_evento_cuidado === true &&
+      evento.tipo_evento === "cuidado" &&
+      evento.criado_por_id === vinculo.vinculado_id;
+    return autorizado ? "cuidador" : null;
+  }
+  const familiar =
+    vinculo.tipo_vinculo === "familiar" &&
+    chamador?.tipo_perfil === "familiar" &&
+    evento.tipo_evento !== "cuidado" &&
+    (await resolverModoDecisao(vinculo.idoso_id)) === "familiar";
+  return familiar ? "comum" : null;
+}
+
+// Idoso edita ou exclui o próprio compromisso, sem consultar vínculo nem tipo_perfil (dono = idoso_id igual ao token). Não
+// mexe em 'cuidado' (tipo que ele não cria). Ordem: 401, 400 (id), 404, 403 ('cuidado'), 400 (corpo, só PATCH), 200 ou 204.
+router.patch("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de compromisso inválido." });
+    const evento = await prisma.evento.findFirst({ where: { id, idoso_id: req.usuarioId } });
+    if (!evento) return res.status(404).json({ error: MSG_404 });
+    if (evento.tipo_evento === "cuidado") return res.status(403).json({ error: MSG_403_EDICAO });
+    await editarEvento(req, res, evento, "comum");
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de compromisso inválido." });
+    const evento = await prisma.evento.findFirst({ where: { id, idoso_id: req.usuarioId } });
+    if (!evento) return res.status(404).json({ error: MSG_404 });
+    if (evento.tipo_evento === "cuidado") return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    await excluirEvento(res, id, req.usuarioId);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Familiar e cuidador no idoso vinculado. Ordem: 401, 400 (idosoId), 403 (vínculo), 400 (id), 404, 403 (ator, flag, autoria,
+// tipo ou modo_decisao), 400 (corpo, só PATCH), 200 ou 204. 403 genérico, sem citar flag nem modo_decisao.
+router.patch("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EDICAO });
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de compromisso inválido." });
+    const evento = await prisma.evento.findFirst({ where: { id, idoso_id: vinculo.idoso_id } });
+    if (!evento) return res.status(404).json({ error: MSG_404 });
+    const ator = await atorDoEvento(req, vinculo, evento);
+    if (!ator) return res.status(403).json({ error: MSG_403_EDICAO });
+    await editarEvento(req, res, evento, ator);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/idoso/:idosoId/:id", requireAuth, requireVinculoAprovado("idosoId"), async (req, res, next) => {
+  try {
+    const vinculo = req.vinculoAprovado;
+    if (!vinculo) return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    const id = parseIdRegistro(req.params.id);
+    if (id === null) return res.status(400).json({ error: "Id de compromisso inválido." });
+    const evento = await prisma.evento.findFirst({ where: { id, idoso_id: vinculo.idoso_id } });
+    if (!evento) return res.status(404).json({ error: MSG_404 });
+    if (!(await atorDoEvento(req, vinculo, evento))) return res.status(403).json({ error: MSG_403_EXCLUSAO });
+    await excluirEvento(res, id, vinculo.idoso_id);
   } catch (e) {
     next(e);
   }
