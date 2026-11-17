@@ -60,18 +60,19 @@ beforeEach(() => {
 })
 
 describe('Saúde por perfil', () => {
-  it('cuidador não vê o registro nem a edição próprios, e o título não diz "Minha"', () => {
+  it('cuidador sem a permissão não vê o botão de registrar, e o título não diz "Minha"', async () => {
     comPerfil('cuidador', <Saude />)
-    expect(screen.queryByRole('heading', { name: 'Registrar leitura de saúde' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Editar meu registro' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar leitura' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'Saúde do idoso' })).toBeInTheDocument()
+    await screen.findByText('Nenhum registro de saúde')
   })
 
-  it('idoso vê o registro próprio', () => {
+  it('idoso vê o botão de registrar a própria leitura, que abre o modal', async () => {
     mockUseIdosos.mockReturnValue(listaPerfilIdoso)
     comPerfil('idoso', <Saude />)
-    expect(screen.getByRole('heading', { name: 'Registrar leitura de saúde' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'Minha Saúde' })).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Registrar leitura' }))
+    expect(screen.getByRole('dialog', { name: 'Registrar leitura de saúde' })).toBeInTheDocument()
   })
 })
 
@@ -133,14 +134,16 @@ describe('Agenda por perfil', () => {
 })
 
 describe('Alimentação por perfil', () => {
-  it('cuidador não vê "Registrar refeição", só o histórico', () => {
+  it('cuidador não vê "Registrar refeição", só o histórico', async () => {
     comPerfil('cuidador', <Alimentacao />)
-    expect(screen.queryByRole('heading', { name: 'Registrar refeição' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar refeição' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Histórico alimentar' })).toBeInTheDocument()
+    await screen.findByText('Nenhuma refeição registrada')
   })
 
-  it('familiar vê "Registrar refeição"', () => {
+  it('familiar vê "Registrar refeição", que abre o modal', async () => {
     comPerfil('familiar', <Alimentacao />)
-    expect(screen.getByRole('heading', { name: 'Registrar refeição' })).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Registrar refeição' }))
+    expect(screen.getByRole('dialog', { name: 'Registrar refeição' })).toBeInTheDocument()
   })
 })
