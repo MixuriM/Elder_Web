@@ -3,7 +3,9 @@ import {
   CheckCircle2,
   Clock3,
   Eye,
+  Pencil,
   Pill,
+  Trash2,
 } from 'lucide-react'
 
 export interface MedicamentoCard {
@@ -26,6 +28,9 @@ interface CardMedicamentoProps {
   onVerDetalhes: (
     medicamento: MedicamentoCard,
   ) => void
+  // Ausentes quando o perfil não pode alterar (os botões somem).
+  onEditar?: (medicamento: MedicamentoCard) => void
+  onRemover?: (medicamento: MedicamentoCard) => void
 }
 
 function formatarData(data: string) {
@@ -42,6 +47,8 @@ function CardMedicamento({
   medicamento,
   onMarcarDose,
   onVerDetalhes,
+  onEditar,
+  onRemover,
 }: CardMedicamentoProps) {
   return (
     <article
@@ -328,12 +335,11 @@ function CardMedicamento({
 
       {/* BOTÕES */}
 
+      <div className="mt-auto space-y-3 pt-6">
       <div
         className="
-          mt-auto
           grid grid-cols-1
           gap-3
-          pt-6
 
           sm:grid-cols-2
         "
@@ -428,6 +434,37 @@ function CardMedicamento({
 
           Ver histórico
         </button>
+      </div>
+
+      {/* EDITAR E REMOVER: só para quem pode (idoso, ou familiar com modo familiar); o 403 do servidor é a barreira real. */}
+
+      {(onEditar || onRemover) && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {onEditar && (
+            <button
+              type="button"
+              aria-label={`Editar medicamento ${medicamento.nome}`}
+              onClick={() => onEditar(medicamento)}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5F56EC] bg-white px-4 py-2.5 text-sm font-semibold text-[#5F56EC] transition hover:bg-[#5F56EC]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]/40 dark:border-[#A89FFF] dark:bg-transparent dark:text-[#A89FFF]"
+            >
+              <Pencil size={18} aria-hidden="true" />
+              Editar
+            </button>
+          )}
+
+          {onRemover && (
+            <button
+              type="button"
+              aria-label={`Remover medicamento ${medicamento.nome}`}
+              onClick={() => onRemover(medicamento)}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-700 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-700/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700/40 dark:border-red-400 dark:bg-transparent dark:text-red-300"
+            >
+              <Trash2 size={18} aria-hidden="true" />
+              Remover
+            </button>
+          )}
+        </div>
+      )}
       </div>
     </article>
   )
