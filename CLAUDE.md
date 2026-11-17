@@ -6,9 +6,8 @@ de saúde e rotina diária. TCC do Curso Técnico em Desenvolvimento de Sistemas
 — Etec Fernando Prestes, 2026.
 
 **Importante:** o projeto não é feito para nem será implantado no Lar São
-Vicente de Paulo. Essa instituição foi entrevistada apenas como fonte de
-dados/levantamento de requisitos para embasar o TCC, sem relação de cliente ou
-deploy. Menções a ela nos documentos são contexto de pesquisa, não destino do produto.
+Vicente de Paulo: a instituição foi só fonte de levantamento de requisitos para o TCC
+(sem relação de cliente ou deploy); menções a ela nos documentos são contexto de pesquisa.
 
 **Fonte de verdade do escopo de funcionalidades: o plano de desenvolvimento
 atualizado, não o PDF do TCC.** O PDF ainda descreve um app mobile com Alexa,
@@ -73,10 +72,8 @@ aplicação roda em produção.
 - **Backend:** Render.
 - **Frontend:** Vercel.
 
-Deploy configurado e no ar: o backend roda no Render (plano free, runtime Docker, `backend/Dockerfile`,
-`dockerCommand: npm start`, `healthCheckPath: /health`; as variáveis estão em `render.yaml`, com os segredos em
-`sync: false` e definidos no dashboard) e o frontend no Vercel (`frontend/vercel.json`, rewrite para `index.html`).
-Migrations são aplicadas à mão, de uma máquina local, antes do deploy.
+Deploy no ar: backend no Render (plano free, Docker, `render.yaml`, segredos `sync: false` no dashboard) e frontend
+no Vercel (`frontend/vercel.json`, rewrite para `index.html`). Migrations são aplicadas à mão, de uma máquina local, antes do deploy.
 
 ## Arquitetura de autenticação (Firebase Auth + SQL Server)
 Decisão travada — não reabrir sem discutir com o grupo.
@@ -118,12 +115,9 @@ Vinculo
   -- + 3 flags de permissão do cuidador (ver abaixo)
 ```
 
-- **Aprovação de vínculo não é sempre manual.** Para **cuidador**, é sempre
-  aprovação manual (`aprovador_id` humano; em `convite_idoso`, o cuidador ao aceitar). Para **familiar**, depende de quem
-  iniciou o vínculo: se veio de convite do idoso (`convite_idoso`, só familiar) ou de
-  cadastro feito pelo familiar (`cadastro_familiar`), a aprovação é automática
-  por confirmação de posse do e-mail; se veio de solicitação do familiar
-  (`solicitacao_familiar`), é aprovação manual como no caso do cuidador.
+- **Aprovação de vínculo não é sempre manual.** **Cuidador**: sempre manual (`aprovador_id` humano; em `convite_idoso`, o
+  cuidador ao aceitar). **Familiar**: depende de quem iniciou o vínculo: `convite_idoso` (só familiar) ou `cadastro_familiar` =
+  automática, por confirmação de posse do e-mail; `solicitacao_familiar` = manual, como no cuidador.
 - **Autoridade de aprovação/recusa/contestação de vínculo segue
   `Usuario.modo_decisao`.** Em toda ação manual sobre `Vinculo` (RF-021,
   RF-022, RF-027), incluindo contestar um vínculo automático já `aprovado`
@@ -207,10 +201,9 @@ de dados completo e validado (7 entidades: Usuario, Vinculo, Evento,
 Medicamento, RegistroDoseMedicamento, RegistroSaude, RegistroAlimentar) está
 descrito em `Elder Web - Modelagem ER.md` (ver nota no início). `attribution.sessionUrl`
 (seção Workflow) também é decisão fechada. `backend/prisma/migrations/migration_lock.toml`
-deve permanecer com `provider = "mssql"`, mesmo o datasource em `schema.prisma` usando
-`provider = "sqlserver"`, não é erro. O Prisma 5.22.0 espera "mssql" nesse arquivo; trocar
-quebra `prisma migrate status` (P3019, testado e revertido). Ver prisma/prisma#12087 (o Prisma
-pretende unificar; não decidir sozinho, upgrade de dependência se discute com o grupo).
+deve permanecer com `provider = "mssql"` (o datasource em `schema.prisma` usa `"sqlserver"`; não é erro): o Prisma 5.22.0
+espera "mssql" e trocar quebra `prisma migrate status` (P3019, testado e revertido; prisma/prisma#12087). Upgrade de
+dependência se discute com o grupo.
 
 
 ## Convenções e regras técnicas estabelecidas
@@ -250,11 +243,9 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   `tipo_vinculo` for amarrado ao `tipo_perfil` fixo na criação do vínculo. Qualquer novo
   fluxo de criação de vínculo precisa manter essa garantia.
 - Foto de perfil é BLOB no SQL Server, sempre WebP de até 1024 px vindo de `normalizarFoto` (sharp; formato pelos
-  bytes; limites de tamanho e de envios por hora no código). Antes do multer: 2 envios em andamento no processo e 1 por
-  usuário, vaga liberada só ao fim do processamento, prazo de 60 s para receber o corpo (408). Risco aceito: N contas
-  seguram as vagas por até 60 s por tentativa, só a foto fica indisponível. HEIC e BMP só convertidos no navegador
-  (`lib/prepararFoto.ts`). `GET /usuario/me` não devolve foto (há `GET /usuario/me/foto`); `/auth/sync` passa por
-  `semFotoPerfil` e `requireAuth` usa `select` mínimo, para não carregar o BLOB à toa.
+  bytes; limites no código). Antes do multer: 2 envios em andamento no processo e 1 por usuário, prazo de 60 s para o corpo
+  (408); risco aceito: histórico. HEIC e BMP só convertidos no navegador (`lib/prepararFoto.ts`). `GET /usuario/me` não devolve
+  foto (há `GET /usuario/me/foto`); `/auth/sync` passa por `semFotoPerfil` e `requireAuth` usa `select` mínimo, para não carregar o BLOB.
 - Valor de `req.body`, `req.query` ou `req.params` só entra em `where` ou `data` do Prisma depois de checagem de tipo
   (`typeof`, `Number.isInteger`, lista fechada): objeto como `{ set: "" }` vira operador. `infra/semSqlCru.test.ts`
   barra `$queryRawUnsafe`, `$executeRawUnsafe` e `Prisma.raw` em `src` (e as `Unsafe` em `scripts`).
@@ -262,8 +253,7 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
   nunca cria medicamento (regra fixa de ator, independe das flags `permite_*`). Familiar só
   cria com `modo_decisao` efetivo `'familiar'` (via `resolverModoDecisao`).
 - Endurecimento (2026-10-14, histórico e `docs/checklist-seguranca-producao.md`): `lib/limiteTaxa.ts` (Map, 429 fixo,
-  desligado no Jest, `LIMITE_TAXA_DESLIGADO=1` só fora de produção): 2000/15 min por usuário no `requireAuth`, `/auth/sync`
-  300 por IP e 60 por uid, solicitar 20, convidar e `PATCH /usuario/me` 30, `cadastrar-idoso` 10/h. `trust proxy` só em
+  desligado no Jest, `LIMITE_TAXA_DESLIGADO=1` só fora de produção; limites no código e no histórico). `trust proxy` só em
   produção, `TRUST_PROXY_SALTOS` (padrão 1; Render: 3, medido em 2026-10-15). `requireAuthRevogacao` (token revogado: 401) só nas 16 rotas
   `revogacao` de `ROTAS_ESPERADAS`, nunca em leitura, saúde, remédio, agenda, alimentação, emergência ou foto.
 - Vínculo: terceiro recebe o mesmo 404 antes de qualquer 400 ou 409 (idoso dono sem autoridade: 403); convite pendente
@@ -272,9 +262,9 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - `/auth/sync` exige e grava `aceite_documentos` (criação e anexo, horário do servidor, versão da lista `VERSOES_DOCUMENTOS`, hoje `["1.1","1.2"]`). Publicar: migration no Azure, depois
   Vercel, depois Render; versão nova de documentos: Render antes da Vercel. `backend/Dockerfile` roda com `USER node` (o runtime não escreve em `/app`).
 - Exclusão de conta (2026-10-20): `DELETE /usuario/me`, só a própria; corpo `{ confirmacao: "EXCLUIR" }`, `auth_time` de até 300 s (senão 401
-  `reautenticar`), 3/h. Numa transação: apaga os dados do idoso (e do idoso sem login que ele cadastrou e ficou sem vínculo aprovado),
-  tira os vínculos, anonimiza `Usuario` (nome "Conta excluída", e-mail `excluido-<id>@excluido.invalid`; uid, aceite e autoria ficam) e
-  chama `auth.deleteUser` por último (falha: 502, nada apagado). Sem migration. Marcador só em `lib/contaExcluida.ts`: `requireAuth` e `/auth/sync` dão 401; e-mail do marcador é inválido em toda entrada. Detalhes: histórico, "Fechamento do item 9.5".
+  `reautenticar`), 3/h. Transação: apaga os dados do idoso, tira os vínculos, anonimiza `Usuario` (uid, aceite e autoria ficam) e
+  chama `auth.deleteUser` por último (falha: 502, nada apagado). Sem migration. Marcador só em `lib/contaExcluida.ts` (`requireAuth` e
+  `/auth/sync` dão 401). Detalhes: histórico (9.5).
 - Modo demonstração (`docs/modo-demonstracao.md`): `DEMO_MODO_ATIVO=1` e `DEMO_ADMIN_UIDS` só no painel do Render; conta do elenco nunca cria vínculo nem alcança idoso fora do elenco.
 
 **Testes**
@@ -292,10 +282,8 @@ Resumo do que o histórico de implementação consolidou. Detalhes e justificati
 - Celular (2026-10-10): menor largura 320 px, mobile-first; alvo 44x44 com 8 px livres (exceção: link em texto corrido e
   dias da grade do calendário); `input`/`select`/`textarea` com 16 px; `min-h-dvh` (não `min-h-screen`); `grid-cols-1`
   no base de grid responsivo; estouro se corrige na origem, nunca com `overflow-x-hidden`. `npm run test:responsivo`
-  (local, fora do CI, mesmas exigências do `test:a11y`; cria 4 contas) mede tudo isso; WebKit com
-  `--browser=webkit`.
-- Em merge por rebase os hashes de commit mudam. Não tratar hash de commit local como
-  definitivo.
+  (local, fora do CI, exigências do `test:a11y`; cria 4 contas) mede isso; WebKit: `--browser=webkit`.
+- Em merge por rebase os hashes mudam: hash de commit local não é definitivo.
 
 **Desempenho (2026-10-13)**
 - Autorização e vínculo nunca em cache entre requisições; o `chamarApi` só junta GET iguais em voo (token mais caminho).
@@ -312,26 +300,20 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 ("decisão do grupo"); reabrir só se o grupo mandar. Pendências manuais ficam com o Marcos.
 
 **Pendências manuais (Marcos)**
-- Avisar Laureane e Jennifer: PDF do histórico (5.4, `lib/baixarPdf.ts`, `Remedios.tsx`); cores (PR #143); layout e
+- Avisar Laureane e Jennifer: PDF do histórico (5.4); cores (PR #143); layout e
   revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing); calendário
-  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20).
+  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20); rotas de editar e excluir (Fase 11, 2026-11-16).
 - Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo;
   cuidadores e familiares cadastrados antes do PR #162 confirmarem o e-mail no Perfil.
-- Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`): botão só para quem tem autoridade, textos fixos por
-  `status`. Aprovar origem `convite_idoso` ou `cadastro_familiar` dá 409 (só recusar ou contestar); `convidar-familiar` só com
-  `modo_decisao` efetivo `idoso`, resposta igual com ou sem conta. Resto: histórico ("Trechos movidos").
-- Convite do idoso ao cuidador (2026-10-12): `POST /vinculo/convidar-cuidador` só com `modo_decisao` efetivo `idoso`; cria `Vinculo`
-  pendente (`convite_idoso`) só se há conta de cuidador, que aprova em `aceitar-convite` (e-mail verificado, até 7 dias, e-mail do
-  token igual ao do cadastro). Convite repetido válido responde 201 igual (sem 409: seria oráculo). Riscos aceitos: sem conta
-  some em silêncio; idoso falso convida e-mail adivinhado (cuidador só recusa); sem limite de convites pendentes.
-  Resto: histórico ("Trechos movidos").
-- Sem oráculo de conta nos dois convites (`convidar-familiar` também responde 201 igual com vínculo já existente) e
-  `PATCH /usuario/me` manda `emailVerified: false` ao trocar o e-mail (o aceite e o aviso de emergência confiam nele).
-- Aprovação automática por e-mail verificado (login do familiar, `cadastrar-idoso`, aceite) exige `emailDoTokenConfere` (token
-  = cadastro). `PATCH /usuario/me` valida antes do Firebase. Riscos abertos e A6 (limite de taxa): histórico, 2026-10-12.
-- Trocar o e-mail recusa os `convite_idoso` pendentes do usuário; e-mail no `Vinculo` (migration): grupo, histórico 2026-10-12.
+- Vínculo, regras vigentes (originais e riscos aceitos: histórico, "Trechos movidos", 2026-11-16). Telas em `components/Vinculos/`
+  (`regrasVinculo.ts`): botão só para quem tem autoridade. Aprovar origem `convite_idoso` ou
+  `cadastro_familiar` dá 409 (só recusar ou contestar). `convidar-familiar` e `convidar-cuidador` só com `modo_decisao` efetivo `idoso`
+  e respondem 201 igual com ou sem conta ou vínculo (sem oráculo); o convite ao cuidador cria `Vinculo` pendente (`convite_idoso`)
+  só se há conta, aprovado em `aceitar-convite` (e-mail verificado, até 7 dias). Aprovação automática por e-mail verificado exige
+  `emailDoTokenConfere`. `PATCH /usuario/me` valida antes do Firebase, manda `emailVerified: false` ao trocar o e-mail (aceite e
+  aviso de emergência confiam nele) e recusa os `convite_idoso` pendentes.
 
 **Decisões fechadas**
 - `backend/Dockerfile` mantém `CMD ["npm", "run", "dev"]` (local); o Render usa `dockerCommand: npm start` e é o único
@@ -339,8 +321,9 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Auditoria do valor sobrescrito em edição de saúde (RNF-006): aceito como risco, sem tabela de auditoria.
 - Docs legais: `lib/documentosLegais.ts`. Aceite gravado desde 2026-10-14 (ver Segurança); sem cookie
   nem banner (2026-10-14). Dado ou storage novo: `VERSAO_DOCUMENTOS`.
-- Exclusão de registro, paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC
-  não justifica. O PDF é montado em memória, sem limite (aceito); fora de Latin-1 vira `?` (aceito).
+- Paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC não justifica; editar e excluir
+  registro de saúde, refeição e medicamento: ver histórico (2026-11-16). O PDF é montado em memória, sem limite (aceito); fora de
+  Latin-1 vira `?` (aceito).
 - Dose (5.2): sem idempotência no servidor (duplicata aceita; o frontend desabilita o botão); CHECK de
   `status_administracao` case-insensitive, só a rota barra `'ADMINISTRADO'` (aceito); histórico de remédios mostra só
   ids de autor (aceito).
@@ -355,25 +338,22 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   `'familiar'` (via resolver). Sem idempotência nem checagem de sobreposição (aceito).
 - Agenda (6.3): todos veem os 3 tipos, sem filtro (aceito). Fuso fixo `America/Sao_Paulo` via `Intl` com `timeZone`
   explícito, nunca o do navegador. Evento aparece uma vez, no dia do início; passados em `<details>` fechado.
-- Agenda (6.2, delegação de 2026-10-04): cuidador cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda`
-  segue 403), exigindo `tipo_vinculo` e `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito);
-  nunca chama `resolverModoDecisao`. `pessoal`/`medico` pelo cuidador: 403; idoso e familiar não criam `cuidado` (403).
-  Sem a flag, corpo inválido dá 403 (ordem das checagens e erros 400 no histórico). Campos e limites do 6.1.
+- Agenda (6.2, delegação de 2026-10-04): cuidador cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda` segue 403),
+  com `tipo_vinculo` e `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito), sem `resolverModoDecisao`.
+  `pessoal`/`medico` pelo cuidador: 403; idoso e familiar não criam `cuidado` (403). Sem a flag, corpo inválido dá 403. Campos do 6.1.
 - Frontend (2026-10-09): Home, `/avisos` e `/configuracoes` (detalhes no histórico). Nunca "faltam doses" nem atraso (sem
-  horário estruturado, sem aviso de dose); `AcessoProvider` expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso);
+  horário estruturado); `AcessoProvider` expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso);
   `lib/preferencias.ts` usa as mesmas chaves do script de `index.html`, com storage em try/catch.
-- Item 9.3 (revisto em 2026-10-14): CI roda `npm audit --omit=dev` (backend `low`, frontend `critical`, sem `|| true`);
-  dev só aceito. `@grpc/grpc-js` (4 altos via firebase) aceito: fora do bundle, corrigir exige rebaixar o firebase.
-- Item 9.4 (D1 a D9, fechadas): o item só vai a ✅ com o CI remoto verde num push em `development`; código de produção só muda se
-  um teste novo provar furo real de autorização (RED, correção mínima, commit `fix(auth):` separado); testes com Prisma mockado (não
-  prova o filtro do SQL Server real, aceito); limiares de cobertura = floor(medido) menos 1 (valores em `backend/jest.config.js`,
-  metas mínimas em `infra/ciAutorizacao.test.ts`); mutação local vale como RED em teste de caracterização. Resto: histórico ("Trechos movidos").
+- Item 9.3 (2026-10-14): CI roda `npm audit --omit=dev` (backend `low`, frontend `critical`, sem `|| true`); dev só aceito.
+  `@grpc/grpc-js` (4 altos via firebase) aceito: fora do bundle, corrigir exige rebaixar o firebase.
+- Item 9.4 (D1 a D9, fechadas): código de produção só muda se um teste novo provar furo real de autorização (RED, correção mínima,
+  commit `fix(auth):` separado); testes com Prisma mockado (não prova o filtro do SQL Server real, aceito); limiares de cobertura =
+  floor(medido) menos 1 (`backend/jest.config.js`, metas em `infra/ciAutorizacao.test.ts`). Resto: histórico ("Trechos movidos").
 
-- Frontend (2026-10-08, decisões do grupo): menu por perfil: idoso vê tudo; cuidador ou familiar sem vínculo aprovado vê só Início,
-  Meu Perfil, a lista do seu tipo, Orientações e Sobre nós; Saúde, Medicamentos, Agenda e Alimentação exigem ao menos 1 vínculo
-  aprovado (`RotaComVinculo`); cuidador não vê Família. Falha ao carregar perfil ou vínculos falha aberto com aviso (a barreira real
-  é o 403). Rotas protegidas aninhadas em `LayoutAutenticado`: páginas sem `<main>` próprio nem botão que saia do site.
-  Resto: histórico ("Trechos movidos").
+- Frontend (2026-10-08, decisões do grupo): menu por perfil (cuidador ou familiar sem vínculo aprovado vê só Início, Meu Perfil, a
+  lista do seu tipo, Orientações e Sobre nós; cuidador não vê Família); Saúde, Medicamentos, Agenda e Alimentação exigem ao menos
+  1 vínculo aprovado (`RotaComVinculo`); falha ao carregar perfil ou vínculos falha aberto com aviso (a barreira real é o 403).
+  Rotas protegidas em `LayoutAutenticado` (sem `<main>` próprio). Resto: histórico ("Trechos movidos").
 - Frontend (2026-10-19, decisões do grupo): `/orientacoes` pública (logado na moldura autenticada, visitante com `SobreHeader` e
   `Footer`); "Sobre nós" na sidebar de todos os perfis. Resto: histórico ("Trechos movidos").
 
@@ -383,6 +363,9 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - 6.1 a 6.3 agenda (`routes/agenda.ts`, `lib/agendaPorDia.ts`; regras de ator acima). Teste de fuso por subprocesso
   `node` com `TZ` real (Node 22.18 ou superior; `process.env.TZ` no Jest é cópia e não vale).
 - 7.1 e 7.2 alimentação (RF-018, RF-019): `routes/alimentacao.ts`; mesmas regras de ator de medicamento (ver Segurança); `descricao` é dado sensível.
+- Fase 11 (11.1, 2026-11-16), 10 rotas de editar e excluir, exclusão física, sem migration: saúde `DELETE` (autoridade de
+  `podeEditarSaude`); alimentação e medicamento `PATCH` e `DELETE` (autoridade de CRIAR: cuidador nunca); excluir medicamento apaga as
+  doses na mesma transação. Detalhes: histórico ("Fase 11").
 - 8.1, 8.2 e 9.1 a 9.4: resumos no histórico ("Resumo dos itens implementados movido do CLAUDE.md", 2026-10-14).
 - Os `backend/scripts/verify-rotas-*.ts` NÃO revertem por transação (rota, Prisma e banco reais, só o token Firebase é
   substituído): limpam por sentinela no `finally` e recusam rodar fora de `localhost`; `firebase_uid` com prefixo

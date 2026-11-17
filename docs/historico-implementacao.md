@@ -3005,3 +3005,108 @@ que o botão de edição não contém ícone.
 
 Validação: teste direcionado primeiro falhou antes da alteração; depois `npm test -- --runInBand src/pages/Saude.test.tsx` passou (24/24),
 `npm run build` passou e `npm run lint` passou. O build ainda exibe o aviso existente sobre chunks acima de 500 kB.
+
+## Fase 11, item 11.1: editar e excluir registro de saúde, refeição e medicamento (backend, 2026-11-16)
+
+O grupo reverteu, só para edição e exclusão, a decisão "exclusão de registro, paginação e filtros dos históricos: fora do escopo".
+Paginação e filtros seguem fora. Este item entrega só as rotas (backend); a Parte 2 (item 11.2, frontend, botões Editar e Remover nas
+telas de Saúde, Alimentação e Medicamentos) é outra tarefa. Exclusão física (DELETE real), sem migration, sem mudança em
+`schema.prisma` e sem dependência nova.
+
+**Rotas novas (10)**, todas com `requireAuth`, 204 sem corpo no DELETE e 200 com o objeto serializado no PATCH:
+
+| Rota | Quem pode | Ordem de erros |
+|---|---|---|
+| `DELETE /saude/:id` | idoso, só o próprio registro | 401, 400 (id), 404, 204 |
+| `DELETE /saude/idoso/:idosoId/:id` | mesma regra de `podeEditarSaude` (cuidador: só registro que ele criou e só com `permite_registrar_saude`; familiar: `modo_decisao` efetivo `familiar`) | 401, 400 (idosoId), 403 (vínculo), 400 (id), 404, 403 (ator), 204 |
+| `PATCH` e `DELETE /alimentacao/:id` | idoso, só o próprio | 401, 400 (id), 404, 400 (corpo, só PATCH), 200 ou 204 |
+| `PATCH` e `DELETE /alimentacao/idoso/:idosoId/:id` | a mesma de criar: familiar com `tipo_vinculo` e `tipo_perfil` `familiar` e `modo_decisao` efetivo `familiar`; cuidador nunca | 401, 400, 403 (vínculo), 400 (id), 404, 403 (ator), 400 (corpo, só PATCH), 200 ou 204 |
+| `PATCH` e `DELETE /remedios/:medicamentoId` | idoso, só o próprio | igual a `/alimentacao/:id` |
+| `PATCH` e `DELETE /remedios/idoso/:idosoId/:medicamentoId` | a mesma de criar (cuidador nunca) | igual a `/alimentacao/idoso/:idosoId/:id` |
+
+**Decisões D1 a D10 (fechadas pelo grupo, prompt de 2026-11-16):** D1 sem migration e exclusão física; D2 as 10 rotas acima; D3 a
+autoridade de excluir saúde é a mesma função `podeEditarSaude` da edição, sem regra copiada; D4 editar e excluir alimentação e
+medicamento têm a autoridade de CRIAR, com o cuidador barrado antes do resolver (o resolver nunca é chamado para ele); D5 a ordem de
+erros copiada do PATCH de saúde, com 403 genérico de mensagem fixa que nunca cita flag, `modo_decisao` nem o valor enviado; D6 edição
+parcial (campo ausente mantém, `null` limpa só `data_fim` e `observacoes` do medicamento), com o corpo completo montado a partir do
+registro e revalidado pelo validador do POST (`validarCorpoRefeicao`, `validarCorpoMedicamento`), então regras e mensagens são as do POST,
+`editado_por_id` sempre `req.usuarioId` e `idoso_id`, `registrado_por_id`, `criado_por_id` e `ativo` fora do update; D7 excluir
+medicamento apaga as doses dele, numa única `prisma.$transaction` (doses primeiro); D8 sem editar nem excluir evento da agenda e sem
+idempotência (DELETE repetido dá 404); D9 sem limitador novo e sem entrar em `revogacao` (regra vigente: nunca em saúde, remédio nem
+alimentação), com `autorizacaoRotas.test.ts` atualizado; D10 sem `console.*`, log ou erro com valor de saúde, descrição de refeição ou
+nome de medicamento, e `try/catch` com `next(e)` em todo handler.
+
+**Implementação.** `saude.ts`: `DELETE` reaproveita `podeEditarSaude` e `parseIdRegistro` (agora exportada). `alimentacao.ts`: nova
+`familiarPodeEscrever(vinculo, usuarioId)`, usada também pelo `POST /alimentacao/idoso/:idosoId` (a regra de criar e as de editar e
+excluir são a mesma função, sem risco de divergir). `remedios.ts`: idem com `familiarPodeGerirMedicamento`, também no POST do 5.1. Nas
+rotas novas de alimentação e medicamento o registro é buscado com `where: { id, idoso_id }` (o idoso do token ou do vínculo), então
+inexistente e de outro idoso dão o mesmo 404; o DELETE leva `idoso_id` no `where` e `count` 0 vira 404 (apagado entre a leitura e o
+delete, em vez de 500). Excluir medicamento: `$transaction(async (tx) => { tx.registroDoseMedicamento.deleteMany({ medicamento_id }); tx.medicamento.deleteMany({ id, idoso_id }) })`.
+
+**Testes (TDD, RED visto antes de cada implementação).** Novos: `saudeExclusao.test.ts` (46; RED 41 de 46, o resto passava por
+asserção de 404), `alimentacaoEdicaoExclusao.test.ts` (142; RED 136 de 142), `remediosEdicaoExclusao.test.ts` (111; RED 105 de 111);
+`autorizacaoRotas.test.ts` passou de 593 para 786 (RED: o inventário `ROTAS_ESPERADAS` falhou sozinho por rota nova sem
+classificação), com as 10 rotas como `registro_por_id`, `statusOk` 204 para DELETE, fixtures de refeição e de um segundo medicamento e o
+bloco F estendido (404 uniforme, 404 antes do 403 de ator, cuidador criador de saúde). Cobrem, entre outros: cuidador com as 8
+combinações de flags sempre 403 sem consultar o resolver; familiar com `modo_decisao` `idoso` e `NULL` (resolver real) 403 e com
+`familiar` 200 ou 204; transferência vencida pelo resolver real (em `autorizacaoRotas.test.ts`); edição parcial; `null` limpando só
+campos opcionais; mesmos casos do POST (`CASOS_201`, `CASOS_400`); campos forjados ignorados; `data_fim` antes de `data_inicio` dá 400;
+excluir medicamento com a transação provada por fake que lança na segunda operação (as doses voltam, 500 genérico); medicamento de
+outro idoso dá 404 e as doses dele permanecem; privacidade com 5 tipos de erro (404, 403, 400, 204 e erro do Prisma) sem o valor em
+corpo nem em `console.*`.
+
+**Mutação local (etapa 4):** 49 mutações em `saude.ts`, `alimentacao.ts` e `remedios.ts` (autoridade de ator, `tipo_vinculo` e
+`tipo_perfil`, resolver, `idoso_id` no `where`, 404 colapsado, `count` 0, 204, id sem validação, corpo espalhado no update, autoria,
+edição parcial, corpo vazio, apagar as doses, ordem das operações e transação). As 49 derrubaram pelo menos um teste. A primeira rodada
+teve 7 resultados inválidos do próprio runner (fim de linha CRLF nos trechos de várias linhas em 5 mutações, uma ocorrência errada em
+`saude.ts` e um erro de TypeScript que impedia a execução), todos refeitos até derrubarem por asserção. No `DELETE /saude/:id` a guarda
+de dono é dupla de propósito (o `if` e o `idoso_id` no `where` do delete): foram mutadas separadas e juntas, e as três variantes
+são derrubadas.
+
+**Banco real local (etapa 5).** SQL Server do `docker-compose.yml` (`localhost:14330`, `DATABASE_URL` só no comando, 9 migrations já
+aplicadas, nada rodado no Azure). `scripts/verify-rotas-edicao-exclusao.ts` (novo): 31/31 PASS, cobre `DELETE /saude`, `PATCH` e
+`DELETE /remedios` com as FKs reais, incluindo que excluir um medicamento apaga as doses dele e preserva a dose de outro idoso.
+`scripts/verify-rotas-alimentacao.ts` estendido com editar e excluir: 35/35 PASS (eram 24). Os dois confirmam `COUNT(*)` de
+`RegistroSaude`, `Medicamento`, `RegistroDoseMedicamento`, `RegistroAlimentar`, `Usuario` e `Vinculo` iguais antes e depois, nenhuma
+conta `verify-*` residual e 0 ocorrência da sentinela em stdout e stderr (a captura vale para o processo todo, inclusive o
+`errorHandler` e o Prisma). Os scripts, como os outros `verify-rotas-*.ts`, não revertem por transação: limpam por sentinela no `finally`
+e recusam rodar fora de `localhost`.
+
+**Verificação final (etapa 7).** `npm run lint` e `tsc --noEmit` sem erro. `npm test`: 77 suítes, 4045 testes, 4044 passando; a única
+falha é `src/lib/sondaHttp.test.ts` (o Node recusa `servername` com endereço IP no teste de aperto de mão TLS), que não tem relação
+com esta mudança e já falhava antes (registrada no PR #231). `npm run test:coverage`: `routes/` 97,4 de instruções, 96,01 de ramos, 100
+de funções e 98,18 de linhas; `middleware/` 100 em tudo; os limiares do `jest.config.js` (95, 92, 99, 96 e 99) seguem atendidos e a
+cobertura subiu em relação aos 96,44, 93,71, 100 e 97,04 medidos no item 9.4. Rotas do app: 49 para 59 (`ROTAS_ESPERADAS`).
+
+**Limitações aceitas:** sem idempotência (DELETE repetido dá 404); sem auditoria do valor sobrescrito na edição (RNF-006, risco já
+aceito); o 404 vem antes do 403 de ator (como no PATCH de saúde), então um cuidador vinculado distingue "não existe" de "existe, mas
+você não pode"; ele já lê todos os registros do idoso, então nada novo vaza; excluir medicamento apaga também o histórico de doses (a
+tela da Parte 2 deve avisar); sem rota de editar nem excluir evento da agenda; o cuidador não edita nem exclui medicamento nem
+refeição, com qualquer flag; `parseIdRegistro` é importada de `saude.ts` pelo `alimentacao.ts` (acoplamento entre rotas aceito para não
+criar um terceiro helper idêntico). As telas ainda não chamam as rotas novas (item 11.2).
+
+**Trechos movidos do CLAUDE.md (2026-11-16)**, para o arquivo voltar abaixo de 30.000 bytes. Textos originais:
+
+- Telas de vínculo (`components/Vinculos/`, regras em `regrasVinculo.ts`): botão só para quem tem autoridade, textos fixos por
+  `status`. Aprovar origem `convite_idoso` ou `cadastro_familiar` dá 409 (só recusar ou contestar); `convidar-familiar` só com
+  `modo_decisao` efetivo `idoso`, resposta igual com ou sem conta. Resto: histórico ("Trechos movidos").
+- Convite do idoso ao cuidador (2026-10-12): `POST /vinculo/convidar-cuidador` só com `modo_decisao` efetivo `idoso`; cria `Vinculo`
+  pendente (`convite_idoso`) só se há conta de cuidador, que aprova em `aceitar-convite` (e-mail verificado, até 7 dias, e-mail do
+  token igual ao do cadastro). Convite repetido válido responde 201 igual (sem 409: seria oráculo). Riscos aceitos: sem conta
+  some em silêncio; idoso falso convida e-mail adivinhado (cuidador só recusa); sem limite de convites pendentes.
+  Resto: histórico ("Trechos movidos").
+- Sem oráculo de conta nos dois convites (`convidar-familiar` também responde 201 igual com vínculo já existente) e
+  `PATCH /usuario/me` manda `emailVerified: false` ao trocar o e-mail (o aceite e o aviso de emergência confiam nele).
+- Aprovação automática por e-mail verificado (login do familiar, `cadastrar-idoso`, aceite) exige `emailDoTokenConfere` (token
+  = cadastro). `PATCH /usuario/me` valida antes do Firebase. Riscos abertos e A6 (limite de taxa): histórico, 2026-10-12.
+- Trocar o e-mail recusa os `convite_idoso` pendentes do usuário; e-mail no `Vinculo` (migration): grupo, histórico 2026-10-12.
+- Endurecimento (2026-10-14), limites do limitador (`lib/limiteTaxa.ts`): 2000/15 min por usuário no `requireAuth`, `/auth/sync` 300 por
+  IP e 60 por uid, solicitar 20, convidar e `PATCH /usuario/me` 30, `cadastrar-idoso` 10/h.
+- Exclusão de conta (2026-10-20), detalhes condensados: apaga também os dados do idoso sem login que ele cadastrou e ficou sem vínculo
+  aprovado; anonimiza `Usuario` com nome "Conta excluída" e e-mail `excluido-<id>@excluido.invalid`; o e-mail do marcador é inválido em
+  toda entrada.
+- Foto de perfil, detalhes condensados: vaga liberada só ao fim do processamento; risco aceito: N contas seguram as vagas por até 60 s
+  por tentativa, só a foto fica indisponível.
+- Item 9.4, trechos condensados: "o item só vai a ✅ com o CI remoto verde num push em `development`" e "mutação local vale como RED em
+  teste de caracterização" (a regra de mutação local para regras de segurança segue na seção Testes).
+- Deploy: `dockerCommand: npm start` e `healthCheckPath: /health` (agora só em `render.yaml`).
