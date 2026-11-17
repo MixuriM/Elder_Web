@@ -114,7 +114,7 @@ describe('HistoricoAlimentar — carrega sozinho', () => {
     render(<HistoricoAlimentar />)
 
     expect(screen.getByRole('status')).toHaveTextContent(/carregando o histórico alimentar/i)
-    expect(await screen.findByText('Nenhuma refeição registrada.')).toBeInTheDocument()
+    expect(await screen.findByText('Nenhuma refeição registrada')).toBeInTheDocument()
   })
 
   it('erro de carga: mensagem fixa, sem ecoar o corpo', async () => {
@@ -337,7 +337,7 @@ describe('HistoricoAlimentar — remover', () => {
 
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(chamadas('DELETE').map((c) => c.url)).toEqual(['/alimentacao/7'])
-    expect(await screen.findByText('Nenhuma refeição registrada.')).toBeInTheDocument()
+    expect(await screen.findByText('Nenhuma refeição registrada')).toBeInTheDocument()
     expect(screen.getAllByRole('status').some((s) => /refeição removida/i.test(s.textContent ?? ''))).toBe(true)
   })
 
@@ -404,5 +404,39 @@ describe('HistoricoAlimentar — mensagens fixas e privacidade', () => {
     } finally {
       espioes.forEach((s) => s.mockRestore())
     }
+  })
+})
+
+describe('HistoricoAlimentar — lista vazia', () => {
+  it('com onAdicionar: cartão com título, texto e botão Registrar refeição que chama onAdicionar', async () => {
+    const user = userEvent.setup()
+    const onAdicionar = jest.fn()
+    registros = []
+    render(<HistoricoAlimentar onAdicionar={onAdicionar} />)
+
+    const titulo = await screen.findByText('Nenhuma refeição registrada')
+    const cartao = titulo.closest('section') as HTMLElement
+    expect(cartao).toHaveAttribute('role', 'status')
+    expect(within(cartao).getByText(/registre a primeira refeição/i)).toBeInTheDocument()
+
+    await user.click(within(cartao).getByRole('button', { name: 'Registrar refeição' }))
+
+    expect(onAdicionar).toHaveBeenCalledTimes(1)
+  })
+
+  it('sem onAdicionar (cuidador): sem botão e com texto de leitura', async () => {
+    registros = []
+    render(<HistoricoAlimentar />)
+
+    await screen.findByText('Nenhuma refeição registrada')
+    expect(screen.queryByRole('button', { name: 'Registrar refeição' })).not.toBeInTheDocument()
+    expect(screen.getByText(/quando uma refeição for registrada/i)).toBeInTheDocument()
+  })
+
+  it('com registros não mostra o cartão de lista vazia', async () => {
+    render(<HistoricoAlimentar onAdicionar={jest.fn()} />)
+
+    await screen.findByText('Almoço')
+    expect(screen.queryByText('Nenhuma refeição registrada')).not.toBeInTheDocument()
   })
 })
