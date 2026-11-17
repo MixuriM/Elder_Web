@@ -3164,3 +3164,65 @@ layout dos modais novos seguem sem auditoria visual. Nenhuma conta foi criada no
 
 **Limitações aceitas.** Agenda continua sem editar nem remover evento (sem rota no backend). Cuidador não edita nem remove o registro de
 saúde de outra pessoa. Sem paginação e sem idempotência (aceitos na 11.1).
+
+## Fase 11, item 11.3: registrar em modal, editar e remover compromisso, ajustes de tela (backend e frontend, 2026-11-17)
+
+Pedido do Marcos depois da 11.2 (que já estava na `main`): (1) a rodinha do botão "Removendo..." estava deformada; (2) o registro
+de refeição e o de leitura de saúde viram botão que abre modal, e a tela fica só com o histórico; (3) botões Editar e Remover num
+compromisso da agenda; (4) o `#id` some do histórico de saúde; (5) saúde e alimentação sem registro mostram o mesmo cartão vazio de
+Medicamentos. Este item mexe no backend (decisão do Marcos): o item 3 precisa de rotas, que a Parte 1 não criou.
+
+**Backend (agenda, 4 rotas novas, 59 para 63 em `ROTAS_ESPERADAS`, sem migration).** `PATCH` e `DELETE` em `/agenda/:id` (idoso) e em
+`/agenda/idoso/:idosoId/:id` (vínculo). Autoridade = a de CRIAR (itens 6.1 e 6.2): idoso e familiar (`tipo_vinculo` E `tipo_perfil`
+`familiar` E `modo_decisao` efetivo `familiar`, via resolver) só mexem em `pessoal` e `medico`; cuidador só em `cuidado`, com
+`permite_criar_evento_cuidado === true` e só no que ele mesmo criou (como na edição de saúde); o resolver nunca é chamado para ele.
+Ordem: 401, 400 (id), 404 (compromisso buscado com o idoso alvo no `where`: inexistente e de outro idoso dão o mesmo 404), 403 (ator,
+flag, autoria ou tipo), 400 (corpo, só PATCH), 200 ou 204. Edição parcial (campo ausente mantém; `null` limpa só `descricao` e
+`data_hora_fim`), revalidada por `validarCorpoEvento`; o 403 de tipo usa a mensagem de editar. Mensagens fixas, nenhum `console.*`.
+Exclusão física, sem idempotência. **Limitação aceita:** idoso e familiar não mexem em compromisso de cuidado criado pelo cuidador
+(a regra de criar já era essa).
+
+**Testes do backend (TDD, RED visto: 41 de 46).** Novo `agendaEdicaoExclusao.test.ts` (47) e `autorizacaoRotas.test.ts` com as 4
+rotas no inventário (866). Mutação local, 15 mutações em `agenda.ts` (autoria do cuidador, flag, tipo cuidado, resolver ignorado,
+`idoso_id` no `where`, `count` 0, `editado_por_id` do corpo, corpo vazio, 403 de tipo, ordem 404 e 403, checagem de cuidado do idoso):
+as 15 derrubaram teste; 3 passaram na primeira rodada e ganharam teste (403 antes da validação do corpo) ou foram reescritas (as
+mutações de `deleteMany` e `count` tinham texto errado e davam 0 testes). Backend inteiro: 78 suítes, 4172 testes, a única falha é
+`sondaHttp.test.ts` (já conhecida, o Node recusa `servername` com IP); cobertura sem violar os limiares.
+
+**Frontend.** (1) `Spinner` ganhou `shrink-0` (dentro de botão flex ele encolhia na largura e ficava oval) e a prop `pequeno` (20 px),
+usada nos 5 botões de modal. (2) `ModalRegistrarSaude` (idoso registra a própria leitura; familiar e cuidador escolhem o idoso dentro
+do modal) e `ModalRegistrarRefeicao` substituem `RegistrarMinhaSaude`, `RegistrarSaudeIdoso` e o formulário da tela de Alimentação;
+cada página ganhou um botão "Registrar leitura" ou "Registrar refeição" no cabeçalho, aviso de sucesso em `role=status` e recarga do
+histórico por contador de versão. Quem vê o botão: o mesmo de antes (cuidador nunca registra refeição; em saúde, só com a permissão).
+(3) Agenda: `CartaoCompromisso` mostra Editar e Remover pelo contexto `AcoesCompromissoContext` (o cartão está na lista, no painel do
+dia e na visão Dia); `podeAlterarCompromisso` (em `regrasAgenda.ts`) decide; `ModalCriarCompromisso` ganhou o modo edição
+(`compromisso`), com PATCH e `null` nos opcionais em branco; remover usa `ModalConfirmar`. O nome do botão vem do texto da tela
+(`aria-labelledby` com o título), nunca de `aria-label` nem `title`, porque o título pode ter dado de saúde (RNF-001). (4) O `#id`
+saiu do cartão de saúde. (5) Novo `common/EstadoVazio.tsx` (cartão tracejado de Medicamentos) em saúde ("Nenhum registro de saúde")
+e alimentação ("Nenhuma refeição registrada"), com o botão de registrar quando a pessoa pode, e texto de leitura quando não pode.
+Achados do `test:responsivo`: o texto das observações e o valor grande de saúde vazavam a caixa em 320 e 360 px (`overflow-wrap:
+anywhere`, `whitespace-pre-line`), e os botões Editar e Remover estouravam em 320 px com texto muito grande (agora empilham em
+coluna e ocupam a largura toda no celular).
+
+**Testes do frontend.** 126 suítes, 1506 testes; `lint`, `tsc` e `build` sem erro. Novos: `ModalRegistrarSaude` 12,
+`ModalRegistrarRefeicao` 28, mais casos em `HistoricoSaude` (+3), `HistoricoAlimentar` (+3), `regrasAgenda` (+4), `Agenda` (+13),
+`Agenda.acessibilidade` (+3), `ModalConfirmar` (+1). Reescritos: `Saude`, `Saude.acessibilidade`, `Saude.integracao`, `Alimentacao`,
+`Alimentacao.acessibilidade`, `secoesPorPerfil`. E2E: o `acessibilidade-autenticadas.spec.ts` agora audita os modais de registrar
+abertos (contraste claro e escuro) e o `responsivo.spec.ts` captura os modais novos.
+
+**Verificação do Lote G (feita nesta tarefa, SQL Server local em `localhost:14330`, sem tocar o Azure).** `npm run test:a11y`: 17
+testes passando (inclui o autenticado dos 3 perfis); o spec com os 4 modais abertos também passou, só com `incomplete` do axe em
+gradiente. `npm run test:responsivo`: o autenticado passou depois dos ajustes acima; os testes de telas públicas (`/`, `/sobre-nos`,
+`/orientacoes`, `/privacidade`, `/termos`, `/cookies`) seguem falhando em texto pequeno, alvo pequeno e estouro, em páginas que este
+trabalho não tocou (não foi comparado com a `main` antes). Capturas conferidas a olho: Saúde em 360 escuro, Alimentação em 768 claro
+e 1440 escuro, Agenda lista em 1440 escuro e o modal de registrar saúde em 360 escuro. Contas criadas no Firebase: cerca de 22
+(`e2e-*@e2e.elderweb.test`), a limpar com `scripts/limpar-contas-e2e.ts`.
+
+**Trechos movidos do CLAUDE.md (2026-11-17)**, para o arquivo ficar com folga abaixo de 30.000 bytes. Textos originais:
+
+- Dose (5.2): sem idempotência no servidor (duplicata aceita; o frontend desabilita o botão); CHECK de
+  `status_administracao` case-insensitive, só a rota barra `'ADMINISTRADO'` (aceito); histórico de remédios mostra só
+  ids de autor (aceito).
+- `modo_decisao` NULL de idosos autocadastrados antes da mudança: sem backfill (o resolver trata `NULL` como `'idoso'`;
+  o backfill tocaria o Azure sem ganho).
+- Foto do Google não é semeada no anexo do item 3.3; a foto vem só do upload no perfil.

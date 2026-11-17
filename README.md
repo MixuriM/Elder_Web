@@ -269,9 +269,9 @@ Para o público idoso, acessibilidade é requisito central, não acabamento.
 
 | Comando | O que cobre | Onde roda | Pré-requisitos |
 |---|---|---|---|
-| `npm test` em `backend/` | 77 suítes e 4045 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
+| `npm test` em `backend/` | 78 suítes e 4172 testes (Jest, Prisma e Firebase simulados) | Local | Nenhum |
 | `npm run test:coverage` em `backend/` | Os mesmos testes, com limiares de cobertura | CI | Nenhum |
-| `npm test` em `frontend/` | 114 suítes e 1374 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
+| `npm test` em `frontend/` | 126 suítes e 1506 testes (Jest, Testing Library, jest-axe) | CI | Nenhum |
 | `npm audit --omit=dev` | Avisos de segurança nas dependências de produção (backend a partir de `low`, frontend a partir de `critical`) | CI | Nenhum |
 | `npm run lint` | ESLint | CI | Nenhum |
 | `npm run build` | `tsc` no backend; `tsc -b` e Vite no frontend | CI | Nenhum |
@@ -305,7 +305,7 @@ As migrations não rodam no deploy. Elas são aplicadas à mão, de uma máquina
 ## API
 
 <details>
-<summary>59 rotas classificadas (lista oficial em <code>ROTAS_ESPERADAS</code>)</summary>
+<summary>63 rotas classificadas (lista oficial em <code>ROTAS_ESPERADAS</code>)</summary>
 
 A lista completa, com o perfil e a regra de ator de cada rota, está em `ROTAS_ESPERADAS`, em `backend/src/routes/autorizacaoRotas.test.ts`. Rotas com `:idosoId` exigem vínculo aprovado do usuário com aquele idoso.
 
@@ -320,7 +320,7 @@ A lista completa, com o perfil e a regra de ator de cada rota, está em `ROTAS_E
 | Remédios | `POST` e `GET /remedios`, `PATCH` e `DELETE /remedios/:medicamentoId`, `POST /remedios/:medicamentoId/doses` | Só o idoso |
 | Remédios de um idoso | `GET` e `POST /remedios/idoso/:idosoId`, `PATCH` e `DELETE /remedios/idoso/:idosoId/:medicamentoId`, `POST /remedios/idoso/:idosoId/:medicamentoId/doses` | Vínculo aprovado; escrita conforme permissões |
 | Histórico em PDF | `GET /historico/pdf`, `GET /historico/idoso/:idosoId/pdf` | Idoso; vínculo aprovado |
-| Agenda | `POST` e `GET /agenda`, `POST` e `GET /agenda/idoso/:idosoId` | Idoso; vínculo aprovado |
+| Agenda | `POST`, `GET`, `PATCH` e `DELETE /agenda`, `POST`, `GET`, `PATCH` e `DELETE /agenda/idoso/:idosoId` (o `PATCH` e o `DELETE` levam o id do compromisso) | Idoso; vínculo aprovado |
 | Alimentação | `POST` e `GET /alimentacao`, `PATCH` e `DELETE /alimentacao/:id`, `POST` e `GET /alimentacao/idoso/:idosoId`, `PATCH` e `DELETE /alimentacao/idoso/:idosoId/:id` | Idoso; vínculo aprovado |
 | Emergência | `POST /emergencia/avisar` | Só o idoso |
 | Demonstração | `GET /demo/estado`, `POST /demo/entrar-como`, `POST /demo/restaurar` | Token do Firebase de administrador; 404 com o modo desligado |

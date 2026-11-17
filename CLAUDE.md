@@ -297,7 +297,7 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 **Pendências manuais (Marcos)**
 - Avisar Laureane e Jennifer: PDF do histórico (5.4); cores (PR #143); layout e
   revisão visual (2026-10-08); rodada de 2026-10-09 (Home, `Header`, `/avisos`, `/configuracoes`, landing); calendário
-  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20); rotas de editar e excluir (Fase 11, 2026-11-16); telas de editar e remover (Fase 11.2).
+  da Agenda; botão de emergência; confirmação de e-mail; foto de perfil (`FormularioPerfil`, 2026-10-10); exclusão de conta (Perfil, Privacidade, Termos, 2026-10-20); rotas de editar e excluir (Fase 11, 2026-11-16); telas de registrar, editar e remover (Fase 11.2 e 11.3).
 - Azure: usuário da aplicação só com `db_datareader` e `db_datawriter` na `DATABASE_URL` do Render (admin só migra).
 - Render (9.2): Secret Files e grupos de ambiente vinculados do `elder-web-backend` ainda não vistos.
 - Emergência: domínio próprio com SPF e DKIM; numerar o RF novo;
@@ -319,12 +319,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
 - Paginação e filtros dos históricos (saúde, remédios, PDF): fora do escopo; volume do TCC não justifica; editar e excluir
   registro de saúde, refeição e medicamento: ver histórico (2026-11-16). O PDF é montado em memória, sem limite (aceito); fora de
   Latin-1 vira `?` (aceito).
-- Dose (5.2): sem idempotência no servidor (duplicata aceita; o frontend desabilita o botão); CHECK de
-  `status_administracao` case-insensitive, só a rota barra `'ADMINISTRADO'` (aceito); histórico de remédios mostra só
-  ids de autor (aceito).
-- `modo_decisao` NULL de idosos autocadastrados antes da mudança: sem backfill (o resolver trata `NULL` como `'idoso'`;
-  o backfill tocaria o Azure sem ganho).
-- Foto do Google não é semeada no anexo do item 3.3; a foto vem só do upload no perfil.
+- Riscos aceitos de dose (5.2), de `modo_decisao` NULL sem backfill (o resolver trata `NULL` como `'idoso'`) e da foto do Google
+  (não semeada no anexo do item 3.3): texto original no histórico ("Trechos movidos", 2026-11-17).
 - Risco de colisão de e-mail entre contas: tratado no código, `/auth/sync` responde 409 (`CONFLITO_EMAIL`, item
   3.2) quando o e-mail já está em uso. Registrar isso no `Elder Web - Modelagem ER.md` fica com o Marcos.
 - JSON malformado e corpo acima do limite: 400 e 413 fixos no `errorHandler` (sem eco nem log). `nome` em branco em
@@ -334,7 +330,8 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   do início; passados em `<details>` fechado. Familiar só cria evento com `modo_decisao` efetivo `'familiar'` (via resolver). Cuidador
   (delegação de 2026-10-04) cria só `cuidado`, por `POST /agenda/idoso/:idosoId` (`POST /agenda` segue 403), com `tipo_vinculo` e
   `tipo_perfil` `'cuidador'` e `permite_criar_evento_cuidado === true` (estrito), sem `resolverModoDecisao`; `pessoal`/`medico` pelo
-  cuidador e `cuidado` por idoso ou familiar: 403; sem a flag, corpo inválido também dá 403.
+  cuidador e `cuidado` por idoso ou familiar: 403; sem a flag, corpo inválido também dá 403. Fase 11.3: `PATCH` e `DELETE` em
+  `/agenda/:id` e `/agenda/idoso/:idosoId/:id`, com a autoridade de criar; cuidador só no `cuidado` que ele criou; 404 antes do 403.
 - Frontend (2026-10-09): Home, `/avisos` e `/configuracoes`. Nunca "faltam doses" nem atraso (sem
   horário estruturado); `AcessoProvider` expõe `vinculos` e `modoDecisao` (a falha não bloqueia o idoso);
   `lib/preferencias.ts` usa as mesmas chaves do script de `index.html`, com storage em try/catch.
@@ -350,9 +347,10 @@ Decisões marcadas "fechada" foram tomadas por Claude sob delegação explícita
   Rotas protegidas em `LayoutAutenticado` (sem `<main>` próprio). Resto: histórico ("Trechos movidos").
 - Frontend (2026-10-19, decisões do grupo): `/orientacoes` pública (logado na moldura autenticada, visitante com `SobreHeader` e
   `Footer`); "Sobre nós" na sidebar de todos os perfis. Resto: histórico ("Trechos movidos").
-- Frontend (2026-11-17, Fase 11.2): `ModalBase` e `ModalConfirmar` servem a editar, remover e "Criar compromisso". Editar e Remover (`lib/permissoesEdicao.ts`; falha abre, 403 vira mensagem fixa): idoso sempre;
-  familiar só com `decisao.modo === 'familiar'` do vínculo daquele idoso (`modoDecisao` do contexto é o do próprio usuário); cuidador
-  só em saúde, com a flag e no registro que criou; o botão "Criar compromisso" do cuidador exige `permite_criar_evento_cuidado`.
+- Frontend (2026-11-17, Fase 11.2 e 11.3): `ModalBase` e `ModalConfirmar` servem a registrar, editar, remover e "Criar compromisso"; a
+  tela mostra só o histórico, com o botão que abre o modal de registrar. Editar e Remover (`lib/permissoesEdicao.ts` e `regrasAgenda.ts`;
+  falha abre, 403 vira mensagem fixa): idoso sempre; familiar só com `decisao.modo === 'familiar'` do vínculo daquele idoso; cuidador só em saúde, com a flag e no registro que criou, e na agenda só no `cuidado` que criou, com
+  `permite_criar_evento_cuidado`. Id de registro nunca na tela.
 
 **Itens implementados (resumo; detalhes, PRs e hashes no histórico)**
 - 5.2 a 5.4 (dose, histórico de remédios, PDF): leituras com vínculo aprovado basta. PDF montado inteiro em memória
