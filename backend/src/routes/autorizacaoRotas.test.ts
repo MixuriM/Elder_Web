@@ -43,6 +43,9 @@ const REGISTRO_A = 1; // do idoso A, registrado pelo CUIDADOR
 const REGISTRO_B = 2; // do idoso B
 const REGISTRO_INEXISTENTE = 999;
 const MEDICAMENTO_A = 1; // do idoso A, ativo
+const MEDICAMENTO_B = 2; // do idoso B, ativo
+const REFEICAO_A = 1; // refeição do idoso A
+const REFEICAO_B = 2; // refeição do idoso B
 const MSG_VINCULO = "Vínculo aprovado não encontrado para este idoso.";
 
 type Categoria = "publica" | "token_proprio" | "autenticada" | "vinculo" | "vinculo_flag" | "registro_por_id";
@@ -77,6 +80,9 @@ const DOSE = { status_administracao: "administrado" };
 const EVENTO = { tipo_evento: "pessoal", titulo: "Compromisso Ficticio", data_hora_inicio: "2026-10-10T12:00:00Z" };
 const EVENTO_CUIDADO = { ...EVENTO, tipo_evento: "cuidado" };
 const REFEICAO = { refeicao: "almoco", descricao: "Refeicao Ficticia", data_hora: "2026-10-10T12:00:00Z" };
+// Fase 11 (11.1): edição parcial de refeição e de medicamento.
+const EDICAO_REFEICAO = { descricao: "Refeicao Ficticia Editada" };
+const EDICAO_MEDICAMENTO = { dosagem: "20 mg" };
 
 const ROTAS_ESPERADAS: Regra[] = [
   { rota: "GET /health", categoria: "publica" },
@@ -123,6 +129,14 @@ const ROTAS_ESPERADAS: Regra[] = [
     corpo: EDICAO_SAUDE,
   },
   { rota: "GET /saude/idoso/:idosoId", categoria: "vinculo", cuidador: "leitura", familiar: "leitura" },
+  // Fase 11: excluir usa a mesma autoridade de editar (podeEditarSaude).
+  { rota: "DELETE /saude/:id", categoria: "registro_por_id" },
+  {
+    rota: "DELETE /saude/idoso/:idosoId/:id",
+    categoria: "registro_por_id",
+    cuidador: "permite_registrar_saude",
+    familiar: "modo_decisao",
+  },
 
   { rota: "POST /remedios", categoria: "autenticada", soIdoso: true, corpo: MEDICAMENTO },
   { rota: "GET /remedios", categoria: "autenticada", soIdoso: true },
@@ -142,6 +156,22 @@ const ROTAS_ESPERADAS: Regra[] = [
     corpo: DOSE,
   },
   { rota: "GET /remedios/idoso/:idosoId", categoria: "vinculo", cuidador: "leitura", familiar: "leitura" },
+  // Fase 11: editar e excluir medicamento usam a autoridade de CRIAR (cuidador nunca; familiar só com modo_decisao).
+  { rota: "PATCH /remedios/:medicamentoId", categoria: "registro_por_id", corpo: EDICAO_MEDICAMENTO },
+  { rota: "DELETE /remedios/:medicamentoId", categoria: "registro_por_id" },
+  {
+    rota: "PATCH /remedios/idoso/:idosoId/:medicamentoId",
+    categoria: "registro_por_id",
+    cuidador: "nunca",
+    familiar: "modo_decisao",
+    corpo: EDICAO_MEDICAMENTO,
+  },
+  {
+    rota: "DELETE /remedios/idoso/:idosoId/:medicamentoId",
+    categoria: "registro_por_id",
+    cuidador: "nunca",
+    familiar: "modo_decisao",
+  },
 
   { rota: "GET /historico/pdf", categoria: "autenticada", soIdoso: true },
   { rota: "GET /historico/idoso/:idosoId/pdf", categoria: "vinculo", cuidador: "leitura", familiar: "leitura" },
@@ -168,6 +198,22 @@ const ROTAS_ESPERADAS: Regra[] = [
     corpo: REFEICAO,
   },
   { rota: "GET /alimentacao/idoso/:idosoId", categoria: "vinculo", cuidador: "leitura", familiar: "leitura" },
+  // Fase 11: editar e excluir refeição usam a autoridade de CRIAR (cuidador nunca; familiar só com modo_decisao).
+  { rota: "PATCH /alimentacao/:id", categoria: "registro_por_id", corpo: EDICAO_REFEICAO },
+  { rota: "DELETE /alimentacao/:id", categoria: "registro_por_id" },
+  {
+    rota: "PATCH /alimentacao/idoso/:idosoId/:id",
+    categoria: "registro_por_id",
+    cuidador: "nunca",
+    familiar: "modo_decisao",
+    corpo: EDICAO_REFEICAO,
+  },
+  {
+    rota: "DELETE /alimentacao/idoso/:idosoId/:id",
+    categoria: "registro_por_id",
+    cuidador: "nunca",
+    familiar: "modo_decisao",
+  },
 
   // Sem vínculo no fake: o controle positivo do idoso termina em 200 sem chegar ao provedor de e-mail.
   { rota: "POST /emergencia/avisar", categoria: "autenticada", soIdoso: true, statusOk: 200 },
@@ -266,8 +312,27 @@ beforeEach(() => {
   ];
   dados.vinculo = [];
   dados.registroSaude = [registro(REGISTRO_A, IDOSO_A, CUIDADOR), registro(REGISTRO_B, IDOSO_B, CUIDADOR)];
-  dados.medicamento = [{ id: MEDICAMENTO_A, idoso_id: IDOSO_A, ativo: true, ...linhaMedicamento() }];
+  dados.medicamento = [
+    { id: MEDICAMENTO_A, idoso_id: IDOSO_A, ativo: true, ...linhaMedicamento() },
+    { id: MEDICAMENTO_B, idoso_id: IDOSO_B, ativo: true, ...linhaMedicamento() },
+  ];
+  dados.registroAlimentar = [linhaRefeicao(REFEICAO_A, IDOSO_A), linhaRefeicao(REFEICAO_B, IDOSO_B)];
 });
+
+function linhaRefeicao(id: number, idoso_id: number): Linha {
+  const t = new Date("2026-10-01T12:00:00Z");
+  return {
+    id,
+    idoso_id,
+    registrado_por_id: idoso_id,
+    refeicao: "almoco",
+    descricao: "Refeicao Ficticia",
+    data_hora: t,
+    editado_por_id: null,
+    created_at: t,
+    updated_at: t,
+  };
+}
 
 function linhaMedicamento(): Linha {
   const t = new Date("2026-10-01T00:00:00Z");
@@ -290,7 +355,7 @@ type Opcoes = { authorization?: string; idoso?: number | string; id?: number | s
 function chamar(r: Regra, o: Opcoes = {}) {
   const url = caminhoDe(r)
     .replace(":idosoId", String(o.idoso ?? IDOSO_A))
-    .replace(":medicamentoId", String(MEDICAMENTO_A))
+    .replace(":medicamentoId", String(o.id ?? MEDICAMENTO_A))
     .replace(":id", String(o.id ?? 1));
   const metodo = metodoDe(r).toLowerCase() as "get" | "post" | "patch" | "delete";
   let req = request(app)[metodo](url);
@@ -299,7 +364,7 @@ function chamar(r: Regra, o: Opcoes = {}) {
 }
 
 const bearer = (id: number) => `Bearer ${tokenDe(id)}`;
-const statusOk = (r: Regra) => r.statusOk ?? (metodoDe(r) === "POST" ? 201 : 200);
+const statusOk = (r: Regra) => r.statusOk ?? (metodoDe(r) === "POST" ? 201 : metodoDe(r) === "DELETE" ? 204 : 200);
 
 function corpoDoAtor(r: Regra, ator: "cuidador" | "familiar" | "idoso"): object | undefined {
   return ator === "cuidador" && r.corpoCuidador ? r.corpoCuidador : r.corpo;
@@ -687,5 +752,77 @@ describe("F. 404 uniforme em rotas por id de registro", () => {
     const res = await chamar(propria, { authorization: bearer(IDOSO_A), id: REGISTRO_A, corpo: EDICAO_SAUDE });
     expect(res.status).toBe(200);
     expect(escritasChamadas()).toHaveLength(1);
+  });
+
+  // Fase 11: as rotas novas por id seguem a mesma regra do PATCH de saúde. IDs: saúde (1, 2), refeição (1, 2) e medicamento (1).
+  const PROPRIAS_FASE_11 = ROTAS_ESPERADAS.filter(
+    (r) => r.categoria === "registro_por_id" && !temIdoso(r) && r.rota !== "PATCH /saude/:id",
+  );
+  const VINCULADAS_FASE_11 = ROTAS_ESPERADAS.filter(
+    (r) => r.categoria === "registro_por_id" && temIdoso(r) && r.rota !== "PATCH /saude/idoso/:idosoId/:id",
+  );
+  const outroDoIdoso = (r: Regra) => (r.rota.includes("/remedios/") ? MEDICAMENTO_B : r.rota.includes("/alimentacao/") ? REFEICAO_B : REGISTRO_B);
+
+  describe.each(PROPRIAS_FASE_11.map((r) => [r.rota, r] as const))("rota própria %s", (_nome, r) => {
+    it("idoso: inexistente e de outro idoso dão o mesmo 404 e o mesmo corpo, sem escrita", async () => {
+      const inexistente = await chamar(r, { authorization: bearer(IDOSO_A), id: REGISTRO_INEXISTENTE, corpo: r.corpo });
+      const doOutro = await chamar(r, { authorization: bearer(IDOSO_A), id: outroDoIdoso(r), corpo: r.corpo });
+      expect(inexistente.status).toBe(404);
+      expect(doOutro.status).toBe(404);
+      expect(doOutro.body).toEqual(inexistente.body);
+      expectSemEscrita();
+    });
+
+    it.each([
+      ["cuidador", CUIDADOR],
+      ["familiar", FAMILIAR],
+    ])("%s não alcança o registro do idoso pela rota própria: 404, sem escrita, mesmo com tudo liberado", async (_perfil, id) => {
+      definirVinculos(vinculo("cuidador", CUIDADOR, { permite_registrar_saude: true, permite_marcar_dose: true, permite_criar_evento_cuidado: true }), vinculo("familiar", FAMILIAR));
+      modoDecisaoDoIdoso("familiar");
+      const res = await chamar(r, { authorization: bearer(id), corpo: r.corpo });
+      expect(res.status).toBe(404);
+      expectSemEscrita();
+    });
+
+    it("controle positivo: o idoso passa e escreve", async () => {
+      const res = await chamar(r, { authorization: bearer(IDOSO_A), corpo: r.corpo });
+      expect(res.status).toBe(statusOk(r));
+      expect(escritasChamadas().length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe.each(VINCULADAS_FASE_11.map((r) => [r.rota, r] as const))("rota por vínculo %s", (_nome, r) => {
+    const cuidadorPode = r.cuidador !== "nunca";
+    const perfil = cuidadorPode ? "cuidador" : "familiar";
+    const id = cuidadorPode ? CUIDADOR : FAMILIAR;
+    const flag = FLAGS.includes(r.cuidador as Flag) ? { [r.cuidador as string]: true } : {};
+
+    it("ator autorizado: inexistente e de outro idoso dão o mesmo 404 e o mesmo corpo, sem escrita", async () => {
+      definirVinculos(vinculo(perfil, id, flag));
+      modoDecisaoDoIdoso("familiar");
+      const inexistente = await chamar(r, { authorization: bearer(id), id: REGISTRO_INEXISTENTE, corpo: r.corpo });
+      const doOutro = await chamar(r, { authorization: bearer(id), id: outroDoIdoso(r), corpo: r.corpo });
+      expect(inexistente.status).toBe(404);
+      expect(doOutro.status).toBe(404);
+      expect(doOutro.body).toEqual(inexistente.body);
+      expectSemEscrita();
+    });
+
+    it("o 404 vem antes do 403 de ator: sem autoridade e registro inexistente, ainda 404", async () => {
+      definirVinculos(vinculo("familiar", FAMILIAR), vinculo("cuidador", CUIDADOR));
+      modoDecisaoDoIdoso("idoso");
+      const res = await chamar(r, { authorization: bearer(cuidadorPode ? CUIDADOR : FAMILIAR), id: REGISTRO_INEXISTENTE, corpo: r.corpo });
+      expect(res.status).toBe(404);
+      expectSemEscrita();
+    });
+  });
+
+  it("cuidador com a flag só exclui registro de saúde que ele mesmo criou: de outro autor dá 403, não 404", async () => {
+    const excluir = ROTAS_ESPERADAS.find((r) => r.rota === "DELETE /saude/idoso/:idosoId/:id") as Regra;
+    dados.registroSaude = [registro(REGISTRO_A, IDOSO_A, IDOSO_A)];
+    definirVinculos(vinculo("cuidador", CUIDADOR, { permite_registrar_saude: true }));
+    const res = await chamar(excluir, { authorization: bearer(CUIDADOR), id: REGISTRO_A });
+    expect(res.status).toBe(403);
+    expectSemEscrita();
   });
 });
