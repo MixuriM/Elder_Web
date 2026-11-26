@@ -22,7 +22,7 @@
     "express": "^4.21.0",
     "firebase-admin": "^14.5.1",
     "multer": "^2.4.0",
-    "pdfkit": "^0.20.2",
+    "pdfkit": "^0.21.0",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
@@ -33,7 +33,7 @@
     "@types/node": "^22.20.5",
     "@types/pdfkit": "^0.17.7",
     "@types/supertest": "^7.2.1",
-    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/eslint-plugin": "^8.74.0",
     "@typescript-eslint/parser": "^8.5.0",
     "eslint": "^8.57.0",
     "jest": "^30.5.2",
